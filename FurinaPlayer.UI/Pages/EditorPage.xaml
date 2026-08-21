@@ -1,0 +1,350 @@
+﻿<Page
+    x:Class="FurinaPlayer.UI.Pages.EditorPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:FurinaPlayer.UI.Controls"
+    xmlns:models="using:SonicWave.Core.Models"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.KeyboardAccelerators>
+        <KeyboardAccelerator x:ConnectionId='2' Modifiers="Control" Key="Z"                             />
+        <KeyboardAccelerator x:ConnectionId='3' Modifiers="Control" Key="Y"                             />
+    </Page.KeyboardAccelerators>
+
+    <Grid RowSpacing="12" Padding="20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- 工具栏 -->
+        <StackPanel Orientation="Horizontal" Spacing="6">
+            <Button x:ConnectionId='53'                     Style="{StaticResource AccentButtonStyle}">
+                <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8E5;" FontSize="14" /><TextBlock Text="音频编辑" /></StackPanel>
+            </Button>
+            <Button x:ConnectionId='54'                            ToolTipService.ToolTip="自动导入当前正在播放的曲目">
+                <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8D6;" FontSize="14" /><TextBlock Text="载入当前播放" /></StackPanel>
+            </Button>
+            <Button x:ConnectionId='55'                     IsEnabled="{Binding CanUndo, Mode=OneWay}" ToolTipService.ToolTip="撤销 (Ctrl+Z)">
+                <FontIcon Glyph="&#xE7A7;" FontSize="14" />
+            </Button>
+            <Button x:ConnectionId='56'                     IsEnabled="{Binding CanRedo, Mode=OneWay}" ToolTipService.ToolTip="重做 (Ctrl+Y)">
+                <FontIcon Glyph="&#xE7A6;" FontSize="14" />
+            </Button>
+            <Border Width="1" Height="20" Margin="2,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+            <Button x:ConnectionId='57'                     Content="剪辑选区" />
+            <Button x:ConnectionId='58'                    Content="删除选区" />
+            <Button x:ConnectionId='59'                     Content="淡入淡出" />
+            <Button x:ConnectionId='60'                          Content="标准化" />
+            <Button x:ConnectionId='61'                    Content="应用 DSP" />
+            <Button x:ConnectionId='62'                       Content="导出 WAV" />
+            <Border Width="1" Height="20" Margin="2,0" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+            <Button x:ConnectionId='63'                            ToolTipService.ToolTip="将分析面板恢复默认位置与大小">
+                <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE72C;" FontSize="14" /><TextBlock Text="重置布局" /></StackPanel>
+            </Button>
+            <TextBlock Text="{Binding StatusText, Mode=OneWay}" VerticalAlignment="Center" Opacity="0.7" FontSize="12" Margin="8,0,0,0" />
+        </StackPanel>
+
+        <!-- 独立预览播放器（Audition 式，不干扰主播放器） -->
+        <Border Grid.Row="1" CornerRadius="10" Padding="10,6" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+            <Grid ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <FontIcon Glyph="&#xE768;" FontSize="14" Opacity="0.7" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="预览播放（独立输出，不干扰主播放器）" FontSize="12" Opacity="0.75" VerticalAlignment="Center" />
+                <Slider x:ConnectionId='49' x:Name="PreviewSlider" Grid.Column="2" Minimum="0" Maximum="1000"                                      
+                                                                                                                                                         
+                                                                                                   
+                        IsThumbToolTipEnabled="False"
+                        Width="280" VerticalAlignment="Center" />
+                <TextBlock x:ConnectionId='50' x:Name="PreviewTimeText" Grid.Column="3" FontSize="11" Opacity="0.7" VerticalAlignment="Center" MinWidth="120" TextAlignment="Center" />
+                <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button x:ConnectionId='51' x:Name="PreviewPlayButton"                            Style="{StaticResource TransportButtonStyle}" Width="40" Height="40" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTipService.ToolTip="播放/暂停预览">
+                        <FontIcon Glyph="&#xE768;" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button x:ConnectionId='52'                            Style="{StaticResource TransportButtonStyle}" Width="40" Height="40" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTipService.ToolTip="停止预览">
+                        <FontIcon Glyph="&#xE71A;" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 波形 + 选区 -->
+        <Grid Grid.Row="2" RowSpacing="6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Border Height="170" CornerRadius="10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <controls:WaveformControl x:ConnectionId='48' x:Name="Waveform" />
+            </Border>
+            <Grid Grid.Row="1" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="选区起点" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
+                    <Slider x:ConnectionId='46' x:Name="SelStartSlider" Minimum="0" Maximum="100"                                   Width="220" />
+                    <TextBlock x:ConnectionId='47' x:Name="SelStartText" VerticalAlignment="Center" FontSize="12" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="选区终点" VerticalAlignment="Center" FontSize="12" Opacity="0.7" />
+                    <Slider x:ConnectionId='44' x:Name="SelEndSlider" Minimum="0" Maximum="100"                                   Width="220" />
+                    <TextBlock x:ConnectionId='45' x:Name="SelEndText" VerticalAlignment="Center" FontSize="12" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- 自由画布：频谱/相位/信息/均衡器/效果器/淡入淡出 均可拖拽、缩放 -->
+        <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <Canvas x:ConnectionId='4' x:Name="PanelCanvas" Width="1500" Height="920" Background="Transparent">
+                <!-- 频谱分析 -->
+                <Border x:ConnectionId='5' x:Name="SpectrumPanel" Canvas.Left="16" Canvas.Top="16" Width="720" Height="250" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='40' x:Name="SpectrumHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE8A9;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="频谱分析 (FFT)" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='43' Grid.Column="2" Tag="Spectrum"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <controls:SpectrumAnalyzer x:ConnectionId='41' x:Name="Spectrum" Grid.Row="1" />
+                        <Grid x:ConnectionId='42' x:Name="SpectrumResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 相位分析 -->
+                <Border x:ConnectionId='6' x:Name="PhasePanel" Canvas.Left="752" Canvas.Top="16" Width="440" Height="250" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='36' x:Name="PhaseHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE8A9;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="相位分析 (Lissajous)" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='39' Grid.Column="2" Tag="Phase"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <controls:PhaseAnalyzerControl x:ConnectionId='37' x:Name="Phase" Grid.Row="1" />
+                        <StackPanel Grid.Row="1" VerticalAlignment="Bottom" HorizontalAlignment="Right" Spacing="1" IsHitTestVisible="False">
+                            <TextBlock Text="{Binding PhaseDifferenceText}" FontSize="11" Opacity="0.85" />
+                            <TextBlock Text="{Binding StereoCorrelationText}" FontSize="11" Opacity="0.85" />
+                        </StackPanel>
+                        <Grid x:ConnectionId='38' x:Name="PhaseResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 音频信息 -->
+                <Border x:ConnectionId='7' x:Name="InfoPanel" Canvas.Left="1208" Canvas.Top="16" Width="292" Height="250" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='32' x:Name="InfoHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE946;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="音频信息" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='35' Grid.Column="2" Tag="Info"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <StackPanel Grid.Row="1" Spacing="4">
+                            <TextBlock Text="{Binding FileName, Mode=OneWay}" FontSize="12" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding DurationText}" FontSize="12" Opacity="0.85" />
+                            <TextBlock x:ConnectionId='34' x:Name="SampleInfoText" FontSize="12" Opacity="0.85" />
+                        </StackPanel>
+                        <Grid x:ConnectionId='33' x:Name="InfoResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 均衡器 -->
+                <Border x:ConnectionId='8' x:Name="EqPanel" Canvas.Left="16" Canvas.Top="282" Width="720" Height="280" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='28' x:Name="EqHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE995;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="均衡器 10 段" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='31' Grid.Column="2" Tag="Eq"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <controls:EqualizerControl x:ConnectionId='29' x:Name="EditorEq" Grid.Row="1"                                       />
+                        <Grid x:ConnectionId='30' x:Name="EqResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 效果器 -->
+                <Border x:ConnectionId='9' x:Name="EffectsPanel" Canvas.Left="752" Canvas.Top="282" Width="440" Height="280" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='24' x:Name="EffectsHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE768;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="效果器" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='27' Grid.Column="2" Tag="Effects"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="8">
+                                <ToggleSwitch Header="空间音频" IsOn="{Binding ReverbEnabled, Mode=TwoWay}" />
+                                <ComboBox x:ConnectionId='26' x:Name="ReverbPresetCombo" Header="空间类型" SelectedIndex="0" MinWidth="130">
+                                    <ComboBoxItem Content="大厅" /><ComboBoxItem Content="板式" /><ComboBoxItem Content="房间" />
+                                    <ComboBoxItem Content="教堂" /><ComboBoxItem Content="空间" />
+                                </ComboBox>
+                                <Slider Header="空间混合" Minimum="0" Maximum="1" StepFrequency="0.05" Value="{Binding ReverbMix, Mode=TwoWay}" />
+                                <Slider Header="立体声宽度" Minimum="0" Maximum="1" StepFrequency="0.05" Value="{Binding SpatialWidth, Mode=TwoWay}" />
+                                <Slider Header="空间调制" Minimum="0" Maximum="1" StepFrequency="0.05" Value="{Binding SpatialModulation, Mode=TwoWay}" />
+                                <Slider Header="音调（半音）" Minimum="-12" Maximum="12" StepFrequency="1" Value="{Binding PitchSemitones, Mode=TwoWay}" />
+                                <Slider Header="速度" Minimum="0.5" Maximum="2.0" StepFrequency="0.05" Value="{Binding SpeedRatio, Mode=TwoWay}" />
+                            </StackPanel>
+                        </ScrollViewer>
+                        <Grid x:ConnectionId='25' x:Name="EffectsResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- 淡入淡出/标准化 -->
+                <Border x:ConnectionId='10' x:Name="FadePanel" Canvas.Left="1208" Canvas.Top="282" Width="292" Height="280" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='21' x:Name="FadeHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE9D5;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="淡入淡出 / 标准化" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='23' Grid.Column="2" Tag="Fade"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Spacing="8">
+                                <Slider Header="淡入（秒）" Minimum="0" Maximum="10" StepFrequency="0.1" Value="{Binding FadeInSeconds, Mode=TwoWay}" />
+                                <Slider Header="淡出（秒）" Minimum="0" Maximum="10" StepFrequency="0.1" Value="{Binding FadeOutSeconds, Mode=TwoWay}" />
+                                <ComboBox Header="淡入淡出曲线" SelectedIndex="0" MinWidth="130">
+                                    <ComboBoxItem Content="线性" /><ComboBoxItem Content="指数" /><ComboBoxItem Content="S 曲线" />
+                                </ComboBox>
+                                <Slider Header="标准化目标 (dBFS)" Minimum="-20" Maximum="0" StepFrequency="0.5" Value="{Binding NormalizeTargetDbfs, Mode=TwoWay}" />
+                            </StackPanel>
+                        </ScrollViewer>
+                        <Grid x:ConnectionId='22' x:Name="FadeResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+                <!-- 效果组（Audition 式 VST3 效果架）：启用插件后应用到预览播放与导出 -->
+                <Border x:ConnectionId='11' x:Name="VstPanel" Canvas.Left="16" Canvas.Top="578" Width="720" Height="300" CornerRadius="10" Padding="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid RowSpacing="4">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid x:ConnectionId='12' x:Name="VstHeader" ColumnSpacing="6" Background="Transparent"
+                              ToolTipService.ToolTip="拖动标题移动面板，点右上角编辑按钮调整大小">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE950;" FontSize="12" Opacity="0.6" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="效果组（VST3 效果架）" FontSize="12" Opacity="0.8" VerticalAlignment="Center" />
+                            <Button x:ConnectionId='20' Grid.Column="2" Tag="Vst"                          Padding="4,2" ToolTipService.ToolTip="调整面板大小">
+                                <FontIcon Glyph="&#xE70F;" FontSize="12" />
+                            </Button>
+                        </Grid>
+                        <Grid Grid.Row="1" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ListView x:ConnectionId='14' x:Name="EditorVstList" ItemsSource="{Binding Vst3Plugins}" SelectionMode="None" MaxHeight="150"
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate                                    >
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding Vendor}" FontSize="10" Opacity="0.6" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                            <ToggleSwitch x:ConnectionId='17' Grid.Column="1" IsOn="{Binding Enabled, Mode=TwoWay}"                             
+                                                          MinWidth="56" FontSize="11" Margin="6,0,0,0" />
+                                            <ToggleButton x:ConnectionId='18' Grid.Column="2" IsChecked="{Binding Bypass, Mode=TwoWay}"                           
+                                                          Padding="8,4" MinWidth="52" Margin="4,0,0,0" ToolTipService.ToolTip="旁通（临时关闭处理）">
+                                                <TextBlock Text="旁通" FontSize="11" />
+                                            </ToggleButton>
+                                            <Button x:ConnectionId='19' Grid.Column="3" Tag="{Binding}"                                Padding="8,4" MinWidth="52" Margin="4,0,0,0">
+                                                <TextBlock Text="界面" FontSize="11" />
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <StackPanel Grid.Column="1" Width="150" Spacing="4" VerticalAlignment="Center">
+                                <TextBlock Text="Audition 式效果组：启用/旁通插件后，效果经预渲染应用到预览播放与“应用 DSP”导出；与 DSP 页共用插件配置。"
+                                           FontSize="10" Opacity="0.6" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Grid.Row="2" Text="{Binding Vst3StatusText, Mode=OneWay}" Opacity="0.6" FontSize="11" TextWrapping="Wrap" />
+                        <Grid x:ConnectionId='13' x:Name="VstResizeHandle" Grid.Row="1" Width="20" Height="20" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                              Background="Transparent" ToolTipService.ToolTip="拖拽调整大小">
+                            <Path Data="M0,20 L20,0 L20,20 Z" Fill="{ThemeResource TextFillColorSecondaryBrush}" Opacity="0.45" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Canvas>
+        </ScrollViewer>
+    </Grid>
+</Page>
+

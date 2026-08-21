@@ -10,10 +10,10 @@
       "FurinaPlayer/1.21.08.0013": {
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.2.2",
+          "FurinaPlayer.UI": "1.0.0",
           "Microsoft.WindowsAppSDK": "1.6.240923002",
           "SonicWave.Audio": "1.0.0",
           "SonicWave.Core": "1.0.0",
-          "SonicWave.UI": "1.0.0",
           "Microsoft.Web.WebView2.Core.Projection": "1.0.2651.64",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "8.0.29",
           "runtimepack.Microsoft.WindowsDesktop.App.Runtime.win-x64": "8.0.29",
@@ -1575,6 +1575,23 @@
           }
         }
       },
+      "FurinaPlayer.UI/1.0.0": {
+        "dependencies": {
+          "CommunityToolkit.Mvvm": "8.2.2",
+          "CommunityToolkit.WinUI": "7.1.2",
+          "LiveChartsCore.SkiaSharpView.WinUI": "2.0.0-rc3.3",
+          "Microsoft.WindowsAppSDK": "1.6.240923002",
+          "SkiaSharp.Views.WinUI": "2.88.9",
+          "SonicWave.Audio": "1.0.0",
+          "SonicWave.Core": "1.0.0"
+        },
+        "runtime": {
+          "FurinaPlayer.UI.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
       "SonicWave.Audio/1.0.0": {
         "dependencies": {
           "LibVLCSharp": "3.8.5",
@@ -1601,23 +1618,6 @@
         },
         "runtime": {
           "SonicWave.Core.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.0.0.0"
-          }
-        }
-      },
-      "SonicWave.UI/1.0.0": {
-        "dependencies": {
-          "CommunityToolkit.Mvvm": "8.2.2",
-          "CommunityToolkit.WinUI": "7.1.2",
-          "LiveChartsCore.SkiaSharpView.WinUI": "2.0.0-rc3.3",
-          "Microsoft.WindowsAppSDK": "1.6.240923002",
-          "SkiaSharp.Views.WinUI": "2.88.9",
-          "SonicWave.Audio": "1.0.0",
-          "SonicWave.Core": "1.0.0"
-        },
-        "runtime": {
-          "SonicWave.UI.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -2004,17 +2004,17 @@
       "path": "z440.atl.core/6.12.0",
       "hashPath": "z440.atl.core.6.12.0.nupkg.sha512"
     },
+    "FurinaPlayer.UI/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
     "SonicWave.Audio/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
     },
     "SonicWave.Core/1.0.0": {
-      "type": "project",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "SonicWave.UI/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
