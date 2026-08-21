@@ -30,6 +30,25 @@ FurinaPlayer 是一款基于 WinUI 3 的全格式无损音乐播放器，集音�
 
 - 版本号：`1.21.08.0013.0810`
 
+## 引用的代码库
+
+| 项目 / 代码库 | 用途 | 链接 |
+| --- | --- | --- |
+| Windows App SDK（WinUI 3） | 界面框架与系统集成 | [microsoft/WindowsAppSDK](https://github.com/microsoft/WindowsAppSDK) |
+| CommunityToolkit.Mvvm | MVVM 工具包 | [CommunityToolkit/dotnet](https://github.com/CommunityToolkit/dotnet) |
+| CommunityToolkit.WinUI | WinUI 辅助控件与扩展 | [CommunityToolkit/Windows](https://github.com/CommunityToolkit/Windows) |
+| LiveChartsCore | 波形 / 频谱 / 相位图表 | [beto-rodriguez/LiveCharts](https://github.com/beto-rodriguez/LiveCharts) |
+| SkiaSharp | 跨平台 2D 图形渲染 | [mono/SkiaSharp](https://github.com/mono/SkiaSharp) |
+| LibVLCSharp | VLC 播放核心 .NET 绑定 | [videolan/libvlcsharp](https://github.com/videolan/libvlcsharp) |
+| VLC（VideoLAN） | 全格式解码与播放引擎 | [videolan/vlc](https://github.com/videolan/vlc) |
+| NAudio | 音频播放 / 捕获 / ASIO 与 WASAPI | [naudio/NAudio](https://github.com/naudio/NAudio) |
+| Math.NET Numerics | 信号分析与数值计算 | [mathnet/mathnet-numerics](https://github.com/mathnet/mathnet-numerics) |
+| Entity Framework Core（SQLite） | 音乐库持久化 | [dotnet/efcore](https://github.com/dotnet/efcore) |
+| SQLitePCLRaw | SQLite 原生绑定 | [ericsink/SQLitePCL.raw](https://github.com/ericsink/SQLitePCL.raw) |
+| ATL（z440） | VST3 宿主支持库 | [z440/atl](https://github.com/z440/atl) |
+
+本项目由 `FurinaPlayer.UI`、`SonicWave.App`、`SonicWave.Core`、`SonicWave.Audio` 四个工程组成。
+
 ## 许可证
 
 Apache License 2.0
