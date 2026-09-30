@@ -25,6 +25,12 @@ public sealed class NAudioDecoder : IDisposable
 
 	public bool IsPlaying { get; private set; }
 
+	public DspSampleProvider? Dsp => _dsp;
+
+	public int BitsPerSample => _reader?.WaveFormat.BitsPerSample ?? 16;
+
+	public int Channels => _reader?.WaveFormat.Channels ?? 2;
+
 	public int SampleRate => _reader?.WaveFormat.SampleRate ?? 0;
 
 	public TimeSpan Position

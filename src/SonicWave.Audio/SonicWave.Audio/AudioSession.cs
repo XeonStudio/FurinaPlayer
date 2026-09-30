@@ -29,6 +29,10 @@ internal sealed class AudioSession : IDisposable
 
 	private OutputMode _outputMode;
 
+	private string? _deviceId;
+
+	private string? _asioDriver;
+
 	private bool _useVlc;
 
 	private PlaybackState _state;
@@ -327,8 +331,66 @@ internal sealed class AudioSession : IDisposable
 	public void ConfigureOutput(OutputMode mode, string? deviceId = null, string? asioDriver = null, int bufferMs = 200)
 	{
 		_outputMode = mode;
+		_deviceId = deviceId;
+		_asioDriver = asioDriver;
 		_naudioBackend.Configure(deviceId, asioDriver, bufferMs);
 		_useVlc = mode == OutputMode.SoftwareDecode && !RequiresNaudioPath;
+	}
+
+	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters()
+	{
+		if (_naudioBackend is NaudioAudioBackend naudio)
+		{
+			var dsp = naudio.Decoder.Dsp;
+			if (dsp != null && State == PlaybackState.Playing)
+			{
+				return (dsp.LatestPeakDb, dsp.LatestRmsDb, dsp.LatestBands);
+			}
+		}
+		return (-90.0, -90.0, Array.Empty<float>());
+	}
+
+	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails()
+	{
+		var track = CurrentTrack;
+		string codec = "PCM";
+		if (!string.IsNullOrEmpty(track?.FilePath))
+		{
+			try
+			{
+				string ext = System.IO.Path.GetExtension(track.FilePath).TrimStart('.').ToUpperInvariant();
+				codec = string.IsNullOrEmpty(ext) ? "PCM" : ext;
+			}
+			catch
+			{
+				codec = "PCM";
+			}
+		}
+
+		int sr = 0;
+		int bits = 0;
+		int ch = 2;
+
+		if (_naudioBackend is NaudioAudioBackend naudio)
+		{
+			sr = naudio.Decoder.SampleRate;
+			bits = naudio.Decoder.BitsPerSample;
+			ch = naudio.Decoder.Channels;
+		}
+
+		if (sr <= 0 && track?.SampleRate > 0) sr = track.SampleRate;
+		if (sr <= 0) sr = 48000;
+
+		if (bits <= 0 && track?.BitDepth > 0) bits = track.BitDepth;
+		if (bits <= 0) bits = 24;
+
+		if (ch <= 0) ch = 2;
+
+		string device = !string.IsNullOrEmpty(_asioDriver) ? _asioDriver : (!string.IsNullOrEmpty(_deviceId) ? _deviceId : "Default WASAPI Device");
+		string engine = _useVlc ? "VLC Direct" : (!string.IsNullOrEmpty(_asioDriver) ? "ASIO Exclusive" : "NAudio WASAPI");
+		string mode = _outputMode.ToString();
+
+		return (codec, sr, bits, ch, device, engine, mode);
 	}
 
 	public void SetQueue(IEnumerable<Track> tracks, int startIndex = 0)

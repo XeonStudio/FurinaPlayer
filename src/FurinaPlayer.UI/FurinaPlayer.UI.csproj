@@ -18,6 +18,9 @@
     <Reference Include="Microsoft.WinUI">
       <HintPath>..\..\Microsoft.WinUI.dll</HintPath>
     </Reference>
+    <Reference Include="Microsoft.Web.WebView2.Core.Projection">
+      <HintPath>..\..\Microsoft.Web.WebView2.Core.Projection.dll</HintPath>
+    </Reference>
     <Reference Include="WinRT.Runtime">
       <HintPath>..\..\WinRT.Runtime.dll</HintPath>
     </Reference>

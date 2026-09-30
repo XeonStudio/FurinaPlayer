@@ -33,6 +33,13 @@ public class LibraryService : IDisposable
 
 	public async Task InitializeAsync()
 	{
+		try
+		{
+			SQLitePCL.Batteries_V2.Init();
+		}
+		catch
+		{
+		}
 		await _db.Database.EnsureCreatedAsync();
 		await RepairCoverPathsAsync();
 	}

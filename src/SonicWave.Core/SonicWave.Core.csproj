@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>SonicWave.Core</AssemblyName>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
@@ -31,6 +31,12 @@
     </Reference>
     <Reference Include="Microsoft.EntityFrameworkCore.Relational">
       <HintPath>..\..\Microsoft.EntityFrameworkCore.Relational.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2">
+      <HintPath>..\..\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core">
+      <HintPath>..\..\SQLitePCLRaw.core.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

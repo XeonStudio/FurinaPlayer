@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Adobe Audition DAW - ECHO Lyrics</title>
+  <link rel="stylesheet" href="app.css">
+  <script>
+    (function() {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.addEventListener('message', function(event) {
+          var data = event.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch(e) {}
+          }
+          window.dispatchEvent(new MessageEvent('message', { source: window.parent, data: data }));
+        });
+        window.parent.postMessage = function(data, targetOrigin) {
+          try {
+            window.chrome.webview.postMessage(typeof data === 'object' ? JSON.stringify(data) : data);
+          } catch(e) {
+            window.chrome.webview.postMessage(data);
+          }
+        };
+      }
+    })();
+  </script>
+</head>
+<body class="audition-app">
+  <!-- Host title bar / window buttons live in the strip this element reserves. -->
+  <div class="host-safe-top" aria-hidden="true"></div>
+
+  <header class="audition-header" role="banner">
+    <div class="header-left">
+      <div class="app-brand">
+        <svg class="au-badge" viewBox="0 0 32 32" role="img" aria-label="Adobe Audition">
+          <defs>
+            <linearGradient id="au-grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#33206b" />
+              <stop offset="0.5" stop-color="#1d1140" />
+              <stop offset="1" stop-color="#0c0620" />
+            </linearGradient>
+          </defs>
+          <rect x="1" y="1" width="30" height="30" rx="7" fill="url(#au-grad)" stroke="#6f4fd8" stroke-width="1" />
+          <text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14.5" font-weight="600" fill="#efe9ff">Au</text>
+        </svg>
+      </div>
+      <nav class="audition-menubar" id="audition-menubar" aria-label="Audition 菜单">
+        <span class="menu-item" data-menu="file" tabindex="0" data-i18n="menu.file">文件(F)</span>
+        <span class="menu-item" data-menu="edit" tabindex="0" data-i18n="menu.edit">编辑(E)</span>
+        <span class="menu-item" data-menu="multitrack" tabindex="0" data-i18n="menu.multitrack">多轨(M)</span>
+        <span class="menu-item" data-menu="clip" tabindex="0" data-i18n="menu.clip">剪辑(C)</span>
+        <span class="menu-item" data-menu="effects" tabindex="0" data-i18n="menu.effects">效果(S)</span>
+        <span class="menu-item" data-menu="zoom" tabindex="0" data-i18n="menu.zoom">缩放(Z)</span>
+        <span class="menu-item" data-menu="transport" tabindex="0" data-i18n="menu.transport">控制(T)</span>
+        <span class="menu-item" data-menu="window" tabindex="0" data-i18n="menu.window">窗口(W)</span>
+        <span class="menu-item" data-menu="language" tabindex="0" data-i18n="menu.language">语言(L)</span>
+        <span class="menu-item" data-menu="help" tabindex="0" data-i18n="menu.help">帮助(H)</span>
+        <button class="theme-toggle-btn" id="btn-theme-toggle" type="button" tabindex="0" data-i18n-title="theme.toggleTitle" title="切换日间 / 黑暗模式" aria-label="切换日间 / 黑暗模式" style="display: none;">
+          <span class="theme-toggle-icon" id="theme-toggle-icon">☀</span>
+          <span class="theme-toggle-label" id="theme-toggle-label">日间</span>
+        </button>
+        <button class="theme-toggle-btn wave-color-toggle-btn" id="btn-wave-color-toggle" type="button" tabindex="0" data-i18n-title="wave.toggleTitle" title="切换波形色彩 (淡雅天蓝 / 柔美粉樱)" aria-label="切换波形色彩" style="display: none;">
+          <span class="theme-toggle-icon" id="wave-color-toggle-icon">🌸</span>
+          <span class="theme-toggle-label" id="wave-color-toggle-label">粉樱</span>
+        </button>
+        <button class="theme-toggle-btn lang-toggle-btn" id="btn-lang-toggle" type="button" tabindex="0" data-i18n-title="lang.toggleTitle" title="切换界面语言 (Language)" aria-label="切换界面语言" style="display: none;">
+          <span class="theme-toggle-icon" id="lang-toggle-icon">🌐</span>
+          <span class="theme-toggle-label" id="lang-toggle-label">简体中文</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="header-right">
+      <span class="header-state" id="header-state">连接中…</span>
+    </div>
+  </header>
+
+  <div class="audition-workspace">
+    <aside class="col-left">
+      <!-- Track + play history (supports live queue and history switching) -->
+      <section class="daw-panel panel-queue" data-i18n-aria-label="panel.tracksAria" aria-label="曲目列表与播放记录">
+        <div class="panel-header">
+          <div class="panel-tabs">
+            <span class="tab active" id="tab-queue-tracks" role="button" tabindex="0" data-i18n="panel.tracks">曲目列表</span>
+            <span class="tab" id="tab-queue-history" role="button" tabindex="0" data-i18n="panel.history">播放记录</span>
+          </div>
+          <span class="queue-badge" id="queue-count">—</span>
+        </div>
+        <div class="now-playing-card">
+          <img id="np-cover" class="np-cover" alt="" hidden>
+          <div class="np-meta">
+            <div class="np-title" id="np-title" data-i18n="queue.waiting">等待播放…</div>
+            <div class="np-sub" id="np-sub">—</div>
+          </div>
+        </div>
+        <div class="queue-table-header">
+          <span class="th col-icon"></span>
+          <span class="th col-title" data-i18n="queue.colTitle">曲目</span>
+          <span class="th col-dur" data-i18n="queue.colDuration">时长</span>
+        </div>
+        <div class="queue-list" id="queue-list" role="list"></div>
+        <div class="panel-note" id="queue-note" data-i18n="queue.note">
+          点击任意曲目即可快速切换并播放，高亮表示当前播放曲目。
+        </div>
+      </section>
+
+      <section class="daw-panel panel-art" data-i18n-aria-label="panel.artAria" aria-label="专辑封面与黑胶唱片">
+        <div class="panel-header">
+          <span class="panel-title" data-i18n="panel.art">专辑封面</span>
+          <span class="panel-hint" id="art-source"></span>
+        </div>
+        <div class="art-container">
+          <div class="vinyl-record" id="vinyl-record">
+            <div class="vinyl-grooves"></div>
+            <div class="vinyl-label" id="vinyl-label">
+              <img id="cover-img" src="" alt="专辑封面" class="cover-img hidden">
+              <div class="vinyl-center-hole"></div>
+            </div>
+          </div>
+          <div class="art-meta">
+            <div class="art-track-title" id="track-title" data-i18n="queue.waiting">等待播放…</div>
+            <div class="art-track-artist" id="track-artist">—</div>
+            <div class="art-track-album" id="track-album">—</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="daw-panel panel-properties" data-i18n-aria-label="panel.propertiesAria" aria-label="音频属性与链路">
+        <div class="panel-header">
+          <span class="panel-title" data-i18n="panel.properties">音频属性</span>
+          <span class="panel-hint" id="prop-source-state"></span>
+        </div>
+        <div class="prop-table">
+          <div class="prop-row"><span class="k" data-i18n="prop.codec">编码格式</span><span class="v" id="prop-codec">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.sampleRate">采样率</span><span class="v text-accent" id="prop-rate">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.bitDepth">位深度</span><span class="v" id="prop-depth">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.outputDevice">输出设备</span><span class="v" id="prop-device">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.outputEngine">输出后端</span><span class="v" id="prop-signal">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.outputMode">输出模式</span><span class="v" id="prop-mode">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.replayGain">重放增益</span><span class="v" id="prop-gain">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.meterSource">输入电平源</span><span class="v" id="prop-meter-source">—</span></div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="col-right">
+      <section class="daw-panel panel-waveform" data-i18n-aria-label="panel.waveformAria" aria-label="波形与频谱">
+        <div class="panel-header waveform-header">
+          <span class="panel-title" data-i18n="panel.waveform">波形包络</span>
+          <span class="panel-hint" data-i18n="wave.hint">由宿主实时电平绘制（协议不提供 PCM 采样）</span>
+          <div class="waveform-tools">
+            <span class="panel-hint" id="wave-scan-state"></span>
+            <button class="tool-btn" id="btn-scan-wave" data-i18n-title="wave.scanBtnTitle" title="预扫描整首波形（静音扫描，可再次点击取消）" aria-label="预扫描波形">
+              <svg viewBox="0 0 24 24" class="ico"><path d="M3 12h4l2-6 3 12 2.5-8 2 4H21"/></svg>
+            </button>
+            <button class="tool-btn tool-btn--text" id="btn-scan-mode" title="波形模式：实时（波形随播放绘制）" aria-label="波形模式">实时</button>
+            <button class="tool-btn tool-btn--text" id="btn-scan-quality" title="预扫描精度：极速 / 标准 / 精细（当前：精细 · 5x高密度采样）" aria-label="预扫描精度">精细</button>
+            <button class="tool-btn" id="btn-zoom-in" data-i18n-title="wave.zoomInTitle" title="水平放大" aria-label="放大">
+              <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M11 8v6M8 11h6"/></svg>
+            </button>
+            <button class="tool-btn" id="btn-zoom-out" data-i18n-title="wave.zoomOutTitle" title="水平缩小" aria-label="缩小">
+              <svg viewBox="0 0 24 24" class="ico"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></svg>
+            </button>
+            <button class="tool-btn" id="btn-zoom-fit" data-i18n-title="wave.zoomFitTitle" title="适应窗口" aria-label="适应窗口">
+              <svg viewBox="0 0 24 24" class="ico"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+            </button>
+            <span class="time-readout" id="head-time-readout">--:--.---</span>
+          </div>
+        </div>
+
+        <div class="waveform-navigator" id="waveform-navigator" data-i18n-title="wave.navTitle" title="点击或拖拽定位">
+          <canvas id="nav-canvas"></canvas>
+          <div class="nav-window" id="nav-window">
+            <div class="nav-handle handle-left"></div>
+            <div class="nav-handle handle-right"></div>
+          </div>
+        </div>
+
+        <div class="time-ruler-bar" id="time-ruler-bar">
+          <canvas id="ruler-canvas"></canvas>
+        </div>
+
+        <div class="waveform-body" id="waveform-body">
+          <canvas id="waveform-canvas"></canvas>
+          <div class="waveform-playhead" id="waveform-playhead">
+            <div class="playhead-top-marker"></div>
+            <div class="playhead-flag" id="playhead-flag">--:--</div>
+            <div class="playhead-line"></div>
+          </div>
+          <div class="amplitude-scale" aria-hidden="true">
+            <span>0</span>
+            <span>-6</span>
+            <span>-12</span>
+            <span>-18</span>
+            <span>-24</span>
+            <span>-36</span>
+            <span>-48</span>
+            <span>-60</span>
+            <span>-inf</span>
+          </div>
+        </div>
+
+        <div class="spectrogram-strip" id="spectrogram-strip">
+          <div class="strip-title" data-i18n="wave.waterfallTitle">频谱瀑布（实时频段能量）</div>
+          <canvas id="spectrogram-canvas"></canvas>
+          <div class="spectral-scale" aria-hidden="true">
+            <span>20k</span>
+            <span>10k</span>
+            <span>5k</span>
+            <span>1k</span>
+            <span>100</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="bottom-grid">
+        <section class="daw-panel panel-analyzer-vst3" data-i18n-aria-label="panel.analyzerAria" aria-label="母带分析器">
+          <div class="vst3-window-header">
+            <div class="vst3-title">
+              <span class="vst3-icon">
+                <svg viewBox="0 0 24 24" class="ico"><path d="M4 20V10M10 20V4M16 20v-7M22 20V8"/></svg>
+              </span>
+              <span class="vst3-text" data-i18n="analyzer.vstTitle">效果 - Insight 2 Pro</span>
+            </div>
+            <div class="vst3-win-controls">
+              <span class="vst3-badge" id="analyzer-state">实时</span>
+            </div>
+          </div>
+
+          <div class="insight-toolbar">
+            <div class="insight-brand">
+              <span class="insight-logo">◉</span>
+              <span class="insight-name">Insight</span>
+            </div>
+            <div class="insight-preset-bar">
+              <span class="preset-label" data-i18n="analyzer.sourceLabel">数据源</span>
+              <span class="preset-value" id="analyzer-source" data-i18n="analyzer.sourceVal">宿主输入电平 · 频谱</span>
+            </div>
+            <div class="insight-actions">
+              <button class="insight-action-btn" id="btn-freeze-insight" data-i18n-title="analyzer.freezeTitle" title="冻结显示" aria-label="冻结">
+                <svg viewBox="0 0 24 24" class="ico"><path d="M10 4h4v16h-4z"/></svg>
+              </button>
+              <button class="insight-action-btn" id="btn-reset-insight" data-i18n-title="analyzer.resetTitle" title="重置统计" aria-label="重置">
+                <svg viewBox="0 0 24 24" class="ico"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="insight-body">
+            <div class="insight-metrics-strip">
+              <div class="metric-card">
+                <div class="metric-lbl">INTEGRATED</div>
+                <div class="metric-val text-cyan" id="metric-integrated">—</div>
+                <div class="metric-unit">dBFS RMS</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-lbl">SHORT-TERM</div>
+                <div class="metric-val" id="metric-shortterm">—</div>
+                <div class="metric-unit">dBFS RMS</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-lbl">MOMENTARY</div>
+                <div class="metric-val" id="metric-momentary">—</div>
+                <div class="metric-unit">dBFS RMS</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-lbl">LOUDNESS RANGE</div>
+                <div class="metric-val text-cyan" id="metric-lra">—</div>
+                <div class="metric-unit">LU</div>
+              </div>
+            </div>
+
+            <div class="insight-central-grid">
+              <div class="insight-pane pane-radar">
+                <div class="pane-title" data-i18n="analyzer.radarTitle">响度雷达（实时 RMS）</div>
+                <canvas id="radar-canvas"></canvas>
+              </div>
+              <div class="insight-pane pane-spectrum">
+                <div class="pane-title" data-i18n="analyzer.spectrumTitle">频谱与频率分布</div>
+                <canvas id="spectrum-canvas"></canvas>
+              </div>
+            </div>
+
+            <div class="insight-bottom-grid">
+              <div class="insight-pane pane-levels">
+                <div class="pane-title" data-i18n="analyzer.levelsTitle">输入电平（单路 Peak / RMS · dBFS）</div>
+                <div class="level-bars-box level-bars-box--h">
+                  <div class="level-row">
+                    <span class="ch-name">PK</span>
+                    <div class="h-meter-track"><div class="h-meter-fill" id="v-meter-l"></div></div>
+                    <span class="db-val" id="v-db-l">—</span>
+                  </div>
+                  <div class="level-row">
+                    <span class="ch-name">RM</span>
+                    <div class="h-meter-track"><div class="h-meter-fill" id="v-meter-r"></div></div>
+                    <span class="db-val" id="v-db-r">—</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="insight-pane pane-soundfield izotope-style">
+                <div class="soundfield-header">
+                  <button class="soundfield-gear-btn" id="soundfield-gear" data-i18n-title="analyzer.soundfieldGear" title="Sound Field Options" type="button">
+                    <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor">
+                      <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.86z"/>
+                    </svg>
+                  </button>
+                  <span class="soundfield-title" data-i18n="analyzer.soundfieldTitle">Sound Field</span>
+                </div>
+                <div class="soundfield-body">
+                  <div class="soundfield-canvas-container">
+                    <canvas id="goniometer-canvas"></canvas>
+                  </div>
+                  <div class="soundfield-corr-meter">
+                    <span class="corr-tag">+1</span>
+                    <div class="corr-rail">
+                      <div class="corr-pip" id="soundfield-corr-pip"></div>
+                    </div>
+                    <span class="corr-tag">0</span>
+                    <span class="corr-tag">-1</span>
+                  </div>
+                </div>
+                <div class="soundfield-tabs" role="tablist">
+                  <button class="soundfield-tab active" data-mode="polar-sample" data-i18n="analyzer.tabPolarSample" type="button">Polar Sample</button>
+                  <button class="soundfield-tab" data-mode="polar-level" data-i18n="analyzer.tabPolarLevel" type="button">Polar Level</button>
+                  <button class="soundfield-tab" data-mode="lissajous" data-i18n="analyzer.tabLissajous" type="button">Lissajous</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="daw-panel panel-lyrics" data-i18n-aria-label="panel.lyricsAria" aria-label="歌词">
+          <div class="panel-header">
+            <span class="panel-title" data-i18n="panel.lyrics">歌词</span>
+            <span class="lyric-sync-badge" id="lyric-sync-badge">等待歌词</span>
+          </div>
+          <div class="lyrics-scroll-container" id="lyrics-scroll">
+            <div class="lyrics-list" id="lyrics-list"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <footer class="audition-transport" role="region" data-i18n-aria-label="transport.aria" aria-label="播放控制栏">
+    <div class="transport-row">
+    <div class="transport-time-display">
+      <div class="time-main" id="time-current">--:--.---</div>
+      <div class="time-sub">
+        <span><span data-i18n="transport.total">总时长</span> <strong id="time-total">--:--.---</strong></span>
+        <span><span data-i18n="transport.remain">剩余</span> <strong id="time-remain">--:--.---</strong></span>
+      </div>
+    </div>
+
+    <div class="transport-right">
+    <div class="transport-buttons transport-buttons--row1">
+      <button class="transport-btn" id="btn-prev" data-i18n-title="transport.prev" title="上一曲" aria-label="上一曲">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M19 20 9 12l10-8z"/><path d="M5 19V5"/></svg>
+      </button>
+      <button class="transport-btn" id="btn-rw" data-i18n-title="transport.rw" title="快退 5 秒" aria-label="快退">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M11 19 2 12l9-7z"/><path d="M22 19l-9-7 9-7z"/></svg>
+      </button>
+      <button class="transport-btn btn-play" id="btn-playpause" data-i18n-title="transport.playpause" title="播放/暂停" aria-label="播放或暂停">
+        <svg viewBox="0 0 24 24" class="ico" id="icon-playpause"><path d="M6 4.5 19 12 6 19.5z"/></svg>
+      </button>
+      <button class="transport-btn" id="btn-ff" data-i18n-title="transport.ff" title="快进 5 秒" aria-label="快进">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M13 19l9-7-9-7z"/><path d="M2 19l9-7-9-7z"/></svg>
+      </button>
+      <button class="transport-btn" id="btn-next" data-i18n-title="transport.next" title="下一曲" aria-label="下一曲">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M5 4l10 8-10 8z"/><path d="M19 5v14"/></svg>
+      </button>
+    </div>
+
+    <div class="transport-buttons transport-buttons--row2">
+      <button class="transport-btn" id="btn-repeat" data-i18n-title="transport.repeat" title="循环模式" aria-label="循环模式">
+        <svg viewBox="0 0 24 24" class="ico"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <button class="transport-btn" id="btn-repeat-one" data-i18n-title="transport.repeatOne" title="单曲循环" aria-label="单曲循环">
+        <svg viewBox="0 0 24 24" class="ico"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/><path d="M11.4 10.4h1.4v3.8"/><path d="M11 14.2h2.6"/></svg>
+      </button>
+      <button class="transport-btn" id="btn-shuffle" data-i18n-title="transport.shuffle" title="随机播放" aria-label="随机播放">
+        <svg viewBox="0 0 24 24" class="ico"><path d="M2 18h1.4a4 4 0 0 0 3.3-1.7l6.1-8.6A4 4 0 0 1 16.1 6H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9a4 4 0 0 1 3.6 2.2"/><path d="M22 18h-5.9a4 4 0 0 1-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/></svg>
+      </button>
+      <div class="format-badge" id="format-badge">—</div>
+      <div class="volume-control">
+        <button class="vol-icon" id="btn-mute" data-i18n-title="transport.mute" title="静音" aria-label="静音">
+          <svg viewBox="0 0 24 24" class="ico" id="icon-mute"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        </button>
+        <input id="volume-slider" class="vol-range" type="range" min="0" max="100" value="100" data-i18n-aria-label="transport.volume" aria-label="音量">
+        <span class="vol-label" id="volume-label">—</span>
+      </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- Full-width seek bar sitting at the very bottom of the canvas (the host's
+         48px lyrics hover strip is switched off, see DEVLOG iteration 9). -->
+    <div class="transport-seek" id="transport-seek" role="slider" tabindex="0"
+         data-i18n-aria-label="transport.seek" aria-label="播放进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="seek-track">
+        <div class="seek-fill" id="seek-fill"></div>
+        <div class="seek-handle" id="seek-handle"></div>
+      </div>
+    </div>
+  </footer>
+
+  <div class="theme-toast" id="theme-toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Menu Dropdown -->
+  <div class="menu-dropdown" id="menu-dropdown" hidden></div>
+
+  <!-- Modal Dialog -->
+  <div class="audition-modal-backdrop" id="audition-modal-backdrop" hidden>
+    <div class="audition-modal" id="audition-modal" role="dialog" aria-modal="true">
+      <div class="modal-header">
+        <span class="modal-title" id="modal-title">标题</span>
+        <button class="modal-close-btn" id="modal-close-btn" title="关闭 (Esc)" aria-label="关闭">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -471,7 +471,7 @@ public class App : Application, IXamlMetadataProvider
 				{
 					_window.NavigateTo(page);
 				});
-				await Task.Delay(1200);
+				await Task.Delay(page == "playing" ? 3800 : 1200);
 				_window?.DispatcherQueue.TryEnqueue(async () =>
 				{
 					try
@@ -492,6 +492,19 @@ public class App : Application, IXamlMetadataProvider
 								(uint)rtb.PixelHeight,
 								96, 96, bytes);
 							await encoder.FlushAsync();
+							if (page == "playing")
+							{
+								string dawCap = Path.Combine(outDir, "daw_preview.png");
+								if (File.Exists(dawCap))
+								{
+									try
+									{
+										File.Copy(dawCap, filePath, overwrite: true);
+										Log("Replaced playing.png with live DAW preview screenshot");
+									}
+									catch { }
+								}
+							}
 							Log("Rendered page screenshot: " + filePath + " (" + rtb.PixelWidth + "x" + rtb.PixelHeight + ")");
 						}
 					}

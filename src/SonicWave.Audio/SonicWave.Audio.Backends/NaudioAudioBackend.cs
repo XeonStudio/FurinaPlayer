@@ -45,6 +45,8 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	public bool IsAvailable => true;
 
+	public NAudioDecoder Decoder => _naudio;
+
 	public int SampleRate => _naudio.SampleRate;
 
 	public TimeSpan Position => _naudio.Position;

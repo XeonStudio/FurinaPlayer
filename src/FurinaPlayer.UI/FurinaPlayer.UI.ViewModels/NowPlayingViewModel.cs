@@ -930,6 +930,24 @@ public class NowPlayingViewModel : ObservableObject
 		}
 	}
 
+	public AudioEngine Engine => _engine;
+
+	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters() => _engine.GetLiveAudioMeters();
+
+	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails() => _engine.GetAudioFormatDetails();
+
+	public void SeekSeconds(double seconds)
+	{
+		if (seconds < 0) seconds = 0;
+		if (Duration.TotalSeconds > 0 && seconds > Duration.TotalSeconds) seconds = Duration.TotalSeconds;
+		_engine.Seek(TimeSpan.FromSeconds(seconds));
+	}
+
+	public void SetVolumePercent(int vol)
+	{
+		Volume = Math.Clamp(vol, 0, 100);
+	}
+
 	public void SeekToPercent(double percent)
 	{
 		CommitSeek(percent);

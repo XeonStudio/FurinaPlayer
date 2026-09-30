@@ -21,8 +21,20 @@
     <Compile Remove="WinRT.FurinaPlayerGenericHelpers\**" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Assets\AuditionDaw\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="Microsoft.Web.WebView2.Core.Projection">
       <HintPath>..\..\Microsoft.Web.WebView2.Core.Projection.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.batteries_v2">
+      <HintPath>..\..\SQLitePCLRaw.batteries_v2.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.core">
+      <HintPath>..\..\SQLitePCLRaw.core.dll</HintPath>
+    </Reference>
+    <Reference Include="SQLitePCLRaw.provider.e_sqlite3">
+      <HintPath>..\..\SQLitePCLRaw.provider.e_sqlite3.dll</HintPath>
     </Reference>
     <Reference Include="WinRT.Runtime">
       <HintPath>..\..\WinRT.Runtime.dll</HintPath>

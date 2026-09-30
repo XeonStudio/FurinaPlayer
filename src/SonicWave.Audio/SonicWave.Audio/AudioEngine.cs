@@ -126,6 +126,10 @@ public sealed class AudioEngine : IDisposable
 		_session.ConfigureOutput(mode, deviceId, asioDriver, bufferMs);
 	}
 
+	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters() => _session.GetLiveAudioMeters();
+
+	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails() => _session.GetAudioFormatDetails();
+
 	public void SetQueue(IEnumerable<Track> tracks, int startIndex = 0)
 	{
 		_session.SetQueue(tracks, startIndex);

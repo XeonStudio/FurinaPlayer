@@ -48,6 +48,8 @@ public sealed class AppSettings
 
 	public bool LyricsPanelExpanded { get; set; } = true;
 
+	public bool UseAuditionDawMode { get; set; } = false;
+
 	public int EqPresetIndex { get; set; }
 
 	public double[] EqGains { get; set; } = new double[10];

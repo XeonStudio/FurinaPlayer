@@ -10,3 +10,5 @@ sw_*.log
 src/**/bin/
 src/**/obj/
 .vs/
+*.WebView2/
+

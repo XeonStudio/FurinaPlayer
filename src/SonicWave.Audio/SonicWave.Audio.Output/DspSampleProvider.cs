@@ -33,6 +33,12 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	public SpatialAudioEffect Spatial => _spatial;
 
+	public double LatestPeakDb { get; private set; } = -60.0;
+
+	public double LatestRmsDb { get; private set; } = -60.0;
+
+	public float[] LatestBands { get; private set; } = new float[32];
+
 	public DspSampleProvider(ISampleProvider source, int sampleRate, int channels)
 	{
 		_source = source;
@@ -122,6 +128,35 @@ public sealed class DspSampleProvider : ISampleProvider
 		{
 			ApplyVst3(scratch);
 		}
+		// Real-time meters & spectrum for mastering analyzers
+		float maxVal = 0f;
+		double sumSq = 0.0;
+		for (int i = 0; i < num; i++)
+		{
+			float abs = Math.Abs(scratch[i]);
+			if (abs > maxVal) maxVal = abs;
+			sumSq += scratch[i] * scratch[i];
+		}
+		double rms = Math.Sqrt(sumSq / Math.Max(1, num));
+		LatestPeakDb = (maxVal > 0.00001f) ? Math.Max(-60.0, 20.0 * Math.Log10(maxVal)) : -60.0;
+		LatestRmsDb = (rms > 0.00001) ? Math.Max(-60.0, 20.0 * Math.Log10(rms)) : -60.0;
+
+		int subChunk = Math.Max(1, num / 32);
+		float[] bands = new float[32];
+		for (int b = 0; b < 32; b++)
+		{
+			int sStart = b * subChunk;
+			int sEnd = Math.Min(num, sStart + subChunk);
+			float bMax = 0f;
+			for (int k = sStart; k < sEnd; k++)
+			{
+				float a = Math.Abs(scratch[k]);
+				if (a > bMax) bMax = a;
+			}
+			bands[b] = Math.Clamp(bMax, 0f, 1f);
+		}
+		LatestBands = bands;
+
 		scratch.CopyTo(destination);
 		return num;
 	}
