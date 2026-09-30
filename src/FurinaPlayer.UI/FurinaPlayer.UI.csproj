@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FurinaPlayer.UI</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemGroup />
+  <ItemGroup>
+    <Reference Include="Microsoft.WinUI">
+      <HintPath>..\..\Microsoft.WinUI.dll</HintPath>
+    </Reference>
+    <Reference Include="WinRT.Runtime">
+      <HintPath>..\..\WinRT.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Windows.SDK.NET">
+      <HintPath>..\..\Microsoft.Windows.SDK.NET.dll</HintPath>
+    </Reference>
+    <Reference Include="CommunityToolkit.Mvvm">
+      <HintPath>..\..\CommunityToolkit.Mvvm.dll</HintPath>
+    </Reference>
+    <ProjectReference Include="..\SonicWave.Audio\SonicWave.Audio.csproj" />
+    <ProjectReference Include="..\SonicWave.Core\SonicWave.Core.csproj" />
+    <Reference Include="Microsoft.InteractiveExperiences.Projection">
+      <HintPath>..\..\Microsoft.InteractiveExperiences.Projection.dll</HintPath>
+    </Reference>
+    <Reference Include="NAudio.Core">
+      <HintPath>..\..\NAudio.Core.dll</HintPath>
+    </Reference>
+    <Reference Include="SkiaSharp.Views.Windows">
+      <HintPath>..\..\SkiaSharp.Views.Windows.dll</HintPath>
+    </Reference>
+    <Reference Include="SkiaSharp">
+      <HintPath>..\..\SkiaSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="LibVLCSharp">
+      <HintPath>..\..\LibVLCSharp.dll</HintPath>
+    </Reference>
+    <Reference Include="LiveChartsCore.SkiaSharpView.WinUI">
+      <HintPath>..\..\LiveChartsCore.SkiaSharpView.WinUI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

@@ -5,3 +5,8 @@ sw_*.log
 # 本地用户数据
 *.sqlite
 *.db
+
+# 编译生成临时目录
+src/**/bin/
+src/**/obj/
+.vs/
