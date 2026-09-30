@@ -197,6 +197,10 @@ public class App : Application, IXamlMetadataProvider
 			{
 				RestoreSession(settings);
 			});
+			if (Environment.GetCommandLineArgs().Contains("--capture-pages"))
+			{
+				_ = CapturePagesAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer", "screenshots"));
+			}
 			Log("OnLaunched completed OK");
 		}
 		catch (Exception ex)
@@ -451,6 +455,57 @@ public class App : Application, IXamlMetadataProvider
 		}
 		catch
 		{
+		}
+	}
+
+	private async Task CapturePagesAsync(string outDir)
+	{
+		try
+		{
+			Directory.CreateDirectory(outDir);
+			await Task.Delay(2500);
+			string[] pages = new string[] { "home", "playing", "dsp", "settings" };
+			foreach (var page in pages)
+			{
+				_window?.DispatcherQueue.TryEnqueue(() =>
+				{
+					_window.NavigateTo(page);
+				});
+				await Task.Delay(1200);
+				_window?.DispatcherQueue.TryEnqueue(async () =>
+				{
+					try
+					{
+						if (_window.Content is Microsoft.UI.Xaml.UIElement root)
+						{
+							var rtb = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
+							await rtb.RenderAsync(root);
+							var pixelBuffer = await rtb.GetPixelsAsync();
+							byte[] bytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuffer);
+							string filePath = Path.Combine(outDir, page + ".png");
+							using var fileStream = File.Open(filePath, FileMode.Create);
+							var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fileStream));
+							encoder.SetPixelData(
+								Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+								Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+								(uint)rtb.PixelWidth,
+								(uint)rtb.PixelHeight,
+								96, 96, bytes);
+							await encoder.FlushAsync();
+							Log("Rendered page screenshot: " + filePath + " (" + rtb.PixelWidth + "x" + rtb.PixelHeight + ")");
+						}
+					}
+					catch (Exception ex)
+					{
+						Log("Screenshot render failed for " + page + ": " + ex);
+					}
+				});
+				await Task.Delay(800);
+			}
+		}
+		catch (Exception ex)
+		{
+			Log("CapturePagesAsync exception: " + ex);
 		}
 	}
 

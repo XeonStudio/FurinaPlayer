@@ -29,6 +29,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private bool _handlersAttached;
 
+	private Button? _fetchAlbumArtButton;
+
 	private static readonly string[] SystemFontOptions = new string[35]
 	{
 		"系统默认", "微软雅黑", "微软雅黑 Light", "宋体", "黑体", "楷体", "仿宋", "隶书", "幼圆", "等线",
@@ -114,6 +116,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 	public SettingsPage()
 	{
 		InitializeComponent();
+		Loaded += OnLoaded;
+		SizeChanged += OnSizeChanged;
 	}
 
 	public SettingsPage(SettingsViewModel viewModel)
@@ -121,6 +125,76 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		ViewModel = viewModel;
 		DataContext = viewModel;
+	}
+
+	private void OnLoaded(object sender, RoutedEventArgs e)
+	{
+		UpdateResponsiveLayout(ActualWidth);
+	}
+
+	private void OnSizeChanged(object sender, SizeChangedEventArgs e)
+	{
+		UpdateResponsiveLayout(e.NewSize.Width);
+	}
+
+	private void UpdateResponsiveLayout(double width)
+	{
+		try
+		{
+			if (Content is ScrollViewer sv && sv.Content is Grid settingsGrid && settingsGrid.Children.Count >= 3)
+			{
+				if (settingsGrid.Children[0] is FrameworkElement panel0 &&
+				    settingsGrid.Children[1] is FrameworkElement panel1 &&
+				    settingsGrid.Children[2] is FrameworkElement panel2)
+				{
+					if (width < 980.0)
+					{
+						settingsGrid.ColumnDefinitions.Clear();
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MaxWidth = 720.0 });
+
+						settingsGrid.RowDefinitions.Clear();
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+						Grid.SetColumn(panel0, 0); Grid.SetRow(panel0, 0);
+						Grid.SetColumn(panel1, 0); Grid.SetRow(panel1, 1);
+						Grid.SetColumn(panel2, 0); Grid.SetRow(panel2, 2);
+					}
+					else if (width < 1320.0)
+					{
+						settingsGrid.ColumnDefinitions.Clear();
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MinWidth = 380.0 });
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MinWidth = 380.0 });
+
+						settingsGrid.RowDefinitions.Clear();
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+						Grid.SetColumn(panel0, 0); Grid.SetRow(panel0, 0);
+						Grid.SetColumn(panel1, 1); Grid.SetRow(panel1, 0);
+						Grid.SetColumn(panel2, 0); Grid.SetRow(panel2, 1);
+					}
+					else
+					{
+						settingsGrid.ColumnDefinitions.Clear();
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(400.0, GridUnitType.Pixel) });
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MinWidth = 360.0 });
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MinWidth = 360.0 });
+
+						settingsGrid.RowDefinitions.Clear();
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+						Grid.SetColumn(panel0, 0); Grid.SetRow(panel0, 0);
+						Grid.SetColumn(panel1, 1); Grid.SetRow(panel1, 0);
+						Grid.SetColumn(panel2, 2); Grid.SetRow(panel2, 0);
+					}
+				}
+			}
+		}
+		catch (Exception)
+		{
+		}
 	}
 
 	private static BackgroundMaterial MaterialFromIndex(int idx)
@@ -166,6 +240,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			ViewModel = settingsViewModel;
 			DataContext = settingsViewModel;
+			settingsViewModel.PropertyChanged += OnSettingsViewModelPropertyChanged;
 		}
 		if (!_handlersAttached)
 		{
@@ -218,6 +293,30 @@ public sealed class SettingsPage : Page, IComponentConnector
 		InitLyricFontUi();
 		PopulateOssList();
 		RefreshDevices();
+		if (_fetchAlbumArtButton != null && ViewModel != null)
+		{
+			_fetchAlbumArtButton.IsEnabled = ViewModel.CanFetchAlbumArt;
+		}
+	}
+
+	protected override void OnNavigatedFrom(NavigationEventArgs e)
+	{
+		base.OnNavigatedFrom(e);
+		if (ViewModel != null)
+		{
+			ViewModel.PropertyChanged -= OnSettingsViewModelPropertyChanged;
+		}
+	}
+
+	private void OnSettingsViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+	{
+		if (e.PropertyName == "CanFetchAlbumArt" || e.PropertyName == "IsFetchingAlbumArt" || e.PropertyName == "AlbumArtCooldownSeconds")
+		{
+			if (_fetchAlbumArtButton != null && ViewModel != null)
+			{
+				_fetchAlbumArtButton.IsEnabled = ViewModel.CanFetchAlbumArt;
+			}
+		}
 	}
 
 	private void InitLyricFontUi()
@@ -475,6 +574,14 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private async void OnFetchAlbumArtClick(object sender, RoutedEventArgs e)
 	{
+		if (ViewModel == null || !ViewModel.CanFetchAlbumArt)
+		{
+			return;
+		}
+		if (_fetchAlbumArtButton != null)
+		{
+			_fetchAlbumArtButton.IsEnabled = false;
+		}
 		try
 		{
 			await ViewModel.FetchMissingAlbumCoverAsync();
@@ -482,6 +589,13 @@ public sealed class SettingsPage : Page, IComponentConnector
 		catch (Exception ex)
 		{
 			ViewModel.AlbumArtStatus = "操作异常：" + ex.Message;
+		}
+		finally
+		{
+			if (_fetchAlbumArtButton != null && ViewModel != null)
+			{
+				_fetchAlbumArtButton.IsEnabled = ViewModel.CanFetchAlbumArt;
+			}
 		}
 	}
 
@@ -529,7 +643,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 			OssList = target.As<StackPanel>();
 			break;
 		case 5:
-			target.As<Button>().Click += OnFetchAlbumArtClick;
+			_fetchAlbumArtButton = target.As<Button>();
+			_fetchAlbumArtButton.Click += OnFetchAlbumArtClick;
 			break;
 		case 6:
 			target.As<Button>().Click += OnAddFolderClick;

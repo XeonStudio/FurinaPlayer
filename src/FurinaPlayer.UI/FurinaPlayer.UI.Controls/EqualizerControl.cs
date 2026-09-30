@@ -52,9 +52,9 @@ public sealed class EqualizerControl : UserControl, IComponentConnector
 	{
 		EqualizerControl equalizerControl = this;
 		InitializeComponent();
-		int i;
-		for (i = 0; i < 10; i++)
+		for (int i = 0; i < 10; i++)
 		{
+			int bandIndex = i;
 			StackPanel stackPanel = new StackPanel
 			{
 				Spacing = 2.0
@@ -65,12 +65,12 @@ public sealed class EqualizerControl : UserControl, IComponentConnector
 				Maximum = 12.0,
 				Value = 0.0,
 				Orientation = Orientation.Vertical,
-				Height = 120.0,
+				Height = 80.0,
 				SmallChange = 0.5
 			};
 			slider.ValueChanged += (object _, RangeBaseValueChangedEventArgs _) =>
 			{
-				equalizerControl.OnSliderChanged(i);
+				equalizerControl.OnSliderChanged(bandIndex);
 			};
 			TextBlock item = new TextBlock
 			{

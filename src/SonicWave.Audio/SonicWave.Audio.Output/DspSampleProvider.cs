@@ -109,6 +109,10 @@ public sealed class DspSampleProvider : ISampleProvider
 		Span<float> destination = buffer.AsSpan(offset, num);
 		float[] scratch = _scratch;
 		destination.CopyTo(scratch);
+		_equalizer.ProcessInterleaved(scratch, WaveFormat.Channels);
+		_timbreEqualizer.ProcessInterleaved(scratch, WaveFormat.Channels);
+		_widener.ProcessInterleaved(scratch, WaveFormat.Channels);
+		_spatial.ProcessInterleaved(scratch, WaveFormat.Channels);
 		Vst3PluginState exclusiveVst = _exclusiveVst3;
 		if (exclusiveVst != null && Vst3NativeHost.Instance.IsLoadedFor(exclusiveVst.Path))
 		{
@@ -116,10 +120,6 @@ public sealed class DspSampleProvider : ISampleProvider
 		}
 		else
 		{
-			_equalizer.ProcessInterleaved(scratch, WaveFormat.Channels);
-			_timbreEqualizer.ProcessInterleaved(scratch, WaveFormat.Channels);
-			_widener.ProcessInterleaved(scratch, WaveFormat.Channels);
-			_spatial.ProcessInterleaved(scratch, WaveFormat.Channels);
 			ApplyVst3(scratch);
 		}
 		scratch.CopyTo(destination);

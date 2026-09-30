@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="FurinaPlayer.UI.Pages.NowPlayingPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -9,119 +9,112 @@
 
     <Grid Padding="24,16" ColumnSpacing="24">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="440" />
+            <ColumnDefinition Width="*" MinWidth="340" />
+            <ColumnDefinition Width="*" MinWidth="320" />
         </Grid.ColumnDefinitions>
 
-        <!-- 左：封面与名称保持居中位置，其余控制控件下移 -->
-        <Grid RowSpacing="18" VerticalAlignment="Stretch">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Spacing="14" VerticalAlignment="Center">
-                <Border Width="280" Height="280" CornerRadius="16" HorizontalAlignment="Center"
-                        Background="{ThemeResource AccentFillColorDefaultBrush}">
-                    <Grid>
-                        <FontIcon Glyph="&#xE8D6;" FontSize="96" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        <Image Source="{Binding CoverPath, Converter={StaticResource PathToImageConverter}}" Stretch="UniformToFill" />
+        <!-- 左：封面、歌曲信息与播放控制（可垂直滚动，防止窗口较小时截断） -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="14" Padding="0,0,8,16">
+                <!-- 封面与标题 -->
+                <StackPanel Spacing="12" HorizontalAlignment="Center">
+                    <Border Width="220" Height="220" CornerRadius="16" HorizontalAlignment="Center"
+                            Background="{ThemeResource AccentFillColorDefaultBrush}">
+                        <Grid>
+                            <FontIcon Glyph="&#xE8D6;" FontSize="80" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Image Source="{Binding CoverPath, Converter={StaticResource PathToImageConverter}}" Stretch="UniformToFill" />
+                        </Grid>
+                    </Border>
+                    <StackPanel HorizontalAlignment="Center" Spacing="3">
+                        <TextBlock Text="{Binding Title, Mode=OneWay}" FontSize="20" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Artist, Mode=OneWay}" FontSize="14" Opacity="0.75" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Album, Mode=OneWay}" FontSize="12" Opacity="0.55" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- 进度条与播放时间 -->
+                <Grid RowSpacing="4" Margin="0,4,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Slider x:ConnectionId='14' x:Name="ProgressSlider" Minimum="0" Maximum="100" Value="{Binding PositionPercent, Mode=OneWay}"
+                            IsThumbToolTipEnabled="False" AutomationProperties.Name="正在播放-播放进度" />
+                    <Grid Grid.Row="1" Margin="2,0">
+                        <TextBlock Text="{Binding Position, Mode=OneWay}" FontSize="12" Opacity="0.75" HorizontalAlignment="Left" />
+                        <TextBlock Text="{Binding Duration, Mode=OneWay}" FontSize="12" Opacity="0.75" HorizontalAlignment="Right" />
                     </Grid>
-                </Border>
-                <StackPanel HorizontalAlignment="Center" Spacing="2">
-                    <TextBlock Text="{Binding Title, Mode=OneWay}" FontSize="24" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding Artist, Mode=OneWay}" FontSize="15" Opacity="0.75" TextAlignment="Center" />
-                    <TextBlock Text="{Binding Album, Mode=OneWay}" FontSize="13" Opacity="0.55" TextAlignment="Center" />
-                </StackPanel>
-            </StackPanel>
-
-            <!-- 进度 -->
-            <Grid Grid.Row="1" RowSpacing="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Slider x:ConnectionId='14' x:Name="ProgressSlider" Minimum="0" Maximum="100" Value="{Binding PositionPercent, Mode=OneWay}"
-                                                                                                                                                            
-                                                                                                     
-                        IsThumbToolTipEnabled="False" AutomationProperties.Name="正在播放-播放进度" />
-                <Grid Grid.Row="1">
-                    <TextBlock Text="{Binding Position, Mode=OneWay}" FontSize="12" Opacity="0.7" HorizontalAlignment="Left" />
-                    <TextBlock Text="{Binding Duration, Mode=OneWay}" FontSize="12" Opacity="0.7" HorizontalAlignment="Right" />
                 </Grid>
-            </Grid>
 
-            <!-- 播放控制 -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
-                <Button x:ConnectionId='8' Style="{StaticResource TransportButtonStyle}"                          ToolTipService.ToolTip="循环模式" AutomationProperties.Name="循环模式"
-                        Width="Auto" MinWidth="76" Padding="12,0">
-                    <TextBlock Text="{Binding ModeText, Mode=OneWay}" FontSize="12" />
-                </Button>
-                <Button x:ConnectionId='9' Style="{StaticResource TransportButtonStyle}"                         ToolTipService.ToolTip="上一曲" AutomationProperties.Name="上一曲">
-                    <FontIcon Glyph="&#xE892;" FontSize="18" />
-                </Button>
-                <Button x:ConnectionId='10' Style="{StaticResource TransportBigButtonStyle}"                     Visibility="{Binding PlayButtonVisibility, Mode=OneWay}" ToolTipService.ToolTip="播放" AutomationProperties.Name="播放" Padding="0">
-                    <FontIcon Glyph="&#xE768;" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button x:ConnectionId='11' Style="{StaticResource TransportBigButtonStyle}"                      Visibility="{Binding PauseButtonVisibility, Mode=OneWay}" ToolTipService.ToolTip="暂停" AutomationProperties.Name="暂停" Padding="0">
-                    <FontIcon Glyph="&#xE769;" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                </Button>
-                <Button x:ConnectionId='12' Style="{StaticResource TransportButtonStyle}"                     ToolTipService.ToolTip="下一曲" AutomationProperties.Name="下一曲">
-                    <FontIcon Glyph="&#xE893;" FontSize="18" />
-                </Button>
-                <Button x:ConnectionId='13' Style="{StaticResource TransportButtonStyle}"                     ToolTipService.ToolTip="停止" AutomationProperties.Name="停止">
-                    <FontIcon Glyph="&#xE71A;" FontSize="16" />
-                </Button>
+                <!-- 播放控制按钮 -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,2,0,0">
+                    <Button x:ConnectionId='8' Style="{StaticResource TransportButtonStyle}" ToolTipService.ToolTip="循环模式" AutomationProperties.Name="循环模式"
+                            Width="Auto" MinWidth="76" Padding="12,0">
+                        <TextBlock Text="{Binding ModeText, Mode=OneWay}" FontSize="12" />
+                    </Button>
+                    <Button x:ConnectionId='9' Style="{StaticResource TransportButtonStyle}" ToolTipService.ToolTip="上一曲" AutomationProperties.Name="上一曲">
+                        <FontIcon Glyph="&#xE892;" FontSize="18" />
+                    </Button>
+                    <Button x:ConnectionId='10' Style="{StaticResource TransportBigButtonStyle}" Visibility="{Binding PlayButtonVisibility, Mode=OneWay}" ToolTipService.ToolTip="播放" AutomationProperties.Name="播放" Padding="0">
+                        <FontIcon Glyph="&#xE768;" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button x:ConnectionId='11' Style="{StaticResource TransportBigButtonStyle}" Visibility="{Binding PauseButtonVisibility, Mode=OneWay}" ToolTipService.ToolTip="暂停" AutomationProperties.Name="暂停" Padding="0">
+                        <FontIcon Glyph="&#xE769;" FontSize="28" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button x:ConnectionId='12' Style="{StaticResource TransportButtonStyle}" ToolTipService.ToolTip="下一曲" AutomationProperties.Name="下一曲">
+                        <FontIcon Glyph="&#xE893;" FontSize="18" />
+                    </Button>
+                    <Button x:ConnectionId='13' Style="{StaticResource TransportButtonStyle}" ToolTipService.ToolTip="停止" AutomationProperties.Name="停止">
+                        <FontIcon Glyph="&#xE71A;" FontSize="16" />
+                    </Button>
+                </StackPanel>
+
+                <!-- 音量 + 速度 + EQ 开关 -->
+                <Grid ColumnSpacing="16" Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE767;" FontSize="15" Opacity="0.7" />
+                        <Slider Minimum="0" Maximum="100" Value="{Binding Volume, Mode=TwoWay}" Width="130" />
+                    </StackPanel>
+                    <ComboBox x:ConnectionId='7' x:Name="SpeedCombo" Grid.Column="1" MinWidth="85" SelectedIndex="2">
+                        <ComboBoxItem Content="0.5x" /><ComboBoxItem Content="0.75x" />
+                        <ComboBoxItem Content="1.0x" /><ComboBoxItem Content="1.25x" />
+                        <ComboBoxItem Content="1.5x" /><ComboBoxItem Content="2.0x" />
+                        <ComboBoxItem Content="3.0x" />
+                    </ComboBox>
+                    <ToggleButton Grid.Column="2" IsChecked="{Binding EqualizerVisible, Mode=TwoWay}" Padding="10,6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE995;" FontSize="14" />
+                            <TextBlock Text="EQ" FontSize="13" />
+                        </StackPanel>
+                    </ToggleButton>
+                </Grid>
+
+                <!-- EQ 调节区域 -->
+                <Grid Visibility="{Binding EqualizerVisibility}" Margin="0,4,0,0">
+                    <StackPanel Spacing="6">
+                        <controls:EqualizerControl x:ConnectionId='4' x:Name="Equalizer" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <ComboBox x:ConnectionId='5' x:Name="EqPresetCombo" MinWidth="120">
+                                <ComboBoxItem Content="平坦" /><ComboBoxItem Content="流行" /><ComboBoxItem Content="摇滚" />
+                                <ComboBoxItem Content="爵士" /><ComboBoxItem Content="古典" /><ComboBoxItem Content="电子" />
+                                <ComboBoxItem Content="乡村" /><ComboBoxItem Content="低音增强" /><ComboBoxItem Content="高音增强" />
+                            </ComboBox>
+                            <Button x:ConnectionId='6' Content="重置" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 播放/解码状态提示 -->
+                <TextBlock Text="{Binding StatusMessage, Mode=OneWay}" FontSize="12" Opacity="0.85"
+                           Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                           Visibility="{Binding StatusVisibility, Mode=OneWay}" TextWrapping="Wrap" />
             </StackPanel>
-
-            <!-- 音量 + 速度 + EQ -->
-            <Grid Grid.Row="3" ColumnSpacing="20">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <FontIcon Glyph="&#xE767;" FontSize="16" Opacity="0.7" />
-                    <Slider Minimum="0" Maximum="100" Value="{Binding Volume, Mode=TwoWay}" Width="140" />
-                </StackPanel>
-                <ComboBox x:ConnectionId='7' x:Name="SpeedCombo" Grid.Column="1"                                   MinWidth="90" SelectedIndex="2">
-                    <ComboBoxItem Content="0.5x" /><ComboBoxItem Content="0.75x" />
-                    <ComboBoxItem Content="1.0x" /><ComboBoxItem Content="1.25x" />
-                    <ComboBoxItem Content="1.5x" /><ComboBoxItem Content="2.0x" />
-                    <ComboBoxItem Content="3.0x" />
-                </ComboBox>
-                <ToggleButton Grid.Column="2" IsChecked="{Binding EqualizerVisible, Mode=TwoWay}" Padding="10,6">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE995;" FontSize="14" />
-                        <TextBlock Text="EQ" FontSize="13" />
-                    </StackPanel>
-                </ToggleButton>
-            </Grid>
-
-            <!-- EQ 区域 -->
-            <Grid Grid.Row="4" Visibility="{Binding EqualizerVisibility}">
-                <StackPanel Spacing="6">
-                    <controls:EqualizerControl x:ConnectionId='4' x:Name="Equalizer"                                 />
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <ComboBox x:ConnectionId='5' x:Name="EqPresetCombo"                                      MinWidth="120">
-                            <ComboBoxItem Content="平坦" /><ComboBoxItem Content="流行" /><ComboBoxItem Content="摇滚" />
-                            <ComboBoxItem Content="爵士" /><ComboBoxItem Content="古典" /><ComboBoxItem Content="电子" />
-                            <ComboBoxItem Content="乡村" /><ComboBoxItem Content="低音增强" /><ComboBoxItem Content="高音增强" />
-                        </ComboBox>
-                        <Button x:ConnectionId='6' Content="重置"                        />
-                    </StackPanel>
-                </StackPanel>
-            </Grid>
-
-            <!-- 播放/解码状态提示（不再使用弹窗：渲染进度已移至 DSP 页底部进度条，避免重复提示） -->
-            <TextBlock Grid.Row="5" Text="{Binding StatusMessage, Mode=OneWay}" FontSize="12" Opacity="0.85"
-                       Foreground="{ThemeResource SystemFillColorCautionBrush}"
-                       Visibility="{Binding StatusVisibility, Mode=OneWay}" TextWrapping="Wrap" />
-        </Grid>
+        </ScrollViewer>
 
         <!-- 右：歌词面板 + 批量导入 -->
         <Grid Grid.Column="1" RowSpacing="8">
@@ -130,7 +123,7 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
-                <Button x:ConnectionId='3'                                  ToolTipService.ToolTip="批量选择 LRC 歌词文件，按歌曲名/歌手自动匹配并导入">
+                <Button x:ConnectionId='3' ToolTipService.ToolTip="批量选择 LRC 歌词文件，按歌曲名/歌手自动匹配并导入">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon Glyph="&#xE8B7;" FontSize="14" />
                         <TextBlock Text="批量导入歌词" FontSize="12" />

@@ -67,11 +67,17 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		}
 	}
 
+	private bool _layoutAdjusted;
+	private TextBlock? _positionText;
+	private TextBlock? _durationText;
+
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
+		ApplyResponsiveLayout();
 		if (ViewModel != null)
 		{
 			ViewModel.Initialize();
+			ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 			Lyrics.Attach(ViewModel);
 			Lyrics.ApplyLyricFont(ViewModel.LyricFontFamily, ViewModel.LyricFontFilePath);
 			Equalizer.Gains = ViewModel.EqGains;
@@ -80,11 +86,123 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			{
 				SpeedCombo.SelectedIndex = num;
 			}
+			UpdateTimeTexts();
+		}
+	}
+
+	private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+	{
+		if (e.PropertyName == nameof(NowPlayingViewModel.Position) || e.PropertyName == nameof(NowPlayingViewModel.Duration))
+		{
+			UpdateTimeTexts();
+		}
+	}
+
+	private void UpdateTimeTexts()
+	{
+		if (ViewModel == null) return;
+		if (_positionText != null)
+		{
+			_positionText.Text = FormatTime(ViewModel.Position);
+		}
+		if (_durationText != null)
+		{
+			_durationText.Text = FormatTime(ViewModel.Duration);
+		}
+	}
+
+	private void ApplyResponsiveLayout()
+	{
+		if (_layoutAdjusted) return;
+		_layoutAdjusted = true;
+		try
+		{
+			if (Content is Grid rootGrid)
+			{
+				if (rootGrid.ColumnDefinitions.Count >= 2)
+				{
+					rootGrid.ColumnDefinitions[0].Width = new GridLength(1.0, GridUnitType.Star);
+					rootGrid.ColumnDefinitions[0].MinWidth = 300.0;
+					rootGrid.ColumnDefinitions[1].Width = new GridLength(1.0, GridUnitType.Star);
+					rootGrid.ColumnDefinitions[1].MinWidth = 280.0;
+				}
+
+				if (rootGrid.Children.Count > 0 && rootGrid.Children[0] is Grid leftGrid)
+				{
+					leftGrid.RowSpacing = 8.0;
+					if (leftGrid.RowDefinitions.Count > 0)
+					{
+						leftGrid.RowDefinitions[0].Height = GridLength.Auto;
+					}
+					if (leftGrid.Children.Count > 0 && leftGrid.Children[0] is StackPanel coverAndTitlePanel)
+					{
+						coverAndTitlePanel.Spacing = 6.0;
+						if (coverAndTitlePanel.Children.Count > 0 && coverAndTitlePanel.Children[0] is Border coverBorder)
+						{
+							coverBorder.Width = 140.0;
+							coverBorder.Height = 140.0;
+							coverBorder.MaxWidth = 160.0;
+							coverBorder.MaxHeight = 160.0;
+						}
+						if (coverAndTitlePanel.Children.Count > 1 && coverAndTitlePanel.Children[1] is StackPanel titlePanel)
+						{
+							if (titlePanel.Children.Count > 0 && titlePanel.Children[0] is TextBlock titleBlock)
+							{
+								titleBlock.FontSize = 18.0;
+								titleBlock.MaxLines = 2;
+								titleBlock.TextWrapping = TextWrapping.Wrap;
+								titleBlock.TextTrimming = TextTrimming.CharacterEllipsis;
+							}
+						}
+					}
+
+					// Locate Position and Duration TextBlocks in Row 1 to format as m:ss cleanly
+					foreach (var child in leftGrid.Children)
+					{
+						if (child is Grid rowGrid && Grid.GetRow(rowGrid) == 1)
+						{
+							foreach (var sub in rowGrid.Children)
+							{
+								if (sub is Grid timeGrid && Grid.GetRow(timeGrid) == 1)
+								{
+									if (timeGrid.Children.Count >= 2 &&
+									    timeGrid.Children[0] is TextBlock posBlock &&
+									    timeGrid.Children[1] is TextBlock durBlock)
+									{
+										_positionText = posBlock;
+										_durationText = durBlock;
+										_positionText.ClearValue(TextBlock.TextProperty);
+										_durationText.ClearValue(TextBlock.TextProperty);
+										UpdateTimeTexts();
+									}
+								}
+							}
+						}
+					}
+
+					rootGrid.Children.RemoveAt(0);
+					ScrollViewer scrollViewer = new ScrollViewer
+					{
+						VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+						HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+						Content = leftGrid
+					};
+					Grid.SetColumn(scrollViewer, 0);
+					rootGrid.Children.Insert(0, scrollViewer);
+				}
+			}
+		}
+		catch (Exception)
+		{
 		}
 	}
 
 	private void OnUnloaded(object sender, RoutedEventArgs e)
 	{
+		if (ViewModel != null)
+		{
+			ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+		}
 		Lyrics.Detach();
 	}
 

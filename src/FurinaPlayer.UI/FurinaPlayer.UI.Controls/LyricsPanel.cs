@@ -191,16 +191,22 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 			{
 				return;
 			}
-			ScrollViewer scrollViewer = FindScrollViewer(LyricList);
-			if (!(scrollViewer == null) && !(scrollViewer.ViewportHeight <= 0.0))
+			ScrollViewer? scrollViewer = FindScrollViewer(LyricList);
+			if (scrollViewer == null || scrollViewer.ViewportHeight <= 0.0)
 			{
-				double num = listViewItem.TransformToVisual(LyricList).TransformPoint(new Point(0f, 0f)).Y - (scrollViewer.ViewportHeight - listViewItem.ActualHeight) / 2.0;
-				if (num < 0.0)
-				{
-					num = 0.0;
-				}
-				scrollViewer.ChangeView(null, num, null, disableAnimation: true);
+				return;
 			}
+			Point rel = listViewItem.TransformToVisual(scrollViewer).TransformPoint(new Point(0f, 0f));
+			double num = scrollViewer.VerticalOffset + rel.Y - (scrollViewer.ViewportHeight - listViewItem.ActualHeight) / 2.0;
+			if (num < 0.0)
+			{
+				num = 0.0;
+			}
+			if (num > scrollViewer.ScrollableHeight)
+			{
+				num = scrollViewer.ScrollableHeight;
+			}
+			scrollViewer.ChangeView(null, num, null, disableAnimation: false);
 		}
 		catch
 		{

@@ -258,17 +258,7 @@ internal sealed class AudioSession : IDisposable
 
 	private RenderSettings CurrentRenderSettings => new RenderSettings(_eqGains, _reverbEnabled, _reverbMix, _reverbPreset, _timbre, new SpatialParameters(_spatialWidth, _spatialModulation, _spatialPredelayMs), _vst3);
 
-	private bool RequiresPrerender
-	{
-		get
-		{
-			if (!_useVlc && !Vst3NativeActive)
-			{
-				return CurrentRenderSettings.IsActive;
-			}
-			return false;
-		}
-	}
+	private bool RequiresPrerender => false;
 
 	public event Action<Track?>? TrackChanged;
 
@@ -745,7 +735,10 @@ internal sealed class AudioSession : IDisposable
 		_eqGains = ((gains != null && gains.Length == 10) ? ((double[])gains.Clone()) : new double[10]);
 		_naudioBackend.SetEqGains(_eqGains);
 		ScheduleVlcEqApply();
-		ScheduleRenderedRestart("eq");
+		if (_renderedWavPath != null)
+		{
+			ScheduleRenderedRestart("eq");
+		}
 	}
 
 	private void ScheduleVlcEqApply()
@@ -812,37 +805,41 @@ internal sealed class AudioSession : IDisposable
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{
 		bool vst3Active = Vst3Active;
-		bool vst3NativeActive = Vst3NativeActive;
 		bool flag = _renderedWavPath != null;
 		_vst3 = plugins ?? Array.Empty<Vst3PluginState>();
 		_naudioBackend.SetVst3(_vst3);
-		try
+
+		Vst3PluginState? activePlugin = _vst3.FirstOrDefault(p => p != null && p.IsActive);
+		if (activePlugin != null && !string.IsNullOrWhiteSpace(activePlugin.Path))
 		{
-			int sampleRate = _naudioBackend.SampleRate;
-			if (sampleRate > 0)
+			try
 			{
+				int sampleRate = _naudioBackend.SampleRate > 0 ? _naudioBackend.SampleRate : 44100;
+				Vst3NativeHost.Instance.EnsureLoaded(activePlugin.Path, sampleRate, 2, out _);
 				Vst3NativeHost.Instance.UpdateSampleRate(sampleRate);
 			}
-		}
-		catch
-		{
-		}
-		bool vst3Active2 = Vst3Active;
-		if (vst3Active && !vst3Active2)
-		{
-			if (flag || (!_useVlc && State != PlaybackState.Stopped) || _restorePending)
+			catch
 			{
-				CancelRender();
-				RestartCleanNaudioChain("vst3-disable" + (vst3NativeActive ? "-native" : ""));
 			}
 		}
-		else if (vst3Active2 && !vst3Active && _renderedWavPath != null)
+		else if (vst3Active && !Vst3Active)
+		{
+			try
+			{
+				Vst3NativeHost.Instance.Unload();
+			}
+			catch
+			{
+			}
+		}
+
+		bool vst3Active2 = Vst3Active;
+		if (flag)
 		{
 			CancelRender();
-			RestartCleanNaudioChain("vst3-enable");
+			RestartCleanNaudioChain(vst3Active && !vst3Active2 ? "vst3-disable" : "vst3-enable");
 		}
 		RefreshPlaybackPath("vst3");
-		ScheduleRenderedRestart("vst3");
 	}
 
 	private void RestartCleanNaudioChain(string reason)
@@ -946,6 +943,10 @@ internal sealed class AudioSession : IDisposable
 		{
 			return;
 		}
+		if (flag && !_useVlc && (State == PlaybackState.Playing || State == PlaybackState.Paused))
+		{
+			return;
+		}
 		bool flag2 = State == PlaybackState.Playing || State == PlaybackState.Paused;
 		bool restorePending = _restorePending;
 		TimeSpan timeSpan = ((flag2 | restorePending) ? Position : TimeSpan.Zero);
@@ -958,45 +959,38 @@ internal sealed class AudioSession : IDisposable
 		}
 		if (!flag)
 		{
-			if (Vst3NativeActive && !_rendering)
+			if (!(flag2 | restorePending))
 			{
-				if (!(flag2 | restorePending))
-				{
-					return;
-				}
-				_runToken++;
-				try
-				{
-					_positionTimer.Change(-1, -1);
-					if (useVlc)
-					{
-						_vlcBackend.Stop();
-					}
-					else
-					{
-						_naudioBackend.Stop();
-					}
-					TryDelete(_renderedWavPath);
-					_renderedWavPath = null;
-					if (OpenCurrent())
-					{
-						_naudioBackend.Seek(timeSpan);
-						if (!restorePending)
-						{
-							_naudioBackend.Play();
-						}
-						SetState(PlaybackState.Playing);
-					}
-					return;
-				}
-				finally
-				{
-					_watchdog.Reset(timeSpan);
-				}
+				return;
 			}
-			if (flag2 | restorePending)
+			_runToken++;
+			try
 			{
-				StartRenderedPlayback(timeSpan, !restorePending);
+				_positionTimer.Change(-1, -1);
+				if (useVlc)
+				{
+					_vlcBackend.Stop();
+				}
+				else
+				{
+					_naudioBackend.Stop();
+				}
+				TryDelete(_renderedWavPath);
+				_renderedWavPath = null;
+				if (OpenCurrent())
+				{
+					_naudioBackend.Seek(timeSpan);
+					if (!restorePending)
+					{
+						_naudioBackend.Play();
+					}
+					SetState(PlaybackState.Playing);
+				}
+				return;
+			}
+			finally
+			{
+				_watchdog.Reset(timeSpan);
 			}
 		}
 		else

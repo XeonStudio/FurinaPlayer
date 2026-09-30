@@ -456,6 +456,35 @@ public sealed class MainWindow : Window, IComponentConnector
 		}
 	}
 
+	public void NavigateTo(string tag)
+	{
+		try
+		{
+			switch (tag)
+			{
+			case "home":
+				ContentFrame.Navigate(typeof(HomePage), _homeVm, new SuppressNavigationTransitionInfo());
+				break;
+			case "playing":
+				ContentFrame.Navigate(typeof(NowPlayingPage), _nowPlayingVm, new SuppressNavigationTransitionInfo());
+				break;
+			case "editor":
+				ContentFrame.Navigate(typeof(EditorPage), _editorVm, new SuppressNavigationTransitionInfo());
+				break;
+			case "dsp":
+				ContentFrame.Navigate(typeof(DspPage), _dspVm, new SuppressNavigationTransitionInfo());
+				break;
+			case "settings":
+				ContentFrame.Navigate(typeof(SettingsPage), _settingsVm, new SuppressNavigationTransitionInfo());
+				break;
+			}
+		}
+		catch (Exception ex)
+		{
+			Log("NavigateTo failed: " + ex);
+		}
+	}
+
 	private static void Log(string s)
 	{
 		try

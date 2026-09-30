@@ -394,6 +394,7 @@ public sealed class DspPage : Page, IComponentConnector
 	public DspPage()
 	{
 		InitializeComponent();
+		EqCurveCanvas.Height = 70.0;
 		_layout = new PanelLayoutController(PanelCanvas, 420.0, 240.0);
 		_layout.Register(EqPanel, EqHeader);
 		_layout.Register(EffectsPanel, EffectsHeader);
@@ -437,10 +438,10 @@ public sealed class DspPage : Page, IComponentConnector
 	private void RestoreLayouts()
 	{
 		Dictionary<string, double[]> layouts = ViewModel.LoadPanelLayouts();
-		RestorePanel(EqPanel, "dsp.eq", layouts, 20.0, 16.0, 660.0, 460.0);
-		RestorePanel(EffectsPanel, "dsp.effects", layouts, 700.0, 16.0, 640.0, 400.0);
-		RestorePanel(TimbrePanel, "dsp.timbre", layouts, 700.0, 432.0, 640.0, 320.0);
-		RestorePanel(Vst3Panel, "dsp.vst3", layouts, 20.0, 492.0, 1320.0, 252.0);
+		RestorePanel(EqPanel, "dsp.eq", layouts, 20.0, 16.0, 600.0, 380.0);
+		RestorePanel(EffectsPanel, "dsp.effects", layouts, 640.0, 16.0, 560.0, 380.0);
+		RestorePanel(TimbrePanel, "dsp.timbre", layouts, 640.0, 410.0, 560.0, 320.0);
+		RestorePanel(Vst3Panel, "dsp.vst3", layouts, 20.0, 410.0, 600.0, 320.0);
 	}
 
 	private void RestorePanel(Border panel, string key, Dictionary<string, double[]> layouts, double defLeft, double defTop, double defWidth, double defHeight)
@@ -535,10 +536,10 @@ public sealed class DspPage : Page, IComponentConnector
 
 	private void OnResetLayoutClick(object sender, RoutedEventArgs e)
 	{
-		ResetPanelLayout(EqPanel, 20.0, 16.0, 660.0, 460.0);
-		ResetPanelLayout(EffectsPanel, 700.0, 16.0, 640.0, 400.0);
-		ResetPanelLayout(TimbrePanel, 700.0, 432.0, 640.0, 320.0);
-		ResetPanelLayout(Vst3Panel, 20.0, 492.0, 1320.0, 252.0);
+		ResetPanelLayout(EqPanel, 20.0, 16.0, 600.0, 370.0);
+		ResetPanelLayout(EffectsPanel, 640.0, 16.0, 560.0, 370.0);
+		ResetPanelLayout(TimbrePanel, 640.0, 400.0, 560.0, 320.0);
+		ResetPanelLayout(Vst3Panel, 20.0, 400.0, 600.0, 320.0);
 		SaveLayouts();
 	}
 
@@ -628,13 +629,14 @@ public sealed class DspPage : Page, IComponentConnector
 			}
 			CloseVst3Editor();
 			int sampleRate = ((ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100);
-			_vst3EditorWindow = Vst3EditorWindow.Open(tag.Path, sampleRate, 2, out string error);
-			if (_vst3EditorWindow == null)
+			Vst3EditorWindow? editor = Vst3EditorWindow.Open(tag.Path, sampleRate, 2, out string error);
+			if (editor == null)
 			{
 				ViewModel.Vst3StatusText = "打开插件界面失败：" + error;
 				return;
 			}
-			_vst3EditorWindow.Closed += OnVst3EditorClosed;
+			_vst3EditorWindow = editor;
+			editor.Closed += () => OnVst3EditorClosed(editor);
 			foreach (Vst3PluginState vst3Plugin in ViewModel.Vst3Plugins)
 			{
 				if (vst3Plugin != null && vst3Plugin != tag)
@@ -646,7 +648,7 @@ public sealed class DspPage : Page, IComponentConnector
 			tag.Enabled = true;
 			tag.Bypass = false;
 			ViewModel.ApplyVst3Command.Execute(null);
-			ViewModel.Vst3StatusText = "已打开插件原生界面：" + tag.Name + "，实时独占渲染与播放当前歌曲";
+			ViewModel.Vst3StatusText = "已打开插件原生界面：" + tag.Name + "，实时处理与播放当前歌曲";
 		}
 		catch (Exception ex)
 		{
@@ -654,10 +656,16 @@ public sealed class DspPage : Page, IComponentConnector
 		}
 	}
 
-	private void OnVst3EditorClosed()
+	private void OnVst3EditorClosed(Vst3EditorWindow? w)
 	{
-		Vst3EditorWindow w = _vst3EditorWindow;
-		_vst3EditorWindow = null;
+		if (w == null)
+		{
+			w = _vst3EditorWindow;
+		}
+		if (_vst3EditorWindow == w)
+		{
+			_vst3EditorWindow = null;
+		}
 		if (w != null && ViewModel != null)
 		{
 			Vst3PluginState vst3PluginState = ViewModel.Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && string.Equals(p.Path, w.PluginPath, StringComparison.OrdinalIgnoreCase));
@@ -686,6 +694,7 @@ public sealed class DspPage : Page, IComponentConnector
 		catch
 		{
 		}
+		OnVst3EditorClosed(vst3EditorWindow);
 	}
 
 	private void DrawEqCurve(double[] gains)

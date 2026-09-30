@@ -75,6 +75,28 @@ internal sealed class Vst3NativeInstance : IDisposable
 
 	private float[][] _outPlanar = Array.Empty<float[]>();
 
+	private GCHandle[]? _inHandles;
+
+	private GCHandle[]? _outHandles;
+
+	private nint _inChannelBuffersPtr;
+
+	private nint _outChannelBuffersPtr;
+
+	private nint _inAudioBusBuffersPtr;
+
+	private nint _outAudioBusBuffersPtr;
+
+	private int _allocatedFrames;
+
+	private int _allocatedInChannels;
+
+	private int _allocatedOutChannels;
+
+	private int _allocatedInBusses;
+
+	private int _allocatedOutBusses;
+
 	private readonly object _lock = new object();
 
 	private static readonly List<GCHandle> _pins = new List<GCHandle>();
@@ -573,6 +595,93 @@ internal sealed class Vst3NativeInstance : IDisposable
 		}
 	}
 
+	private void FreeBuffers()
+	{
+		if (_inHandles != null)
+		{
+			for (int i = 0; i < _inHandles.Length; i++)
+			{
+				if (_inHandles[i].IsAllocated)
+				{
+					try
+					{
+						_inHandles[i].Free();
+					}
+					catch
+					{
+					}
+				}
+			}
+			_inHandles = null;
+		}
+		if (_outHandles != null)
+		{
+			for (int j = 0; j < _outHandles.Length; j++)
+			{
+				if (_outHandles[j].IsAllocated)
+				{
+					try
+					{
+						_outHandles[j].Free();
+					}
+					catch
+					{
+					}
+				}
+			}
+			_outHandles = null;
+		}
+		if (_inChannelBuffersPtr != IntPtr.Zero)
+		{
+			try
+			{
+				Marshal.FreeHGlobal(_inChannelBuffersPtr);
+			}
+			catch
+			{
+			}
+			_inChannelBuffersPtr = IntPtr.Zero;
+		}
+		if (_outChannelBuffersPtr != IntPtr.Zero)
+		{
+			try
+			{
+				Marshal.FreeHGlobal(_outChannelBuffersPtr);
+			}
+			catch
+			{
+			}
+			_outChannelBuffersPtr = IntPtr.Zero;
+		}
+		if (_inAudioBusBuffersPtr != IntPtr.Zero)
+		{
+			try
+			{
+				Marshal.FreeHGlobal(_inAudioBusBuffersPtr);
+			}
+			catch
+			{
+			}
+			_inAudioBusBuffersPtr = IntPtr.Zero;
+		}
+		if (_outAudioBusBuffersPtr != IntPtr.Zero)
+		{
+			try
+			{
+				Marshal.FreeHGlobal(_outAudioBusBuffersPtr);
+			}
+			catch
+			{
+			}
+			_outAudioBusBuffersPtr = IntPtr.Zero;
+		}
+		_allocatedFrames = 0;
+		_allocatedInChannels = 0;
+		_allocatedOutChannels = 0;
+		_allocatedInBusses = 0;
+		_allocatedOutBusses = 0;
+	}
+
 	public bool TryProcess(float[] interleaved, int channels)
 	{
 		if (_disposed || !_processingEnabled || _processor == null || interleaved == null)
@@ -586,7 +695,7 @@ internal sealed class Vst3NativeInstance : IDisposable
 		int num = interleaved.Length / channels;
 		lock (_lock)
 		{
-			if (_disposed)
+			if (_disposed || _processor == null)
 			{
 				return false;
 			}
@@ -617,44 +726,11 @@ internal sealed class Vst3NativeInstance : IDisposable
 					Array.Clear(array, 0, num);
 				}
 			}
-			List<GCHandle> list = new List<GCHandle>(_inChannels + _outChannels);
-			int num3 = Marshal.SizeOf<AudioBusBuffers>();
+
 			int num4 = Math.Max(1, _numInputBusses);
 			int num5 = Math.Max(1, _numOutputBusses);
-			nint num6 = Marshal.AllocHGlobal(IntPtr.Size * _inChannels);
-			nint num7 = Marshal.AllocHGlobal(IntPtr.Size * _outChannels);
-			nint num8 = Marshal.AllocHGlobal(num3 * num4);
-			nint num9 = Marshal.AllocHGlobal(num3 * num5);
 			try
 			{
-				for (int l = 0; l < _inChannels; l++)
-				{
-					list.Add(GCHandle.Alloc(_inPlanar[l], GCHandleType.Pinned));
-					Marshal.WriteIntPtr(num6, l * IntPtr.Size, list[l].AddrOfPinnedObject());
-				}
-				for (int m = 0; m < _outChannels; m++)
-				{
-					list.Add(GCHandle.Alloc(_outPlanar[m], GCHandleType.Pinned));
-					Marshal.WriteIntPtr(num7, m * IntPtr.Size, list[_inChannels + m].AddrOfPinnedObject());
-				}
-				for (int n = 0; n < num4; n++)
-				{
-					Marshal.StructureToPtr(new AudioBusBuffers
-					{
-						NumChannels = _inChannels,
-						SilenceFlags = (ulong)((n == 0) ? 0 : ((1L << _inChannels) - 1)),
-						ChannelBuffers = num6
-					}, num8 + n * num3, fDeleteOld: false);
-				}
-				for (int num10 = 0; num10 < num5; num10++)
-				{
-					Marshal.StructureToPtr(new AudioBusBuffers
-					{
-						NumChannels = _outChannels,
-						SilenceFlags = (ulong)((num10 == 0) ? 0 : ((1L << _outChannels) - 1)),
-						ChannelBuffers = num7
-					}, num9 + num10 * num3, fDeleteOld: false);
-				}
 				ProcessData data = new ProcessData
 				{
 					ProcessMode = 0,
@@ -662,8 +738,8 @@ internal sealed class Vst3NativeInstance : IDisposable
 					NumSamples = num,
 					NumInputs = num4,
 					NumOutputs = num5,
-					Inputs = num8,
-					Outputs = num9,
+					Inputs = _inAudioBusBuffersPtr,
+					Outputs = _outAudioBusBuffersPtr,
 					InputParameterChanges = ((!Vst3NativeHost.UseParameterChanges) ? IntPtr.Zero : (Vst3NativeHost.HackParamPointer ? _hostContextCcw : _paramChangesCcw)),
 					OutputParameterChanges = IntPtr.Zero,
 					InputEvents = IntPtr.Zero,
@@ -671,7 +747,7 @@ internal sealed class Vst3NativeInstance : IDisposable
 					ProcessContext = IntPtr.Zero
 				};
 				int num11 = _processor.Process(ref data);
-				if (num11 != 0 && num11 != 0)
+				if (num11 != 0)
 				{
 					return true;
 				}
@@ -680,47 +756,7 @@ internal sealed class Vst3NativeInstance : IDisposable
 			{
 				return true;
 			}
-			finally
-			{
-				foreach (GCHandle item in list)
-				{
-					try
-					{
-						item.Free();
-					}
-					catch
-					{
-					}
-				}
-				try
-				{
-					Marshal.FreeHGlobal(num8);
-				}
-				catch
-				{
-				}
-				try
-				{
-					Marshal.FreeHGlobal(num9);
-				}
-				catch
-				{
-				}
-				try
-				{
-					Marshal.FreeHGlobal(num6);
-				}
-				catch
-				{
-				}
-				try
-				{
-					Marshal.FreeHGlobal(num7);
-				}
-				catch
-				{
-				}
-			}
+
 			int num12 = Math.Min(channels, _outChannels);
 			for (int num13 = 0; num13 < num12; num13++)
 			{
@@ -750,22 +786,73 @@ internal sealed class Vst3NativeInstance : IDisposable
 		{
 			return;
 		}
-		if (_inPlanar.Length != inCh || _inPlanar.Length == 0 || _inPlanar[0].Length < frames)
+		int numInBusses = Math.Max(1, _numInputBusses);
+		int numOutBusses = Math.Max(1, _numOutputBusses);
+		int requiredFrames = Math.Max(frames, 8192);
+
+		if (_allocatedFrames >= requiredFrames &&
+			_allocatedInChannels == inCh &&
+			_allocatedOutChannels == outCh &&
+			_allocatedInBusses == numInBusses &&
+			_allocatedOutBusses == numOutBusses &&
+			_inAudioBusBuffersPtr != IntPtr.Zero &&
+			_outAudioBusBuffersPtr != IntPtr.Zero)
 		{
-			_inPlanar = new float[inCh][];
-			for (int i = 0; i < inCh; i++)
-			{
-				_inPlanar[i] = new float[Math.Max(frames, 8192)];
-			}
+			return;
 		}
-		if (_outPlanar.Length != outCh || _outPlanar.Length == 0 || _outPlanar[0].Length < frames)
+
+		FreeBuffers();
+
+		_inPlanar = new float[inCh][];
+		_inHandles = new GCHandle[inCh];
+		_inChannelBuffersPtr = Marshal.AllocHGlobal(IntPtr.Size * inCh);
+
+		for (int i = 0; i < inCh; i++)
 		{
-			_outPlanar = new float[outCh][];
-			for (int j = 0; j < outCh; j++)
-			{
-				_outPlanar[j] = new float[Math.Max(frames, 8192)];
-			}
+			_inPlanar[i] = new float[requiredFrames];
+			_inHandles[i] = GCHandle.Alloc(_inPlanar[i], GCHandleType.Pinned);
+			Marshal.WriteIntPtr(_inChannelBuffersPtr, i * IntPtr.Size, _inHandles[i].AddrOfPinnedObject());
 		}
+
+		_outPlanar = new float[outCh][];
+		_outHandles = new GCHandle[outCh];
+		_outChannelBuffersPtr = Marshal.AllocHGlobal(IntPtr.Size * outCh);
+
+		for (int j = 0; j < outCh; j++)
+		{
+			_outPlanar[j] = new float[requiredFrames];
+			_outHandles[j] = GCHandle.Alloc(_outPlanar[j], GCHandleType.Pinned);
+			Marshal.WriteIntPtr(_outChannelBuffersPtr, j * IntPtr.Size, _outHandles[j].AddrOfPinnedObject());
+		}
+
+		int busSize = Marshal.SizeOf<AudioBusBuffers>();
+		_inAudioBusBuffersPtr = Marshal.AllocHGlobal(busSize * numInBusses);
+		for (int n = 0; n < numInBusses; n++)
+		{
+			Marshal.StructureToPtr(new AudioBusBuffers
+			{
+				NumChannels = inCh,
+				SilenceFlags = (ulong)((n == 0) ? 0 : ((1L << inCh) - 1)),
+				ChannelBuffers = _inChannelBuffersPtr
+			}, _inAudioBusBuffersPtr + n * busSize, fDeleteOld: false);
+		}
+
+		_outAudioBusBuffersPtr = Marshal.AllocHGlobal(busSize * numOutBusses);
+		for (int m = 0; m < numOutBusses; m++)
+		{
+			Marshal.StructureToPtr(new AudioBusBuffers
+			{
+				NumChannels = outCh,
+				SilenceFlags = (ulong)((m == 0) ? 0 : ((1L << outCh) - 1)),
+				ChannelBuffers = _outChannelBuffersPtr
+			}, _outAudioBusBuffersPtr + m * busSize, fDeleteOld: false);
+		}
+
+		_allocatedFrames = requiredFrames;
+		_allocatedInChannels = inCh;
+		_allocatedOutChannels = outCh;
+		_allocatedInBusses = numInBusses;
+		_allocatedOutBusses = numOutBusses;
 	}
 
 	public void QueueParameterChange(uint id, double value)
@@ -914,6 +1001,7 @@ internal sealed class Vst3NativeInstance : IDisposable
 			}
 			_disposed = true;
 			_processingEnabled = false;
+			FreeBuffers();
 		}
 		try
 		{
