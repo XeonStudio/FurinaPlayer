@@ -341,3 +341,75 @@ Tests Completed: 24 | Passed: 24 | Failed: 0 (100% PASS)
 | **PPT 主题歌词** | 幻灯片队列、黑胶唱机、时钟与控制响应 | 实机 IPC 消息流测试（`playing_powerpoint.png`） | **正常**：黑胶唱机显示封面，进度与切歌响应正常 |
 | **ECHO DSP UI** | 12 大效果器界面展示、快捷导航、电平表与记忆 | 实机页面渲染（`dsp.png`） | **正常**：全部面板可查看与调节，QuickNav药丸导航平滑锚定，动态压缩电平实时刷新 |
 | **系统稳定性** | 页面切换、会话存取、后台生命周期 | 本地日志追踪（`furina.log`） | **正常**：无未捕获异常、无崩溃 |
+
+---
+
+## 9. 迭代交付进展 (v1.2.0 - DAW 监测修复、走带居中、DSP 选项卡重构与 GitHub 发布)
+
+### 9.1 Audition DAW 实时监测与双向握手阻断根治
+- **故障根因**：
+  在 `Assets\AuditionDaw\app.js` 第 5101 行包含防御性判断：
+  ```javascript
+  if (event.source !== parent) return;
+  ```
+  在 WinUI 3 WebView2 顶层容器运行环境中，由于不存在包含它的 `parent` iframe，浏览器内核在触发顶层 `new MessageEvent(...)` 时，其 `event.source` 默认为 `null`。当与 `parent`（指向自身 `window`）比较时，`null !== parent` 始终为 `true`，**导致宿主发送至前端的 100% 协议消息在入口处被无条件静默丢弃**！
+- **修复方案**：
+  1. `Assets\AuditionDaw\index.html`：在 `new MessageEvent` 构造参数中显式挂载 `source: window.parent || window`。
+  2. `Assets\AuditionDaw\app.js`：将来源校验放宽为安全宽松模式：
+     ```javascript
+     if (event.source && event.source !== parent && event.source !== window) return;
+     ```
+     同时增加对 JSON 字符串消息的自动反序列化，并直接在 `window.chrome.webview` 上挂载报文侦听器。
+  3. `NowPlayingPage.cs`：
+     - 在 `SendDawAudioFormat()` 中补齐完整的 `type = "echo:audition:audioStatus"` 硬件链路报文（输出设备、模式、采样率、位深、声道与直通模式）。
+     - 通过 40ms 高频 DispatcherTimer 输出 `echo:workshop-ui:clock` 与 `echo:workshop-ui:audio`（传递 `levels.peakDb`, `levels.rmsDb`, `spectrum.bands`, `spectrum.energy`）。
+- **实机验证效果**：
+  右上角状态从以往的“等待宿主握手…”转变为亮青色 **“实时连接 · 协议 v1 · 播放中/已暂停”**，Insight 2 Pro 仪表的 LUFS/LRA 积分计算、立体声极坐标相位计、Goniometer 声场和波形包络全面激活跳动。
+
+### 9.2 PowerPoint 歌词页播放控制绝对居中重构
+- **故障根因**：
+  原 `.pc-transport-center` 容器设置了 `width: 380px; margin-right: auto;`，导致走带控制按钮被左侧曲目信息容器挤压，严重偏向屏幕左侧，右侧音量控制条留白过大。
+- **重构方案**：
+  在 `Assets\PowerPointTheme\app.css` 中将走带容器改造为物理绝对居中布局：
+  ```css
+  .ppt-player-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      gap: 20px;
+  }
+  .pc-transport-center {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 480px;
+      max-width: calc(100vw - 460px);
+      margin: 0;
+      z-index: 1;
+  }
+  ```
+- **实机验证效果**：
+  无论曲目名称长度或窗口宽高如何缩放，上一曲、播放/暂停圆形按钮、下一曲及下方播放时间轴滑块始终 **100% 处于整个窗口正中央**，左右视觉绝对平衡对称。
+
+### 9.3 效果器与 DSP 设置排版布局重构（任务驱动选项卡体系）
+- **重构背景**：
+  以往版本将 10 大 DSP 面板散落平铺在一个高达 2460px 的巨大可拖拽画布上，用户需要无休止地横向/纵向滚动查找，面板间容易重叠遮挡，视觉阅读性极差。
+- **重构方案**：
+  在 `DspPage.cs` 中重构出 **分类选项卡导航系统（Segmented Categorized View）**，梳理归纳为 6 大黄金功能区与 1 个自由模式：
+  1. `rack` **全景机架**：宽屏 1160px 单列展示 10 大 DSP 核心执行流向、独立 Bypass 旁通开关、实时状态指示灯与安全限幅说明；
+  2. `eq` **均衡与校正**：左侧 570px 呈现 10 段图形 EQ + AutoEq 预设导入；右侧 570px 呈现 FIR 房间脉冲校正与卷积增益；
+  3. `spatial` **空间声场**：1160px 宽屏排布 Bauer/Chu Moy/Jan Meier 双耳互馈 + 3D 立体声声场宽度（0~200%）+ 声道矩阵倒相路由；
+  4. `dynamics` **动态母带**：左侧 570px 动态压缩器（阈值/比率/起音/释放/拐点/补偿 + 50ms 实时 Gain Reduction 减益表）；右侧 570px ReplayGain 感知响度均衡与 Headroom 数字余量管理；
+  5. `hires` **高解析DSD**：1160px 自适应排列多相实时升频（最高 384kHz）+ PCM 转 DSD 5阶 Delta-Sigma 调制器；
+  6. `vst3` **扩展与VST3**：左侧 570px VST3 专业宿主管理器；右侧 570px 经典混响与回声效果；
+  7. `free` **自由画布**：保留原有的全景卡片自由拖拽与缩放模式。
+- **实机验证效果**：
+  彻底告别混乱堆砌，各功能区按需聚焦，配合半透明亚克力磨砂边框与青色强调色，界面极度专业清晰。
+
+### 9.4 GitHub 源码推送与 Release 打包
+- **Git 仓库**：
+  已向 `upstream` 远程仓库 `https://github.com/XeonStudio/FurinaPlayer.git` 成功推送最新 commit `d1a9ae1`，并同步创建并推送了正式版本标签 `v1.2.0`。
+- **Release 资产**：
+  已在桌面生成全量免安装绿色发行包：
+  `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.0-win-x64.zip`（214 MB），包含所有依赖组件、DirectX/WebView2 运行库及最新的 DAW / PPT / DSP 模块。
