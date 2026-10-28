@@ -1,0 +1,2920 @@
+/* Microsoft PowerPoint Theme for ECHO Workshop */
+/* Presentation Skin - Fluent UI SVG Edition */
+
+:root {
+  --ppt-red: #c43e1c;
+  --ppt-red-dark: #a83214;
+  --ppt-red-light: #d8512f;
+  --ppt-red-subtle: #fdf3f0;
+  --ppt-red-tint: rgba(196, 62, 28, 0.12);
+
+  --bg-app: #f3f2f1;
+  --bg-titlebar: #c43e1c;
+  --bg-titlebar-btn-hover: #b13718;
+  --bg-ribbon: #f3f2f1;
+  --bg-ribbon-panel: #ffffff;
+  --bg-workspace: #edebe9;
+  --bg-card: #ffffff;
+  --bg-hover: #f3f2f1;
+  --bg-active: #edebe9;
+
+  --text-main: #201f1e;
+  --text-secondary: #605e5c;
+  --text-muted: #8a8886;
+  --text-on-red: #ffffff;
+
+  --border-color: #d2d0ce;
+  --border-light: #edebe9;
+  --border-dashed: rgba(196, 62, 28, 0.4);
+
+  --slide-bg-overlay: rgba(255, 255, 255, 0.20);
+  --slide-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+
+  --lyrics-font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --lyrics-font-size: 24px;
+  --lyrics-font-weight: 700;
+  --lyrics-font-style: normal;
+  --lyrics-text-decoration: none;
+  --lyrics-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --lyrics-color: #201f1e;
+  --lyrics-highlight-color: #c43e1c;
+  --lyrics-text-align: center;
+  --lyrics-line-height: 1.5;
+
+  --vinyl-speed: 16s;
+  --zoom-scale: 1.0;
+}
+
+/* Dark Theme Overrides */
+body.tone-dark {
+  --bg-app: #201f1e;
+  --bg-titlebar: #86260f;
+  --bg-titlebar-btn-hover: #6f1f0c;
+  --bg-ribbon: #252423;
+  --bg-ribbon-panel: #292827;
+  --bg-workspace: #1b1a19;
+  --bg-card: #292827;
+  --bg-hover: #323130;
+  --bg-active: #3b3a39;
+
+  --text-main: #f3f2f1;
+  --text-secondary: #c8c6c4;
+  --text-muted: #979593;
+  --text-on-red: #ffffff;
+
+  --border-color: #484644;
+  --border-light: #323130;
+  --border-dashed: rgba(224, 83, 48, 0.5);
+
+  --slide-bg-overlay: rgba(0, 0, 0, 0.45);
+  --slide-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+
+  --lyrics-color: #f3f2f1;
+  --lyrics-highlight-color: #ff6b47;
+  --ppt-red-subtle: #381f18;
+}
+
+/* Base Reset */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Microsoft YaHei', sans-serif;
+  font-size: 13px;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Host Safety Strip for window dragging */
+.host-safe-top {
+  height: 0px;
+  flex-shrink: 0;
+}
+
+/* Fluent SVG Icons Base */
+.ico, .ico-large, .ico-search {
+  display: inline-block;
+  vertical-align: middle;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+.ico { width: 14px; height: 14px; }
+.ico-large { width: 20px; height: 20px; margin-bottom: 2px; }
+.ico-search { width: 14px; height: 14px; opacity: 0.85; }
+
+.fluent-svg {
+  display: inline-block;
+  vertical-align: middle;
+  fill: none !important;
+  stroke: none;
+  overflow: visible;
+  shape-rendering: geometricPrecision;
+  text-rendering: geometricPrecision;
+  flex-shrink: 0;
+}
+.ico.fluent-svg, .ico-font-step.fluent-svg {
+  width: 20px;
+  height: 20px;
+}
+.ico-large.fluent-svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 3px;
+}
+.ico-nav.fluent-svg {
+  width: 20px;
+  height: 20px;
+}
+.ico-back.fluent-svg {
+  width: 30px !important;
+  height: 30px !important;
+  stroke: none !important;
+}
+.ppt-logo.fluent-svg {
+  width: 24px;
+  height: 24px;
+}
+.qa-btn .fluent-svg {
+  width: 16px;
+  height: 16px;
+}
+.theme-svg-icon.fluent-svg {
+  width: 18px;
+  height: 18px;
+}
+.search-clear-btn .fluent-svg {
+  width: 14px;
+  height: 14px;
+}
+.notes-icon .fluent-svg {
+  width: 16px;
+  height: 16px;
+}
+.t-btn .fluent-svg {
+  width: 18px;
+  height: 18px;
+}
+.t-btn.t-btn-main .fluent-svg, #ico-play-main.fluent-svg {
+  width: 26px;
+  height: 26px;
+}
+.vol-btn .fluent-svg {
+  width: 18px;
+  height: 18px;
+}
+.sb-item .fluent-svg, .ico-spell.fluent-svg {
+  width: 14px;
+  height: 14px;
+}
+.sb-btn .fluent-svg {
+  width: 14px;
+  height: 14px;
+}
+.sb-icon-btn .fluent-svg {
+  width: 14px;
+  height: 14px;
+}
+#sb-lang-pill .fluent-svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 1. PowerPoint Top Titlebar with Host Safe Zone */
+.ppt-titlebar {
+  position: relative;
+  height: 40px;
+  background-color: var(--bg-titlebar);
+  color: var(--text-on-red);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 56px;   /* Avoid left host back button (0-50px) */
+  padding-right: 540px; /* Avoid right host system controls, tray & avatar (320-470px) */
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  z-index: 100;
+}
+
+.titlebar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ppt-brand {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.ppt-logo {
+  width: 22px;
+  height: 22px;
+}
+
+.quick-access-bar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.autosave-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.15);
+  white-space: nowrap !important;
+}
+.autosave-label {
+  white-space: nowrap !important;
+}
+.autosave-toggle input {
+  display: none;
+}
+.switch-slider {
+  width: 26px;
+  height: 14px;
+  background-color: rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+  position: relative;
+  transition: background-color 0.2s;
+}
+.switch-slider::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+.autosave-toggle input:checked + .switch-slider {
+  background-color: #27ae60;
+}
+.autosave-toggle input:checked + .switch-slider::after {
+  transform: translateX(12px);
+}
+
+.qa-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  width: 26px;
+  height: 26px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.qa-btn:hover {
+  background: var(--bg-titlebar-btn-hover);
+}
+
+.window-title-text {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+.window-title-text .doc-title {
+  font-weight: 600;
+}
+.window-title-text .app-suffix {
+  opacity: 0.85;
+}
+
+/* Mathematically Centered Search Box */
+.titlebar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 380px;
+  max-width: 420px;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+
+.ppt-search-box {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+  color: white;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+  cursor: text;
+}
+.ppt-search-box:focus-within {
+  background: #ffffff;
+  color: #201f1e;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.ppt-search-box input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: inherit;
+  font-size: 12px;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+.ppt-search-box input::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+}
+.ppt-search-box:focus-within input::placeholder {
+  color: #8a8886;
+}
+
+.search-clear-btn {
+  background: transparent;
+  border: none;
+  color: inherit;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+.search-clear-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.1);
+}
+.search-clear-btn[hidden] {
+  display: none !important;
+}
+
+.search-shortcut {
+  font-size: 10px;
+  opacity: 0.7;
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  white-space: nowrap !important;
+}
+.ppt-search-box:focus-within .search-shortcut {
+  color: #605e5c;
+  border-color: #d2d0ce;
+}
+
+/* Dropdown Results */
+.ppt-search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: #ffffff;
+  color: #201f1e;
+  border: 1px solid #d2d0ce;
+  border-radius: 4px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 1000;
+}
+body.tone-dark .ppt-search-dropdown {
+  background: #292827;
+  color: #f3f2f1;
+  border-color: #484644;
+}
+.ppt-search-dropdown[hidden] {
+  display: none !important;
+}
+
+.search-dropdown-header {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-hover);
+}
+.search-dropdown-list {
+  padding: 4px 0;
+}
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+.search-item:hover, .search-item.selected {
+  background: var(--ppt-red-subtle);
+  color: var(--ppt-red);
+}
+.search-item-index {
+  font-size: 11px;
+  color: var(--text-muted);
+  width: 18px;
+  text-align: right;
+}
+.search-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.search-item-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-item-artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.search-empty-msg {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Titlebar Right */
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-right: 16px;
+}
+.titlebar-btn {
+  background: rgba(0, 0, 0, 0.15);
+  border: none;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  white-space: nowrap !important;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+.titlebar-btn:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+.theme-svg-icon {
+  width: 14px;
+  height: 14px;
+}
+.theme-label {
+  white-space: nowrap !important;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  white-space: nowrap !important;
+}
+.user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffaa44;
+  color: #201f1e;
+  font-weight: 700;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-name {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 2. Office Fluent Ribbon */
+.ppt-ribbon {
+  background: var(--bg-ribbon);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.ribbon-tabs {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--bg-ribbon);
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+.ribbon-tab {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s, color 0.15s;
+  white-space: nowrap !important;
+}
+.ribbon-tab:hover {
+  background: var(--bg-hover);
+}
+.ribbon-tab.active {
+  background: var(--bg-ribbon-panel);
+  font-weight: 600;
+  color: var(--ppt-red);
+}
+.ribbon-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--ppt-red);
+}
+.ribbon-tab.tab-file {
+  background: var(--ppt-red);
+  color: white;
+  font-weight: 600;
+  border-radius: 2px 2px 0 0;
+}
+.ribbon-tab.tab-file:hover {
+  background: var(--ppt-red-dark);
+}
+
+/* Ribbon Secondary Menu Panels Switcher */
+.ribbon-panels-container {
+  position: relative;
+  background: var(--bg-ribbon-panel);
+  border-bottom: 1px solid var(--border-color);
+  height: 106px;
+}
+
+.ribbon-panel {
+  display: none;
+  align-items: stretch;
+  background: var(--bg-ribbon-panel);
+  padding: 4px 12px 3px 12px;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 8px;
+  box-sizing: border-box;
+}
+.ribbon-panel.active {
+  display: flex;
+}
+
+.ribbon-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 10px;
+  flex-shrink: 0;
+  height: 100%;
+  box-sizing: border-box;
+}
+.group-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.group-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1px 0 2px 0;
+  margin-top: 2px;
+  line-height: 1.2;
+  border-top: 1px solid transparent;
+  white-space: nowrap !important;
+  overflow: visible;
+}
+
+.ribbon-separator {
+  width: 1px;
+  background-color: var(--border-light);
+  margin: 6px 3px;
+  flex-shrink: 0;
+}
+
+.ribbon-large-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px 3px 6px;
+  min-width: 58px;
+  height: 68px;
+  gap: 3px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-main);
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.2;
+  transition: background-color 0.15s, border-color 0.15s;
+  white-space: nowrap !important;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+.ribbon-large-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+.ribbon-large-btn:active {
+  background: var(--bg-active);
+}
+.ribbon-large-btn.active {
+  background: var(--ppt-red-tint);
+  border-color: var(--ppt-red);
+  color: var(--ppt-red);
+}
+.ribbon-large-btn span {
+  display: block;
+  white-space: nowrap !important;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  pointer-events: none;
+}
+.ribbon-large-btn small {
+  color: var(--text-muted);
+  font-size: 9px;
+  display: block;
+  line-height: 1.1;
+  white-space: nowrap !important;
+}
+
+.tool-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ribbon-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  font-size: 11px;
+  height: 24px;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap !important;
+}
+.ribbon-tool-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+.ribbon-tool-btn span {
+  white-space: nowrap !important;
+}
+.ribbon-tool-btn.active {
+  background: var(--ppt-red-tint);
+  border-color: var(--ppt-red);
+  color: var(--ppt-red);
+}
+
+/* Font Controls */
+.font-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: center;
+}
+.font-controls-row, .font-styles-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ribbon-select {
+  height: 24px;
+  font-size: 11px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  padding: 0 4px;
+  outline: none;
+}
+.font-family-select { width: 175px; }
+.font-size-select { width: 62px; }
+.line-height-select { width: 105px; }
+
+.ribbon-mini-btn, .ribbon-toggle-btn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ribbon-mini-btn:hover, .ribbon-toggle-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+.ribbon-toggle-btn.active {
+  background: var(--ppt-red-tint);
+  border-color: var(--ppt-red);
+  color: var(--ppt-red);
+}
+
+/* Fix Word Breaking on Translation Pill */
+.btn-translation-pill {
+  white-space: nowrap !important;
+  width: auto !important;
+  min-width: 44px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.btn-translation-pill .pill-text {
+  white-space: nowrap !important;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.shadow-char {
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+  font-weight: bold;
+}
+
+/* Color Pickers */
+.color-picker-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.color-picker-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.color-picker-label:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-color);
+}
+.font-color-char {
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 1;
+}
+.highlight-pen-icon {
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+}
+.color-bar {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+  margin-top: 1px;
+}
+.native-color-picker {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Paragraph Group */
+.paragraph-group-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+.align-buttons-row, .spacing-and-extra-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Sliders inside Ribbon */
+.overlay-slider-wrap, .vinyl-speed-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.slider-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+}
+.lbl-small { color: var(--text-muted); }
+.val-small { font-weight: 600; color: var(--ppt-red); }
+.ribbon-range {
+  width: 90px;
+  accent-color: var(--ppt-red);
+  cursor: pointer;
+}
+.vinyl-speed-select {
+  width: 108px;
+}
+
+/* 3. Main Workspace Area */
+.ppt-workspace-body {
+  flex: 1;
+  display: flex;
+  background: var(--bg-workspace);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Left: Slide Thumbnails Panel */
+.ppt-thumbnails-panel {
+  width: 230px;
+  background: var(--bg-app);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.2s;
+}
+.ppt-thumbnails-panel.collapsed {
+  width: 0;
+  overflow: hidden;
+  border-right: none;
+}
+.thumbnails-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.th-title {
+  white-space: nowrap !important;
+}
+.th-badge {
+  background: var(--ppt-red-subtle);
+  color: var(--ppt-red);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap !important;
+}
+
+.thumbnails-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Individual Slide Card */
+.slide-thumbnail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  cursor: pointer;
+}
+.slide-num {
+  width: 18px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+.slide-thumbnail-item.active .slide-num {
+  color: var(--ppt-red);
+  font-weight: 700;
+}
+
+.slide-card {
+  flex: 1;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.15s;
+}
+.slide-thumbnail-item:hover .slide-card {
+  border-color: #8a8886;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+.slide-thumbnail-item.active .slide-card {
+  border: 2px solid var(--ppt-red);
+  box-shadow: 0 0 0 1px var(--ppt-red), 0 3px 8px rgba(196, 62, 28, 0.25);
+}
+
+/* Background Album Art Filling 16:9 Thumbnail Slide */
+.thumb-slide-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  image-rendering: -webkit-optimize-contrast;
+}
+.thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* 30% Opacity White Overlay as specifically required */
+.thumb-slide-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.30);
+  backdrop-filter: none;
+  z-index: 2;
+  transition: background-color 0.2s;
+}
+body.tone-dark .thumb-slide-overlay {
+  background: rgba(255, 255, 255, 0.20);
+}
+
+/* Float Slide Content Layer */
+.thumb-slide-content {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 6px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.60) 0%, rgba(0, 0, 0, 0.15) 55%, transparent 100%);
+}
+.thumb-slide-title {
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+.thumb-slide-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.thumb-slide-artist {
+  font-size: 9px;
+  color: #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  max-width: 110px;
+}
+.thumb-slide-duration {
+  font-size: 9px;
+  color: #e0e0e0;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+/* Center Stage Area */
+.ppt-stage-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  position: relative;
+}
+
+/* 16:9 Slide Canvas Frame */
+.ppt-slide-container {
+  width: 100%;
+  max-width: 1360px;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+.ppt-slide {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-card);
+  box-shadow: var(--slide-shadow);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform-origin: center center;
+  transition: transform 0.12s ease-out;
+  contain: layout paint;
+  backface-visibility: hidden;
+}
+
+/* Slide Background Cover & Customizable Gaussian Blur + Overlay */
+.slide-bg-cover {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--slide-blur, 16px));
+  transform: scale(1.08) translateZ(0);
+  backface-visibility: hidden;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.92;
+}
+.slide-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: var(--slide-bg-overlay, rgba(255, 255, 255, 0.25));
+  pointer-events: none;
+  z-index: 2;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+.ppt-slide.layout-applemusic .slide-bg-overlay {
+  opacity: 0 !important;
+}
+
+/* 0% 高斯模糊与 0% 底纹遮罩状态优化：彻底移除边缘拉伸与半透明混合瑕疵 */
+:root[style*="--slide-blur: 0px"] .slide-bg-cover,
+.slide-bg-cover.no-blur {
+  filter: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+}
+:root[style*="--slide-bg-overlay: rgba(255, 255, 255, 0)"] .slide-bg-overlay,
+:root[style*="--slide-bg-overlay: rgba(0, 0, 0, 0)"] .slide-bg-overlay,
+.slide-bg-overlay.no-overlay {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Slide Content Layout (Floating Content Without Shape Fill or Dashed Outlines) */
+.slide-content-layout {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+  padding: 24px 32px;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Three distinct switchable presentation layouts inside the slide stage */
+.slide-content-layout.layout-mode-vinyl {
+  display: grid;
+  grid-template-columns: minmax(260px, 44%) minmax(0, 1fr);
+  gap: 24px;
+}
+.slide-content-layout.layout-mode-netease {
+  display: grid;
+  grid-template-columns: minmax(280px, 46%) minmax(0, 1fr);
+  gap: 36px;
+  align-items: center;
+}
+.slide-content-layout.layout-mode-applemusic {
+  display: grid;
+  grid-template-columns: minmax(300px, 42%) minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.slide-content-layout[hidden] {
+  display: none !important;
+}
+
+/* ============================================================== */
+/* 1. PowerPoint 经典黑胶唱机样式 (Classic Vinyl Mode) */
+/* ============================================================== */
+.slide-col-left {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  flex-shrink: 0;
+}
+.slide-col-right {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Ultra-Realistic Vinyl Turntable Component (Fully Proportional & Responsive) */
+.turntable-component {
+  flex: 1 1 auto;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 15;
+}
+
+.turntable-deck {
+  position: relative;
+  width: 100%;
+  max-width: min(280px, 38vh);
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  z-index: 16;
+}
+
+/* Aluminum Platter Base (Centered Under Disc) */
+.platter-base {
+  position: absolute;
+  width: 98%;
+  height: 98%;
+  border-radius: 50%;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #2b2b2b 0%, #151515 65%, #555555 98%, #999999 100%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), inset 0 0 0 2px rgba(255, 255, 255, 0.16);
+  z-index: 17;
+}
+
+.vinyl-disc-assembly {
+  position: relative;
+  width: 95%;
+  height: 95%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  z-index: 18;
+}
+
+/* Heavy 180g Audiophile Vinyl Disc */
+.vinyl-record-disc {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: #0d0d0d;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.65), inset 0 0 0 1px #222;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: spinVinyl var(--vinyl-speed, 16s) linear infinite;
+  animation-play-state: running;
+  will-change: transform;
+  backface-visibility: hidden;
+  cursor: pointer;
+  z-index: 19;
+}
+.vinyl-record-disc.paused {
+  animation-play-state: paused;
+}
+@keyframes spinVinyl {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Micro-grooves Laser Texture */
+.vinyl-grooves {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    circle,
+    #171717,
+    #171717 1.5px,
+    #0c0c0c 2px,
+    #0c0c0c 3.5px
+  );
+  opacity: 0.95;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.85);
+}
+
+/* Realistic Dual-Cone Specular Light Sheen */
+.vinyl-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.65;
+  background: conic-gradient(
+    from 40deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.18) 35deg,
+    transparent 70deg,
+    transparent 180deg,
+    rgba(255, 255, 255, 0.18) 215deg,
+    transparent 250deg,
+    transparent 360deg
+  );
+  z-index: 20;
+}
+
+/* Center Album Label */
+.vinyl-center-label {
+  width: 58%;
+  height: 58%;
+  border-radius: 50%;
+  position: relative;
+  z-index: 21;
+  overflow: hidden;
+  box-shadow: 0 0 0 2.5px #d4af37, 0 0 10px rgba(0, 0, 0, 0.85);
+  background: #1e1e1e;
+}
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: relative;
+  z-index: 2;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* Default Vinyl Label Fallback (Prevents empty hole) */
+.vinyl-label-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #ff7a4d 0%, #b02e0c 100%);
+  z-index: 1;
+}
+
+/* Spindle Hub & Cap */
+.center-spindle-hub {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffffff 10%, #d8d8d8 35%, #777777 75%, #333333 100%);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 0 2px rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.center-spindle-pin {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #111111;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.vinyl-meta-info {
+  margin-top: 12px;
+  text-align: center;
+  width: 100%;
+  max-width: 280px;
+}
+.track-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
+}
+body.tone-dark .track-title {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.track-artist {
+  font-size: 13px;
+  color: var(--ppt-red);
+  font-weight: 600;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.track-album {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Floating Specs Pills & VU Meter */
+.audio-specs-floating {
+  width: 100%;
+  max-width: 320px;
+  margin: 12px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.specs-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.spec-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: var(--text-main);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  white-space: nowrap !important;
+}
+body.tone-dark .spec-pill {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+}
+.codec-pill {
+  background: var(--ppt-red) !important;
+  color: #ffffff !important;
+  border-color: var(--ppt-red) !important;
+}
+
+/* Floating Sleek VU Level Meter */
+.floating-vu-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 12px;
+  padding: 4px 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+body.tone-dark .floating-vu-meter {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.vu-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ppt-red);
+}
+.vu-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.vu-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, #27ae60 0%, #f1c40f 70%, #e74c3c 100%);
+  border-radius: 3px;
+  transition: width 0.08s ease-out;
+}
+.vu-reading {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+  text-align: right;
+}
+
+/* Crisp, Razor-Sharp Lyrics Display (No Mask Image Blur, Hidden Native Scrollbar) */
+.lyrics-floating-container {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 10px 20px;
+  scroll-behavior: smooth;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+.lyrics-floating-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.lyrics-lines-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 50px 0;
+  font-family: var(--lyrics-font-family);
+  text-align: var(--lyrics-text-align);
+  line-height: var(--lyrics-line-height);
+}
+
+.lyric-row {
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: calc(var(--lyrics-font-size) * 0.88);
+  color: var(--lyrics-color);
+  opacity: 0.42;
+  transition: opacity 0.2s ease-out, color 0.2s ease-out, background-color 0.2s ease-out;
+  text-decoration: var(--lyrics-text-decoration);
+  -webkit-font-smoothing: antialiased;
+}
+.lyric-row:hover {
+  opacity: 0.88;
+  background: rgba(196, 62, 28, 0.08);
+}
+.lyric-row[data-focus-distance="1"]:not(.active) {
+  opacity: 0.78;
+}
+.lyric-row[data-focus-distance="2"]:not(.active) {
+  opacity: 0.58;
+}
+.lyric-row[data-focus-distance="3"]:not(.active) {
+  opacity: 0.45;
+}
+.lyric-row.active {
+  font-size: var(--lyrics-font-size);
+  font-weight: var(--lyrics-font-weight);
+  font-style: var(--lyrics-font-style);
+  color: var(--lyrics-highlight-color);
+  opacity: 1 !important;
+  text-shadow: var(--lyrics-text-shadow);
+  background: rgba(196, 62, 28, 0.12);
+}
+.lyric-translation {
+  display: block;
+  font-size: calc(var(--lyrics-font-size) * 0.65);
+  font-weight: 400;
+  opacity: 0.85;
+  margin-top: 3px;
+}
+.lyric-initial-notice {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 60px 20px;
+}
+
+/* ============================================================== */
+/* 2. 网易云音乐歌词页样式 (NetEase Cloud Music Style) */
+/* ============================================================== */
+.layout-mode-netease .ne-cover-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+.layout-mode-netease .ne-cover-wrapper {
+  position: relative;
+  width: min(340px, 46vh);
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.3s ease;
+}
+.layout-mode-netease .ne-cover-wrapper:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 26px 56px rgba(0, 0, 0, 0.65);
+}
+.ne-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+.ne-cover-reflection {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, transparent 45%);
+  pointer-events: none;
+}
+
+.layout-mode-netease .ne-info-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding-left: 10px;
+}
+.ne-header-block {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+.ne-track-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  letter-spacing: -0.2px;
+}
+.ne-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.68);
+  margin-bottom: 12px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.ne-meta-label {
+  color: rgba(255, 255, 255, 0.45);
+}
+.ne-capsules-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ne-capsule-btn {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ne-capsule-btn.active {
+  background: #ffffff;
+  color: #121212;
+  border-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.ne-lyrics-scroll {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 10px 0;
+  scroll-behavior: smooth;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.ne-lyrics-scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.ne-lyrics-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 40px 0;
+  text-align: var(--lyrics-text-align, left);
+}
+.ne-lyric-row {
+  cursor: pointer;
+  font-family: var(--lyrics-font-family, 'Segoe UI', 'Microsoft YaHei', sans-serif);
+  font-size: calc(var(--lyrics-font-size, 24px) * 0.75);
+  color: var(--lyrics-custom-color, rgba(255, 255, 255, 0.45));
+  font-weight: var(--lyrics-font-weight, 500);
+  font-style: var(--lyrics-font-style, normal);
+  text-decoration: var(--lyrics-text-decoration, none);
+  line-height: var(--lyrics-line-height, 1.8);
+  text-shadow: var(--lyrics-text-shadow, 0 1px 3px rgba(0, 0, 0, 0.4));
+  transition: color 0.2s ease, opacity 0.2s ease, text-shadow 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+}
+.ne-lyric-row:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+.ne-lyric-row.active {
+  font-size: var(--lyrics-font-size, 24px);
+  font-weight: 700;
+  font-style: var(--lyrics-font-style, normal);
+  text-decoration: var(--lyrics-text-decoration, none);
+  color: var(--lyrics-custom-hl, #ffffff);
+  text-shadow: var(--lyrics-text-shadow, 0 2px 10px rgba(0, 0, 0, 0.7));
+}
+.ne-empty-hint {
+  padding: 60px 0;
+  font-family: var(--lyrics-font-family, inherit);
+  font-size: calc(var(--lyrics-font-size, 24px) * 0.75);
+  font-style: var(--lyrics-font-style, normal);
+  color: rgba(255, 255, 255, 0.65);
+  text-align: var(--lyrics-text-align, left);
+}
+
+/* ============================================================== */
+/* 3. Apple Music 歌词页样式 (Apple Music Fluid Dynamic Style) */
+/* ============================================================== */
+.am-fluid-mesh-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 75% 75% at 15% 18%, var(--am-theme-c1, rgba(35, 95, 165, 0.85)) 0%, transparent 68%),
+    radial-gradient(ellipse 72% 72% at 85% 22%, var(--am-theme-c2, rgba(80, 125, 195, 0.78)) 0%, transparent 66%),
+    radial-gradient(ellipse 78% 78% at 22% 84%, var(--am-theme-c3, rgba(25, 65, 130, 0.84)) 0%, transparent 70%),
+    radial-gradient(ellipse 74% 74% at 84% 82%, var(--am-theme-c4, rgba(55, 85, 155, 0.80)) 0%, transparent 68%),
+    radial-gradient(circle at 50% 50%, var(--am-theme-c5, rgba(45, 105, 175, 0.55)) 0%, transparent 62%),
+    var(--am-theme-base, #0d1522);
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  contain: strict;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  transition: opacity 0.45s ease;
+}
+.ppt-slide.layout-applemusic .am-fluid-mesh-bg {
+  opacity: 0.90;
+}
+.ppt-slide.layout-applemusic .slide-bg-cover {
+  filter: blur(42px) saturate(1.85) brightness(0.62);
+  opacity: 1;
+}
+
+.layout-mode-applemusic .am-side-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.am-cover-card {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 0.25s ease;
+}
+.am-cover-card:hover {
+  transform: scale(1.02);
+}
+.am-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.am-track-meta {
+  margin-top: 16px;
+}
+.am-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.am-track-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.am-action-icons {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.am-btn-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.am-btn-icon:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+.am-track-artist-album {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.65);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* In-Slide Apple Music Transport Box */
+.am-transport-box {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.am-progress-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.am-progress-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.28);
+  outline: none;
+  cursor: pointer;
+}
+.am-progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.am-time-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+
+.am-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.am-ctrl-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.12s ease;
+  padding: 4px;
+}
+.am-ctrl-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+.am-btn-play {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  opacity: 1;
+}
+.am-btn-play:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.06);
+}
+
+.am-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.am-vol-ico {
+  color: rgba(255, 255, 255, 0.6);
+}
+.am-volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  cursor: pointer;
+}
+.am-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.layout-mode-applemusic .am-lyrics-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  padding-right: 20px;
+}
+.am-lyrics-scroll {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  padding: 10px 0;
+  scroll-behavior: smooth;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.am-lyrics-scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.am-lyrics-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 60px 0;
+  text-align: var(--lyrics-text-align, left);
+}
+.am-lyric-row {
+  cursor: pointer;
+  font-family: var(--lyrics-font-family, 'Segoe UI', 'Microsoft YaHei', sans-serif);
+  font-size: calc(var(--lyrics-font-size, 24px) * 1.12);
+  font-weight: var(--lyrics-font-weight, 600);
+  font-style: var(--lyrics-font-style, normal);
+  text-decoration: var(--lyrics-text-decoration, none);
+  color: var(--lyrics-custom-color, rgba(255, 255, 255, 0.35));
+  line-height: var(--lyrics-line-height, 1.4);
+  letter-spacing: -0.3px;
+  transition: color 0.22s ease, opacity 0.22s ease, text-shadow 0.22s ease;
+  text-shadow: var(--lyrics-text-shadow, 0 2px 6px rgba(0, 0, 0, 0.3));
+  -webkit-font-smoothing: antialiased;
+}
+.am-lyric-row:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+.am-lyric-row.active {
+  font-size: calc(var(--lyrics-font-size, 24px) * 1.42);
+  font-weight: 700;
+  font-style: var(--lyrics-font-style, normal);
+  text-decoration: var(--lyrics-text-decoration, none);
+  color: var(--lyrics-custom-hl, #ffffff);
+  text-shadow: var(--lyrics-text-shadow, 0 3px 12px rgba(0, 0, 0, 0.6));
+}
+.am-bubble-wrap {
+  display: none !important;
+}
+.am-lyrics-bubble-btn {
+  display: none !important;
+}
+
+/* ============================================================== */
+/* Ribbon Design Tab: Layout Cards Strip */
+/* ============================================================== */
+.layout-cards-strip {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.ribbon-layout-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-light);
+  border-radius: 6px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  min-width: 86px;
+}
+.ribbon-layout-card:hover {
+  border-color: var(--ppt-red);
+  background: rgba(196, 62, 28, 0.05);
+}
+.ribbon-layout-card.active {
+  border-color: var(--ppt-red);
+  background: rgba(196, 62, 28, 0.12);
+  box-shadow: 0 0 0 1px var(--ppt-red);
+}
+.layout-card-preview {
+  width: 58px;
+  height: 34px;
+  border-radius: 4px;
+  background: #2b2b2b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 3px;
+  box-sizing: border-box;
+}
+.preview-mini-disc {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #e05330 30%, #111111 31%);
+  box-shadow: 0 0 0 1px #d4af37;
+}
+.preview-mini-cover {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, #ea5b2d, #b73417);
+}
+.preview-mini-cover.am-cover {
+  background: linear-gradient(135deg, #27ae60, #16a085);
+}
+.preview-mini-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.preview-mini-lines span {
+  display: block;
+  width: 22px;
+  height: 2.5px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 1px;
+}
+.preview-mini-lines span:first-child {
+  width: 26px;
+  background: #ffffff;
+}
+.layout-card-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.layout-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.layout-card-desc {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* 4. Bottom Footer Dock */
+.ppt-footer-control {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+/* Presenter Notes Bar */
+.ppt-notes-bar {
+  height: 26px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+  transition: height 0.2s;
+}
+.ppt-notes-bar.collapsed {
+  height: 0;
+  overflow: hidden;
+  border-bottom: none;
+}
+.notes-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+.notes-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+}
+.notes-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.notes-input:focus {
+  color: var(--text-main);
+}
+
+/* Player Bar */
+.ppt-player-bar {
+  height: 56px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  gap: 20px;
+}
+
+.pc-track-left {
+  width: 240px;
+  min-width: 160px;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.pc-title {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-main);
+}
+.pc-artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mathematically Centered Transport */
+.pc-transport-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 480px;
+  max-width: calc(100vw - 460px);
+  margin: 0;
+  z-index: 1;
+}
+.transport-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+.t-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.t-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ppt-red);
+}
+.t-btn-main {
+  width: 34px;
+  height: 34px;
+  background: var(--ppt-red);
+  color: white;
+}
+.t-btn-main:hover {
+  background: var(--ppt-red-dark);
+  color: white;
+  transform: scale(1.05);
+}
+.ico-main {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+.t-btn.active {
+  color: var(--ppt-red);
+}
+
+.progress-bar-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.time-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  width: 36px;
+  text-align: center;
+}
+.progress-slider-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 14px;
+}
+.progress-slider {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--ppt-red);
+  cursor: pointer;
+  z-index: 2;
+}
+
+/* Right Volume */
+.pc-volume-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 160px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.vol-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.vol-slider {
+  width: 75px;
+  accent-color: var(--ppt-red);
+  cursor: pointer;
+}
+.vol-percent {
+  font-size: 11px;
+  color: var(--text-secondary);
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status Bar */
+.ppt-statusbar {
+  height: 22px;
+  background: var(--bg-app);
+  border-top: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.sb-left, .sb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sb-sep { color: var(--border-color); }
+.sb-item { display: flex; align-items: center; gap: 4px; white-space: nowrap !important; }
+.ico-spell { width: 11px; height: 11px; stroke: #27ae60; fill: none; stroke-width: 2; }
+.sb-lyric-stats {
+  cursor: default;
+  color: var(--text-main);
+  font-weight: 500;
+}
+.sb-lyric-stats svg {
+  width: 12px;
+  height: 12px;
+  fill: var(--ppt-red);
+}
+
+.sb-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 2px;
+  white-space: nowrap !important;
+}
+.sb-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+.sb-view-toggles { display: flex; align-items: center; gap: 2px; }
+.sb-icon-btn {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+}
+.sb-icon-btn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.sb-icon-btn.active, .sb-icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--ppt-red);
+}
+
+.sb-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 4px;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+.zoom-btn {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+  transition: color 0.15s;
+}
+.zoom-btn:hover {
+  color: var(--ppt-red);
+}
+.zoom-slider {
+  width: 72px;
+  height: 16px;
+  accent-color: var(--ppt-red);
+  cursor: pointer;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+.zoom-label {
+  font-size: 10px;
+  min-width: 32px;
+  font-variant-numeric: tabular-nums;
+}
+.btn-fit-window {
+  font-size: 10px;
+  pointer-events: auto !important;
+  -webkit-app-region: no-drag !important;
+}
+
+/* Modal Backstage */
+.ppt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  display: flex;
+}
+.ppt-modal-backdrop[hidden] {
+  display: none !important;
+}
+
+.ppt-modal-dialog {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-card);
+  display: flex;
+}
+.modal-nav {
+  width: 220px;
+  background: var(--ppt-red);
+  color: white;
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+}
+.modal-back-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.modal-back-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(1.06);
+}
+.modal-back-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+
+.modal-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.modal-nav-items .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  transition: all 0.15s;
+}
+.modal-nav-items .nav-item:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+.modal-nav-items .nav-item.active {
+  background: white;
+  color: var(--ppt-red);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.modal-body-content {
+  flex: 1;
+  padding: 40px 48px;
+  overflow-y: auto;
+}
+.modal-tab-pane {
+  display: flex;
+  flex-direction: column;
+}
+.modal-tab-pane[hidden] {
+  display: none !important;
+}
+
+.modal-body-content h2 { margin-bottom: 8px; color: var(--ppt-red); font-size: 20px; }
+.modal-sub { color: var(--text-secondary); margin-bottom: 24px; font-size: 13px; }
+.info-card {
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 20px;
+  max-width: 650px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.info-row { font-size: 13px; line-height: 1.5; }
+
+/* Options Tab Grid */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  max-width: 780px;
+  margin-bottom: 24px;
+}
+.option-card {
+  background: var(--bg-app);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.option-card h4 {
+  font-size: 13px;
+  color: var(--ppt-red);
+}
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.opt-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.opt-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.opt-select {
+  height: 26px;
+  font-size: 12px;
+  background: var(--bg-card);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0 6px;
+}
+.opt-range {
+  width: 140px;
+  accent-color: var(--ppt-red);
+  cursor: pointer;
+}
+
+.modal-actions { margin-top: 28px; }
+.btn-primary {
+  background: var(--ppt-red);
+  color: white;
+  border: none;
+  padding: 9px 22px;
+  border-radius: 3px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary:hover {
+  background: var(--ppt-red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(196, 62, 28, 0.3);
+}
+
+/* Toast Notification */
+.ppt-toast {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background: #323130;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+  font-size: 12px;
+  z-index: 1000;
+  animation: toastFade 0.2s ease;
+}
+@keyframes toastFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Language Switcher in Status Bar --- */
+.sb-lang-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  height: 22px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  color: var(--text-main);
+  border: 1px solid transparent;
+  transition: all 0.15s;
+  position: relative;
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+}
+.sb-lang-pill:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--border-color);
+}
+.tone-dark .sb-lang-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.sb-lang-dropdown {
+  position: absolute;
+  bottom: 26px;
+  left: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  border-radius: 4px;
+  padding: 4px 0;
+  min-width: 140px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+.sb-lang-dropdown[hidden] {
+  display: none !important;
+}
+.sb-lang-item {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.sb-lang-item:hover, .sb-lang-item.active {
+  background: #c43e1c;
+  color: #fff;
+}
+
+/* --- Global Search Match Badges --- */
+.search-result-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(196, 62, 28, 0.12);
+  color: #c43e1c;
+  margin-left: 8px;
+  font-weight: normal;
+}
+.search-item-artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* --- Backstage Playlist & Library Folder Explorer --- */
+.modal-playlists-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.modal-search-input {
+  flex: 1;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-main);
+  padding: 0 12px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  outline: none;
+}
+.modal-search-input:focus {
+  border-color: #c43e1c;
+}
+.library-folder-tree {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-card);
+  padding: 6px;
+}
+.tree-node {
+  margin-bottom: 4px;
+  border-radius: 4px;
+}
+.tree-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 12.5px;
+  color: var(--text-main);
+  transition: background 0.15s;
+}
+.tree-folder-header:hover {
+  background: rgba(196, 62, 28, 0.08);
+}
+.tree-folder-arrow {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.tree-node.expanded > .tree-folder-header .tree-folder-arrow {
+  transform: rotate(90deg);
+}
+.tree-folder-icon {
+  width: 18px;
+  height: 18px;
+  color: #d89b00;
+  flex-shrink: 0;
+}
+.tree-folder-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-folder-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: normal;
+  margin-right: 8px;
+}
+.tree-folder-actions {
+  display: flex;
+  gap: 6px;
+}
+.tree-mini-btn {
+  background: rgba(196, 62, 28, 0.1);
+  border: 1px solid rgba(196, 62, 28, 0.25);
+  color: #c43e1c;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.tree-mini-btn:hover {
+  background: #c43e1c;
+  color: #fff;
+}
+.tree-node-children {
+  display: none;
+  padding-left: 28px;
+  margin-top: 2px;
+}
+.tree-node.expanded > .tree-node-children {
+  display: block;
+}
+.tree-track-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.tree-track-item:hover {
+  background: rgba(196, 62, 28, 0.08);
+}
+.tree-track-num {
+  width: 20px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.tree-track-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-track-artist {
+  color: var(--text-muted);
+  font-size: 11px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-track-duration {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+.tree-section-header {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--ppt-red);
+  padding: 10px 8px 4px 8px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  letter-spacing: 0.2px;
+}
+.tree-album-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.tree-album-artist {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: normal;
+  margin-left: 4px;
+}
+
+/* --- Expanded Hardware & Spec Info Grid --- */
+.info-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 18px;
+}
+.info-section-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #c43e1c;
+  margin: 12px 0 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-color);
+  grid-column: 1 / -1;
+}
+.info-tag {
+  display: inline-block;
+  background: rgba(196, 62, 28, 0.1);
+  color: #c43e1c;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+
+
+/* --- PowerPoint Slideshow Presentation Mode --- */
+body.slideshow-mode .app-header,
+body.slideshow-mode .ribbon-tabs,
+body.slideshow-mode .ribbon-body,
+body.slideshow-mode .app-sidebar,
+body.slideshow-mode .notes-pane,
+body.slideshow-mode .app-statusbar {
+  display: none !important;
+}
+
+body.slideshow-mode .main-content {
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+body.slideshow-mode .stage-area {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000000 !important;
+}
+
+body.slideshow-mode .slide-container {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  aspect-ratio: auto !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.slideshow-hud {
+  position: fixed;
+  bottom: 18px;
+  left: 20px;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(28, 28, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  opacity: 0.35;
+  transition: opacity 0.25s ease;
+}
+
+body.slideshow-mode .slideshow-hud {
+  display: flex !important;
+}
+
+body.slideshow-mode .slideshow-hud:hover {
+  opacity: 1 !important;
+}
+
+.slideshow-hud-btn {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.slideshow-hud-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.search-result-badge {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  background: rgba(196, 62, 28, 0.12);
+  color: #c43e1c;
+  font-weight: 500;
+  vertical-align: middle;
+}
+.search-result-badge.badge-queue {
+  background: rgba(0, 120, 212, 0.12);
+  color: #0078d4;
+}

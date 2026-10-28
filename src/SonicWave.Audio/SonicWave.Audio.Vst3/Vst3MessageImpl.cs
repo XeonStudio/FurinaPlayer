@@ -1,58 +1,70 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace SonicWave.Audio.Vst3;
 
-internal sealed class Vst3MessageImpl : IMessageCom
+[ComVisible(true)]
+[ClassInterface(ClassInterfaceType.None)]
+internal sealed class Vst3MessageImpl : IMessageCom, IDisposable
 {
 	private readonly Vst3AttributeListImpl _attributes = new Vst3AttributeListImpl();
-
-	private byte[] _id = Encoding.ASCII.GetBytes("changed\0");
+	private nint _attributesNative = IntPtr.Zero;
+	private nint _idPtr = IntPtr.Zero;
 
 	public Vst3AttributeListImpl Attributes => _attributes;
 
+	public Vst3MessageImpl()
+	{
+		_idPtr = Marshal.StringToHGlobalAnsi("");
+		_attributesNative = Vst3Com.ToNative((IAttributeListCom)_attributes);
+	}
+
 	public nint GetMessageID()
 	{
-		lock (_attributes)
-		{
-			GCHandle gCHandle = GCHandle.Alloc(_id, GCHandleType.Pinned);
-			nint result = gCHandle.AddrOfPinnedObject();
-			gCHandle.Free();
-			return result;
-		}
+		return _idPtr;
 	}
 
 	public void SetMessageID(nint id)
 	{
-		lock (_attributes)
+		if (_idPtr != IntPtr.Zero)
 		{
-			if (id == IntPtr.Zero)
-			{
-				_id = Encoding.ASCII.GetBytes("changed\0");
-				return;
-			}
-			List<byte> list = new List<byte>();
-			for (int i = 0; i < 255; i++)
-			{
-				byte b = Marshal.ReadByte(id, i);
-				if (b == 0)
-				{
-					break;
-				}
-				list.Add(b);
-			}
-			list.Add(0);
-			_id = list.ToArray();
+			Marshal.FreeHGlobal(_idPtr);
+			_idPtr = IntPtr.Zero;
 		}
+		if (id == IntPtr.Zero)
+		{
+			_idPtr = Marshal.StringToHGlobalAnsi("");
+			return;
+		}
+		string? s = Marshal.PtrToStringAnsi(id);
+		_idPtr = Marshal.StringToHGlobalAnsi(s ?? "");
 	}
 
 	public nint GetAttributes()
 	{
-		lock (_attributes)
+		if (_attributesNative == IntPtr.Zero)
 		{
-			return Vst3Com.ToNative((IAttributeListCom)_attributes);
+			_attributesNative = Vst3Com.ToNative((IAttributeListCom)_attributes);
 		}
+		return _attributesNative;
+	}
+
+	public void Dispose()
+	{
+		if (_attributesNative != IntPtr.Zero)
+		{
+			try { Marshal.Release(_attributesNative); } catch {}
+			_attributesNative = IntPtr.Zero;
+		}
+		if (_idPtr != IntPtr.Zero)
+		{
+			Marshal.FreeHGlobal(_idPtr);
+			_idPtr = IntPtr.Zero;
+		}
+	}
+
+	~Vst3MessageImpl()
+	{
+		Dispose();
 	}
 }

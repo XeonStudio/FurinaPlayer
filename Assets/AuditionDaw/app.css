@@ -103,7 +103,7 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding-top: 0px;
+  padding-top: 28px; /* Safe space to prevent collision with host window controls */
   background: var(--bg-app);
 }
 
@@ -499,14 +499,17 @@ html, body {
   display: flex;
   align-items: center;
   padding: 4px 6px;
+  border-left: 2px solid transparent;
   border-bottom: 1px solid #1c1f23;
+  box-sizing: border-box;
+  user-select: none;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.12s ease;
   font-size: 10.5px;
 }
 
 .queue-item:hover {
-  background: #1f2329;
+  background: #232830;
 }
 
 .queue-item.active {
@@ -627,7 +630,8 @@ html, body {
 
 /* Panel 3: Properties */
 .panel-properties {
-  flex: 0.9;
+  flex: 1.1;
+  min-height: 0;
   border-bottom: none;
 }
 
@@ -635,25 +639,79 @@ html, body {
   padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   background: #141618;
   flex: 1;
   overflow-y: auto;
 }
 
+.prop-chain-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  margin-bottom: 3px;
+  background: rgba(0, 229, 255, 0.07);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: 4px;
+}
+
+.prop-chain-icon {
+  font-size: 15px;
+  color: var(--accent-cyan, #00e5ff);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.prop-chain-meta {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 1px;
+}
+
+.prop-chain-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-bright, #fff);
+  letter-spacing: 0.5px;
+}
+
+.prop-chain-summary {
+  font-size: 9px;
+  color: var(--accent-cyan, #00e5ff);
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .prop-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   font-size: 10px;
+}
+
+.prop-row:last-child {
+  border-bottom: none;
 }
 
 .prop-row .k {
   color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .prop-row .v {
   color: var(--text-bright);
   font-family: var(--font-mono);
+  text-align: right;
+  word-break: break-word;
+  line-height: 1.3;
 }
 
 .text-accent {
@@ -1238,13 +1296,15 @@ html, body {
 }
 
 .lyrics-scroll-container {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 18px;
+  padding: 0 18px;
   background: #111315;
   display: flex;
   flex-direction: column;
+  scroll-behavior: auto;
 }
 
 .lyrics-empty-state {
@@ -1276,23 +1336,61 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 40vh 0;
+}
+
+.lyrics-list:has(.lyrics-empty),
+.lyrics-list:empty {
+  padding: 0;
 }
 
 .lyric-line {
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  border-left: 2px solid transparent;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  flex-shrink: 0;
+  transform-origin: left center;
+  transition: opacity 0.24s cubic-bezier(0.2, 0, 0, 1),
+              transform 0.24s cubic-bezier(0.2, 0, 0, 1),
+              filter 0.24s cubic-bezier(0.2, 0, 0, 1),
+              background 0.2s ease,
+              border-color 0.2s ease;
 }
 
 .lyric-line:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 0.95 !important;
+  filter: none !important;
 }
 
+/* 软件本体级景深焦距层次衰减 */
+.lyric-line[data-focus-distance="0"],
 .lyric-line.active {
-  background: rgba(0, 229, 255, 0.08);
-  border-left: 3px solid var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.09);
+  border-left-color: var(--accent-cyan);
+  opacity: 1 !important;
+  transform: scale(1.02);
+  filter: none !important;
+}
+
+.lyric-line[data-focus-distance="1"]:not(.active) {
+  opacity: 0.75;
+  transform: scale(0.985);
+  filter: blur(0.2px);
+}
+
+.lyric-line[data-focus-distance="2"]:not(.active) {
+  opacity: 0.54;
+  transform: scale(0.97);
+  filter: blur(0.5px);
+}
+
+.lyric-line[data-focus-distance="3"]:not(.active),
+.lyric-line[data-focus-distance="4"]:not(.active) {
+  opacity: 0.36;
+  transform: scale(0.955);
+  filter: blur(0.8px);
 }
 
 .lyric-meta-row {
@@ -1306,6 +1404,7 @@ html, body {
   font-family: var(--font-mono);
   font-size: 9.5px;
   color: var(--text-dim);
+  transition: color 0.2s ease;
 }
 
 .lyric-line.active .lyric-time-tag {
@@ -1316,7 +1415,7 @@ html, body {
   font-size: 13.5px;
   color: #9ca3af;
   font-weight: 500;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
 }
 
 .lyric-line.active .lyric-text-main {
@@ -1330,6 +1429,7 @@ html, body {
   font-size: 11px;
   color: #525c68;
   margin-top: 2px;
+  transition: color 0.2s ease;
 }
 
 .lyric-line.active .lyric-text-trans {
@@ -1555,7 +1655,7 @@ html, body {
    lyrics runtime surface covers the full window, so the theme must reserve it.
    ========================================================================== */
 :root {
-  --host-safe-top: 0px;
+  --host-safe-top: 40px;
   --panel-gap: 1px;
   --ui-scale: 1;
 }
@@ -1745,15 +1845,6 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
-}
-
-.queue-item {
-  cursor: pointer;
-  user-select: none;
-}
-
-.queue-item:hover {
-  background: #232830;
 }
 
 .queue-item:hover .q-title {
@@ -2906,6 +2997,8 @@ body {
 }
 
 [data-theme="light"] .queue-item {
+  border-left: 2px solid transparent;
+  box-sizing: border-box;
   border-bottom: 1px solid #e2e6eb;
 }
 
@@ -2929,9 +3022,10 @@ body {
   color: #111827;
 }
 
+[data-theme="light"] .queue-item.active,
 [data-theme="light"] .queue-item.active-track {
   background: #d5edf3;
-  border-left: 3px solid #007c8c;
+  border-left: 2px solid #007c8c;
 }
 
 [data-theme="light"] .queue-item.active-track .q-title {
@@ -3143,6 +3237,8 @@ body {
 }
 
 [data-theme="light"] .queue-item {
+  border-left: 2px solid transparent;
+  box-sizing: border-box;
   border-bottom: 1px solid #e5e7eb;
   color: #1f2937;
 }
@@ -3189,6 +3285,23 @@ body {
 /* Audio Properties */
 [data-theme="light"] .prop-table {
   background: #f7f9fb;
+}
+
+[data-theme="light"] .prop-chain-banner {
+  background: rgba(0, 124, 140, 0.08);
+  border-color: rgba(0, 124, 140, 0.25);
+}
+
+[data-theme="light"] .prop-chain-title {
+  color: #111827;
+}
+
+[data-theme="light"] .prop-chain-summary {
+  color: #007c8c;
+}
+
+[data-theme="light"] .prop-row {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
 [data-theme="light"] .prop-row .k {

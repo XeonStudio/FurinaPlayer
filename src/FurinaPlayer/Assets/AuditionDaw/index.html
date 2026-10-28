@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Adobe Audition DAW - ECHO Lyrics</title>
-  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="app.css?v=1.3.2">
   <script>
     (function() {
       if (window.chrome && window.chrome.webview) {
@@ -13,15 +13,19 @@
           if (typeof data === 'string') {
             try { data = JSON.parse(data); } catch(e) {}
           }
-          window.dispatchEvent(new MessageEvent('message', { source: window.parent, data: data }));
+          window.dispatchEvent(new MessageEvent('message', { data: data, source: window.parent || window }));
         });
-        window.parent.postMessage = function(data, targetOrigin) {
+        var forward = function(data, targetOrigin) {
           try {
             window.chrome.webview.postMessage(typeof data === 'object' ? JSON.stringify(data) : data);
           } catch(e) {
             window.chrome.webview.postMessage(data);
           }
         };
+        if (window.parent) {
+          window.parent.postMessage = forward;
+        }
+        window.postToHost = forward;
       }
     })();
   </script>
@@ -45,7 +49,7 @@
           <text x="16" y="21.5" text-anchor="middle" font-family="Segoe UI, sans-serif" font-size="14.5" font-weight="600" fill="#efe9ff">Au</text>
         </svg>
       </div>
-      <nav class="audition-menubar" id="audition-menubar" aria-label="Audition 菜单">
+      <nav class="audition-menubar" id="audition-menubar" data-i18n-aria-label="menu.auditionAria" aria-label="Audition 菜单">
         <span class="menu-item" data-menu="file" tabindex="0" data-i18n="menu.file">文件(F)</span>
         <span class="menu-item" data-menu="edit" tabindex="0" data-i18n="menu.edit">编辑(E)</span>
         <span class="menu-item" data-menu="multitrack" tabindex="0" data-i18n="menu.multitrack">多轨(M)</span>
@@ -128,16 +132,31 @@
 
       <section class="daw-panel panel-properties" data-i18n-aria-label="panel.propertiesAria" aria-label="音频属性与链路">
         <div class="panel-header">
-          <span class="panel-title" data-i18n="panel.properties">音频属性</span>
+          <span class="panel-title" data-i18n="panel.properties">音频属性与链路</span>
           <span class="panel-hint" id="prop-source-state"></span>
         </div>
-        <div class="prop-table">
+        <div class="prop-table" id="prop-table">
+          <div class="prop-chain-banner" id="prop-chain-banner">
+            <span class="prop-chain-icon" aria-hidden="true">⚡</span>
+            <div class="prop-chain-meta">
+              <span class="prop-chain-title" data-i18n="prop.signalPath">链路</span>
+              <span class="prop-chain-summary" id="prop-chain-summary">MP3FLOAT / 320 kbps -> 48 kHz -> 44 kHz</span>
+            </div>
+          </div>
+          <div class="prop-row"><span class="k" data-i18n="prop.outputDevice">输出</span><span class="v" id="prop-device">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.outputMode">模式</span><span class="v" id="prop-mode">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.sampleRatePath">采样率</span><span class="v text-accent" id="prop-rate-path">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.audioSource">音源</span><span class="v" id="prop-source-spec">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.signalPath">链路</span><span class="v text-accent" id="prop-signal-path">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.eq">EQ</span><span class="v" id="prop-eq">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.resampling">重采样</span><span class="v" id="prop-resample">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.passthrough">直通</span><span class="v" id="prop-passthrough">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.directRead">本地直读</span><span class="v" id="prop-direct-read">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.latencyBuffer">延迟</span><span class="v" id="prop-latency-buffer">—</span></div>
+          <div class="prop-row"><span class="k" data-i18n="prop.sharedStability">Shared 稳定档</span><span class="v" id="prop-stability">—</span></div>
           <div class="prop-row"><span class="k" data-i18n="prop.codec">编码格式</span><span class="v" id="prop-codec">—</span></div>
-          <div class="prop-row"><span class="k" data-i18n="prop.sampleRate">采样率</span><span class="v text-accent" id="prop-rate">—</span></div>
           <div class="prop-row"><span class="k" data-i18n="prop.bitDepth">位深度</span><span class="v" id="prop-depth">—</span></div>
-          <div class="prop-row"><span class="k" data-i18n="prop.outputDevice">输出设备</span><span class="v" id="prop-device">—</span></div>
           <div class="prop-row"><span class="k" data-i18n="prop.outputEngine">输出后端</span><span class="v" id="prop-signal">—</span></div>
-          <div class="prop-row"><span class="k" data-i18n="prop.outputMode">输出模式</span><span class="v" id="prop-mode">—</span></div>
           <div class="prop-row"><span class="k" data-i18n="prop.replayGain">重放增益</span><span class="v" id="prop-gain">—</span></div>
           <div class="prop-row"><span class="k" data-i18n="prop.meterSource">输入电平源</span><span class="v" id="prop-meter-source">—</span></div>
         </div>
@@ -148,7 +167,6 @@
       <section class="daw-panel panel-waveform" data-i18n-aria-label="panel.waveformAria" aria-label="波形与频谱">
         <div class="panel-header waveform-header">
           <span class="panel-title" data-i18n="panel.waveform">波形包络</span>
-          <span class="panel-hint" data-i18n="wave.hint">由宿主实时电平绘制（协议不提供 PCM 采样）</span>
           <div class="waveform-tools">
             <span class="panel-hint" id="wave-scan-state"></span>
             <button class="tool-btn" id="btn-scan-wave" data-i18n-title="wave.scanBtnTitle" title="预扫描整首波形（静音扫描，可再次点击取消）" aria-label="预扫描波形">
@@ -187,17 +205,6 @@
             <div class="playhead-top-marker"></div>
             <div class="playhead-flag" id="playhead-flag">--:--</div>
             <div class="playhead-line"></div>
-          </div>
-          <div class="amplitude-scale" aria-hidden="true">
-            <span>0</span>
-            <span>-6</span>
-            <span>-12</span>
-            <span>-18</span>
-            <span>-24</span>
-            <span>-36</span>
-            <span>-48</span>
-            <span>-60</span>
-            <span>-inf</span>
           </div>
         </div>
 
@@ -416,12 +423,12 @@
     <div class="audition-modal" id="audition-modal" role="dialog" aria-modal="true">
       <div class="modal-header">
         <span class="modal-title" id="modal-title">标题</span>
-        <button class="modal-close-btn" id="modal-close-btn" title="关闭 (Esc)" aria-label="关闭">&times;</button>
+        <button class="modal-close-btn" id="modal-close-btn" data-i18n-title="modal.closeTitle" data-i18n-aria-label="modal.closeTitle" title="关闭 (Esc)" aria-label="关闭">&times;</button>
       </div>
       <div class="modal-body" id="modal-body"></div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=1.3.4"></script>
 </body>
 </html>

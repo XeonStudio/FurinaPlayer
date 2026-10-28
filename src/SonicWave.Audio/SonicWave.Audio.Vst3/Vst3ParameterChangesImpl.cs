@@ -8,13 +8,28 @@ internal sealed class Vst3ParameterChangesImpl : IParameterChangesCom
 	private sealed class QueueEntry
 	{
 		public uint Id;
-
-		public double Value;
+		public Vst3ParamValueQueueImpl Queue = null!;
+		public nint QueueCcw = IntPtr.Zero;
 	}
 
 	private readonly object _lock = new object();
-
 	private readonly List<QueueEntry> _entries = new List<QueueEntry>();
+
+	public void Clear()
+	{
+		lock (_lock)
+		{
+			foreach (var e in _entries)
+			{
+				if (e.QueueCcw != IntPtr.Zero)
+				{
+					try { System.Runtime.InteropServices.Marshal.Release(e.QueueCcw); } catch {}
+					e.QueueCcw = IntPtr.Zero;
+				}
+			}
+			_entries.Clear();
+		}
+	}
 
 	public void SetValue(uint id, double value)
 	{
@@ -24,21 +39,23 @@ internal sealed class Vst3ParameterChangesImpl : IParameterChangesCom
 			{
 				if (entry.Id == id)
 				{
-					entry.Value = value;
+					entry.Queue.AddPoint(0, value, out _);
 					return;
 				}
 			}
+			var q = new Vst3ParamValueQueueImpl(id, () => value);
+			nint ccw = Vst3Com.ToNative((IParamValueQueueCom)q);
 			_entries.Add(new QueueEntry
 			{
 				Id = id,
-				Value = value
+				Queue = q,
+				QueueCcw = ccw
 			});
 		}
 	}
 
 	public int GetParameterCount()
 	{
-		Vst3NativeInstance.Db("IParameterChanges.GetParameterCount -> " + _entries.Count);
 		lock (_lock)
 		{
 			return _entries.Count;
@@ -47,40 +64,67 @@ internal sealed class Vst3ParameterChangesImpl : IParameterChangesCom
 
 	public nint GetParameterData(int index)
 	{
-		Vst3NativeInstance.Db("IParameterChanges.GetParameterData(" + index + ")");
-		QueueEntry e;
 		lock (_lock)
 		{
 			if (index < 0 || index >= _entries.Count)
 			{
 				return IntPtr.Zero;
 			}
-			e = _entries[index];
+			var e = _entries[index];
+			if (e.QueueCcw != IntPtr.Zero)
+			{
+				System.Runtime.InteropServices.Marshal.AddRef(e.QueueCcw);
+				return e.QueueCcw;
+			}
+			e.QueueCcw = Vst3Com.ToNative((IParamValueQueueCom)e.Queue);
+			return e.QueueCcw;
 		}
-		return Vst3Com.ToNative((IParamValueQueueCom)new Vst3ParamValueQueueImpl(e.Id, () => e.Value));
 	}
 
 	public nint AddParameterData(ref uint id, out int index)
 	{
-		Vst3NativeInstance.Db("IParameterChanges.AddParameterData(id=" + id + ")");
 		lock (_lock)
 		{
-			foreach (QueueEntry en in _entries)
+			for (int i = 0; i < _entries.Count; i++)
 			{
-				if (en.Id == id)
+				if (_entries[i].Id == id)
 				{
-					index = _entries.IndexOf(en);
-					return Vst3Com.ToNative(new Vst3ParamValueQueueImpl(en.Id, () => en.Value));
+					index = i;
+					if (_entries[i].QueueCcw != IntPtr.Zero)
+					{
+						System.Runtime.InteropServices.Marshal.AddRef(_entries[i].QueueCcw);
+						return _entries[i].QueueCcw;
+					}
+					_entries[i].QueueCcw = Vst3Com.ToNative((IParamValueQueueCom)_entries[i].Queue);
+					return _entries[i].QueueCcw;
 				}
 			}
-			QueueEntry e = new QueueEntry
+			var q = new Vst3ParamValueQueueImpl(id);
+			nint ccw = Vst3Com.ToNative((IParamValueQueueCom)q);
+			_entries.Add(new QueueEntry
 			{
 				Id = id,
-				Value = 0.0
-			};
-			_entries.Add(e);
+				Queue = q,
+				QueueCcw = ccw
+			});
 			index = _entries.Count - 1;
-			return Vst3Com.ToNative(new Vst3ParamValueQueueImpl(e.Id, () => e.Value));
+			System.Runtime.InteropServices.Marshal.AddRef(ccw);
+			return ccw;
 		}
+	}
+
+	public List<(uint id, double value)> DrainChanges()
+	{
+		var list = new List<(uint, double)>();
+		lock (_lock)
+		{
+			if (_entries.Count == 0) return list;
+			foreach (var e in _entries)
+			{
+				list.Add((e.Id, e.Queue.GetLastValue()));
+			}
+			Clear();
+		}
+		return list;
 	}
 }

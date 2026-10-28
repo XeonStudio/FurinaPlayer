@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using FurinaPlayer.UI.ViewModels;
+using SonicWave.Core.Models;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -39,6 +40,29 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 	public LyricsPanel()
 	{
 		InitializeComponent();
+		if (LyricList != null)
+		{
+			LyricList.IsItemClickEnabled = true;
+			LyricList.ItemClick += OnLyricItemClick;
+			LyricList.ContainerContentChanging += OnContainerContentChanging;
+		}
+	}
+
+	private void OnLyricItemClick(object sender, ItemClickEventArgs e)
+	{
+		if (e.ClickedItem is LyricLine line && _vm != null)
+		{
+			_vm.SeekSeconds(line.Time.TotalSeconds);
+		}
+	}
+
+	private void OnContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+	{
+		if (args.ItemContainer is ListViewItem lvi && lvi.ContentTemplateRoot is TextBlock tb)
+		{
+			bool isActive = args.ItemIndex == _lastHighlightIndex;
+			ApplyTextBlockStyle(tb, isActive);
+		}
 	}
 
 	public void Attach(NowPlayingViewModel vm)
@@ -177,7 +201,6 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 			_lastHighlightIndex = num;
 			if (num >= 0)
 			{
-				LyricList.ScrollIntoView(_vm.LyricLines[num]);
 				CenterActiveLyric(num);
 			}
 		}
@@ -187,26 +210,27 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 	{
 		try
 		{
-			if (!(LyricList.ContainerFromIndex(index) is ListViewItem listViewItem))
-			{
-				return;
-			}
 			ScrollViewer? scrollViewer = FindScrollViewer(LyricList);
 			if (scrollViewer == null || scrollViewer.ViewportHeight <= 0.0)
 			{
 				return;
 			}
-			Point rel = listViewItem.TransformToVisual(scrollViewer).TransformPoint(new Point(0f, 0f));
-			double num = scrollViewer.VerticalOffset + rel.Y - (scrollViewer.ViewportHeight - listViewItem.ActualHeight) / 2.0;
-			if (num < 0.0)
+
+			if (LyricList.ContainerFromIndex(index) is ListViewItem listViewItem)
 			{
-				num = 0.0;
+				Point rel = listViewItem.TransformToVisual(scrollViewer).TransformPoint(new Point(0f, 0f));
+				double num = scrollViewer.VerticalOffset + rel.Y - (scrollViewer.ViewportHeight - listViewItem.ActualHeight) / 2.0;
+				num = Math.Max(0.0, Math.Min(scrollViewer.ScrollableHeight, num));
+				scrollViewer.ChangeView(null, num, null, disableAnimation: false);
 			}
-			if (num > scrollViewer.ScrollableHeight)
+			else
 			{
-				num = scrollViewer.ScrollableHeight;
+				// Fallback when item is virtualized off-screen
+				double estHeight = 44.0;
+				double num = (index * estHeight) - (scrollViewer.ViewportHeight - estHeight) / 2.0;
+				num = Math.Max(0.0, Math.Min(scrollViewer.ScrollableHeight, num));
+				scrollViewer.ChangeView(null, num, null, disableAnimation: false);
 			}
-			scrollViewer.ChangeView(null, num, null, disableAnimation: false);
 		}
 		catch
 		{
@@ -235,11 +259,18 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 	{
 		if (_vm != null && i >= 0 && i < _vm.LyricLines.Count && LyricList.ContainerFromIndex(i) is ListViewItem { ContentTemplateRoot: TextBlock contentTemplateRoot })
 		{
-			contentTemplateRoot.FontSize = (active ? 22 : 16);
-			contentTemplateRoot.FontWeight = (active ? FontWeights.Bold : FontWeights.Normal);
-			contentTemplateRoot.Foreground = (active ? ((Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]) : ((Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]));
-			contentTemplateRoot.Opacity = (active ? 1.0 : 0.55);
+			ApplyTextBlockStyle(contentTemplateRoot, active);
 		}
+	}
+
+	private void ApplyTextBlockStyle(TextBlock contentTemplateRoot, bool active)
+	{
+		contentTemplateRoot.FontSize = (active ? 20 : 15);
+		contentTemplateRoot.FontWeight = (active ? FontWeights.Bold : FontWeights.Normal);
+		contentTemplateRoot.Foreground = (active ? ((Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]) : ((Brush)Application.Current.Resources["TextFillColorSecondaryBrush"]));
+		contentTemplateRoot.Opacity = (active ? 1.0 : 0.60);
+		contentTemplateRoot.TextAlignment = TextAlignment.Center;
+		contentTemplateRoot.HorizontalAlignment = HorizontalAlignment.Stretch;
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]

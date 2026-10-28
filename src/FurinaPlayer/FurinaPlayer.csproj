@@ -21,7 +21,7 @@
     <Compile Remove="WinRT.FurinaPlayerGenericHelpers\**" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\AuditionDaw\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Web.WebView2.Core.Projection">

@@ -4,16 +4,27 @@ using System.Runtime.InteropServices;
 
 namespace SonicWave.Audio.Vst3;
 
-internal sealed class Vst3MemoryStreamImpl : IBStreamCom
+[ComVisible(true)]
+[ClassInterface(ClassInterfaceType.None)]
+public sealed class Vst3MemoryStreamImpl : IBStreamCom
 {
 	private readonly MemoryStream _ms = new MemoryStream();
+
+	public long Length => _ms.Length;
+
+	public byte[] ToArray() => _ms.ToArray();
 
 	public int Read(nint buffer, int numBytes, nint numBytesRead)
 	{
 		try
 		{
-			byte[] array = new byte[Math.Max(0, numBytes)];
-			int num = _ms.Read(array, 0, array.Length);
+			if (numBytes <= 0)
+			{
+				if (numBytesRead != IntPtr.Zero) Marshal.WriteInt32(numBytesRead, 0);
+				return 0;
+			}
+			byte[] array = new byte[numBytes];
+			int num = _ms.Read(array, 0, numBytes);
 			if (buffer != IntPtr.Zero && num > 0)
 			{
 				Marshal.Copy(array, 0, buffer, num);
@@ -22,11 +33,12 @@ internal sealed class Vst3MemoryStreamImpl : IBStreamCom
 			{
 				Marshal.WriteInt32(numBytesRead, num);
 			}
+			return 0;
 		}
 		catch
 		{
+			return -2147467259; // E_FAIL
 		}
-		return 0;
 	}
 
 	public int Write(nint buffer, int numBytes, nint numBytesWritten)
@@ -41,36 +53,43 @@ internal sealed class Vst3MemoryStreamImpl : IBStreamCom
 			}
 			if (numBytesWritten != IntPtr.Zero)
 			{
-				Marshal.WriteInt32(numBytesWritten, numBytes);
+				Marshal.WriteInt32(numBytesWritten, Math.Max(0, numBytes));
 			}
+			return 0;
 		}
 		catch
 		{
+			return -2147467259; // E_FAIL
 		}
-		return 0;
 	}
 
 	public int Seek(long pos, int mode, nint result)
 	{
 		try
 		{
-			long num = Math.Clamp(mode switch
+			long newPos = mode switch
 			{
-				0 => pos, 
-				1 => _ms.Position + pos, 
-				2 => _ms.Length + pos, 
-				_ => _ms.Position, 
-			}, 0L, _ms.Length);
-			_ms.Position = num;
+				0 => pos, // kIBSeekSet
+				1 => _ms.Position + pos, // kIBSeekCur
+				2 => _ms.Length + pos, // kIBSeekEnd
+				_ => _ms.Position,
+			};
+			if (newPos < 0) newPos = 0;
+			if (newPos > _ms.Length)
+			{
+				_ms.SetLength(newPos);
+			}
+			_ms.Position = newPos;
 			if (result != IntPtr.Zero)
 			{
-				Marshal.WriteInt64(result, num);
+				Marshal.WriteInt64(result, newPos);
 			}
+			return 0;
 		}
 		catch
 		{
+			return -2147467259; // E_FAIL
 		}
-		return 0;
 	}
 
 	public int Tell(nint pos)

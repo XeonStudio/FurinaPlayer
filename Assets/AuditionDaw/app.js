@@ -15,6 +15,28 @@
  *   - independent L/R meters (host documents "Never independent L/R")
  */
 (() => {
+  // ── Immune guard against legacy rack injection ─────────────────────────────
+  function purgeLegacyRack() {
+    const r = document.getElementById("audition-menu-rack") || document.querySelector("[data-menu='effects-rack']");
+    if (r) r.remove();
+    const d = document.getElementById("audition-rack-dropdown");
+    if (d) d.remove();
+    const items = document.querySelectorAll(".audition-menubar .menu-item");
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].textContent && items[i].textContent.indexOf("效果组") !== -1) {
+        items[i].remove();
+      }
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", purgeLegacyRack);
+  } else {
+    purgeLegacyRack();
+  }
+  try {
+    new MutationObserver(() => { purgeLegacyRack(); }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch {}
+
   // ── helpers ───────────────────────────────────────────────────────────────
   const el = (id) => document.getElementById(id);
   const setText = (id, value) => {
@@ -41,6 +63,15 @@
   const fmtDb = (db) => (db === null ? "—" : `${db >= 0 ? "+" : ""}${db.toFixed(1)}`);
   const fmtDuration = (sec) => (Number.isFinite(sec) && sec > 0 ? fmtClock(sec, false) : "—");
   const dbToRatio = (db, floor = -72) => (db === null ? 0 : clamp((db - floor) / -floor, 0, 1));
+
+  // Adobe Audition standard Linear Amplitude conversion:
+  // In professional DAWs like Adobe Audition, waveforms represent linear amplitude A = 10^(dBFS / 20).
+  // 0 dBFS -> 1.0; -6 dBFS -> ~0.501 (half height); -12 dBFS -> ~0.251 (quarter height);
+  // -24 dBFS -> ~0.063; -36 dBFS -> ~0.016; <= -60 dBFS -> 0.0 (baseline silence).
+  const dbToLinearRatio = (db, floor = -60) => {
+    if (db === null || !Number.isFinite(db) || db <= floor) return 0;
+    return clamp(Math.pow(10, db / 20), 0, 1);
+  };
 
 
   // ── Multilingual Localization (i18n) ──────────────────────────────────────
@@ -96,14 +127,23 @@
       "art.embedded": "内嵌封面",
       "art.default": "默认唱片",
 
-      "panel.properties": "音频属性",
+      "panel.properties": "音频属性与链路",
       "panel.propertiesAria": "音频属性与链路",
-      "prop.codec": "编码格式",
+      "prop.outputDevice": "输出",
+      "prop.outputMode": "模式",
       "prop.sampleRate": "采样率",
+      "prop.sampleRatePath": "采样率",
+      "prop.audioSource": "音源",
+      "prop.signalPath": "链路",
+      "prop.eq": "EQ",
+      "prop.resampling": "重采样",
+      "prop.passthrough": "直通",
+      "prop.directRead": "本地直读",
+      "prop.latencyBuffer": "延迟",
+      "prop.sharedStability": "Shared 稳定档",
+      "prop.codec": "编码格式",
       "prop.bitDepth": "位深度",
-      "prop.outputDevice": "输出设备",
       "prop.outputEngine": "输出后端",
-      "prop.outputMode": "输出模式",
       "prop.replayGain": "重放增益",
       "prop.meterSource": "输入电平源",
       "prop.sourceRealtime": "宿主实时总线",
@@ -180,6 +220,10 @@
       "prefs.qualityFineOpt": "精细 (Fine - 5x 高密度超采样 · 默认)",
       "prefs.qualityStandardOpt": "标准 (Standard - 5x 平衡采样)",
       "prefs.qualityFastOpt": "极速 (Fast - 5x 快速概览)",
+      "prefs.waveScaleTitle": "波形振幅量程模式",
+      "prefs.waveScaleLinear": "Adobe Audition 线性振幅 (推荐 · 瞬时陡降动态)",
+      "prefs.waveScaleDb": "对数分贝标尺模式 (Logarithmic dB)",
+      "prefs.waveScaleHint": "线性振幅模式完全对齐 Adobe Audition：-6 dBFS 对应半高振幅，动态起伏清晰且衰减干脆陡降；对数分贝模式强调极微弱底噪。",
       "prefs.rangeTitle": "电平表量程标准 (Dynamic Range)",
       "prefs.rangeDesc": "主电平指示器与分轨刻度已扩展至 <strong>0 ~ -60 dBFS</strong>，完整呈现专业级母带动态范围与底噪细节。",
       "prefs.languageTitle": "界面语言 (Language)",
@@ -204,7 +248,7 @@
 
       "about.title": "关于 Adobe Audition DAW",
       "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
-      "about.version": "版本 1.2.0 (Multilingual Edition)",
+      "about.version": "版本 1.3.4 (Multilingual Edition)",
       "about.desc": "专为 ECHO 音乐播放器打造的高仿真 Adobe Audition 专业数字音频工作站 (DAW) 沉浸式主题与实时分析仪套件。",
       "about.featTitle": "功能特性：",
       "about.f1": "• 支持经典黑暗 / 日间明亮双主题无缝切换 (Ctrl+T)",
@@ -253,6 +297,7 @@
       "toast.themeDark": "已切换为黑暗专业主题",
       "toast.wavePink": "已切换为柔美粉樱波形色彩",
       "toast.waveBlue": "已切换为淡雅天蓝波形色彩",
+      "toast.waveScale": "波形振幅量程已切换为：{scale}",
 
       "menu.file.reload": "重新加载界面 (Reload)",
       "menu.file.copyPath": "复制当前音频路径",
@@ -270,6 +315,8 @@
       "menu.multi.fine": "扫描精度：精细 (Fine · 5x超采样)",
       "menu.multi.standard": "扫描精度：标准 (Standard · 5x采样)",
       "menu.multi.fast": "扫描精度：极速 (Fast · 5x采样)",
+      "menu.multi.scaleLinear": "波形振幅：Adobe Audition 线性 (推荐)",
+      "menu.multi.scaleDb": "波形振幅：对数分贝标尺模式",
       "menu.multi.polarSample": "声场：极坐标样本 (Polar Sample)",
       "menu.multi.polarLevel": "声场：极坐标电平 (Polar Level)",
       "menu.multi.lissajous": "声场：李萨如曲线 (Lissajous)",
@@ -278,6 +325,8 @@
       "menu.clip.fit": "缩放以适应完整曲目",
       "menu.clip.copyTime": "复制当前时间码 (Timecode)",
 
+      "menu.fx.vstRack": "批处理 (效果机架 / VST3 机架)",
+      "menu.fx.vstManager": "音频增效工具管理器...",
       "menu.fx.freeze": "频谱分析仪：冻结 / 恢复",
       "menu.fx.clearWaterfall": "清空频谱瀑布流历史",
 
@@ -319,7 +368,86 @@
 
       "menu.help.shortcuts": "键盘快捷键指南 (Shortcuts)...",
       "menu.help.prefs": "首选项设置 (Preferences)...",
-      "menu.help.about": "关于 Adobe Audition DAW 主题..."
+      "menu.help.about": "关于 Adobe Audition DAW 主题...",
+      "header.connecting": "等待宿主握手…",
+      "header.live": "实时连接 · 协议 v1",
+      "header.playing": "播放中",
+      "header.paused": "已暂停",
+      "header.error": "异常",
+      "wave.modeRealtime": "实时",
+      "wave.modePrerender": "预渲染",
+      "wave.modeTitleRealtime": "波形模式：实时（波形随播放逐步绘制）",
+      "wave.modeTitlePrerender": "波形模式：预渲染（切歌后自动静音扫描整首）",
+      "wave.qualityTitle": "预扫描精度：{quality}（5x高密度采样 · 约 {time} 秒）",
+      "quality.fast": "极速",
+      "quality.standard": "标准",
+      "quality.fine": "精细",
+      "scan.noTrack": "无可扫描曲目",
+      "scan.needPlaying": "需播放中才能采样",
+      "scan.cancelled": "已取消",
+      "scan.completed": "预扫描完成",
+      "scan.activeStatus": "预扫描 {pct}% · 预计还需 {sec}s · 静音中，可点击取消",
+      "scan.envelopeCoverage": "包络 {coverage}%",
+      "scan.cost": "用时 {sec}s",
+      "wave.pkLaneLinear": "PK 峰值包络 · 线性振幅 (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK 峰值包络 · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS 有效值包络 · 线性振幅 (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS 有效值包络 · 0…-60 dBFS",
+      "wave.canvasWaiting": "播放后开始采集电平包络（宿主不提供 PCM 采样）",
+      "spectrogram.waiting": "等待频段能量数据…",
+      "spectrum.low": "低频",
+      "spectrum.high": "高频",
+      "lyrics.instrumentalBig": "纯音乐",
+      "lyrics.instrumentalDesc": "该曲目被标记为纯音乐，请欣赏",
+      "lyrics.emptyBig": "暂无歌词",
+      "lyrics.emptyDesc": "可在 ECHO 歌词设置中搜索或导入歌词",
+      "lyrics.badgeInstrumental": "纯音乐",
+      "lyrics.badgeNoLyrics": "无歌词",
+      "lyrics.badgeSynced": "逐行同步",
+      "lyrics.badgeTimed": "带时间轴",
+      "lyrics.badgeText": "纯文本歌词",
+      "lyrics.noteJump": "点击任意歌词行可跳转播放位置",
+      "lyrics.loading": "载入中…",
+      "lyrics.waiting": "等待歌词",
+      "queue.tracksCount": "{count} 首",
+      "queue.emptyLive": "当前播放队列为空",
+      "queue.playTitle": "点击播放：{title}",
+      "track.unknown": "未知曲目",
+      "track.unknownArtist": "未知艺术家",
+      "art.streamCover": "流媒体封面",
+      "art.hostCover": "宿主封面",
+      "art.noCover": "无封面",
+      "propVal.shared": "共享",
+      "propVal.exclusive": "独占",
+      "propVal.directRead": "本地直读",
+      "propVal.streaming": "流式传输",
+      "propVal.bitPerfect": "原生直通",
+      "propVal.standardPath": "标准路径",
+      "propVal.disabled": "未启用",
+      "propVal.resampleActive": "重采样激活",
+      "propVal.notResampled": "未重采样",
+      "propVal.canPassthrough": "可直通",
+      "propVal.sharedMixer": "共享混音器",
+      "propVal.standardMix": "标准混音",
+      "propVal.unknown": "未知",
+      "propVal.postDsp": "原生 DSP 后",
+      "propVal.preDspEst": "DSP 前估算",
+      "trans.repeatOne": "单曲循环",
+      "trans.repeatAll": "列表循环",
+      "trans.repeatOff": "不循环",
+      "trans.repeatOneOn": "单曲循环：开",
+      "trans.repeatOneOff": "单曲循环：关",
+      "trans.shuffleOn": "随机播放：开",
+      "trans.shuffleOff": "随机播放：关",
+      "trans.mute": "静音",
+      "trans.unmute": "取消静音",
+      "theme.darkTitle": "切换至经典黑暗模式 (Ctrl+T)",
+      "theme.lightTitle": "切换至日间明亮模式 (Ctrl+T)",
+      "wave.blueTitle": "切换波形色彩至淡雅天蓝 (Ctrl+Alt+W)",
+      "wave.pinkTitle": "切换波形色彩至柔美粉樱 (Ctrl+Alt+W)",
+      "modal.closeTitle": "关闭 (Esc)",
+      "menu.auditionAria": "Audition 菜单"
+
     },
 
     en: {
@@ -365,14 +493,23 @@
       "art.embedded": "Embedded Artwork",
       "art.default": "Default Disc",
 
-      "panel.properties": "Audio Properties",
+      "panel.properties": "Audio Properties & Signal Chain",
       "panel.propertiesAria": "Audio Properties & Signal Chain",
-      "prop.codec": "Codec",
+      "prop.outputDevice": "Output",
+      "prop.outputMode": "Mode",
       "prop.sampleRate": "Sample Rate",
+      "prop.sampleRatePath": "Sample Rate",
+      "prop.audioSource": "Source",
+      "prop.signalPath": "Signal Path",
+      "prop.eq": "EQ",
+      "prop.resampling": "Resampling",
+      "prop.passthrough": "Passthrough",
+      "prop.directRead": "Direct Read",
+      "prop.latencyBuffer": "Latency",
+      "prop.sharedStability": "Shared Stability",
+      "prop.codec": "Codec",
       "prop.bitDepth": "Bit Depth",
-      "prop.outputDevice": "Output Device",
       "prop.outputEngine": "Output Engine",
-      "prop.outputMode": "Output Mode",
       "prop.replayGain": "ReplayGain",
       "prop.meterSource": "Meter Source",
       "prop.sourceRealtime": "Host Realtime Bus",
@@ -449,6 +586,10 @@
       "prefs.qualityFineOpt": "Fine (5x High-density oversampling · Default)",
       "prefs.qualityStandardOpt": "Standard (5x Balanced sampling)",
       "prefs.qualityFastOpt": "Fast (5x Quick overview)",
+      "prefs.waveScaleTitle": "Waveform Scale Mode",
+      "prefs.waveScaleLinear": "Adobe Audition Linear Amplitude (Recommended · Steep Decay)",
+      "prefs.waveScaleDb": "Logarithmic Decibel Mode (Logarithmic dB)",
+      "prefs.waveScaleHint": "Linear amplitude matches Adobe Audition native waveforms (-6 dBFS at 50% height) with sharp transients and steep attenuation; dB mode expands noise floor.",
       "prefs.rangeTitle": "Dynamic Range Standard",
       "prefs.rangeDesc": "Master meters and track scales span <strong>0 ~ -60 dBFS</strong>, fully presenting professional mastering dynamic range and noise floor nuances.",
       "prefs.languageTitle": "Interface Language",
@@ -473,7 +614,7 @@
 
       "about.title": "About Adobe Audition DAW",
       "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
-      "about.version": "Version 1.2.0 (Multilingual Edition)",
+      "about.version": "Version 1.3.4 (Multilingual Edition)",
       "about.desc": "High-fidelity Adobe Audition professional Digital Audio Workstation (DAW) theme & realtime analyzer suite crafted for the ECHO music player.",
       "about.featTitle": "Features:",
       "about.f1": "• Seamless Light & Dark mastering themes (Ctrl+T)",
@@ -522,6 +663,7 @@
       "toast.themeDark": "Switched to Dark professional theme",
       "toast.wavePink": "Waveform palette: Sakura Pink",
       "toast.waveBlue": "Waveform palette: Azure Blue",
+      "toast.waveScale": "Waveform scale set to: {scale}",
 
       "menu.file.reload": "Reload Interface",
       "menu.file.copyPath": "Copy Audio File Path",
@@ -539,6 +681,8 @@
       "menu.multi.fine": "Scan Quality: Fine (5x Oversampling)",
       "menu.multi.standard": "Scan Quality: Standard (5x Balanced)",
       "menu.multi.fast": "Scan Quality: Fast (5x Quick)",
+      "menu.multi.scaleLinear": "Waveform Scale: Adobe Audition Linear (Recommended)",
+      "menu.multi.scaleDb": "Waveform Scale: Logarithmic dB",
       "menu.multi.polarSample": "Scope: Polar Sample",
       "menu.multi.polarLevel": "Scope: Polar Level",
       "menu.multi.lissajous": "Scope: Lissajous Curve",
@@ -547,6 +691,8 @@
       "menu.clip.fit": "Fit to Entire Track",
       "menu.clip.copyTime": "Copy Current Timecode",
 
+      "menu.fx.vstRack": "Batch Processing (Effects Rack / VST3 Rack)",
+      "menu.fx.vstManager": "Audio Plug-in Manager...",
       "menu.fx.freeze": "Analyzer: Freeze / Resume",
       "menu.fx.clearWaterfall": "Clear Spectrogram History",
 
@@ -588,7 +734,86 @@
 
       "menu.help.shortcuts": "Keyboard Shortcuts Guide...",
       "menu.help.prefs": "Preferences...",
-      "menu.help.about": "About Adobe Audition DAW..."
+      "menu.help.about": "About Adobe Audition DAW...",
+      "header.connecting": "Waiting for host handshake…",
+      "header.live": "Live Connected · Protocol v1",
+      "header.playing": "Playing",
+      "header.paused": "Paused",
+      "header.error": "Error",
+      "wave.modeRealtime": "Realtime",
+      "wave.modePrerender": "Pre-render",
+      "wave.modeTitleRealtime": "Waveform mode: Realtime (drawn during playback)",
+      "wave.modeTitlePrerender": "Waveform mode: Pre-render (auto mute-scan on track change)",
+      "wave.qualityTitle": "Pre-scan quality: {quality} (5x oversampling · ~{time}s)",
+      "quality.fast": "Fast",
+      "quality.standard": "Standard",
+      "quality.fine": "Fine",
+      "scan.noTrack": "No track to scan",
+      "scan.needPlaying": "Playback required to sample",
+      "scan.cancelled": "Cancelled",
+      "scan.completed": "Pre-scan complete",
+      "scan.activeStatus": "Pre-scanning {pct}% · Est. {sec}s left · Muted, click to cancel",
+      "scan.envelopeCoverage": "Envelope {coverage}%",
+      "scan.cost": "took {sec}s",
+      "wave.pkLaneLinear": "PK Peak Envelope · Linear Amplitude (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK Peak Envelope · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS Envelope · Linear Amplitude (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS Envelope · 0…-60 dBFS",
+      "wave.canvasWaiting": "Capturing level envelopes on playback (PCM samples unavailable)",
+      "spectrogram.waiting": "Waiting for spectrum data…",
+      "spectrum.low": "Low",
+      "spectrum.high": "High",
+      "lyrics.instrumentalBig": "Instrumental",
+      "lyrics.instrumentalDesc": "This track is marked as instrumental. Enjoy the music.",
+      "lyrics.emptyBig": "No Lyrics",
+      "lyrics.emptyDesc": "Search or import lyrics in ECHO lyrics settings",
+      "lyrics.badgeInstrumental": "Instrumental",
+      "lyrics.badgeNoLyrics": "No Lyrics",
+      "lyrics.badgeSynced": "Synced",
+      "lyrics.badgeTimed": "Timed",
+      "lyrics.badgeText": "Plain Text",
+      "lyrics.noteJump": "Click any lyric line to jump playback position",
+      "lyrics.loading": "Loading…",
+      "lyrics.waiting": "Waiting for lyrics",
+      "queue.tracksCount": "{count} tracks",
+      "queue.emptyLive": "Playback queue is empty",
+      "queue.playTitle": "Click to play: {title}",
+      "track.unknown": "Unknown Track",
+      "track.unknownArtist": "Unknown Artist",
+      "art.streamCover": "Streaming Cover",
+      "art.hostCover": "Host Cover",
+      "art.noCover": "No Cover",
+      "propVal.shared": "Shared",
+      "propVal.exclusive": "Exclusive",
+      "propVal.directRead": "Direct Read",
+      "propVal.streaming": "Streaming",
+      "propVal.bitPerfect": "Bit-Perfect",
+      "propVal.standardPath": "Standard Path",
+      "propVal.disabled": "Disabled",
+      "propVal.resampleActive": "Resampling Active",
+      "propVal.notResampled": "Not Resampled",
+      "propVal.canPassthrough": "Direct Supported",
+      "propVal.sharedMixer": "Shared Mixer",
+      "propVal.standardMix": "Standard Mix",
+      "propVal.unknown": "Unknown",
+      "propVal.postDsp": "Native Post-DSP",
+      "propVal.preDspEst": "Pre-DSP Estimated",
+      "trans.repeatOne": "Repeat One",
+      "trans.repeatAll": "Repeat All",
+      "trans.repeatOff": "Repeat Off",
+      "trans.repeatOneOn": "Repeat One: On",
+      "trans.repeatOneOff": "Repeat One: Off",
+      "trans.shuffleOn": "Shuffle: On",
+      "trans.shuffleOff": "Shuffle: Off",
+      "trans.mute": "Mute",
+      "trans.unmute": "Unmute",
+      "theme.darkTitle": "Switch to Classic Dark Theme (Ctrl+T)",
+      "theme.lightTitle": "Switch to Daylight Theme (Ctrl+T)",
+      "wave.blueTitle": "Switch waveform color to Azure Blue (Ctrl+Alt+W)",
+      "wave.pinkTitle": "Switch waveform color to Sakura Pink (Ctrl+Alt+W)",
+      "modal.closeTitle": "Close (Esc)",
+      "menu.auditionAria": "Audition Menu"
+
     },
 
     fr: {
@@ -718,6 +943,10 @@
       "prefs.qualityFineOpt": "Précis (Fine - Suréchantillonnage 5x haute densité · Défaut)",
       "prefs.qualityStandardOpt": "Standard (Standard - Échantillonnage 5x équilibré)",
       "prefs.qualityFastOpt": "Rapide (Fast - Aperçu 5x rapide)",
+      "prefs.waveScaleTitle": "Mode d'échelle de forme d'onde",
+      "prefs.waveScaleLinear": "Amplitude linéaire Adobe Audition (Recommandé · Atténuation abrupte)",
+      "prefs.waveScaleDb": "Mode décibels logarithmique (Logarithmic dB)",
+      "prefs.waveScaleHint": "L'amplitude linéaire correspond fidèlement à Adobe Audition (-6 dBFS à 50% de hauteur) avec des transitoires nettes et une atténuation abrupte ; le mode dB élargit les bruits de fond.",
       "prefs.rangeTitle": "Échelle de plage dynamique",
       "prefs.rangeDesc": "Les indicateurs master et les échelles couvrent de <strong>0 à -60 dBFS</strong>, restituant toute la dynamique de mastering et les bruits de fond.",
       "prefs.languageTitle": "Langue de l'interface",
@@ -742,7 +971,7 @@
 
       "about.title": "À propos d'Adobe Audition DAW",
       "about.headerTitle": "Thème Adobe Audition DAW pour ECHO",
-      "about.version": "Version 1.2.0 (Édition Multilingue)",
+      "about.version": "Version 1.3.4 (Édition Multilingue)",
       "about.desc": "Thème immersif et suite d'analyseurs en temps réel haute fidélité inspirés d'Adobe Audition pour le lecteur audio ECHO.",
       "about.featTitle": "Fonctionnalités :",
       "about.f1": "• Thèmes de mastering Clair et Sombre sans coupure (Ctrl+T)",
@@ -791,6 +1020,7 @@
       "toast.themeDark": "Thème Sombre professionnel activé",
       "toast.wavePink": "Palette de forme d'onde : Rose Sakura",
       "toast.waveBlue": "Palette de forme d'onde : Bleu Azur",
+      "toast.waveScale": "Échelle de forme d'onde définie sur : {scale}",
 
       "menu.file.reload": "Recharger l'interface",
       "menu.file.copyPath": "Copier le chemin audio",
@@ -808,6 +1038,8 @@
       "menu.multi.fine": "Précision : Précis (Suréchantillonnage 5x)",
       "menu.multi.standard": "Précision : Standard (5x équilibré)",
       "menu.multi.fast": "Précision : Rapide (5x rapide)",
+      "menu.multi.scaleLinear": "Forme d'onde : Linéaire Adobe Audition (Recommandé)",
+      "menu.multi.scaleDb": "Forme d'onde : Décibels logarithmiques",
       "menu.multi.polarSample": "Champ sonore : Polar Sample",
       "menu.multi.polarLevel": "Champ sonore : Polar Level",
       "menu.multi.lissajous": "Champ sonore : Courbe de Lissajous",
@@ -816,6 +1048,8 @@
       "menu.clip.fit": "Adapter au morceau complet",
       "menu.clip.copyTime": "Copier le timecode actuel",
 
+      "menu.fx.vstRack": "Traitement par lots (Rack d'effets / VST3)",
+      "menu.fx.vstManager": "Gestionnaire des plug-ins audio...",
       "menu.fx.freeze": "Analyseur : Figer / Reprendre",
       "menu.fx.clearWaterfall": "Effacer la cascade spectrale",
 
@@ -857,7 +1091,95 @@
 
       "menu.help.shortcuts": "Guide des raccourcis clavier...",
       "menu.help.prefs": "Préférences...",
-      "menu.help.about": "À propos d'Adobe Audition DAW..."
+      "menu.help.about": "À propos d'Adobe Audition DAW...",
+      "prop.sampleRatePath": "Échantillonnage",
+      "prop.audioSource": "Source",
+      "prop.signalPath": "Chaîne",
+      "prop.eq": "EQ",
+      "prop.resampling": "Rééchantillonnage",
+      "prop.passthrough": "Pass-through",
+      "prop.directRead": "Lecture directe",
+      "prop.latencyBuffer": "Latence",
+      "prop.sharedStability": "Stabilité partagée",
+      "header.connecting": "En attente de l'hôte…",
+      "header.live": "Connexion directe · Protocole v1",
+      "header.playing": "Lecture",
+      "header.paused": "Pause",
+      "header.error": "Erreur",
+      "wave.modeRealtime": "Temps réel",
+      "wave.modePrerender": "Pré-rendu",
+      "wave.modeTitleRealtime": "Mode de forme d'onde : Temps réel (tracé pendant la lecture)",
+      "wave.modeTitlePrerender": "Mode de forme d'onde : Pré-rendu (balayage silencieux automatique)",
+      "wave.qualityTitle": "Précision de pré-balayage : {quality} (suréchantillonnage 5x · ~{time}s)",
+      "quality.fast": "Rapide",
+      "quality.standard": "Standard",
+      "quality.fine": "Précis",
+      "scan.noTrack": "Aucune piste à balayer",
+      "scan.needPlaying": "Lecture requise pour échantillonner",
+      "scan.cancelled": "Annulé",
+      "scan.completed": "Pré-balayage terminé",
+      "scan.activeStatus": "Pré-balayage {pct}% · Reste env. {sec}s · En sourdine, cliquer pour annuler",
+      "scan.envelopeCoverage": "Enveloppe {coverage}%",
+      "scan.cost": "durée {sec}s",
+      "wave.pkLaneLinear": "Enveloppe de crête PK · Amplitude linéaire (0…-60 dBFS)",
+      "wave.pkLaneDb": "Enveloppe de crête PK · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "Enveloppe RMS · Amplitude linéaire (0…-60 dBFS)",
+      "wave.rmsLaneDb": "Enveloppe RMS · 0…-60 dBFS",
+      "wave.canvasWaiting": "Capture des enveloppes pendant la lecture (échantillons PCM non fournis)",
+      "spectrogram.waiting": "En attente des données de spectre…",
+      "spectrum.low": "Basses",
+      "spectrum.high": "Aigus",
+      "lyrics.instrumentalBig": "Instrumental",
+      "lyrics.instrumentalDesc": "Ce morceau est instrumental. Bonne écoute.",
+      "lyrics.emptyBig": "Aucune parole",
+      "lyrics.emptyDesc": "Recherchez ou importez des paroles dans les paramètres d'ECHO",
+      "lyrics.badgeInstrumental": "Instrumental",
+      "lyrics.badgeNoLyrics": "Sans paroles",
+      "lyrics.badgeSynced": "Synchronisé",
+      "lyrics.badgeTimed": "Horodaté",
+      "lyrics.badgeText": "Texte brut",
+      "lyrics.noteJump": "Cliquez sur une ligne pour sauter à cette position",
+      "lyrics.loading": "Chargement…",
+      "lyrics.waiting": "En attente des paroles",
+      "queue.tracksCount": "{count} pistes",
+      "queue.emptyLive": "La file de lecture est vide",
+      "queue.playTitle": "Cliquer pour lire : {title}",
+      "track.unknown": "Piste inconnue",
+      "track.unknownArtist": "Artiste inconnu",
+      "art.streamCover": "Pochette de streaming",
+      "art.hostCover": "Pochette de l'hôte",
+      "art.noCover": "Aucune pochette",
+      "propVal.shared": "Partagé",
+      "propVal.exclusive": "Exclusif",
+      "propVal.directRead": "Lecture directe",
+      "propVal.streaming": "Streaming",
+      "propVal.bitPerfect": "Bit-Perfect",
+      "propVal.standardPath": "Chemin standard",
+      "propVal.disabled": "Désactivé",
+      "propVal.resampleActive": "Rééchantillonnage actif",
+      "propVal.notResampled": "Non rééchantillonné",
+      "propVal.canPassthrough": "Direct supporté",
+      "propVal.sharedMixer": "Mixeur partagé",
+      "propVal.standardMix": "Mixage standard",
+      "propVal.unknown": "Inconnu",
+      "propVal.postDsp": "DSP natif aval",
+      "propVal.preDspEst": "Estimé amont DSP",
+      "trans.repeatOne": "Répéter un titre",
+      "trans.repeatAll": "Répéter tout",
+      "trans.repeatOff": "Ne pas répéter",
+      "trans.repeatOneOn": "Répéter un titre : Activé",
+      "trans.repeatOneOff": "Répéter un titre : Désactivé",
+      "trans.shuffleOn": "Lecture aléatoire : Activé",
+      "trans.shuffleOff": "Lecture aléatoire : Désactivé",
+      "trans.mute": "Sourdine",
+      "trans.unmute": "Activer le son",
+      "theme.darkTitle": "Passer au thème Sombre (Ctrl+T)",
+      "theme.lightTitle": "Passer au thème Clair (Ctrl+T)",
+      "wave.blueTitle": "Passer la couleur d'onde à Bleu Azur (Ctrl+Alt+W)",
+      "wave.pinkTitle": "Passer la couleur d'onde à Rose Sakura (Ctrl+Alt+W)",
+      "modal.closeTitle": "Fermer (Esc)",
+      "menu.auditionAria": "Menu Audition"
+
     },
 
     ja: {
@@ -987,6 +1309,10 @@
       "prefs.qualityFineOpt": "高精度 (Fine - 5x 高密度オーバーサンプリング · デフォルト)",
       "prefs.qualityStandardOpt": "標準 (Standard - 5x バランスサンプリング)",
       "prefs.qualityFastOpt": "高速 (Fast - 5x 高速プレビュー)",
+      "prefs.waveScaleTitle": "波形振幅スケールモード",
+      "prefs.waveScaleLinear": "Adobe Audition リニア振幅 (推奨 · 急峻な減衰)",
+      "prefs.waveScaleDb": "対数デシベルモード (Logarithmic dB)",
+      "prefs.waveScaleHint": "リニア振幅モードは Adobe Audition に完全準拠（-6 dBFS が 50% 振幅）、ダイナミクスが明瞭で減衰も鋭く急降下します。対数モードは微小なノイズフロアの観察に適しています。",
       "prefs.rangeTitle": "ダイナミックレンジ標準",
       "prefs.rangeDesc": "マスターメーターおよびトラック目盛は <strong>0 ～ -60 dBFS</strong> をカバーし、プロフェッショナルなマスタリングダイナミクスと微小信号を忠実に可視化します。",
       "prefs.languageTitle": "表示言語 (Language)",
@@ -1011,7 +1337,7 @@
 
       "about.title": "Adobe Audition DAW について",
       "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
-      "about.version": "バージョン 1.2.0 (多言語エディション)",
+      "about.version": "バージョン 1.3.4 (多言語エディション)",
       "about.desc": "ECHO 音楽プレーヤーのために設計された、高精度 Adobe Audition スタイルのプロフェッショナル DAW イマーシブテーマ＆リアルタイムアナライザースイート。",
       "about.featTitle": "主な機能：",
       "about.f1": "• 洗練されたダーク / ライト マスタリングテーマのシームレス切替 (Ctrl+T)",
@@ -1060,6 +1386,7 @@
       "toast.themeDark": "ダークプロフェッショナルテーマに切り替えました",
       "toast.wavePink": "波形カラー：柔美な桜色",
       "toast.waveBlue": "波形カラー：淡雅な藍色",
+      "toast.waveScale": "波形スケールを設定しました：{scale}",
 
       "menu.file.reload": "UIを再読み込み (Reload)",
       "menu.file.copyPath": "オーディオパスをコピー",
@@ -1077,6 +1404,8 @@
       "menu.multi.fine": "スキャン精度：高精度 (5x オーバーサンプリング)",
       "menu.multi.standard": "スキャン精度：標準 (5x バランス)",
       "menu.multi.fast": "スキャン精度：高速 (5x クイック)",
+      "menu.multi.scaleLinear": "波形振幅：Adobe Audition リニア (推奨)",
+      "menu.multi.scaleDb": "波形振幅：対数デシベルモード",
       "menu.multi.polarSample": "音場：極座標サンプル (Polar Sample)",
       "menu.multi.polarLevel": "音場：極座標レベル (Polar Level)",
       "menu.multi.lissajous": "音場：リサジュー曲線 (Lissajous)",
@@ -1085,6 +1414,8 @@
       "menu.clip.fit": "曲全体に合わせて拡大縮小",
       "menu.clip.copyTime": "現在のタイムコードをコピー",
 
+      "menu.fx.vstRack": "バッチ処理 (エフェクトラック / VST3 ラック)",
+      "menu.fx.vstManager": "オーディオプラグインマネージャー...",
       "menu.fx.freeze": "スペクトラムアナライザー：フリーズ / 再開",
       "menu.fx.clearWaterfall": "スペクトログラム滝の履歴を消去",
 
@@ -1126,7 +1457,95 @@
 
       "menu.help.shortcuts": "キーボードショートカット一覧...",
       "menu.help.prefs": "環境設定 (Preferences)...",
-      "menu.help.about": "Adobe Audition DAW について..."
+      "menu.help.about": "Adobe Audition DAW について...",
+      "prop.sampleRatePath": "サンプリングレート",
+      "prop.audioSource": "音源",
+      "prop.signalPath": "シグナルパス",
+      "prop.eq": "EQ",
+      "prop.resampling": "リサンプリング",
+      "prop.passthrough": "パススルー",
+      "prop.directRead": "ローカル直接読込",
+      "prop.latencyBuffer": "レイテンシ",
+      "prop.sharedStability": "共有安定性",
+      "header.connecting": "ホスト接続待機中…",
+      "header.live": "リアルタイム接続 · プロトコル v1",
+      "header.playing": "再生中",
+      "header.paused": "一時停止",
+      "header.error": "エラー",
+      "wave.modeRealtime": "リアルタイム",
+      "wave.modePrerender": "プリレンダー",
+      "wave.modeTitleRealtime": "波形モード：リアルタイム（再生に合わせて描画）",
+      "wave.modeTitlePrerender": "波形モード：プリレンダー（曲変更時に自動ミュートスキャン）",
+      "wave.qualityTitle": "プリスキャン精度：{quality}（5x高密度サンプリング · 約 {time} 秒）",
+      "quality.fast": "高速",
+      "quality.standard": "標準",
+      "quality.fine": "高精度",
+      "scan.noTrack": "スキャン可能なトラックなし",
+      "scan.needPlaying": "サンプリングには再生が必要です",
+      "scan.cancelled": "キャンセル済み",
+      "scan.completed": "プリスキャン完了",
+      "scan.activeStatus": "プリスキャン中 {pct}% · 残り約 {sec}秒 · ミュート中、クリックでキャンセル",
+      "scan.envelopeCoverage": "エンベロープ {coverage}%",
+      "scan.cost": "所要時間 {sec}秒",
+      "wave.pkLaneLinear": "PK ピークエンベロープ · 線形振幅 (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK ピークエンベロープ · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS 実効値エンベロープ · 線形振幅 (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS 実効値エンベロープ · 0…-60 dBFS",
+      "wave.canvasWaiting": "再生後にレベルエンベロープを収集開始（PCMサンプル非提供）",
+      "spectrogram.waiting": "周波数スペクトルデータを待機中…",
+      "spectrum.low": "低域",
+      "spectrum.high": "高域",
+      "lyrics.instrumentalBig": "インストゥルメンタル",
+      "lyrics.instrumentalDesc": "このトラックはインスト曲としてマークされています。音楽をお楽しみください。",
+      "lyrics.emptyBig": "歌詞なし",
+      "lyrics.emptyDesc": "ECHOの歌詞設定で検索またはインポートできます",
+      "lyrics.badgeInstrumental": "インスト",
+      "lyrics.badgeNoLyrics": "歌詞なし",
+      "lyrics.badgeSynced": "行同期",
+      "lyrics.badgeTimed": "タイムコード付き",
+      "lyrics.badgeText": "プレーンテキスト",
+      "lyrics.noteJump": "歌詞行をクリックすると再生位置をジャンプできます",
+      "lyrics.loading": "読み込み中…",
+      "lyrics.waiting": "歌詞待機中",
+      "queue.tracksCount": "{count} 曲",
+      "queue.emptyLive": "再生キューが空です",
+      "queue.playTitle": "クリックして再生：{title}",
+      "track.unknown": "不明なトラック",
+      "track.unknownArtist": "不明なアーティスト",
+      "art.streamCover": "ストリーミングカバー",
+      "art.hostCover": "ホストカバー",
+      "art.noCover": "カバーなし",
+      "propVal.shared": "共有",
+      "propVal.exclusive": "排他",
+      "propVal.directRead": "ローカル直接読込",
+      "propVal.streaming": "ストリーミング",
+      "propVal.bitPerfect": "ビットパーフェクト",
+      "propVal.standardPath": "標準パス",
+      "propVal.disabled": "無効",
+      "propVal.resampleActive": "リサンプリング作動中",
+      "propVal.notResampled": "リサンプリングなし",
+      "propVal.canPassthrough": "直通可能",
+      "propVal.sharedMixer": "共有ミキサー",
+      "propVal.standardMix": "標準ミックス",
+      "propVal.unknown": "不明",
+      "propVal.postDsp": "ネイティブDSP後",
+      "propVal.preDspEst": "DSP前推計",
+      "trans.repeatOne": "1曲リピート",
+      "trans.repeatAll": "全曲リピート",
+      "trans.repeatOff": "リピートオフ",
+      "trans.repeatOneOn": "1曲リピート：オン",
+      "trans.repeatOneOff": "1曲リピート：オフ",
+      "trans.shuffleOn": "シャッフル：オン",
+      "trans.shuffleOff": "シャッフル：オフ",
+      "trans.mute": "ミュート",
+      "trans.unmute": "ミュート解除",
+      "theme.darkTitle": "ダークモードに切り替え (Ctrl+T)",
+      "theme.lightTitle": "ライトモードに切り替え (Ctrl+T)",
+      "wave.blueTitle": "波形カラーを藍色に切り替え (Ctrl+Alt+W)",
+      "wave.pinkTitle": "波形カラーを桜色に切り替え (Ctrl+Alt+W)",
+      "modal.closeTitle": "閉じる (Esc)",
+      "menu.auditionAria": "Audition メニュー"
+
     },
 
     ko: {
@@ -1256,6 +1675,10 @@
       "prefs.qualityFineOpt": "고정밀 (Fine - 5x 고밀도 오버샘플링 · 기본값)",
       "prefs.qualityStandardOpt": "표준 (Standard - 5x 밸런스 샘플링)",
       "prefs.qualityFastOpt": "고속 (Fast - 5x 빠른 개요)",
+      "prefs.waveScaleTitle": "파형 진폭 스케일 모드",
+      "prefs.waveScaleLinear": "Adobe Audition 선형 진폭 (권장 · 가파른 감쇠 동적)",
+      "prefs.waveScaleDb": "로그 데시벨 모드 (Logarithmic dB)",
+      "prefs.waveScaleHint": "선형 진폭 모드는 Adobe Audition과 완벽히 일치하여(-6 dBFS가 50% 진폭) 선명한 트랜지언트와 가파른 감쇠를 제공합니다. 로그 모드는 미세한 노이즈 플로어 관찰에 유용합니다.",
       "prefs.rangeTitle": "다이내믹 레인지 표준",
       "prefs.rangeDesc": "마스터 레벨 및 트랙 눈금은 <strong>0 ~ -60 dBFS</strong>를 지원하여 전문가급 마스터링의 폭넓은 다이내믹 레인지와 미세 노이즈 플로어를 충실히 표현합니다.",
       "prefs.languageTitle": "인터페이스 언어 (Language)",
@@ -1280,7 +1703,7 @@
 
       "about.title": "Adobe Audition DAW 정보",
       "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
-      "about.version": "버전 1.2.0 (다국어 에디션)",
+      "about.version": "버전 1.3.4 (다국어 에디션)",
       "about.desc": "ECHO 음악 플레이어를 위해 정밀 설계된 고품질 Adobe Audition 스타일의 전문가급 디지털 오디오 워크스테이션(DAW) 테마 및 실시간 분석기 스위트.",
       "about.featTitle": "주요 기능:",
       "about.f1": "• 다크 / 라이트 전문 마스터링 테마 매끄러운 전환 (Ctrl+T)",
@@ -1329,6 +1752,7 @@
       "toast.themeDark": "다크 전문 테마로 전환되었습니다",
       "toast.wavePink": "파형 색상: 벚꽃색",
       "toast.waveBlue": "파형 색상: 하늘색",
+      "toast.waveScale": "파형 스케일이 설정되었습니다: {scale}",
 
       "menu.file.reload": "인터페이스 새로고침 (Reload)",
       "menu.file.copyPath": "오디오 파일 경로 복사",
@@ -1346,6 +1770,8 @@
       "menu.multi.fine": "스캔 정밀도: 고정밀 (5x 오버샘플링)",
       "menu.multi.standard": "스캔 정밀도: 표준 (5x 밸런스)",
       "menu.multi.fast": "스캔 정밀도: 고속 (5x 빠른 개요)",
+      "menu.multi.scaleLinear": "파형 스케일: Adobe Audition 선형 (권장)",
+      "menu.multi.scaleDb": "파형 스케일: 로그 데시벨 모드",
       "menu.multi.polarSample": "음장: 극좌표 샘플 (Polar Sample)",
       "menu.multi.polarLevel": "음장: 극좌표 레벨 (Polar Level)",
       "menu.multi.lissajous": "음장: 리사주 곡선 (Lissajous)",
@@ -1354,6 +1780,8 @@
       "menu.clip.fit": "전체 곡 길이에 맞춤",
       "menu.clip.copyTime": "현재 타임코드 복사",
 
+      "menu.fx.vstRack": "일괄 처리 (이펙트 랙 / VST3 랙)",
+      "menu.fx.vstManager": "오디오 플러그인 관리자...",
       "menu.fx.freeze": "스펙트럼 분석기: 고정 / 재개",
       "menu.fx.clearWaterfall": "스펙트로그램 폭포수 기록 초기화",
 
@@ -1395,7 +1823,95 @@
 
       "menu.help.shortcuts": "키보드 단축키 안내...",
       "menu.help.prefs": "환경설정 (Preferences)...",
-      "menu.help.about": "Adobe Audition DAW 정보..."
+      "menu.help.about": "Adobe Audition DAW 정보...",
+      "prop.sampleRatePath": "샘플링 레이트",
+      "prop.audioSource": "음원 소스",
+      "prop.signalPath": "신호 경로",
+      "prop.eq": "EQ",
+      "prop.resampling": "리샘플링",
+      "prop.passthrough": "패스스루",
+      "prop.directRead": "로컬 직접 읽기",
+      "prop.latencyBuffer": "지연 시간",
+      "prop.sharedStability": "공유 안정성",
+      "header.connecting": "호스트 연결 대기 중…",
+      "header.live": "실시간 연결 · 프로ト콜 v1",
+      "header.playing": "재생 중",
+      "header.paused": "일시 정지",
+      "header.error": "오류",
+      "wave.modeRealtime": "실시간",
+      "wave.modePrerender": "사전 렌더링",
+      "wave.modeTitleRealtime": "파형 모드: 실시간 (재생에 맞춰 점진적 그림)",
+      "wave.modeTitlePrerender": "파형 모드: 사전 렌더링 (곡 전환 시 자동 음소거 스캔)",
+      "wave.qualityTitle": "사전 스캔 정밀도: {quality} (5배 고밀도 샘플링 · 약 {time}초)",
+      "quality.fast": "초고속",
+      "quality.standard": "표준",
+      "quality.fine": "정밀",
+      "scan.noTrack": "스캔할 곡 없음",
+      "scan.needPlaying": "재생 중이어야 샘플링 가능",
+      "scan.cancelled": "취소됨",
+      "scan.completed": "사전 스캔 완료",
+      "scan.activeStatus": "사전 스캔 {pct}% · 예상 남은 시간 {sec}초 · 음소거 중, 클릭 시 취소",
+      "scan.envelopeCoverage": "포락선 {coverage}%",
+      "scan.cost": "소요 시간 {sec}초",
+      "wave.pkLaneLinear": "PK 피크 포락선 · 선형 진폭 (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK 피크 포락선 · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS 실효값 포락선 · 선형 진폭 (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS 실효값 포락선 · 0…-60 dBFS",
+      "wave.canvasWaiting": "재생 후 레벨 포락선 수집 시작 (호스트에서 PCM 샘플 미제공)",
+      "spectrogram.waiting": "주파수 스펙트럼 데이터 대기 중…",
+      "spectrum.low": "저역",
+      "spectrum.high": "고역",
+      "lyrics.instrumentalBig": "연주곡",
+      "lyrics.instrumentalDesc": "이 곡은 연주곡으로 표시되어 있습니다. 음악을 감상해 주세요.",
+      "lyrics.emptyBig": "가사 없음",
+      "lyrics.emptyDesc": "ECHO 가사 설정에서 가사를 검색하거나 가져올 수 있습니다",
+      "lyrics.badgeInstrumental": "연주곡",
+      "lyrics.badgeNoLyrics": "가사 없음",
+      "lyrics.badgeSynced": "줄별 동기화",
+      "lyrics.badgeTimed": "시간축 포함",
+      "lyrics.badgeText": "일반 텍스트",
+      "lyrics.noteJump": "가사 줄을 클릭하면 해당 재생 위치로 이동합니다",
+      "lyrics.loading": "로딩 중…",
+      "lyrics.waiting": "가사 대기 중",
+      "queue.tracksCount": "{count} 곡",
+      "queue.emptyLive": "현재 재생 대기열이 비어 있습니다",
+      "queue.playTitle": "클릭하여 재생: {title}",
+      "track.unknown": "알 수 없는 곡",
+      "track.unknownArtist": "알 수 없는 아티스트",
+      "art.streamCover": "스트리밍 커버",
+      "art.hostCover": "호스트 커버",
+      "art.noCover": "커버 없음",
+      "propVal.shared": "공유",
+      "propVal.exclusive": "단독",
+      "propVal.directRead": "로컬 직접 읽기",
+      "propVal.streaming": "스트리밍",
+      "propVal.bitPerfect": "비트 퍼펙트",
+      "propVal.standardPath": "표준 경로",
+      "propVal.disabled": "미사용",
+      "propVal.resampleActive": "리샘플링 작동",
+      "propVal.notResampled": "미리샘플링",
+      "propVal.canPassthrough": "직통 가능",
+      "propVal.sharedMixer": "공유 믹서",
+      "propVal.standardMix": "표준 믹스",
+      "propVal.unknown": "알 수 없음",
+      "propVal.postDsp": "네이티브 DSP 후",
+      "propVal.preDspEst": "DSP 전 추정",
+      "trans.repeatOne": "한 곡 반복",
+      "trans.repeatAll": "전곡 반복",
+      "trans.repeatOff": "반복 안 함",
+      "trans.repeatOneOn": "한 곡 반복: 켜짐",
+      "trans.repeatOneOff": "한 곡 반복: 꺼짐",
+      "trans.shuffleOn": "무작위 재생: 켜짐",
+      "trans.shuffleOff": "무작위 재생: 꺼짐",
+      "trans.mute": "음소거",
+      "trans.unmute": "음소거 해제",
+      "theme.darkTitle": "다크 전문 테마로 전환 (Ctrl+T)",
+      "theme.lightTitle": "라이트 마스터링 테마로 전환 (Ctrl+T)",
+      "wave.blueTitle": "파형 색상: 하늘색으로 전환 (Ctrl+Alt+W)",
+      "wave.pinkTitle": "파형 색상: 벚꽃색으로 전환 (Ctrl+Alt+W)",
+      "modal.closeTitle": "닫기 (Esc)",
+      "menu.auditionAria": "Audition 메뉴"
+
     }
   };
 
@@ -1445,12 +1961,46 @@
       if (key) node.setAttribute("aria-label", t(key));
     });
 
+    const themeBtn = el("btn-theme-toggle");
+    if (themeBtn) {
+      const themeTitle = state.themeMode === "light" ? t("theme.darkTitle") : t("theme.lightTitle");
+      themeBtn.setAttribute("title", themeTitle);
+      themeBtn.setAttribute("aria-label", themeTitle);
+    }
+    const waveBtn = el("btn-wave-color-toggle");
+    if (waveBtn) {
+      const waveTitle = state.waveColor === "pink" ? t("wave.blueTitle") : t("wave.pinkTitle");
+      waveBtn.setAttribute("title", waveTitle);
+      waveBtn.setAttribute("aria-label", waveTitle);
+    }
+
     updateScanUi();
 
     const anSource = el("analyzer-source");
     if (anSource) anSource.textContent = t("analyzer.sourceVal");
 
     setText("analyzer-state", state.frozen ? t("analyzer.stateFrozen") : t("analyzer.stateLive"));
+
+    refreshLyricsUi();
+    renderQueueList();
+    renderAudioProps(state.audioSettings || {});
+    applyPlayback();
+    applyVolume();
+    updateStatusLine();
+
+    const waveEntry = canvases.get("waveform-canvas");
+    if (waveEntry) {
+      waveEntry.layer = null;
+      waveEntry.layerKey = null;
+    }
+
+    renderNavigator();
+    renderRuler();
+    renderWaveform();
+    renderSpectrum();
+    renderSpectrogram();
+    renderRadar();
+    renderSoundField();
 
     if (persist) {
       try {
@@ -1473,7 +2023,17 @@
 
   // ── protocol ──────────────────────────────────────────────────────────────
   const PROTOCOL = 1;
-  const post = (message) => parent.postMessage({ protocolVersion: PROTOCOL, ...message }, "*");
+  const post = (message) => {
+    const payload = { protocolVersion: PROTOCOL, ...message };
+    try {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.postMessage(JSON.stringify(payload));
+      }
+    } catch (_) {}
+    try {
+      parent.postMessage(payload, "*");
+    } catch (_) {}
+  };
   let requestSeq = 0;
   const pending = new Map();
   const command = (name, payload = {}, timeoutMs = 4000) =>
@@ -1563,7 +2123,7 @@
     themeMode: "dark",
     waveColor: "blue",
     lang: "zh",
-    prefs: { autoScan: false, preRender: false, scanQuality: "fine" },
+    prefs: { autoScan: false, preRender: false, scanQuality: "fine", waveScale: "linear" },
     scan: {
       active: false,
       progress: 0,
@@ -1636,6 +2196,14 @@
   }
   function resizeAll() {
     canvases.forEach(resizeCanvas);
+    const scrollContainer = el("lyrics-scroll");
+    const list = el("lyrics-list");
+    if (scrollContainer && list && lyricState.lines.length > 0) {
+      const vh = scrollContainer.clientHeight || 400;
+      list.style.paddingTop = `${Math.floor(vh * 0.48)}px`;
+      list.style.paddingBottom = `${Math.floor(vh * 0.52)}px`;
+      lyricState.needsRecenter = true;
+    }
   }
 
   const isLightMode = () =>
@@ -1653,14 +2221,14 @@
     if (iconEl && labelEl) {
       if (target === "light") {
         iconEl.textContent = "🌙";
-        labelEl.textContent = "黑暗";
-        btnEl?.setAttribute("title", "切换至经典黑暗模式 (Ctrl+T)");
-        btnEl?.setAttribute("aria-label", "切换至经典黑暗模式 (Ctrl+T)");
+        labelEl.textContent = t("theme.dark");
+        btnEl?.setAttribute("title", t("theme.darkTitle"));
+        btnEl?.setAttribute("aria-label", t("theme.darkTitle"));
       } else {
         iconEl.textContent = "☀";
-        labelEl.textContent = "日间";
-        btnEl?.setAttribute("title", "切换至日间明亮模式 (Ctrl+T)");
-        btnEl?.setAttribute("aria-label", "切换至日间明亮模式 (Ctrl+T)");
+        labelEl.textContent = t("theme.light");
+        btnEl?.setAttribute("title", t("theme.lightTitle"));
+        btnEl?.setAttribute("aria-label", t("theme.lightTitle"));
       }
     }
 
@@ -1684,7 +2252,7 @@
     } catch {}
 
     if (showToast) {
-      toast(`已切换至${target === "light" ? "日间明亮模式" : "经典黑暗模式"}`, "ok", 1500);
+      toast(target === "light" ? t("toast.themeLight") : t("toast.themeDark"), "ok", 1500);
       scheduleSave();
     }
   }
@@ -1748,14 +2316,14 @@
     if (iconEl && labelEl) {
       if (target === "pink") {
         iconEl.textContent = "🌊";
-        labelEl.textContent = "天蓝";
-        btnEl?.setAttribute("title", "切换波形色彩至淡雅天蓝 (Ctrl+Alt+W)");
-        btnEl?.setAttribute("aria-label", "切换波形色彩至淡雅天蓝 (Ctrl+Alt+W)");
+        labelEl.textContent = t("wave.blue");
+        btnEl?.setAttribute("title", t("wave.blueTitle"));
+        btnEl?.setAttribute("aria-label", t("wave.blueTitle"));
       } else {
         iconEl.textContent = "🌸";
-        labelEl.textContent = "粉樱";
-        btnEl?.setAttribute("title", "切换波形色彩至柔美粉樱 (Ctrl+Alt+W)");
-        btnEl?.setAttribute("aria-label", "切换波形色彩至柔美粉樱 (Ctrl+Alt+W)");
+        labelEl.textContent = t("wave.pink");
+        btnEl?.setAttribute("title", t("wave.pinkTitle"));
+        btnEl?.setAttribute("aria-label", t("wave.pinkTitle"));
       }
     }
 
@@ -1773,8 +2341,7 @@
     } catch {}
 
     if (showToast) {
-      const palette = WAVE_PALETTES[target];
-      toast(`已切换波形色彩至${palette.name}`, "ok", 1500);
+      toast(target === "pink" ? t("toast.wavePink") : t("toast.waveBlue"), "ok", 1500);
       scheduleSave();
     }
   }
@@ -1789,7 +2356,7 @@
   window.toggleWaveColor = toggleWaveColor;
 
   // ── persistence ───────────────────────────────────────────────────────────
-  const quantize = (v) => Math.round(clamp(v, 0, 1) * 100) / 100;
+  const quantize = (v) => Math.round(clamp(v, 0, 1) * 1000) / 1000;
   async function loadStorage() {
     try {
       const [history, envelopes, prefs] = await Promise.all([
@@ -1798,9 +2365,11 @@
         command("storage:get", { key: "prefs" }),
       ]);
       if (Array.isArray(history?.value)) state.history = history.value.slice(0, MAX_HISTORY);
-      if (envelopes?.value && typeof envelopes.value === "object") {
+      // Envelope cache migration: only load envelopes with _v === 2 (Adobe Audition linear amplitude standard).
+      // Older unversioned envelopes had logarithmic dB distortion (fat sausage blocks) and are safely invalidated.
+      if (envelopes?.value && typeof envelopes.value === "object" && envelopes.value._v === 2) {
         for (const [trackId, series] of Object.entries(envelopes.value)) {
-          if (!series || !Array.isArray(series.p) || !Array.isArray(series.r)) continue;
+          if (trackId === "_v" || !series || !Array.isArray(series.p) || !Array.isArray(series.r)) continue;
           const p = new Float32Array(ENV_BUCKETS);
           const r = new Float32Array(ENV_BUCKETS);
           for (let i = 0; i < ENV_BUCKETS; i++) {
@@ -1824,6 +2393,9 @@
       if (prefs?.value?.autoScan === false) state.prefs.autoScan = false;
       if (typeof prefs?.value?.preRender === "boolean") state.prefs.preRender = prefs.value.preRender;
       if (SCAN_QUALITY[prefs?.value?.scanQuality]) state.prefs.scanQuality = prefs.value.scanQuality;
+      if (prefs?.value?.waveScale === "linear" || prefs?.value?.waveScale === "db") {
+        state.prefs.waveScale = prefs.value.waveScale;
+      }
       if (typeof prefs?.value?.soundfieldMode === "string") {
         state.soundfieldMode = prefs.value.soundfieldMode;
         const sfTabs = document.querySelectorAll(".soundfield-tab");
@@ -1863,7 +2435,7 @@
     saveTimer = window.setTimeout(() => {
       saveTimer = null;
       void command("storage:set", { key: "history", value: state.history.slice(0, MAX_HISTORY) });
-      const dump = {};
+      const dump = { _v: 2 };
       const entries = [...state.envelopes.entries()].slice(-MAX_ENV_CACHE);
       for (const [trackId, series] of entries) {
         dump[trackId] = {
@@ -1880,6 +2452,7 @@
           autoScan: state.prefs.autoScan,
           preRender: state.prefs.preRender,
           scanQuality: state.prefs.scanQuality,
+          waveScale: state.prefs.waveScale,
           soundfieldMode: state.soundfieldMode,
           lang: state.lang,
           themeMode: state.themeMode,
@@ -1896,7 +2469,10 @@
 
   const positionSeconds = () => {
     const clock = state.clock;
-    if (!clock) return num(state.playback.positionSeconds, 0) || 0;
+    const activeTrackId = state.playback?.currentTrackId || state.track?.id;
+    if (!clock || (clock.currentTrackId && activeTrackId && clock.currentTrackId !== activeTrackId)) {
+      return num(state.playback.positionSeconds, 0) || 0;
+    }
     const now = performance.timeOrigin + performance.now();
     const elapsed = clamp(now - num(clock.sampledAtMs, now), 0, 1500);
     const extra = clock.state === "playing" ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
@@ -2000,8 +2576,9 @@
     const peak = num(state.levels.peakDb, null);
     const rms = num(state.levels.rmsDb, null);
     const energy = num(state.spectrum.energy, 0) || 0;
-    const pv = peak === null ? energy : dbToRatio(peak, -60);
-    const rv = rms === null ? energy * 0.8 : dbToRatio(rms, -60);
+    const isLinear = state.prefs.waveScale !== "db";
+    const pv = peak === null ? (isLinear ? energy : clamp(energy, 0, 1)) : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
+    const rv = rms === null ? (isLinear ? pv * 0.7 : energy * 0.8) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
     if (pv > series.p[bucket]) series.p[bucket] = pv;
     if (rv > series.r[bucket]) series.r[bucket] = rv;
     state.envRev += 1;
@@ -2038,34 +2615,42 @@
       state.scan.active && state.scan.perPointMs > 0
         ? Math.max(0, (1 - state.scan.progress) * state.scan.points * state.scan.perPointMs) / 1000
         : 0;
+    const remainingText = remaining.toFixed(1);
     const text = state.scan.active
-      ? `预扫描 ${Math.round(state.scan.progress * 100)}% · 预计还需 ${remaining.toFixed(1)}s · 静音中，可点击取消`
-      : `${state.scan.message ? `${state.scan.message} · ` : ""}${series ? `包络 ${coverage}%` : ""}${
-          state.scan.lastCostMs ? ` · 用时 ${(state.scan.lastCostMs / 1000).toFixed(1)}s` : ""
+      ? t("scan.activeStatus")
+          .replace("{pct}", String(Math.round(state.scan.progress * 100)))
+          .replace("{sec}", remainingText)
+      : `${state.scan.message ? `${state.scan.message} · ` : ""}${
+          series ? t("scan.envelopeCoverage").replace("{coverage}", String(coverage)) : ""
+        }${
+          state.scan.lastCostMs
+            ? ` · ${t("scan.cost").replace("{sec}", (state.scan.lastCostMs / 1000).toFixed(1))}`
+            : ""
         }`;
     if (statusNode && statusNode.textContent !== text) statusNode.textContent = text;
     button?.classList.toggle("active", state.scan.active);
     if (mode) {
-      const label = state.prefs.preRender ? "预渲染" : "实时";
+      const isPrerender = !!state.prefs.preRender;
+      const label = isPrerender ? t("wave.modePrerender") : t("wave.modeRealtime");
       if (mode.textContent !== label) mode.textContent = label;
-      mode.classList.toggle("active", state.prefs.preRender);
-      const title = state.prefs.preRender
-        ? "波形模式：预渲染（切歌后自动静音扫描整首）"
-        : "波形模式：实时（波形随播放逐步绘制）";
+      mode.classList.toggle("active", isPrerender);
+      const title = isPrerender ? t("wave.modeTitlePrerender") : t("wave.modeTitleRealtime");
       if (mode.title !== title) mode.title = title;
     }
     if (button) {
-      // manual scan only makes sense in pre-render mode
       const hidden = !state.prefs.preRender;
       if (button.hidden !== hidden) button.hidden = hidden;
     }
     const quality = el("btn-scan-quality");
     if (quality) {
-      const preset = SCAN_QUALITY[state.prefs.scanQuality] ?? SCAN_QUALITY.fine;
-      if (quality.textContent !== preset.label) quality.textContent = preset.label;
+      const qKey = state.prefs.scanQuality || "fine";
+      const qLabel = t(`quality.${qKey}`) || SCAN_QUALITY[qKey]?.label || qKey;
+      if (quality.textContent !== qLabel) quality.textContent = qLabel;
       const duration = currentDuration();
-      const estimate = duration > 0 ? ((scanPoints(duration, state.prefs.scanQuality) * 85) / 1000).toFixed(1) : "—";
-      const title = `预扫描精度：${preset.label}（5x高密度采样 · 约 ${estimate} 秒）`;
+      const estimate = duration > 0 ? ((scanPoints(duration, qKey) * 85) / 1000).toFixed(1) : "—";
+      const title = t("wave.qualityTitle")
+        .replace("{quality}", qLabel)
+        .replace("{time}", estimate);
       if (quality.title !== title) quality.title = title;
       if (quality.hidden !== !state.prefs.preRender) quality.hidden = !state.prefs.preRender;
     }
@@ -2079,12 +2664,12 @@
     const duration = currentDuration();
     const trackId = state.playback.currentTrackId || state.track?.id;
     if (!trackId || duration <= 0) {
-      state.scan.message = "无可扫描曲目";
+      state.scan.message = t("scan.noTrack");
       updateScanUi();
       return;
     }
     if (!isPlayingState()) {
-      state.scan.message = "需播放中才能采样";
+      state.scan.message = t("scan.needPlaying");
       updateScanUi();
       return;
     }
@@ -2112,14 +2697,19 @@
         // (~10 Hz upstream). This removes a full round-trip per sample.
         commandNoWait("seek", { positionSeconds: target });
         await sleep(frameMs);
-        const bucket = clamp(Math.floor((target / duration) * ENV_BUCKETS), 0, ENV_BUCKETS - 1);
+        const b0 = Math.floor((i / effectivePoints) * ENV_BUCKETS);
+        const b1 = Math.min(ENV_BUCKETS, Math.floor(((i + 1) / effectivePoints) * ENV_BUCKETS));
         const peak = num(state.levels.peakDb, null);
         const rms = num(state.levels.rmsDb, null);
         const energy = num(state.spectrum.energy, 0) || 0;
-        const pv = peak === null ? energy : dbToRatio(peak, -60);
-        const rv = rms === null ? pv * 0.85 : dbToRatio(rms, -60);
-        if (pv > series.p[bucket]) series.p[bucket] = pv;
-        if (rv > series.r[bucket]) series.r[bucket] = rv;
+        const isLinear = state.prefs.waveScale !== "db";
+        const pv = peak === null ? energy : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
+        const rv = rms === null ? (isLinear ? pv * 0.7 : pv * 0.85) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
+        const count = Math.max(1, b1 - b0);
+        for (let b = b0; b < b0 + count && b < ENV_BUCKETS; b++) {
+          series.p[b] = pv;
+          series.r[b] = rv;
+        }
         state.scan.perPointMs = performance.now() - pointStartedAt;
         state.scan.progress = (i + 1) / effectivePoints;
       }
@@ -2133,7 +2723,7 @@
       state.peakHoldDb = -Infinity;
       state.scan.active = false;
       state.scan.lastCostMs = performance.now() - scanStartedAt;
-      state.scan.message = state.scan.cancel ? "已取消" : "预扫描完成";
+      state.scan.message = state.scan.cancel ? t("scan.cancelled") : t("scan.completed");
       updateScanUi();
       scheduleSave();
     }
@@ -2153,34 +2743,14 @@
     }, 1500);
   }
 
-  // Fill the gaps between sampled buckets by linear interpolation so the
-  // pre-scanned waveform reads as a continuous envelope. Values remain grounded
-  // in the measured samples (no synthetic oscillation is added).
+  // Sanitize measured samples and clamp to [0, 1].
+  // Deliberately avoids bridging across silences or artificial tail holding,
+  // strictly preserving steep decibel drop-offs and transient dynamics.
   function interpolateEnvelope(series) {
-    const n = series.p.length;
-    const sampled = [];
-    for (let i = 0; i < n; i++) if (series.p[i] > 0 || series.r[i] > 0) sampled.push(i);
-    if (sampled.length === 0) return;
-    // carry the measured edge values outwards so the envelope spans the timeline
-    for (let i = 0; i < sampled[0]; i++) {
-      series.p[i] = Math.max(series.p[i], series.p[sampled[0]] * 0.9);
-      series.r[i] = Math.max(series.r[i], series.r[sampled[0]] * 0.9);
-    }
-    const last = sampled[sampled.length - 1];
-    for (let i = last + 1; i < n; i++) {
-      series.p[i] = Math.max(series.p[i], series.p[last] * 0.9);
-      series.r[i] = Math.max(series.r[i], series.r[last] * 0.9);
-    }
-    for (let k = 0; k + 1 < sampled.length; k++) {
-      const a = sampled[k];
-      const b = sampled[k + 1];
-      const steps = b - a;
-      if (steps <= 1) continue;
-      for (let s = 1; s < steps; s++) {
-        const t = s / steps;
-        series.p[a + s] = Math.max(series.p[a + s], series.p[a] + (series.p[b] - series.p[a]) * t);
-        series.r[a + s] = Math.max(series.r[a + s], series.r[a] + (series.r[b] - series.r[a]) * t);
-      }
+    if (!series) return;
+    for (let i = 0; i < series.p.length; i++) {
+      series.p[i] = clamp(num(series.p[i], 0) || 0, 0, 1);
+      series.r[i] = clamp(num(series.r[i], 0) || 0, 0, 1);
     }
   }
 
@@ -2285,7 +2855,7 @@
     const b1 = clamp(Math.ceil((t1 / duration) * arr.length), b0 + 1, arr.length);
     let max = 0;
     for (let i = b0; i < b1; i++) if (arr[i] > max) max = arr[i];
-    return dbToLane(max);
+    return clamp(max, 0, 1);
   }
 
   function drawWaveformLayer(lctx, w, h, vr, duration, series) {
@@ -2295,10 +2865,21 @@
     lctx.fillRect(0, 0, w, h);
 
     const palette = (WAVE_PALETTES[state.waveColor] || WAVE_PALETTES.blue)[isLight ? "light" : "dark"];
+    const isLinear = state.prefs.waveScale !== "db";
     const laneH = h / 2;
     const lanes = [
-      { top: 0, label: "PK 峰值包络 · 0…-60 dBFS", body: palette.pkBody, edge: palette.pkEdge },
-      { top: laneH, label: "RMS 有效值包络 · 0…-60 dBFS", body: palette.rmsBody, edge: palette.rmsEdge },
+      {
+        top: 0,
+        label: isLinear ? t("wave.pkLaneLinear") : t("wave.pkLaneDb"),
+        body: palette.pkBody,
+        edge: palette.pkEdge,
+      },
+      {
+        top: laneH,
+        label: isLinear ? t("wave.rmsLaneLinear") : t("wave.rmsLaneDb"),
+        body: palette.rmsBody,
+        edge: palette.rmsEdge,
+      },
     ];
 
     const columns = new Array(Math.ceil(w));
@@ -2311,19 +2892,42 @@
       };
     }
 
-    // dB grid shared by both lanes
+    // dB grid shared by both lanes (matching Adobe Audition rulers)
     lctx.font = "8.5px var(--font-mono, monospace)";
-    for (const db of [0, -6, -12, -18, -24, -36, -48, -60]) {
-      const ratio = dbToLane((db + 60) / 60);
+    const gridDbs = isLinear ? [0, -3, -6, -9, -12, -18, -24, -36, -48] : [0, -6, -12, -18, -24, -36, -48, -60];
+    for (const db of gridDbs) {
+      const ratio = isLinear ? Math.pow(10, db / 20) : clamp((db + 60) / 60, 0, 1);
       for (const lane of lanes) {
-        const y = lane.top + laneH / 2 - ratio * (laneH / 2 - 4);
+        const mid = lane.top + laneH / 2;
+        const maxAmp = laneH / 2 - 4;
+        const yTop = mid - ratio * maxAmp;
+        const yBottom = mid + ratio * maxAmp;
         lctx.strokeStyle = isLight
-          ? (db === -48 || db === -60 ? "rgba(0, 0, 0, 0.12)" : "rgba(0, 0, 0, 0.06)")
-          : (db === -48 || db === -60 ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.05)");
+          ? (db === -6 || db === -12 ? "rgba(0, 0, 0, 0.12)" : "rgba(0, 0, 0, 0.05)")
+          : (db === -6 || db === -12 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)");
         lctx.beginPath();
-        lctx.moveTo(0, y);
-        lctx.lineTo(w, y);
+        lctx.moveTo(0, yTop);
+        lctx.lineTo(w, yTop);
         lctx.stroke();
+        if (db !== 0) {
+          lctx.beginPath();
+          lctx.moveTo(0, yBottom);
+          lctx.lineTo(w, yBottom);
+          lctx.stroke();
+        }
+        // Right-edge tick marks: keep scale ruler notches, omit numbers
+        const tickLen = (db === 0 || db === -6 || db === -12 || db === -24) ? 8 : 4;
+        lctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.35)" : "rgba(255, 255, 255, 0.35)";
+        lctx.beginPath();
+        lctx.moveTo(w - tickLen, yTop);
+        lctx.lineTo(w, yTop);
+        lctx.stroke();
+        if (db !== 0) {
+          lctx.beginPath();
+          lctx.moveTo(w - tickLen, yBottom);
+          lctx.lineTo(w, yBottom);
+          lctx.stroke();
+        }
       }
     }
 
@@ -2342,11 +2946,13 @@
       lctx.beginPath();
       lctx.moveTo(0, mid);
       for (let x = 0; x < w; x++) {
-        const amp = Math.max(0.4, columns[x][key] * maxAmp);
+        const val = columns[x][key];
+        const amp = val <= 0 ? 0.3 : Math.max(0.4, val * maxAmp);
         lctx.lineTo(x, mid - amp);
       }
       for (let x = w - 1; x >= 0; x--) {
-        const amp = Math.max(0.4, columns[x][key] * maxAmp);
+        const val = columns[x][key];
+        const amp = val <= 0 ? 0.3 : Math.max(0.4, val * maxAmp);
         lctx.lineTo(x, mid + amp);
       }
       lctx.closePath();
@@ -2361,11 +2967,13 @@
         lctx.beginPath();
         lctx.moveTo(0, mid);
         for (let x = 0; x < w; x++) {
-          const amp = Math.max(0.3, columns[x].rms * maxAmp);
+          const val = columns[x].rms;
+          const amp = val <= 0 ? 0.2 : Math.max(0.3, val * maxAmp);
           lctx.lineTo(x, mid - amp);
         }
         for (let x = w - 1; x >= 0; x--) {
-          const amp = Math.max(0.3, columns[x].rms * maxAmp);
+          const val = columns[x].rms;
+          const amp = val <= 0 ? 0.2 : Math.max(0.3, val * maxAmp);
           lctx.lineTo(x, mid + amp);
         }
         lctx.closePath();
@@ -2388,7 +2996,7 @@
       lctx.fillStyle = isLight ? "rgba(55, 65, 81, 0.65)" : "rgba(255,255,255,0.34)";
       lctx.font = "11px var(--font-ui, sans-serif)";
       lctx.textAlign = "center";
-      lctx.fillText("播放后开始采集电平包络（宿主不提供 PCM 采样）", w / 2, h / 2 - 6);
+      lctx.fillText(t("wave.canvasWaiting"), w / 2, h / 2 - 6);
       lctx.textAlign = "start";
     }
   }
@@ -2410,6 +3018,8 @@
       state.envRev,
       state.themeMode,
       state.waveColor,
+      state.prefs.waveScale,
+      state.lang,
     ].join("|");
     const stale = !entry.layer || entry.layerKey !== layerKey;
     const refreshing = performance.now() - (entry.layerAt ?? 0) > 450;
@@ -2472,10 +3082,10 @@
     const fresh = hasSignal(state.spectrum.bands);
     if (!state.frozen && playing && fresh) {
       octx.globalCompositeOperation = "copy";
-      octx.drawImage(off, -2, 0);
+      octx.drawImage(off, 2, 0);
       octx.globalCompositeOperation = "source-over";
       const bands = normalizeBands(state.spectrum.bands, 96);
-      const colX = BW - 2;
+      const colX = 0;
       const cellH = BH / bands.length;
       for (let i = 0; i < bands.length; i++) {
         const v = bands[i];
@@ -2493,7 +3103,7 @@
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.font = "10px var(--font-ui, sans-serif)";
       ctx.textAlign = "center";
-      ctx.fillText("等待频段能量数据…", w / 2, h / 2 + 3);
+      ctx.fillText(t("spectrogram.waiting"), w / 2, h / 2 + 3);
       ctx.textAlign = "start";
     }
     ctx.strokeStyle = "rgba(255,255,255,0.05)";
@@ -2612,8 +3222,8 @@
     ctx.stroke();
     ctx.fillStyle = isLight ? "rgba(55, 65, 81, 0.65)" : "rgba(255,255,255,0.30)";
     ctx.font = "8px var(--font-ui, sans-serif)";
-    ctx.fillText("低频", 2, h - 2);
-    const label = "高频";
+    ctx.fillText(t("spectrum.low"), 2, h - 2);
+    const label = t("spectrum.high");
     const labelW = ctx.measureText(label).width;
     ctx.fillText(label, w - labelW - 2, h - 2);
   }
@@ -2759,10 +3369,263 @@
     const bands = fresh || !entry.held ? normalizeBands(state.spectrum.bands, bars) : entry.held;
     if (fresh) entry.held = bands;
     const energy = num(state.spectrum.energy, 0) || 0;
+    const transient = num(state.spectrum.transient, 0) || 0;
     const isPlaying = isPlayingState() && (fresh || energy > 0.001);
     const mode = state.soundfieldMode || "polar-sample";
 
-    // Update phase correlation meter (+1 to -1)
+    if (mode === "lissajous") {
+      // ══════════════════════════════════════════════════════════════════════
+      // Adobe Audition / iZotope Insight 2 Professional Lissajous Goniometer
+      // ══════════════════════════════════════════════════════════════════════
+      const cx = w / 2;
+      const cy = h / 2;
+      const R = Math.max(22, Math.min(w / 2 - 28, h / 2 - 8));
+
+      // 1. Graticule: 45° Rotated Bipolar Coordinate Frame (DIN 45406 / EBU Vectorscope)
+      const gridStroke = isLight ? "rgba(51, 65, 85, 0.22)" : "rgba(90, 130, 150, 0.24)";
+      const gridSubStroke = isLight ? "rgba(51, 65, 85, 0.12)" : "rgba(90, 130, 150, 0.13)";
+      ctx.lineWidth = 1;
+
+      // 0 dBFS Full-Scale Diamond Envelope
+      ctx.strokeStyle = gridStroke;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - R);
+      ctx.lineTo(cx + R, cy);
+      ctx.lineTo(cx, cy + R);
+      ctx.lineTo(cx - R, cy);
+      ctx.closePath();
+      ctx.stroke();
+
+      // -6 dBFS (50% amplitude) Concentric Diamond
+      ctx.strokeStyle = gridSubStroke;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - R * 0.5);
+      ctx.lineTo(cx + R * 0.5, cy);
+      ctx.lineTo(cx, cy + R * 0.5);
+      ctx.lineTo(cx - R * 0.5, cy);
+      ctx.closePath();
+      ctx.stroke();
+
+      // -12 dBFS (25% amplitude) Concentric Diamond
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - R * 0.25);
+      ctx.lineTo(cx + R * 0.25, cy);
+      ctx.lineTo(cx, cy + R * 0.25);
+      ctx.lineTo(cx - R * 0.25, cy);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Subtle Reference Circle at Full Radius
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Orthogonal M & S Axes (Mid = vertical, Side = horizontal)
+      ctx.strokeStyle = gridStroke;
+      // Mid (M) axis (Mono summing vertical line)
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - R);
+      ctx.lineTo(cx, cy + R);
+      ctx.stroke();
+
+      // Side (S) axis (Stereo difference horizontal line)
+      ctx.beginPath();
+      ctx.moveTo(cx - R, cy);
+      ctx.lineTo(cx + R, cy);
+      ctx.stroke();
+
+      // 45° Diagonal Axes for Left (L) and Right (R) channels
+      const diagCos = 0.70710678;
+      ctx.strokeStyle = gridSubStroke;
+      // L channel diagonal (-45° from up = 135° in cartesian: up-left to down-right)
+      ctx.beginPath();
+      ctx.moveTo(cx - R * diagCos, cy - R * diagCos);
+      ctx.lineTo(cx + R * diagCos, cy + R * diagCos);
+      ctx.stroke();
+
+      // R channel diagonal (+45° from up = 45° in cartesian: up-right to down-left)
+      ctx.beginPath();
+      ctx.moveTo(cx + R * diagCos, cy - R * diagCos);
+      ctx.lineTo(cx - R * diagCos, cy + R * diagCos);
+      ctx.stroke();
+
+      // Tick marks on Mid axis (0 dB, -6 dB, -12 dB)
+      const tickW = 3;
+      ctx.strokeStyle = gridStroke;
+      [-R, -R * 0.5, -R * 0.25, R * 0.25, R * 0.5, R].forEach((yOff) => {
+        ctx.beginPath();
+        ctx.moveTo(cx - tickW, cy + yOff);
+        ctx.lineTo(cx + tickW, cy + yOff);
+        ctx.stroke();
+      });
+
+      // Graticule Labels
+      ctx.font = "bold 9.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      ctx.fillStyle = isLight ? "#1e293b" : "rgba(160, 185, 200, 0.85)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("L", Math.max(8, cx - (R + 10) * diagCos), Math.max(8, cy - (R + 10) * diagCos));
+      ctx.fillText("R", Math.min(w - 8, cx + (R + 10) * diagCos), Math.max(8, cy - (R + 10) * diagCos));
+
+      ctx.font = "8px var(--font-mono, monospace)";
+      ctx.fillStyle = isLight ? "rgba(71, 85, 105, 0.65)" : "rgba(140, 170, 190, 0.6)";
+      ctx.textAlign = "left";
+      ctx.fillText("0dB", cx + 4, cy - R + 5);
+      ctx.fillText("-6", cx + 4, cy - R * 0.5 + 4);
+
+      // 2. Multiband Stereo Phasor Synthesis Engine (100% Music-Driven)
+      // Extract acoustic sub-bands from real host FFT
+      let bBass = 0;
+      for (let i = 0; i < 6; i++) bBass += bands[i] || 0;
+      bBass /= 6;
+
+      let bMid = 0;
+      for (let i = 6; i < 20; i++) bMid += bands[i] || 0;
+      bMid /= 14;
+
+      let bHigh = 0;
+      for (let i = 20; i < 40; i++) bHigh += bands[i] || 0;
+      bHigh /= 20;
+
+      let bAir = 0;
+      for (let i = 40; i < bars; i++) bAir += bands[i] || 0;
+      bAir /= (bars - 40);
+
+      // Dynamic amplitude tracking with rapid, steep silence falloff
+      const rawTargetAmp = isPlaying
+        ? clamp((energy * 1.25 + transient * 0.35 + (bands[8] || 0) * 0.4), 0.04, 1.0) * R
+        : 0;
+      if (!entry.lissAmp) entry.lissAmp = 0;
+      if (isPlaying) {
+        entry.lissAmp = entry.lissAmp * 0.68 + rawTargetAmp * 0.32;
+      } else {
+        entry.lissAmp = entry.lissAmp * 0.72; // Steep cutoff on silence / pause
+        if (entry.lissAmp < 0.5) entry.lissAmp = 0;
+      }
+
+      // Dynamic stereo width from real spectral diffusion
+      const stereoWidth = clamp(0.18 + bHigh * 1.5 + bMid * 0.65 + bAir * 1.8 + transient * 0.35, 0.10, 0.95);
+
+      // Instantaneous Phase Correlation Calculation (M^2 vs S^2)
+      let sumMidSq = 0;
+      let sumSideSq = 0;
+
+      if (entry.lissAmp > 0.8) {
+        const PTS = 240;
+        const t = performance.now() * 0.0032;
+        const lissPoints = new Float32Array(PTS * 2);
+
+        for (let i = 0; i < PTS; i++) {
+          const theta = (i / PTS) * Math.PI * 4; // Dual-cycle closed loop
+
+          // 1. Mono/Bass vertical pumping (fundamental harmonic, in-phase)
+          const m1 = Math.sin(theta * 1.0 + t * 1.6) * (0.32 + 0.68 * bBass);
+          const s1 = Math.sin(theta * 1.0 + t * 1.6 + 0.08) * (0.04 + 0.08 * bBass) * stereoWidth;
+
+          // 2. Mid-frequency harmonic body (vocals & lead instruments, moderate stereo panning)
+          const m2 = Math.sin(theta * 2.0 + t * 2.5 + 0.6) * bMid * 0.75;
+          const s2 = Math.cos(theta * 2.0 + t * 2.5 + 1.2) * bMid * 0.75 * stereoWidth;
+
+          // 3. High-frequency spatial texture (guitars, keyboards, cymbals, decorrelated stereo wings)
+          const m3 = Math.sin(theta * 3.0 + t * 3.7 + 1.1) * bHigh * 0.55;
+          const s3 = Math.cos(theta * 3.0 + t * 3.7 + 2.3) * bHigh * 0.85 * stereoWidth;
+
+          // 4. Air & transient micro-sparkle (diffuse high-end & drum transients)
+          const m4 = Math.sin(theta * 5.0 + t * 5.2) * (bAir * 0.4 + transient * 0.45);
+          const s4 = Math.cos(theta * 5.0 + t * 5.2 + 2.9) * (bAir * 0.65 + transient * 0.6) * stereoWidth;
+
+          // Sum rotated Mid & Side components
+          const midTot = (m1 + m2 + m3 + m4);
+          const sideTot = (s1 + s2 + s3 + s4);
+
+          // Accumulate power for true Pearson correlation coefficient
+          sumMidSq += midTot * midTot;
+          sumSideSq += sideTot * sideTot;
+
+          // Screen coordinate projection
+          lissPoints[i * 2] = cx + sideTot * entry.lissAmp;
+          lissPoints[i * 2 + 1] = cy - midTot * entry.lissAmp;
+        }
+
+        // Layer 1: CRT Phosphor Aura Glow
+        ctx.beginPath();
+        for (let i = 0; i < PTS; i++) {
+          const px = lissPoints[i * 2];
+          const py = lissPoints[i * 2 + 1];
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = isLight
+          ? "rgba(0, 124, 140, 0.25)"
+          : "rgba(38, 194, 129, 0.32)";
+        ctx.lineWidth = 3.2;
+        ctx.stroke();
+
+        // Layer 2: High-Energy Hot Electron Beam Core
+        ctx.beginPath();
+        for (let i = 0; i < PTS; i++) {
+          const px = lissPoints[i * 2];
+          const py = lissPoints[i * 2 + 1];
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = isLight
+          ? "#007c8c"
+          : "rgba(220, 255, 245, 0.95)";
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+
+        // Layer 3: Transient Excitation Sparkles (triggered on sharp drum / percussion attacks)
+        if (transient > 0.12 && energy > 0.15) {
+          const sparkCount = Math.min(8, Math.floor(transient * 14));
+          ctx.fillStyle = isLight ? "rgba(0, 151, 167, 0.85)" : "rgba(255, 255, 255, 0.9)";
+          for (let s = 0; s < sparkCount; s++) {
+            const idx = Math.floor((s / sparkCount) * PTS);
+            const sx = lissPoints[idx * 2] + (Math.random() - 0.5) * 4;
+            const sy = lissPoints[idx * 2 + 1] + (Math.random() - 0.5) * 4;
+            ctx.beginPath();
+            ctx.arc(sx, sy, isLight ? 1.4 : 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+
+      // True Phase Correlation Meter Update: r = (Mid^2 - Side^2) / (Mid^2 + Side^2)
+      let targetCorr = 0.92;
+      if (sumMidSq + sumSideSq > 0.001) {
+        targetCorr = clamp((sumMidSq - sumSideSq) / (sumMidSq + sumSideSq + 0.0001), -0.85, 0.98);
+      } else if (!isPlaying) {
+        targetCorr = 0.98;
+      }
+      entry.corrVal = entry.corrVal * 0.88 + targetCorr * 0.12;
+      const corrPct = clamp(((1 - entry.corrVal) / 2) * 100, 4, 96);
+      const corrPip = el("soundfield-corr-pip");
+      if (corrPip) corrPip.style.top = `${corrPct}%`;
+
+      // Central Origin Zero Pip
+      ctx.fillStyle = isLight ? "#007c8c" : "#26c281";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = isLight ? "rgba(0, 124, 140, 0.35)" : "rgba(38, 194, 129, 0.35)";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      return;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Polar Modes: Polar Sample & Polar Level (Semicircular Dome)
+    // ══════════════════════════════════════════════════════════════════════
+    // Coordinates for the semicircular polar dome (origin at bottom center)
+    const cx = w / 2;
+    const cy = h - 6;
+    const R = Math.max(12, Math.min(w / 2 - 12, cy - 8));
+
+    // Update phase correlation meter for polar modes
     if (!entry.corrVal) entry.corrVal = 0.85;
     let targetCorr = 0.85;
     if (isPlaying) {
@@ -2776,13 +3639,7 @@
     const corrPip = el("soundfield-corr-pip");
     if (corrPip) corrPip.style.top = `${corrPct}%`;
 
-    // Coordinates for the semicircular polar dome (origin at bottom center)
-    const cx = w / 2;
-    const cy = h - 6;
-    const R = Math.max(12, Math.min(w / 2 - 12, cy - 8));
-
-    // Draw Graticule
-    // 1. Concentric semicircular arcs
+    // Draw Polar Graticule
     ctx.strokeStyle = isLight ? "rgba(51, 65, 85, 0.22)" : "rgba(90, 130, 150, 0.22)";
     ctx.lineWidth = 1;
     for (let ring = 1; ring <= 3; ring++) {
@@ -2792,34 +3649,28 @@
       ctx.stroke();
     }
 
-    // 2. Baseline
     ctx.beginPath();
     ctx.moveTo(cx - R, cy);
     ctx.lineTo(cx + R, cy);
     ctx.stroke();
 
-    // 3. Radial spokes radiating from origin
-    // Center spoke (Mono / Mid, 90°)
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx, cy - R);
     ctx.stroke();
 
-    // 45° left spoke (L)
-    const spokeCos = 0.70710678; // Math.cos(Math.PI / 4)
+    const spokeCos = 0.70710678;
     const spokeSin = 0.70710678;
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx - R * spokeCos, cy - R * spokeSin);
     ctx.stroke();
 
-    // 45° right spoke (R)
     ctx.beginPath();
     ctx.moveTo(cx, cy);
     ctx.lineTo(cx + R * spokeCos, cy - R * spokeSin);
     ctx.stroke();
 
-    // 4. L and R channel labels
     ctx.font = "bold 9.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillStyle = isLight ? "#1e293b" : "rgba(160, 185, 200, 0.85)";
     ctx.textAlign = "center";
@@ -2827,7 +3678,6 @@
     ctx.fillText("L", Math.max(7, cx - (R - 2) * spokeCos - 6), Math.max(7, cy - (R - 2) * spokeSin - 6));
     ctx.fillText("R", Math.min(w - 7, cx + (R - 2) * spokeCos + 6), Math.max(7, cy - (R - 2) * spokeSin - 6));
 
-    // Active mode rendering
     if (mode === "polar-sample") {
       // Polar Sample: cloud of sample vectors radiating from origin
       if (!entry.particles) entry.particles = [];
@@ -2927,48 +3777,6 @@
         ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
         ctx.stroke();
       }
-
-    } else if (mode === "lissajous") {
-      // Lissajous: rotated 45° X/Y oscilloscope
-      const lissCenterY = cy - R / 2;
-      const lissR = R * 0.72;
-
-      ctx.strokeStyle = isLight ? "rgba(71, 85, 105, 0.22)" : "rgba(100, 140, 160, 0.2)";
-      ctx.beginPath();
-      ctx.moveTo(cx - lissR, lissCenterY);
-      ctx.lineTo(cx + lissR, lissCenterY);
-      ctx.moveTo(cx, lissCenterY - lissR);
-      ctx.lineTo(cx, lissCenterY + lissR);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(cx, lissCenterY - lissR);
-      ctx.lineTo(cx + lissR, lissCenterY);
-      ctx.lineTo(cx, lissCenterY + lissR);
-      ctx.lineTo(cx - lissR, lissCenterY);
-      ctx.closePath();
-      ctx.stroke();
-
-      if (isPlaying) {
-        const PTS = 80;
-        const t = performance.now() * 0.003;
-        const amp = clamp(energy * 1.5, 0.15, 1.0) * lissR;
-        ctx.beginPath();
-        for (let i = 0; i < PTS; i++) {
-          const theta = (i / PTS) * Math.PI * 4;
-          const leftSig = Math.sin(theta * 1.0 + t * 2) * amp * (0.8 + 0.2 * (bands[i % bars] || 0));
-          const rightSig = Math.cos(theta * 1.02 + t * 1.9 + 0.3) * amp * (0.8 + 0.2 * (bands[(i + 5) % bars] || 0));
-          const mx = (leftSig - rightSig) * 0.7071;
-          const my = -(leftSig + rightSig) * 0.7071;
-          const px = cx + mx;
-          const py = lissCenterY + my;
-          if (i === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        ctx.strokeStyle = isLight ? "#007c8c" : "rgba(38, 194, 129, 0.85)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
     }
 
     // Center origin pip at (cx, cy)
@@ -2983,34 +3791,205 @@
   }
 
   // ── lyrics ────────────────────────────────────────────────────────────────
-  const lyricState = { lines: [], kind: null, offsetMs: 0, activeIndex: -1, userScrolledAt: 0 };
+  const lyricState = {
+    lines: [],
+    kind: null,
+    offsetMs: 0,
+    activeIndex: -1,
+    userScrolledAt: 0,
+    needsRecenter: false,
+    fingerprint: "",
+    trackId: null
+  };
+
+  // ── ECHO native-style physics-damped lyric scroll follow engine ─────────────
+  let scrollFollowJob = null;
+
+  function stopScrollFollow() {
+    if (scrollFollowJob) {
+      if (scrollFollowJob.rafId) window.cancelAnimationFrame(scrollFollowJob.rafId);
+      if (scrollFollowJob.timerId) clearTimeout(scrollFollowJob.timerId);
+    }
+    scrollFollowJob = null;
+  }
+
+  function getActiveLineLayoutCenter(container, activeLine) {
+    const cRect = container.getBoundingClientRect();
+    const aRect = activeLine.getBoundingClientRect();
+    return aRect.top - cRect.top + container.scrollTop + aRect.height / 2;
+  }
+
+  function computeTargetScrollTop(container, activeLine, bias = 0.48) {
+    const lineCenter = getActiveLineLayoutCenter(container, activeLine);
+    const viewportOffset = container.clientHeight * bias;
+    const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
+    return Math.max(0, Math.min(maxScroll, lineCenter - viewportOffset));
+  }
+
+  function startScrollFollow(container, targetTop, durationMs = 240) {
+    const current = container.scrollTop;
+    const delta = targetTop - current;
+    if (Math.abs(delta) < 1 || durationMs <= 0) {
+      stopScrollFollow();
+      container.scrollTop = targetTop;
+      return;
+    }
+
+    if (scrollFollowJob && scrollFollowJob.container === container) {
+      scrollFollowJob.targetTop = targetTop;
+      scrollFollowJob.deadlineAtMs = performance.now() + durationMs;
+      scrollFollowJob.responseMs = Math.max(52, durationMs / 4);
+      return;
+    }
+
+    stopScrollFollow();
+
+    const job = {
+      container,
+      targetTop,
+      deadlineAtMs: performance.now() + durationMs,
+      responseMs: Math.max(52, durationMs / 4),
+      lastTime: performance.now(),
+      rafId: null,
+      timerId: null,
+    };
+    scrollFollowJob = job;
+
+    const scheduleNext = (cb) => {
+      let executed = false;
+      const run = (t) => {
+        if (executed) return;
+        executed = true;
+        if (job.timerId) { clearTimeout(job.timerId); job.timerId = null; }
+        job.rafId = null;
+        cb(t || performance.now());
+      };
+      job.rafId = window.requestAnimationFrame(run);
+      job.timerId = window.setTimeout(() => run(performance.now()), 20);
+    };
+
+    const tick = (now) => {
+      if (scrollFollowJob !== job || !job.container) return;
+      const dt = Math.max(0, Math.min(48, now - (job.lastTime || now - 16)));
+      job.lastTime = now;
+      const cur = job.container.scrollTop;
+      const remaining = job.targetTop - cur;
+
+      // 达成目标或到达时间界限
+      if (Math.abs(remaining) < 0.5 || now >= job.deadlineAtMs) {
+        job.container.scrollTop = job.targetTop;
+        stopScrollFollow();
+        return;
+      }
+
+      // ECHO 软件本体指数阻尼步进公式: factor = 1 - Math.exp(-dt / responseMs)
+      const factor = 1 - Math.exp(-dt / job.responseMs);
+      job.container.scrollTop = cur + remaining * factor;
+      scheduleNext(tick);
+    };
+
+    scheduleNext(tick);
+  }
+
+  function parseLrc(lrcText) {
+    if (!lrcText || typeof lrcText !== "string") return [];
+    const lines = [];
+    const timeRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+    const rows = lrcText.split(/\r?\n/);
+    for (const row of rows) {
+      const trimmed = row.trim();
+      if (!trimmed) continue;
+      let match;
+      const timestamps = [];
+      timeRegex.lastIndex = 0;
+      while ((match = timeRegex.exec(trimmed)) !== null) {
+        const min = parseInt(match[1], 10);
+        const sec = parseInt(match[2], 10);
+        let ms = 0;
+        if (match[3]) {
+          ms = parseInt(match[3].padEnd(3, "0").slice(0, 3), 10);
+        }
+        timestamps.push(min * 60000 + sec * 1000 + ms);
+      }
+      const cleanText = trimmed.replace(timeRegex, "").trim();
+      if (timestamps.length > 0) {
+        for (const timeMs of timestamps) {
+          lines.push({ timeMs, text: cleanText });
+        }
+      } else if (cleanText) {
+        lines.push({ timeMs: 0, text: cleanText });
+      }
+    }
+    lines.sort((a, b) => a.timeMs - b.timeMs);
+    return lines;
+  }
+
+  function getLyricsFingerprint(trackId, lines, offsetMs) {
+    if (!lines || lines.length === 0) return `empty:${trackId || ""}`;
+    const first = lines[0];
+    const last = lines[lines.length - 1];
+    return `${trackId || ""}:${lines.length}:${first?.timeMs || 0}:${last?.timeMs || 0}:${offsetMs || 0}`;
+  }
 
   function renderLyricsMessage(doc) {
+    state.lyricsDoc = doc;
     const list = el("lyrics-list");
     if (!list) return;
-    list.innerHTML = "";
-    lyricState.activeIndex = -1;
 
-    const kind = doc?.kind ?? "empty";
+    let lines = Array.isArray(doc?.lines) ? doc.lines : [];
+    if (lines.length === 0 && (doc?.syncedLyrics || doc?.syncedText || doc?.plainLyrics || doc?.plainText)) {
+      lines = parseLrc(doc.syncedLyrics || doc.syncedText || doc.plainLyrics || doc.plainText);
+    }
+
+    const currentTrackId = state.track?.id || "";
+    const offsetMs = num(doc?.offsetMs, 0) || 0;
+    const kind = doc?.kind ?? (lines.length > 0 ? (lines.some((l) => num(l?.timeMs, 0) > 0) ? "synced" : "plain") : "empty");
+    const fp = getLyricsFingerprint(currentTrackId, lines, offsetMs);
+
+    // If identical lyrics are already rendered for this track, avoid wiping DOM and jumping scroll
+    if (lyricState.fingerprint === fp && lyricState.lines.length === lines.length && lyricState.lines.length > 0) {
+      lyricState.offsetMs = offsetMs;
+      lyricState.kind = kind;
+      return;
+    }
+
+    stopScrollFollow();
+    lyricState.fingerprint = fp;
+    lyricState.trackId = currentTrackId;
+    lyricState.lines = lines;
     lyricState.kind = kind;
-    lyricState.offsetMs = num(doc?.offsetMs, 0) || 0;
-    lyricState.lines = Array.isArray(doc?.lines) ? doc.lines : [];
+    lyricState.offsetMs = offsetMs;
+    lyricState.activeIndex = -1;
+    lyricState.needsRecenter = true;
+    list.innerHTML = "";
 
     const badge = el("lyric-sync-badge");
     const note = el("lyrics-note");
 
     if (kind === "instrumental") {
-      list.innerHTML = `<div class="lyrics-empty"><div class="big">纯音乐</div><div>该曲目被标记为纯音乐，请欣赏</div></div>`;
-      if (badge) badge.textContent = "纯音乐";
+      list.style.paddingTop = "";
+      list.style.paddingBottom = "";
+      list.innerHTML = `<div class="lyrics-empty"><div class="big">${escapeHtml(t("lyrics.instrumentalBig"))}</div><div>${escapeHtml(t("lyrics.instrumentalDesc"))}</div></div>`;
+      if (badge) badge.textContent = t("lyrics.badgeInstrumental");
       if (note) note.textContent = "";
       return;
     }
     if (lyricState.lines.length === 0) {
-      const title = doc?.title || state.track?.title || "当前曲目";
-      list.innerHTML = `<div class="lyrics-empty"><div class="big">暂无歌词</div><div>${escapeHtml(title)}</div><div>可在 ECHO 歌词设置中搜索或导入歌词</div></div>`;
-      if (badge) badge.textContent = "无歌词";
+      list.style.paddingTop = "";
+      list.style.paddingBottom = "";
+      const title = doc?.title || state.track?.title || t("track.unknown");
+      list.innerHTML = `<div class="lyrics-empty"><div class="big">${escapeHtml(t("lyrics.emptyBig"))}</div><div>${escapeHtml(title)}</div><div>${escapeHtml(t("lyrics.emptyDesc"))}</div></div>`;
+      if (badge) badge.textContent = t("lyrics.badgeNoLyrics");
       if (note) note.textContent = "";
       return;
+    }
+
+    // 设置符合本体黄金视线(0.48)的首尾留白，确保首行与末行均能精准对齐
+    const scrollContainer = el("lyrics-scroll");
+    if (scrollContainer) {
+      const vh = scrollContainer.clientHeight || 400;
+      list.style.paddingTop = `${Math.floor(vh * 0.48)}px`;
+      list.style.paddingBottom = `${Math.floor(vh * 0.52)}px`;
     }
 
     const hasTiming = lyricState.lines.some((line) => num(line?.timeMs, 0) > 0);
@@ -3018,6 +3997,8 @@
       const row = document.createElement("div");
       row.className = "lyric-line";
       row.id = `lyric-${index}`;
+      row.dataset.focusDistance = "4";
+      row.dataset.active = "false";
       const timeTag = hasTiming ? `<div class="lyric-meta-row"><span class="lyric-time-tag">${fmtTag(num(line.timeMs, 0) || 0)}</span></div>` : "";
       const words = Array.isArray(line.words) && line.words.length > 0
         ? line.words.map((w, wi) => `<span class="lyric-word" data-w="${wi}">${escapeHtml(w.text || "")}</span>`).join("")
@@ -3030,6 +4011,21 @@
         row.addEventListener("click", () => {
           const target = Math.max(0, ((num(line.timeMs, 0) || 0) - lyricState.offsetMs) / 1000);
           void command("seek", { positionSeconds: target });
+          stopScrollFollow();
+          lyricState.userScrolledAt = 0;
+          lyricState.needsRecenter = true;
+          lyricState.activeIndex = index;
+          const allLines = list.querySelectorAll(".lyric-line");
+          for (let i = 0; i < allLines.length; i++) {
+            const node = allLines[i];
+            const isActive = i === index;
+            const dist = Math.min(4, Math.abs(i - index));
+            node.classList.toggle("active", isActive);
+            node.dataset.active = isActive ? "true" : "false";
+            node.dataset.focusDistance = String(dist);
+          }
+          const targetTop = computeTargetScrollTop(scrollContainer, row, 0.48);
+          startScrollFollow(scrollContainer, targetTop, 220);
         });
         row.style.cursor = "pointer";
       }
@@ -3037,10 +4033,12 @@
     });
     if (badge) {
       badge.textContent = hasTiming
-        ? kind === "synced" ? "逐行同步" : "带时间轴"
-        : "纯文本歌词";
+        ? (kind === "synced" ? t("lyrics.badgeSynced") : t("lyrics.badgeTimed"))
+        : t("lyrics.badgeText");
     }
-    if (note) note.textContent = hasTiming ? "点击任意歌词行可跳转播放位置" : "";
+    if (note) note.textContent = hasTiming ? t("lyrics.noteJump") : "";
+
+    updateLyricHighlight();
   }
 
   function escapeHtml(value) {
@@ -3048,10 +4046,17 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   }
 
+  function refreshLyricsUi() {
+    lyricState.fingerprint = "";
+    renderLyricsMessage(state.lyricsDoc);
+  }
+
   function updateLyricHighlight() {
     if (lyricState.lines.length === 0) return;
     const list = el("lyrics-list");
-    if (!list) return;
+    const container = el("lyrics-scroll");
+    if (!list || !container) return;
+
     const posMs = positionSeconds() * 1000 + lyricState.offsetMs;
     let index = -1;
     for (let i = 0; i < lyricState.lines.length; i++) {
@@ -3060,16 +4065,34 @@
       if (t <= posMs) index = i;
       else break;
     }
-    if (index !== lyricState.activeIndex) {
+
+    const indexChanged = index !== lyricState.activeIndex;
+    if (indexChanged) {
       lyricState.activeIndex = index;
-      list.querySelectorAll(".lyric-line").forEach((node, i) => {
-        node.classList.toggle("active", i === index);
-      });
-      if (index >= 0 && performance.now() - lyricState.userScrolledAt > 2500) {
-        const node = list.querySelector(`#lyric-${index}`);
-        if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+      const lines = list.querySelectorAll(".lyric-line");
+      for (let i = 0; i < lines.length; i++) {
+        const node = lines[i];
+        const isActive = i === index;
+        const dist = index >= 0 ? Math.min(4, Math.abs(i - index)) : 4;
+        node.classList.toggle("active", isActive);
+        node.dataset.active = isActive ? "true" : "false";
+        node.dataset.focusDistance = String(dist);
       }
     }
+
+    if (index >= 0) {
+      const userInteracting = performance.now() - lyricState.userScrolledAt < 2500;
+      if (!userInteracting && (indexChanged || lyricState.needsRecenter)) {
+        const node = list.querySelector(`#lyric-${index}`);
+        if (node) {
+          const targetTop = computeTargetScrollTop(container, node, 0.48);
+          const duration = lyricState.needsRecenter ? 180 : 240;
+          startScrollFollow(container, targetTop, duration);
+          lyricState.needsRecenter = false;
+        }
+      }
+    }
+
     // word-level highlight for the active line
     const active = lyricState.lines[index];
     if (active && Array.isArray(active.words) && active.words.length > 0) {
@@ -3112,52 +4135,115 @@
       void sendPlaybackCommand("playPause");
       return;
     }
-    toast(`正在切换播放：${item.title || "曲目"}…`, "ok", 1600);
-    // 1. Post message to bridge (instant switch in ECHO)
+    toast(t("queue.playTitle").replace("{title}", item.title || t("track.unknown")), "ok", 1600);
+
+    // Optimistic UI state switch immediately to eliminate jump & delay
+    state.playback.currentTrackId = item.id;
+    state.playback.positionSeconds = 0;
+    state.clock = null;
+    lyricState.lines = [];
+    lyricState.activeIndex = -1;
+    lyricState.fingerprint = "";
+
+    const title = item.title || t("track.unknown");
+    const artist = item.artist || "";
+    setText("track-title", title);
+    setText("track-artist", artist);
+    setText("pill-title", title);
+    setText("pill-artist", artist);
+    setText("np-title", title);
+    setText("np-sub", [artist, fmtDuration(item.durationSeconds)].filter(Boolean).join(" · "));
+
+    const scrollContainer = el("lyrics-scroll");
+    if (scrollContainer) scrollContainer.scrollTop = 0;
+    const lyricsList = el("lyrics-list");
+    if (lyricsList) {
+      lyricsList.style.paddingTop = "";
+      lyricsList.style.paddingBottom = "";
+      lyricsList.innerHTML = `<div class="lyrics-empty"><div class="big">${escapeHtml(t("lyrics.loading"))}</div><div>${escapeHtml(title)}</div></div>`;
+    }
+    renderQueueList();
+
+    const targetQueueId = item.queueId || state.liveQueue.find((q) => q.id === item.id)?.queueId;
     parent.postMessage({
       type: "echo:audition:playTrack",
       trackId: item.id,
-      queueId: item.queueId,
+      queueId: targetQueueId,
     }, "*");
-    // 2. Protocol fallback
-    if (item.queueId) commandNoWait("queue:playItem", { queueId: item.queueId });
-    if (item.id) commandNoWait("queue:playTrack", { trackId: item.id });
   }
 
+  let lastRenderedQueueKey = "";
   function renderQueueList() {
     const list = el("queue-list");
     if (!list) return;
-    list.innerHTML = "";
 
     const isLiveTab = state.queueTab === "tracks";
     const items = isLiveTab
       ? (state.liveQueue.length > 0 ? state.liveQueue : state.history)
       : state.history;
 
-    if (items.length === 0) {
-      list.innerHTML = `<div class="queue-empty">${isLiveTab ? "当前播放队列为空" : "暂无播放记录"}</div>`;
-    } else {
-      items.forEach((item, index) => {
-        const row = document.createElement("div");
-        const isCurrent = (item.id && item.id === state.playback.currentTrackId) ||
-                          (state.track && item.id === state.track.id);
-        row.className = "queue-item" + (isCurrent ? " active" : "");
-        row.setAttribute("role", "listitem");
-        row.setAttribute("title", `点击切换并播放：${item.title || "未知曲目"}${item.artist ? " - " + item.artist : ""}`);
-        row.innerHTML =
-          `<span class="q-idx">${isCurrent ? "▶" : String(index + 1).padStart(2, "0")}</span>` +
-          `<span class="q-title" title="${escapeHtml(item.title || "")}">${escapeHtml(item.title || "未知曲目")}</span>` +
-          `<span class="q-time">${fmtDuration(item.durationSeconds)}</span>`;
-        row.addEventListener("click", () => {
-          playTrackItem(item);
-        });
-        list.appendChild(row);
-      });
-    }
     const countText = items.length > 0
-      ? `${items.length} 首`
+      ? t("queue.tracksCount").replace("{count}", String(items.length))
       : "—";
     setText("queue-count", countText);
+
+    if (items.length === 0) {
+      lastRenderedQueueKey = "empty:" + isLiveTab + ":" + state.lang;
+      list.innerHTML = `<div class="queue-empty">${isLiveTab ? t("queue.emptyLive") : t("queue.emptyHistory")}</div>`;
+      return;
+    }
+
+    const curTrackId = state.playback.currentTrackId || state.track?.id;
+    const structureKey = `${state.lang}:${state.queueTab}:${items.length}:${items.map((it) => (it.queueId || it.id || "") + ":" + (it.title || "")).join("|")}`;
+
+    // Structural stability check: If track list hasn't changed, DO NOT wipe/recreate DOM!
+    // Simply update .active classes and indicator symbols in-place to avoid flicker & dropped clicks.
+    if (structureKey === lastRenderedQueueKey) {
+      const rows = list.querySelectorAll(".queue-item");
+      if (rows.length === items.length) {
+        for (let i = 0; i < items.length; i++) {
+          const row = rows[i];
+          const item = items[i];
+          const isCurrent = Boolean(curTrackId && item.id === curTrackId);
+          if (row.classList.contains("active") !== isCurrent) {
+            row.classList.toggle("active", isCurrent);
+          }
+          const idxSpan = row.querySelector(".q-idx");
+          if (idxSpan) {
+            const sym = isCurrent ? "▶" : String(i + 1).padStart(2, "0");
+            if (idxSpan.textContent !== sym) {
+              idxSpan.textContent = sym;
+            }
+          }
+        }
+        return;
+      }
+    }
+
+    lastRenderedQueueKey = structureKey;
+    list.innerHTML = "";
+
+    const fragment = document.createDocumentFragment();
+    items.forEach((item, index) => {
+      const row = document.createElement("div");
+      const isCurrent = Boolean(curTrackId && item.id === curTrackId);
+      row.className = "queue-item" + (isCurrent ? " active" : "");
+      row.setAttribute("role", "listitem");
+      row.setAttribute("data-index", String(index));
+      const titleStr = item.title || t("track.unknown");
+      const artistStr = item.artist ? " - " + item.artist : "";
+      row.setAttribute("title", t("queue.playTitle").replace("{title}", `${titleStr}${artistStr}`));
+      row.innerHTML =
+        `<span class="q-idx">${isCurrent ? "▶" : String(index + 1).padStart(2, "0")}</span>` +
+        `<span class="q-title">${escapeHtml(titleStr)}</span>` +
+        `<span class="q-time">${fmtDuration(item.durationSeconds)}</span>`;
+      row.addEventListener("click", (e) => {
+        e.preventDefault();
+        playTrackItem(item);
+      });
+      fragment.appendChild(row);
+    });
+    list.appendChild(fragment);
   }
 
   const renderHistory = renderQueueList;
@@ -3175,7 +4261,16 @@
       track.artworkUrl,
     ];
     for (const c of candidates) {
-      if (typeof c === "string" && c.trim().length > 0) return c.trim();
+      if (typeof c === "string" && c.trim().length > 0) {
+        const trimmed = c.trim();
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+          try {
+            parent.postMessage({ type: "echo:audition:getCover", trackId: track.id, url: trimmed }, "*");
+          } catch {}
+          return null;
+        }
+        return trimmed;
+      }
     }
     if (typeof track.coverId === "string" && track.coverId.trim().length > 0) {
       return `echo-cover://large/${encodeURIComponent(track.coverId.trim())}`;
@@ -3197,7 +4292,7 @@
               setCover("cover-img", recovered, true);
               setCover("pill-cover", recovered, false);
               setCover("np-cover", recovered, false);
-              setText("art-source", recovered.startsWith("http") ? "流媒体封面" : "宿主封面");
+              setText("art-source", (recovered.startsWith("http") || recovered.startsWith("data:")) ? t("art.streamCover") : t("art.hostCover"));
             }
           }
         }).catch(() => {});
@@ -3212,8 +4307,8 @@
     const cover = incomingCover || (changed ? null : (state.track?.coverUrl || null));
 
     state.track = { ...(state.track ?? {}), ...track, coverUrl: cover };
-    const title = state.track.title || "未知曲目";
-    const artist = state.track.artist || "未知艺术家";
+    const title = state.track.title || t("track.unknown");
+    const artist = state.track.artist || t("track.unknownArtist");
     const album = state.track.album || "";
     setText("track-title", title);
     setText("track-artist", artist);
@@ -3225,10 +4320,20 @@
     setCover("cover-img", cover, true);
     setCover("pill-cover", cover, false);
     setCover("np-cover", cover, false);
-    setText("art-source", cover ? (cover.startsWith("http") ? "流媒体封面" : "宿主封面") : "无封面");
+    setText("art-source", cover ? ((cover.startsWith("http") || cover.startsWith("data:")) ? t("art.streamCover") : t("art.hostCover")) : t("art.noCover"));
 
     if (!cover && state.track.id) {
       scheduleCoverRecovery(state.track.id);
+      try {
+        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track.id }, "*");
+      } catch {}
+    }
+
+    if (state.track.id && state.track.id.startsWith("streaming:")) {
+      try {
+        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track.id }, "*");
+        parent.postMessage({ type: "echo:audition:getLyrics", trackId: state.track.id }, "*");
+      } catch {}
     }
 
     if (changed) {
@@ -3238,10 +4343,32 @@
       state.rmsHistory = [];
       state.peakHoldDb = -Infinity;
       state.lyricsRequested = null;
+      state.customLyricsTrackId = null;
+
+      // Clean state for the new track to prevent jumping
+      state.clock = null;
+      state.playback.positionSeconds = 0;
+      lyricState.lines = [];
+      lyricState.activeIndex = -1;
+      lyricState.fingerprint = "";
+      const scrollContainer = el("lyrics-scroll");
+      if (scrollContainer) scrollContainer.scrollTop = 0;
+      const lyricsList = el("lyrics-list");
+      if (lyricsList) {
+        lyricsList.style.paddingTop = "";
+        lyricsList.style.paddingBottom = "";
+        lyricsList.innerHTML = `<div class="lyrics-empty"><div class="big">${escapeHtml(t("lyrics.loading"))}</div><div>${escapeHtml(title)}</div></div>`;
+      }
+
       rememberTrack(state.track);
       parent.postMessage({ type: "echo:audition:getQueue" }, "*");
       renderQueueList();
       maybeAutoScan();
+      if (state.track?.id?.startsWith("streaming:")) {
+        try {
+          parent.postMessage({ type: "echo:audition:getLyrics", trackId: state.track.id }, "*");
+        } catch {}
+      }
     }
   }
 
@@ -3259,6 +4386,13 @@
       img.hidden = true;
       img.removeAttribute("src");
       if (round) img.classList.add("hidden");
+      return;
+    }
+
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      try {
+        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track?.id, url }, "*");
+      } catch {}
       return;
     }
 
@@ -3314,13 +4448,126 @@
         ? "—"
         : state.meta.replayGainActive
           ? `${fmtDb(num(state.meta.replayGainDb, 0))} dB`
-          : "未启用",
+          : t("propVal.disabled"),
     );
     const parts = [];
     if (state.meta.codec) parts.push(String(state.meta.codec).toUpperCase());
     if (state.meta.sampleRate) parts.push(`${Math.round(state.meta.sampleRate / 1000)}kHz`);
     if (state.meta.bitDepth) parts.push(`${state.meta.bitDepth}bit`);
     setText("format-badge", parts.join(" / ") || "—");
+
+    if (state.audioStatus) {
+      applyAudioStatus({ ...meta, sampleRate: merged.sampleRate });
+    }
+  }
+
+  function formatKHz(hz) {
+    if (!hz) return null;
+    const n = Number(hz);
+    if (!n || isNaN(n)) return null;
+    const khz = Math.round(n / 1000);
+    return `${khz} kHz`;
+  }
+
+  function applyAudioStatus(status) {
+    if (!status) return;
+    state.audioStatus = { ...(state.audioStatus ?? {}), ...status };
+    const s = state.audioStatus;
+
+    const srcRate = formatKHz(s.fileSampleRate || s.sampleRate || state.meta?.sampleRate);
+    const dstRate = formatKHz(s.decoderOutputSampleRate || s.actualDeviceSampleRate || s.requestedOutputSampleRate || s.deviceSampleRate);
+
+    // 1. Banner
+    const parts = [];
+    if (s.codec) parts.push(String(s.codec).toUpperCase());
+    if (s.bitrate) parts.push(`${Math.round(s.bitrate / 1000)} kbps`);
+    const pfx = parts.join(" / ");
+    if (srcRate && dstRate) {
+      setText("prop-chain-summary", `${pfx ? pfx + " -> " : ""}${srcRate} -> ${dstRate} ...`);
+    } else if (pfx) {
+      setText("prop-chain-summary", `${pfx} -> ${srcRate || dstRate || ""} ...`);
+    }
+
+    // 2. Output Device
+    if (s.outputDeviceName || s.outputDevice) {
+      setText("prop-device", s.outputDeviceName || s.outputDevice);
+    }
+
+    // 3. Mode
+    const mode = s.outputMode === "shared" ? t("propVal.shared") : s.outputMode === "exclusive" ? t("propVal.exclusive") : (s.outputMode || t("propVal.shared"));
+    setText("prop-mode", mode);
+
+    // 4. Sample Rate Path
+    if (srcRate && dstRate && srcRate !== dstRate) {
+      setText("prop-rate-path", `${srcRate} -> ${dstRate}`);
+    } else {
+      setText("prop-rate-path", srcRate || dstRate || "—");
+    }
+
+    // 5. Source Spec
+    const ch = s.channels === 2 ? "Stereo" : s.channels === 1 ? "Mono" : (s.channels ? `${s.channels} ch` : "Stereo");
+    const depth = s.bitDepth ? `${s.bitDepth} bit` : (state.meta?.bitDepth ? `${state.meta.bitDepth} bit` : "16 bit");
+    const codec = s.codec ? String(s.codec).toUpperCase() : (state.meta?.codec ? String(state.meta.codec).toUpperCase() : "—");
+    setText("prop-source-spec", `${codec} / ${depth} / ${srcRate || "—"} / ${ch}`);
+
+    // 6. Signal Path
+    const isDirect = Boolean(s.nativeDirectLocalPlaybackActive || (s.currentFilePath && !String(s.currentFilePath).startsWith("http")));
+    const directReadText = isDirect ? t("propVal.directRead") : t("propVal.streaming");
+    const pathEnd = s.bitPerfectCandidate ? t("propVal.bitPerfect") : t("propVal.standardPath");
+    setText("prop-signal-path", `${directReadText} -> ${pathEnd}`);
+
+    // 7. EQ
+    if (s.eqEnabled) {
+      setText("prop-eq", `EQ On${s.eqPresetName ? ` / ${s.eqPresetName}` : ""}`);
+    } else {
+      setText("prop-eq", t("propVal.disabled"));
+    }
+
+    // 8. Resampling
+    if (s.resampling && srcRate && dstRate && srcRate !== dstRate) {
+      setText("prop-resample", `${srcRate} -> ${dstRate}`);
+    } else if (s.resampling) {
+      setText("prop-resample", t("propVal.resampleActive"));
+    } else {
+      setText("prop-resample", t("propVal.notResampled"));
+    }
+
+    // 9. Passthrough
+    setText("prop-passthrough", s.bitPerfectCandidate ? t("propVal.canPassthrough") : (s.outputMode === "shared" ? t("propVal.sharedMixer") : t("propVal.standardMix")));
+
+    // 10. Direct Read
+    setText("prop-direct-read", directReadText);
+
+    // 11. Latency & Buffer
+    const latProf = s.latencyProfile || "balanced";
+    const reqFrames = s.nativeRequestedBufferFrames ?? 2048;
+    const openFrames = s.nativeDeviceBufferFrames ?? 2048;
+    const latMs = s.nativeOutputLatencyMs !== null && s.nativeOutputLatencyMs !== undefined ? `${s.nativeOutputLatencyMs} ms` : "0 ms";
+    const stale = s.nativePositionStalenessMs !== null && s.nativePositionStalenessMs !== undefined ? `${s.nativePositionStalenessMs} ms` : t("propVal.unknown");
+    setText("prop-latency-buffer", `${latProf} / req ${reqFrames} / open ${openFrames} / ${latMs} / stale ${stale}`);
+
+    // 12. Shared Stability
+    const tier = s.sharedStabilityTier || "standard";
+    setText("prop-stability", `${tier} / ${t("propVal.unknown")} / auto`);
+
+    // Standard properties sync
+    if (s.codec) setText("prop-codec", String(s.codec).toUpperCase());
+    if (s.bitDepth) setText("prop-depth", `${s.bitDepth}-bit`);
+    if (s.outputBackend || s.activeOutputBackendImpl) setText("prop-signal", s.outputBackend || s.activeOutputBackendImpl);
+    if (s.replayGainActive !== undefined && s.replayGainActive !== null) {
+      setText("prop-gain", s.replayGainActive ? `${fmtDb(num(s.replayGainAppliedDb ?? s.replayGainSelectedGainDb, 0))} dB` : t("propVal.disabled"));
+    }
+    const meterSrc = s.audioLevels?.meterSource || s.meterSource;
+    if (meterSrc) {
+      setText("prop-meter-source", meterSrc === "native_post_dsp" ? t("propVal.postDsp") : t("propVal.preDspEst"));
+    }
+
+    // Format badge in transport
+    const badgeParts = [];
+    if (codec && codec !== "—") badgeParts.push(codec);
+    if (srcRate || dstRate) badgeParts.push(dstRate || srcRate);
+    if (depth) badgeParts.push(depth.replace(" ", ""));
+    if (badgeParts.length > 0) setText("format-badge", badgeParts.join(" / "));
   }
 
   function applyPlayback() {
@@ -3347,25 +4594,25 @@
       repeatBtn.classList.toggle("active", state.playback.repeatMode !== "off");
       repeatBtn.dataset.mode = state.playback.repeatMode;
       repeatBtn.title = state.playback.repeatMode === "one"
-        ? "单曲循环"
-        : state.playback.repeatMode === "all" ? "列表循环" : "不循环";
+        ? t("trans.repeatOne")
+        : state.playback.repeatMode === "all" ? t("trans.repeatAll") : t("trans.repeatOff");
     }
     const repeatOneBtn = el("btn-repeat-one");
     if (repeatOneBtn) {
       repeatOneBtn.classList.toggle("active", state.playback.repeatMode === "one");
-      repeatOneBtn.title = state.playback.repeatMode === "one" ? "单曲循环：开" : "单曲循环：关";
+      repeatOneBtn.title = state.playback.repeatMode === "one" ? t("trans.repeatOneOn") : t("trans.repeatOneOff");
     }
     const shuffleBtn = el("btn-shuffle");
     if (shuffleBtn) {
       shuffleBtn.classList.toggle("active", Boolean(state.playback.shuffleEnabled));
-      shuffleBtn.title = state.playback.shuffleEnabled ? "随机播放：开" : "随机播放：关";
+      shuffleBtn.title = state.playback.shuffleEnabled ? t("trans.shuffleOn") : t("trans.shuffleOff");
     }
   }
 
   function applyLevels() {
     const peak = num(state.levels.peakDb, null);
     const rms = num(state.levels.rmsDb, null);
-    setText("prop-meter-source", state.levels.source === "native_post_dsp" ? "原生 DSP 后" : state.levels.source ? "DSP 前估算" : "—");
+    setText("prop-meter-source", state.levels.source === "native_post_dsp" ? t("propVal.postDsp") : state.levels.source ? t("propVal.preDspEst") : "—");
 
     const now = performance.now();
     if (peak !== null && peak > state.peakHoldDb) {
@@ -3394,7 +4641,7 @@
     if (slider && document.activeElement !== slider) {
       slider.value = String(Math.round(state.volume * 100));
     }
-    setText("volume-label", state.muted ? "静音" : `${Math.round(state.volume * 100)}%`);
+    setText("volume-label", state.muted ? t("trans.mute") : `${Math.round(state.volume * 100)}%`);
     const muteIcon = el("icon-mute");
     if (muteIcon) {
       const next = state.muted
@@ -3408,7 +4655,7 @@
     const muteButton = el("btn-mute");
     if (muteButton) {
       muteButton.classList.toggle("muted", state.muted);
-      muteButton.title = state.muted ? "取消静音" : "静音";
+      muteButton.title = state.muted ? t("trans.unmute") : t("trans.mute");
     }
   }
 
@@ -3482,7 +4729,7 @@
     if (!node) return;
     node.dataset.state = kind;
     node.textContent =
-      kind === "live" ? "实时连接 · 协议 v1" : kind === "error" ? `异常：${detail}`.slice(0, 60) : detail;
+      kind === "live" ? t("header.live") : kind === "error" ? `${t("header.error")}：${detail}`.slice(0, 60) : (detail || t("header.connecting"));
   }
 
   function updateStatusLine() {
@@ -3490,7 +4737,7 @@
     if (!node) return;
     const playing = state.playback.state === "playing" || state.playback.state === "loading";
     node.dataset.state = "live";
-    node.textContent = `实时连接 · 协议 v1 · ${playing ? "播放中" : "已暂停"}`;
+    node.textContent = `${t("header.live")} · ${playing ? t("header.playing") : t("header.paused")}`;
   }
 
   // ── interaction ───────────────────────────────────────────────────────────
@@ -3568,7 +4815,7 @@
         if (await sendPlaybackCommand("setRepeat", { mode: nextMode })) {
           state.playback.repeatMode = nextMode;
           applyPlayback();
-          toast(nextMode === "one" ? "已开启单曲循环" : "已关闭循环", "ok", 1800);
+          toast(nextMode === "one" ? t("toast.repeatOne") : t("toast.repeatOff"), "ok", 1800);
         }
       };
     }
@@ -3637,7 +4884,7 @@
       modeButton.onclick = () => {
         state.prefs.preRender = !state.prefs.preRender;
         state.prefs.autoScan = state.prefs.preRender;
-        state.scan.message = state.prefs.preRender ? "" : "实时模式：波形随播放绘制";
+        state.scan.message = state.prefs.preRender ? "" : t("wave.modeTitleRealtime");
         if (!state.prefs.preRender && state.scan.active) state.scan.cancel = true;
         updateScanUi();
         scheduleSave();
@@ -3649,10 +4896,14 @@
       qualityButton.onclick = () => {
         const index = SCAN_ORDER.indexOf(state.prefs.scanQuality);
         state.prefs.scanQuality = SCAN_ORDER[(index + 1) % SCAN_ORDER.length];
-        const preset = SCAN_QUALITY[state.prefs.scanQuality];
+        const qKey = state.prefs.scanQuality;
+        const qLabel = t(`quality.${qKey}`) || SCAN_QUALITY[qKey]?.label || qKey;
         const duration = currentDuration();
+        const estimate = duration > 0 ? ((scanPoints(duration, qKey) * 85) / 1000).toFixed(1) : "—";
         toast(
-          `预扫描精度：${preset.label}（5x 高密度采样 · 约 ${duration > 0 ? ((scanPoints(duration, state.prefs.scanQuality) * 85) / 1000).toFixed(1) : "—"} 秒）`,
+          t("wave.qualityTitle")
+            .replace("{quality}", qLabel)
+            .replace("{time}", estimate),
           "ok",
           2200,
         );
@@ -3676,7 +4927,7 @@
     el("btn-freeze-insight")?.addEventListener("click", () => {
       state.frozen = !state.frozen;
       el("btn-freeze-insight")?.classList.toggle("active", state.frozen);
-      setText("analyzer-state", state.frozen ? "已冻结" : "实时");
+      setText("analyzer-state", state.frozen ? t("analyzer.stateFrozen") : t("analyzer.stateLive"));
     });
     el("btn-reset-insight")?.addEventListener("click", () => {
       state.rmsHistory = [];
@@ -3686,9 +4937,14 @@
     });
 
     const scroll = el("lyrics-scroll");
-    scroll?.addEventListener("wheel", () => {
+    const onUserScroll = () => {
+      stopScrollFollow();
       lyricState.userScrolledAt = performance.now();
-    }, { passive: true });
+      lyricState.needsRecenter = true;
+    };
+    scroll?.addEventListener("wheel", onUserScroll, { passive: true });
+    scroll?.addEventListener("pointerdown", onUserScroll, { passive: true });
+    scroll?.addEventListener("touchmove", onUserScroll, { passive: true });
     // Sound Field tabs (Polar Sample / Polar Level / Lissajous)
     const initialMode = state.soundfieldMode || "polar-sample";
     state.soundfieldMode = initialMode;
@@ -3719,6 +4975,20 @@
       tabHistory?.classList.add("active");
       tabTracks?.classList.remove("active");
       renderQueueList();
+    });
+
+    const queueContainer = el("queue-list");
+    queueContainer?.addEventListener("click", (e) => {
+      const row = e.target.closest(".queue-item");
+      if (!row) return;
+      const idx = parseInt(row.getAttribute("data-index"), 10);
+      const isLiveTab = state.queueTab === "tracks";
+      const items = isLiveTab
+        ? (state.liveQueue.length > 0 ? state.liveQueue : state.history)
+        : state.history;
+      if (!Number.isNaN(idx) && items[idx]) {
+        playTrackItem(items[idx]);
+      }
     });
 
     window.addEventListener("keydown", (event) => {
@@ -3769,18 +5039,18 @@
         state.muted = !state.muted;
         void sendPlaybackCommand("setVolume", { volume: state.muted ? 0 : state.volume });
         applyVolume();
-        toast(state.muted ? "已静音" : "已恢复音量", "ok", 1500);
+        toast(state.muted ? t("toast.muted") : t("toast.unmuted"), "ok", 1500);
       } else if ((event.key === "f" || event.key === "F") && !event.ctrlKey && !event.altKey) {
         state.frozen = !state.frozen;
         el("btn-freeze-insight")?.classList.toggle("active", state.frozen);
-        setText("analyzer-state", state.frozen ? "已冻结" : "实时");
-        toast(state.frozen ? "频谱与声场已冻结" : "频谱与声场已恢复实时", "ok", 1500);
+        setText("analyzer-state", state.frozen ? t("analyzer.stateFrozen") : t("analyzer.stateLive"));
+        toast(state.frozen ? t("toast.frozen") : t("toast.unfrozen"), "ok", 1500);
       } else if ((event.key === "p" || event.key === "P") && !event.ctrlKey && !event.altKey) {
         state.rmsHistory = [];
         state.peakHoldDb = -Infinity;
         const trackId = state.playback.currentTrackId || state.track?.id;
         if (trackId) state.envelopes.delete(trackId);
-        toast("已重置所有峰值电平指标", "ok", 1800);
+        toast(t("toast.peakReset"), "ok", 1800);
       } else if ((event.key === "c" || event.key === "C") && !event.ctrlKey && !event.altKey) {
         const duration = currentDuration();
         if (duration > 0) {
@@ -3791,7 +5061,7 @@
           state.view.start = start;
           state.view.end = Math.min(duration, start + span);
           state.view.zoomed = true;
-          toast("已居中对齐播放指针", "ok", 1500);
+          toast(t("toast.playheadCentered"), "ok", 1500);
         }
       } else if (event.ctrlKey && (event.key === "=" || event.key === "+")) {
         event.preventDefault();
@@ -3802,7 +5072,7 @@
       } else if (event.ctrlKey && event.key === "0") {
         event.preventDefault();
         state.view.zoomed = false;
-        toast("视图已重置为全局概览", "ok", 1500);
+        toast(t("toast.viewReset"), "ok", 1500);
       } else if (event.ctrlKey && (event.key === "," || event.key === "，")) {
         event.preventDefault();
         showPreferencesModal();
@@ -3838,22 +5108,49 @@
 
   // ── message handling ─────────────────────────────────────────────────────
   function onMessage(event) {
-    if (event.source !== parent) return;
-    const msg = event.data;
+    if (event.source && event.source !== parent && event.source !== window) return;
+    let msg = event.data;
+    if (typeof msg === 'string') {
+      try { msg = JSON.parse(msg); } catch (_) {}
+    }
     if (!msg) return;
+
+    if (msg.type === "echo:audition:coverData" && msg.coverDataUrl) {
+      if (!state.track?.id || state.track.id === msg.trackId) {
+        state.track = { ...(state.track ?? {}), coverUrl: msg.coverDataUrl };
+        setCover("cover-img", msg.coverDataUrl, true);
+        setCover("pill-cover", msg.coverDataUrl, false);
+        setCover("np-cover", msg.coverDataUrl, false);
+        setText("art-source", t("art.streamCover"));
+      }
+      return;
+    }
 
     if (msg.type === "echo:audition:queueData" || msg.type === "shinawase:player:queue") {
       if (Array.isArray(msg.items) && msg.items.length > 0) {
         state.liveQueue = msg.items.map((it) => ({
           queueId: it.queueId,
           id: it.track?.id || it.id,
-          title: it.track?.title || it.title || "未知曲目",
+          title: it.track?.title || it.title || t("track.unknown"),
           artist: it.track?.artist || it.artist || "",
           album: it.track?.album || it.album || "",
           durationSeconds: Number(it.track?.duration) || Number(it.durationSeconds) || 0,
         }));
         renderQueueList();
       }
+      return;
+    }
+
+    if (msg.type === "echo:audition:lyricsData" && msg.lyrics) {
+      if (!state.track?.id || state.track.id === msg.trackId) {
+        state.customLyricsTrackId = msg.trackId || state.track?.id;
+        renderLyricsMessage(msg.lyrics);
+      }
+      return;
+    }
+
+    if (msg.type === "echo:audition:audioStatus" && msg.status) {
+      applyAudioStatus(msg.status);
       return;
     }
 
@@ -3894,7 +5191,7 @@
         if (msg.motion) state.motion = { ...state.motion, ...msg.motion };
         if (msg.lyrics) {
           state.peek = msg.lyrics;
-          if (!lyricState.lines || lyricState.lines.length === 0) {
+          if (Array.isArray(msg.lyrics.lines) && msg.lyrics.lines.length > 0) {
             renderLyricsMessage(msg.lyrics);
           }
         }
@@ -3902,18 +5199,30 @@
           const tid = state.playback.currentTrackId || state.track?.id;
           if (tid && state.lyricsRequested !== tid) {
             state.lyricsRequested = tid;
-            command("lyrics:get", { trackId: tid }).then((res) => {
-              if (res?.lyrics && (res.lyrics.lines?.length || res.lyrics.kind === "instrumental")) {
-                renderLyricsMessage(res.lyrics);
-              }
-            }).catch(() => {});
+            if (tid.startsWith("streaming:")) {
+              try {
+                parent.postMessage({ type: "echo:audition:getLyrics", trackId: tid }, "*");
+              } catch {}
+            } else {
+              command("lyrics:get", { trackId: tid }).then((res) => {
+                if (res?.lyrics && (res.lyrics.lines?.length || res.lyrics.kind === "instrumental")) {
+                  renderLyricsMessage(res.lyrics);
+                }
+              }).catch(() => {});
+            }
           }
         }
         updateStatusLine();
         break;
       }
       case "echo:workshop-ui:lyrics": {
-        renderLyricsMessage(msg.lyrics ?? null);
+        const isCurrentCustom = state.customLyricsTrackId && (state.customLyricsTrackId === (msg.trackId ?? state.track?.id));
+        if (msg.lyrics && Array.isArray(msg.lyrics.lines) && msg.lyrics.lines.length > 0) {
+          state.customLyricsTrackId = null;
+          renderLyricsMessage(msg.lyrics);
+        } else if (!isCurrentCustom || !lyricState.lines || lyricState.lines.length === 0) {
+          renderLyricsMessage(msg.lyrics ?? null);
+        }
         if (msg.lyrics?.title || msg.lyrics?.artist) {
           applyTrack({
             id: msg.trackId ?? state.track?.id,
@@ -4048,6 +5357,14 @@
             <option value="fast" ${state.prefs.scanQuality === "fast" ? "selected" : ""}>${t("prefs.qualityFastOpt")}</option>
           </select>
         </div>
+        <div style="margin-bottom:14px;">
+          <div style="color:var(--accent-cyan, #00e5ff); font-weight:600; margin-bottom:6px;">${t("prefs.waveScaleTitle")}</div>
+          <select id="pref-wavescale" style="background:#23272d; color:#e0e4ea; border:1px solid #3b424d; padding:4px 8px; border-radius:3px; font-size:11px; width:100%;">
+            <option value="linear" ${state.prefs.waveScale !== "db" ? "selected" : ""}>${t("prefs.waveScaleLinear")}</option>
+            <option value="db" ${state.prefs.waveScale === "db" ? "selected" : ""}>${t("prefs.waveScaleDb")}</option>
+          </select>
+          <div style="color:#828a95; font-size:11px; margin-top:4px;">${t("prefs.waveScaleHint")}</div>
+        </div>
         <div style="margin-bottom:8px;">
           <div style="color:var(--accent-cyan, #00e5ff); font-weight:600; margin-bottom:6px;">${t("prefs.rangeTitle")}</div>
           <div style="background:#13161a; padding:8px 10px; border-radius:4px; border:1px solid #23272d; font-size:11px; color:#95a0af;">
@@ -4082,6 +5399,20 @@
         setScanQuality(sq.value);
       };
     }
+    const ws = el("pref-wavescale");
+    if (ws) {
+      ws.onchange = () => {
+        setWaveScale(ws.value);
+      };
+    }
+  }
+
+  function setWaveScale(scale) {
+    if (scale !== "linear" && scale !== "db") return;
+    state.prefs.waveScale = scale;
+    state.envRev += 1;
+    toast(t("toast.waveScale").replace("{scale}", scale === "linear" ? t("prefs.waveScaleLinear") : t("prefs.waveScaleDb")), "ok", 1800);
+    scheduleSave();
   }
 
   function showAboutModal() {
@@ -4271,6 +5602,17 @@
         },
         { divider: true },
         {
+          get label() { return t("menu.multi.scaleLinear"); },
+          checked: () => state.prefs.waveScale !== "db",
+          action: () => setWaveScale("linear"),
+        },
+        {
+          get label() { return t("menu.multi.scaleDb"); },
+          checked: () => state.prefs.waveScale === "db",
+          action: () => setWaveScale("db"),
+        },
+        { divider: true },
+        {
           get label() { return t("menu.multi.polarSample"); },
           checked: () => (state.soundfieldMode || "polar-sample") === "polar-sample",
           action: () => setSoundfieldMode("polar-sample"),
@@ -4323,6 +5665,23 @@
         },
       ],
       effects: [
+        {
+          get label() { return t("menu.fx.vstRack"); },
+          shortcut: "Ctrl+Alt+R",
+          action: () => {
+            try { window.parent.postMessage({ type: "echo:vst3:toggleRack", visible: true }, "*"); } catch(e){}
+            try { window.postMessage({ type: "echo:vst3:toggleRack", visible: true }, "*"); } catch(e){}
+          },
+        },
+        {
+          get label() { return t("menu.fx.vstManager"); },
+          shortcut: "Ctrl+Alt+P",
+          action: () => {
+            try { window.parent.postMessage({ type: "echo:vst3:openPluginManager" }, "*"); } catch(e){}
+            try { window.postMessage({ type: "echo:vst3:openPluginManager" }, "*"); } catch(e){}
+          },
+        },
+        { divider: true },
         {
           get label() { return t("menu.fx.freeze"); },
           shortcut: "F",
@@ -4688,6 +6047,26 @@
       dropdown.hidden = false;
     }
 
+    // Actively guard against legacy or injected standalone 效果组(R)
+    const pruneLegacyRackMenu = () => {
+      const rack = document.getElementById("audition-menu-rack") || document.querySelector("[data-menu='effects-rack']");
+      if (rack) rack.remove();
+      const dd = document.getElementById("audition-rack-dropdown");
+      if (dd) dd.remove();
+      document.querySelectorAll(".audition-menubar .menu-item").forEach((item) => {
+        if (item.textContent && item.textContent.includes("效果组")) {
+          item.remove();
+        }
+      });
+    };
+    pruneLegacyRackMenu();
+    const mbEl = document.getElementById("audition-menubar");
+    if (mbEl) {
+      try {
+        new MutationObserver(() => pruneLegacyRackMenu()).observe(mbEl, { childList: true });
+      } catch (e) {}
+    }
+
     document.querySelectorAll(".audition-menubar .menu-item").forEach((btn) => {
       const name = btn.getAttribute("data-menu");
       btn.addEventListener("click", (e) => {
@@ -4786,9 +6165,24 @@
     applyPlayback();
     applyVolume();
     updateScanUi();
-    setConnectionState("ok", "等待宿主握手…");
+    setConnectionState("ok", t("header.connecting"));
 
     window.addEventListener("message", onMessage);
+    if (window.chrome && window.chrome.webview) {
+      window.chrome.webview.addEventListener("message", (ev) => {
+        let d = ev.data;
+        if (typeof d === "string") {
+          try { d = JSON.parse(d); } catch (_) {}
+        }
+        onMessage({ data: d, source: window });
+      });
+    }
+    try {
+      post({ type: "echo:audition:getCover" });
+      post({ type: "echo:audition:getLyrics" });
+      post({ type: "echo:audition:getAudioStatus" });
+      post({ type: "echo:audition:getQueue" });
+    } catch {}
     window.addEventListener("pagehide", () => {
       if (rafId !== null) window.cancelAnimationFrame(rafId);
       rafId = null;
@@ -4818,8 +6212,10 @@
 
     rafId = window.requestAnimationFrame(frame);
     post({ type: "echo:workshop-ui:ready" });
+    window.__dawState = state;
+    window.__dawScan = scanWaveform;
     try {
-      parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+      post({ type: "echo:audition:getQueue" });
     } catch (_) {}
   }
 

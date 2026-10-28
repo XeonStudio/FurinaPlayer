@@ -56,6 +56,22 @@ public static class Vst3Manager
 					list.Add(item);
 				}
 			}
+
+			foreach (string dir in Directory.EnumerateDirectories(folder, "*.vst3", SearchOption.AllDirectories))
+			{
+				string bin64 = Path.Combine(dir, "Contents", "x86_64-win");
+				if (Directory.Exists(bin64))
+				{
+					var files = Directory.GetFiles(bin64, "*.vst3");
+					foreach (var f in files)
+					{
+						if (!list.Contains(f, StringComparer.OrdinalIgnoreCase))
+						{
+							list.Add(f);
+						}
+					}
+				}
+			}
 		}
 		catch
 		{

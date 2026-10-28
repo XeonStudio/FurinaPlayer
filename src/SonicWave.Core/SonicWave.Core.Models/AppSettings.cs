@@ -74,6 +74,35 @@ public sealed class AppSettings
 
 	public double TimbreTreble { get; set; }
 
+	// ECHO Audio DSP Core Settings
+	public double EchoHeadroomDb { get; set; } = 0.0;
+	public bool EchoCompressorEnabled { get; set; } = false;
+	public double EchoCompressorThresholdDb { get; set; } = -18.0;
+	public double EchoCompressorRatio { get; set; } = 4.0;
+	public double EchoCompressorAttackMs { get; set; } = 10.0;
+	public double EchoCompressorReleaseMs { get; set; } = 120.0;
+	public double EchoCompressorKneeDb { get; set; } = 6.0;
+	public double EchoCompressorMakeupDb { get; set; } = 0.0;
+	public bool EchoCrossfeedEnabled { get; set; } = false;
+	public double EchoCrossfeedAmount { get; set; } = 0.35;
+	public double EchoCrossfeedCutoffHz { get; set; } = 700.0;
+	public bool EchoStereoFieldEnabled { get; set; } = false;
+	public double EchoStereoWidth { get; set; } = 1.0;
+	public double EchoStereoCenterGainDb { get; set; } = 0.0;
+	public double EchoStereoSideGainDb { get; set; } = 0.0;
+	public int EchoChannelMatrixPreset { get; set; } = 0;
+	public int EchoReplayGainMode { get; set; } = 1;
+	public double EchoReplayGainPreampDb { get; set; } = 0.0;
+	public bool EchoReplayGainPreventClipping { get; set; } = true;
+	public bool EchoConvolutionEnabled { get; set; } = false;
+	public string? EchoConvolutionFilePath { get; set; }
+	public double EchoConvolutionTrimDb { get; set; } = 0.0;
+	public bool EchoResamplerEnabled { get; set; } = false;
+	public int EchoResamplerTargetRate { get; set; } = 192000;
+	public bool EchoSdmEnabled { get; set; } = false;
+	public int EchoSdmOrder { get; set; } = 5;
+	public int EchoSdmRate { get; set; } = 64;
+
 	public double TimbreThickness { get; set; }
 
 	public double TimbreClarity { get; set; }

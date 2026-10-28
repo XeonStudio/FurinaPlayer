@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FurinaPlayer.UI", "FurinaPlayer.UI\FurinaPlayer.UI.csproj", "{884C3E5B-42F3-4F6E-BD9C-54FE627DE634}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FurinaPlayer", "FurinaPlayer\FurinaPlayer.csproj", "{2CF0F19B-D249-431D-B277-B61B3C7C5020}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoDspTests", "EchoDspTests\EchoDspTests.csproj", "{3E3B6899-7A8E-45A7-A2BE-C6790B55E572}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -19,6 +19,8 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	private readonly SpatialAudioEffect _spatial;
 
+	private readonly EchoDspChain _dspChain;
+
 	private TimbreSettings _timbre = new TimbreSettings();
 
 	private IReadOnlyList<Vst3PluginState> _vst3 = Array.Empty<Vst3PluginState>();
@@ -32,6 +34,8 @@ public sealed class DspSampleProvider : ISampleProvider
 	public Equalizer Equalizer => _equalizer;
 
 	public SpatialAudioEffect Spatial => _spatial;
+
+	public EchoDspChain DspChain => _dspChain;
 
 	public double LatestPeakDb { get; private set; } = -60.0;
 
@@ -47,6 +51,7 @@ public sealed class DspSampleProvider : ISampleProvider
 		_timbreEqualizer = new Equalizer(sampleRate);
 		_widener = new StereoWidener();
 		_spatial = new SpatialAudioEffect(sampleRate);
+		_dspChain = new EchoDspChain(sampleRate);
 	}
 
 	public void SetEqGains(double[] gains)
@@ -54,6 +59,10 @@ public sealed class DspSampleProvider : ISampleProvider
 		if (gains.Length == 10)
 		{
 			_equalizer.Gains = gains;
+			for (int i = 0; i < 10; i++)
+			{
+				_dspChain.Eq.SetBandGain(i, gains[i]);
+			}
 		}
 	}
 
@@ -119,6 +128,7 @@ public sealed class DspSampleProvider : ISampleProvider
 		_timbreEqualizer.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_widener.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_spatial.ProcessInterleaved(scratch, WaveFormat.Channels);
+		_dspChain.ProcessBlock(scratch, 0, num, WaveFormat.Channels);
 		Vst3PluginState exclusiveVst = _exclusiveVst3;
 		if (exclusiveVst != null && Vst3NativeHost.Instance.IsLoadedFor(exclusiveVst.Path))
 		{

@@ -26,11 +26,74 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private bool _contentLoaded;
 
+	private Slider? _seekSlider;
+	private bool _isDraggingSlider;
+	private NowPlayingViewModel? _currentVm;
+
 	private NowPlayingViewModel? ViewModel => DataContext as NowPlayingViewModel;
 
 	public MiniPlayer()
 	{
 		InitializeComponent();
+		Loaded += OnLoaded;
+		Unloaded += OnUnloaded;
+		DataContextChanged += OnDataContextChanged;
+	}
+
+	private void OnLoaded(object sender, RoutedEventArgs e)
+	{
+		HookViewModel(ViewModel);
+	}
+
+	private void OnUnloaded(object sender, RoutedEventArgs e)
+	{
+		UnhookViewModel(_currentVm);
+	}
+
+	private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
+	{
+		HookViewModel(args.NewValue as NowPlayingViewModel);
+	}
+
+	private void HookViewModel(NowPlayingViewModel? vm)
+	{
+		if (_currentVm != null)
+		{
+			_currentVm.PropertyChanged -= OnVmPropertyChanged;
+		}
+		_currentVm = vm;
+		if (_currentVm != null)
+		{
+			_currentVm.PropertyChanged += OnVmPropertyChanged;
+			UpdateSlider();
+		}
+	}
+
+	private void UnhookViewModel(NowPlayingViewModel? vm)
+	{
+		if (vm != null)
+		{
+			vm.PropertyChanged -= OnVmPropertyChanged;
+		}
+		_currentVm = null;
+	}
+
+	private void OnVmPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+	{
+		if (e.PropertyName == nameof(NowPlayingViewModel.Position) ||
+		    e.PropertyName == nameof(NowPlayingViewModel.PositionPercent) ||
+		    e.PropertyName == nameof(NowPlayingViewModel.Duration))
+		{
+			UpdateSlider();
+		}
+	}
+
+	private void UpdateSlider()
+	{
+		if (!_isDraggingSlider && _seekSlider != null && _currentVm != null)
+		{
+			_seekSlider.Value = _currentVm.PositionPercent;
+		}
 	}
 
 	private async void OnRecentFlyoutOpening(object sender, object e)
@@ -43,11 +106,13 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnSeekPointerPressed(object sender, PointerRoutedEventArgs e)
 	{
+		_isDraggingSlider = true;
 		ViewModel?.BeginSeek();
 	}
 
 	private void OnSeekPointerReleased(object sender, PointerRoutedEventArgs e)
 	{
+		_isDraggingSlider = false;
 		NowPlayingViewModel viewModel = ViewModel;
 		if (viewModel != null && sender is Slider slider)
 		{
@@ -57,6 +122,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnSeekPointerCaptureLost(object sender, PointerRoutedEventArgs e)
 	{
+		_isDraggingSlider = false;
 		NowPlayingViewModel viewModel = ViewModel;
 		if (viewModel != null && sender is Slider slider)
 		{
@@ -121,11 +187,13 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		case 7:
 		{
 			Slider slider = target.As<Slider>();
+			_seekSlider = slider;
 			slider.PointerPressed += OnSeekPointerPressed;
 			slider.PointerReleased += OnSeekPointerReleased;
 			slider.PointerCaptureLost += OnSeekPointerCaptureLost;
 			slider.PointerMoved += OnSeekPointerMoved;
 			slider.PointerExited += OnSeekPointerExited;
+			UpdateSlider();
 			break;
 		}
 		}

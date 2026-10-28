@@ -55,38 +55,68 @@ public sealed class LiquidGlassBorder : UserControl, IComponentConnector
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
-		ContentHost.Content = Content;
-		Border child = new Border
+		if (ContentHost != null)
 		{
-			Height = 1.0,
-			VerticalAlignment = VerticalAlignment.Top,
-			Margin = new Thickness(8.0, 1.0, 8.0, 0.0),
-			Background = new LinearGradientBrush
+			ContentHost.Content = Content;
+		}
+		if (Glass != null)
+		{
+			Border highlight = new Border
 			{
-				StartPoint = new Point(0f, 0f),
-				EndPoint = new Point(1f, 0f),
-				GradientStops = 
+				Height = 1.0,
+				VerticalAlignment = VerticalAlignment.Top,
+				Margin = new Thickness(8.0, 1.0, 8.0, 0.0),
+				Background = new LinearGradientBrush
 				{
-					new GradientStop
+					StartPoint = new Point(0f, 0f),
+					EndPoint = new Point(1f, 0f),
+					GradientStops = 
 					{
-						Color = Colors.Transparent,
-						Offset = 0.0
-					},
-					new GradientStop
-					{
-						Color = Colors.White,
-						Offset = 0.5
-					},
-					new GradientStop
-					{
-						Color = Colors.Transparent,
-						Offset = 1.0
+						new GradientStop
+						{
+							Color = Colors.Transparent,
+							Offset = 0.0
+						},
+						new GradientStop
+						{
+							Color = Colors.White,
+							Offset = 0.5
+						},
+						new GradientStop
+						{
+							Color = Colors.Transparent,
+							Offset = 1.0
+						}
 					}
+				},
+				Opacity = 0.35,
+				IsHitTestVisible = false
+			};
+
+			if (Glass.Child is Grid grid)
+			{
+				if (!grid.Children.Contains(highlight))
+				{
+					grid.Children.Add(highlight);
 				}
-			},
-			Opacity = 0.25
-		};
-		Glass.Child = child;
+			}
+			else if (Glass.Child != null)
+			{
+				UIElement currentChild = Glass.Child;
+				Glass.Child = null;
+				Grid wrapper = new Grid();
+				wrapper.Children.Add(currentChild);
+				wrapper.Children.Add(highlight);
+				Glass.Child = wrapper;
+			}
+			else if (ContentHost != null)
+			{
+				Grid wrapper = new Grid();
+				wrapper.Children.Add(ContentHost);
+				wrapper.Children.Add(highlight);
+				Glass.Child = wrapper;
+			}
+		}
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]

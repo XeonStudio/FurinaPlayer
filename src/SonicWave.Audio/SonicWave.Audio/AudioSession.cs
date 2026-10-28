@@ -864,6 +864,99 @@ internal sealed class AudioSession : IDisposable
 		ScheduleRenderedRestart("timbre");
 	}
 
+	public EchoDspChain? DspChain => (_naudioBackend as NaudioAudioBackend)?.Decoder.Dsp?.DspChain;
+
+	public void SetEchoHeadroom(double headroomDb)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Headroom.HeadroomDb = headroomDb;
+		}
+	}
+
+	public void SetEchoCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Compressor.Enabled = enabled;
+			chain.Compressor.ThresholdDb = thresholdDb;
+			chain.Compressor.Ratio = ratio;
+			chain.Compressor.AttackMs = attackMs;
+			chain.Compressor.ReleaseMs = releaseMs;
+			chain.Compressor.KneeDb = kneeDb;
+			chain.Compressor.MakeupDb = makeupDb;
+			chain.Compressor.Mix = mix;
+		}
+	}
+
+	public void SetEchoCrossfeed(bool enabled, float amount, float cutoffHz)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.CrossfeedEnabled = enabled;
+			chain.Spatial.CrossfeedAmount = amount;
+			chain.Spatial.CrossfeedCutoffHz = cutoffHz;
+		}
+	}
+
+	public void SetEchoStereoField(bool enabled, float width, float centerGainDb, float sideGainDb)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.StereoFieldEnabled = enabled;
+			chain.Spatial.StereoWidth = width;
+			chain.Spatial.CenterGainDb = centerGainDb;
+			chain.Spatial.SideGainDb = sideGainDb;
+		}
+	}
+
+	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.SetMatrixPreset(preset);
+		}
+	}
+
+	public void SetEchoReplayGain(ReplayGainMode mode, float preampDb, bool preventClipping)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.ReplayGain.Mode = mode;
+			chain.ReplayGain.PreampDb = preampDb;
+			chain.ReplayGain.PreventClipping = preventClipping;
+		}
+	}
+
+	public bool LoadEchoConvolution(string filePath, float trimDb)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Convolution.TrimDb = trimDb;
+			bool ok = chain.Convolution.LoadWavFile(filePath);
+			chain.Convolution.Enabled = ok;
+			return ok;
+		}
+		return false;
+	}
+
+	public void ClearEchoConvolution()
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Convolution.ClearImpulseResponse();
+			chain.Convolution.Enabled = false;
+		}
+	}
+
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{
 		bool vst3Active = Vst3Active;
@@ -1525,6 +1618,13 @@ internal sealed class AudioSession : IDisposable
 	private void SetState(PlaybackState state)
 	{
 		_state = state;
+		try
+		{
+			SonicWave.Audio.Vst3.Vst3NativeHost.Instance.SetTransportPlaying(state == PlaybackState.Playing);
+		}
+		catch
+		{
+		}
 		SafeRaise(() =>
 		{
 			StateChanged?.Invoke(state);

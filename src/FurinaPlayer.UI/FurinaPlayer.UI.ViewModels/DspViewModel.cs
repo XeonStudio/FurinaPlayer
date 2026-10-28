@@ -114,6 +114,8 @@ public class DspViewModel : ObservableObject
 
 	public SettingsService SettingsService => _settingsService;
 
+	public AudioEngine Engine => _engine;
+
 	public int EngineSampleRate => _engine.CurrentSampleRate;
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.ObservablePropertyGenerator", "8.2.0.0")]
@@ -608,6 +610,35 @@ public class DspViewModel : ObservableObject
 		Vst3Folders = new ObservableCollection<string>((appSettings.Vst3ScanFolders != null && appSettings.Vst3ScanFolders.Count > 0) ? appSettings.Vst3ScanFolders : Vst3Manager.DefaultScanFolders.ToList());
 		Vst3Plugins = new ObservableCollection<Vst3PluginState>(appSettings.Vst3Plugins ?? new List<Vst3PluginState>());
 		_engine.SetVst3(Vst3Plugins.ToList());
+
+		// Load ECHO Audio DSP settings
+		EchoHeadroomDb = appSettings.EchoHeadroomDb;
+		EchoCompressorEnabled = appSettings.EchoCompressorEnabled;
+		EchoCompressorThresholdDb = appSettings.EchoCompressorThresholdDb;
+		EchoCompressorRatio = appSettings.EchoCompressorRatio;
+		EchoCompressorAttackMs = appSettings.EchoCompressorAttackMs;
+		EchoCompressorReleaseMs = appSettings.EchoCompressorReleaseMs;
+		EchoCompressorKneeDb = appSettings.EchoCompressorKneeDb;
+		EchoCompressorMakeupDb = appSettings.EchoCompressorMakeupDb;
+		EchoCrossfeedEnabled = appSettings.EchoCrossfeedEnabled;
+		EchoCrossfeedAmount = appSettings.EchoCrossfeedAmount;
+		EchoCrossfeedCutoffHz = appSettings.EchoCrossfeedCutoffHz;
+		EchoStereoFieldEnabled = appSettings.EchoStereoFieldEnabled;
+		EchoStereoWidth = appSettings.EchoStereoWidth;
+		EchoStereoCenterGainDb = appSettings.EchoStereoCenterGainDb;
+		EchoStereoSideGainDb = appSettings.EchoStereoSideGainDb;
+		EchoChannelMatrixPreset = appSettings.EchoChannelMatrixPreset;
+		EchoReplayGainMode = appSettings.EchoReplayGainMode;
+		EchoReplayGainPreampDb = appSettings.EchoReplayGainPreampDb;
+		EchoReplayGainPreventClipping = appSettings.EchoReplayGainPreventClipping;
+		EchoConvolutionEnabled = appSettings.EchoConvolutionEnabled;
+		EchoConvolutionFilePath = appSettings.EchoConvolutionFilePath;
+		EchoConvolutionTrimDb = appSettings.EchoConvolutionTrimDb;
+		EchoResamplerEnabled = appSettings.EchoResamplerEnabled;
+		EchoResamplerTargetRate = appSettings.EchoResamplerTargetRate;
+		EchoSdmEnabled = appSettings.EchoSdmEnabled;
+		EchoSdmOrder = appSettings.EchoSdmOrder;
+		EchoSdmRate = appSettings.EchoSdmRate;
 	}
 
 	public void SavePanelLayouts(Dictionary<string, double[]> layouts)
@@ -954,5 +985,171 @@ public class DspViewModel : ObservableObject
 	private void OnTimbreSoundstageChanged(double value)
 	{
 		ApplyTimbre();
+	}
+
+	// ==========================================
+	// ECHO Audio Core DSP Suite Controls
+	// ==========================================
+	public double EchoHeadroomDb { get; set; } = 0.0;
+	public bool EchoCompressorEnabled { get; set; } = false;
+	public double EchoCompressorThresholdDb { get; set; } = -18.0;
+	public double EchoCompressorRatio { get; set; } = 4.0;
+	public double EchoCompressorAttackMs { get; set; } = 10.0;
+	public double EchoCompressorReleaseMs { get; set; } = 120.0;
+	public double EchoCompressorKneeDb { get; set; } = 6.0;
+	public double EchoCompressorMakeupDb { get; set; } = 0.0;
+
+	public bool EchoCrossfeedEnabled { get; set; } = false;
+	public double EchoCrossfeedAmount { get; set; } = 0.35;
+	public double EchoCrossfeedCutoffHz { get; set; } = 700.0;
+
+	public bool EchoStereoFieldEnabled { get; set; } = false;
+	public double EchoStereoWidth { get; set; } = 1.0;
+	public double EchoStereoCenterGainDb { get; set; } = 0.0;
+	public double EchoStereoSideGainDb { get; set; } = 0.0;
+
+	public int EchoChannelMatrixPreset { get; set; } = 0;
+	public int EchoReplayGainMode { get; set; } = 1;
+	public double EchoReplayGainPreampDb { get; set; } = 0.0;
+	public bool EchoReplayGainPreventClipping { get; set; } = true;
+
+	public bool EchoConvolutionEnabled { get; set; } = false;
+	public string? EchoConvolutionFilePath { get; set; }
+	public double EchoConvolutionTrimDb { get; set; } = 0.0;
+
+	public bool EchoResamplerEnabled { get; set; } = false;
+	public int EchoResamplerTargetRate { get; set; } = 192000;
+
+	public bool EchoSdmEnabled { get; set; } = false;
+	public int EchoSdmOrder { get; set; } = 5;
+	public int EchoSdmRate { get; set; } = 64;
+
+	public void ApplyEchoDsp()
+	{
+		_engine.SetEchoHeadroom(EchoHeadroomDb);
+		_engine.SetEchoCompressor(EchoCompressorEnabled, (float)EchoCompressorThresholdDb, (float)EchoCompressorRatio, (float)EchoCompressorAttackMs, (float)EchoCompressorReleaseMs, (float)EchoCompressorKneeDb, (float)EchoCompressorMakeupDb, 1.0f);
+		_engine.SetEchoCrossfeed(EchoCrossfeedEnabled, (float)EchoCrossfeedAmount, (float)EchoCrossfeedCutoffHz);
+		_engine.SetEchoStereoField(EchoStereoFieldEnabled, (float)EchoStereoWidth, (float)EchoStereoCenterGainDb, (float)EchoStereoSideGainDb);
+		_engine.SetEchoChannelMatrix((SonicWave.Audio.Dsp.ChannelMatrixPreset)EchoChannelMatrixPreset);
+		_engine.SetEchoReplayGain((SonicWave.Audio.Dsp.ReplayGainMode)EchoReplayGainMode, (float)EchoReplayGainPreampDb, EchoReplayGainPreventClipping);
+		if (EchoConvolutionEnabled && !string.IsNullOrEmpty(EchoConvolutionFilePath))
+		{
+			_engine.LoadEchoConvolution(EchoConvolutionFilePath, (float)EchoConvolutionTrimDb);
+		}
+		SaveEchoSettings();
+	}
+
+	public void SaveEchoSettings()
+	{
+		_settingsService.Update((AppSettings s) =>
+		{
+			s.EchoHeadroomDb = EchoHeadroomDb;
+			s.EchoCompressorEnabled = EchoCompressorEnabled;
+			s.EchoCompressorThresholdDb = EchoCompressorThresholdDb;
+			s.EchoCompressorRatio = EchoCompressorRatio;
+			s.EchoCompressorAttackMs = EchoCompressorAttackMs;
+			s.EchoCompressorReleaseMs = EchoCompressorReleaseMs;
+			s.EchoCompressorKneeDb = EchoCompressorKneeDb;
+			s.EchoCompressorMakeupDb = EchoCompressorMakeupDb;
+			s.EchoCrossfeedEnabled = EchoCrossfeedEnabled;
+			s.EchoCrossfeedAmount = EchoCrossfeedAmount;
+			s.EchoCrossfeedCutoffHz = EchoCrossfeedCutoffHz;
+			s.EchoStereoFieldEnabled = EchoStereoFieldEnabled;
+			s.EchoStereoWidth = EchoStereoWidth;
+			s.EchoStereoCenterGainDb = EchoStereoCenterGainDb;
+			s.EchoStereoSideGainDb = EchoStereoSideGainDb;
+			s.EchoChannelMatrixPreset = EchoChannelMatrixPreset;
+			s.EchoReplayGainMode = EchoReplayGainMode;
+			s.EchoReplayGainPreampDb = EchoReplayGainPreampDb;
+			s.EchoReplayGainPreventClipping = EchoReplayGainPreventClipping;
+			s.EchoConvolutionEnabled = EchoConvolutionEnabled;
+			s.EchoConvolutionFilePath = EchoConvolutionFilePath;
+			s.EchoConvolutionTrimDb = EchoConvolutionTrimDb;
+			s.EchoResamplerEnabled = EchoResamplerEnabled;
+			s.EchoResamplerTargetRate = EchoResamplerTargetRate;
+			s.EchoSdmEnabled = EchoSdmEnabled;
+			s.EchoSdmOrder = EchoSdmOrder;
+			s.EchoSdmRate = EchoSdmRate;
+		});
+	}
+
+	public bool ImportAutoEqPreset(string text)
+	{
+		try
+		{
+			var preset = SonicWave.Audio.Dsp.AutoEqParser.Parse(text);
+			if (preset.Bands.Count > 0)
+			{
+				var chain = _engine.DspChain;
+				if (chain != null)
+				{
+					SonicWave.Audio.Dsp.AutoEqParser.ApplyTo(preset, chain.Eq);
+				}
+				StatusText = $"已导入 AutoEq 预设：{preset.Bands.Count} 段滤波，前级增益 {preset.PreampDb:F1} dB";
+				return true;
+			}
+		}
+		catch (Exception ex)
+		{
+			StatusText = "AutoEq 预设导入失败：" + ex.Message;
+		}
+		return false;
+	}
+
+	public bool LoadConvolutionIr(string filePath)
+	{
+		try
+		{
+			EchoConvolutionFilePath = filePath;
+			EchoConvolutionEnabled = true;
+			bool ok = _engine.LoadEchoConvolution(filePath, (float)EchoConvolutionTrimDb);
+			if (ok)
+			{
+				StatusText = "已加载房间校正/耳机脉冲响应：" + Path.GetFileName(filePath);
+				SaveEchoSettings();
+				return true;
+			}
+			StatusText = "脉冲响应加载失败，请检查文件格式";
+		}
+		catch (Exception ex)
+		{
+			StatusText = "加载脉冲响应出错: " + ex.Message;
+		}
+		return false;
+	}
+
+	public bool ImportAutoEqText(string text)
+	{
+		try
+		{
+			var preset = SonicWave.Audio.Dsp.AutoEqParser.Parse(text);
+			if (preset.Bands.Count > 0)
+			{
+				double[] targetFrequencies = new double[10] { 31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0 };
+				double[] newGains = new double[10];
+
+				for (int i = 0; i < 10; i++)
+				{
+					double targetFreq = targetFrequencies[i];
+					var best = preset.Bands.OrderBy(b => Math.Abs(Math.Log10(b.FrequencyHz) - Math.Log10(targetFreq))).FirstOrDefault();
+					if (best != null && Math.Abs(Math.Log10(best.FrequencyHz) - Math.Log10(targetFreq)) < 0.25)
+					{
+						newGains[i] = Math.Clamp(best.GainDb, -12.0, 12.0);
+					}
+				}
+
+				EqGains = newGains;
+				ApplyEqGains(newGains);
+				EqPresetName = "AutoEq 校准";
+				StatusText = $"已导入 AutoEq 耳机预设 ({preset.Bands.Count} 个频点)";
+				SaveEchoSettings();
+				return true;
+			}
+		}
+		catch (Exception ex)
+		{
+			StatusText = "导入 AutoEq 出错: " + ex.Message;
+		}
+		return false;
 	}
 }

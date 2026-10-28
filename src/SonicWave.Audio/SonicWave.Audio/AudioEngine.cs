@@ -215,6 +215,31 @@ public sealed class AudioEngine : IDisposable
 		_session.SetVst3(plugins);
 	}
 
+	public EchoDspChain? DspChain => _session.DspChain;
+
+	public void SetEchoHeadroom(double headroomDb) => _session.SetEchoHeadroom(headroomDb);
+
+	public void SetEchoCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix)
+		=> _session.SetEchoCompressor(enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb, mix);
+
+	public void SetEchoCrossfeed(bool enabled, float amount, float cutoffHz)
+		=> _session.SetEchoCrossfeed(enabled, amount, cutoffHz);
+
+	public void SetEchoStereoField(bool enabled, float width, float centerGainDb, float sideGainDb)
+		=> _session.SetEchoStereoField(enabled, width, centerGainDb, sideGainDb);
+
+	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
+		=> _session.SetEchoChannelMatrix(preset);
+
+	public void SetEchoReplayGain(ReplayGainMode mode, float preampDb, bool preventClipping)
+		=> _session.SetEchoReplayGain(mode, preampDb, preventClipping);
+
+	public bool LoadEchoConvolution(string filePath, float trimDb)
+		=> _session.LoadEchoConvolution(filePath, trimDb);
+
+	public void ClearEchoConvolution()
+		=> _session.ClearEchoConvolution();
+
 	public void Dispose()
 	{
 		_session.Dispose();

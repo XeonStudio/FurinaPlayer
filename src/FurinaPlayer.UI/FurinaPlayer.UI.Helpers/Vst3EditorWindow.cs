@@ -51,7 +51,10 @@ public sealed class Vst3EditorWindow : IDisposable
 
 	private const uint WM_CLOSE = 16u;
 
-	private const uint WS_OVERLAPPEDWINDOW = 13565952u;
+	private const uint WS_OVERLAPPEDWINDOW = 0x00CF0000;
+	private const uint WS_CLIPCHILDREN = 0x02000000;
+	private const uint WS_CLIPSIBLINGS = 0x04000000;
+	private const uint WS_VST3_WINDOW = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
 
 	private const int SW_SHOW = 5;
 
@@ -94,6 +97,9 @@ public sealed class Vst3EditorWindow : IDisposable
 
 	[DllImport("user32")]
 	private static extern bool GetWindowRect(nint hWnd, out RECT rect);
+
+	[DllImport("user32")]
+	private static extern bool GetClientRect(nint hWnd, out RECT rect);
 
 	[DllImport("user32")]
 	private static extern bool SetWindowPos(nint hWnd, nint after, int x, int y, int w, int h, uint flags);
@@ -145,7 +151,7 @@ public sealed class Vst3EditorWindow : IDisposable
 				}
 				return null;
 			}
-			nint num = CreateWindowExW(0u, "FurinaVst3EditorWnd", "VST3 插件界面 - Furina Player", 13565952u, 100, 100, 480, 360, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
+			nint num = CreateWindowExW(0u, "FurinaVst3EditorWnd", "VST3 插件界面 - Furina Player", WS_VST3_WINDOW, 100, 100, 640, 480, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
 			if (num == IntPtr.Zero)
 			{
 				error = "创建宿主窗口失败";
@@ -156,8 +162,17 @@ public sealed class Vst3EditorWindow : IDisposable
 				DestroyWindow(num);
 				return null;
 			}
-			int num2 = width + 16;
-			int num3 = height + 48;
+			int targetW = Math.Max(640, width);
+			int targetH = Math.Max(480, height);
+			RECT wr, cr;
+			GetWindowRect(num, out wr);
+			GetClientRect(num, out cr);
+			int nonClientW = (wr.Right - wr.Left) - (cr.Right - cr.Left);
+			int nonClientH = (wr.Bottom - wr.Top) - (cr.Bottom - cr.Top);
+			if (nonClientW <= 0 || nonClientW > 100) nonClientW = 16;
+			if (nonClientH <= 0 || nonClientH > 100) nonClientH = 39;
+			int num2 = targetW + nonClientW;
+			int num3 = targetH + nonClientH;
 			int x = 100;
 			int y = 100;
 			try
@@ -173,7 +188,7 @@ public sealed class Vst3EditorWindow : IDisposable
 			catch
 			{
 			}
-			SetWindowPos(num, IntPtr.Zero, x, y, num2, num3, 0u);
+			SetWindowPos(num, IntPtr.Zero, x, y, num2, num3, SWP_NOZORDER);
 			ShowWindow(num, 5);
 			UpdateWindow(num);
 			Vst3EditorWindow vst3EditorWindow2 = (s_active = new Vst3EditorWindow(pluginPath, num));
@@ -211,10 +226,14 @@ public sealed class Vst3EditorWindow : IDisposable
 		{
 			if (_hwnd != IntPtr.Zero && !_closed)
 			{
-				if (GetWindowRect(_hwnd, out var rect))
-				{
-					SetWindowPos(_hwnd, IntPtr.Zero, rect.Left, rect.Top, width + 16, height + 48, 4u);
-				}
+				RECT wr, cr;
+				GetWindowRect(_hwnd, out wr);
+				GetClientRect(_hwnd, out cr);
+				int nonClientW = (wr.Right - wr.Left) - (cr.Right - cr.Left);
+				int nonClientH = (wr.Bottom - wr.Top) - (cr.Bottom - cr.Top);
+				if (nonClientW <= 0 || nonClientW > 100) nonClientW = 16;
+				if (nonClientH <= 0 || nonClientH > 100) nonClientH = 39;
+				SetWindowPos(_hwnd, IntPtr.Zero, wr.Left, wr.Top, width + nonClientW, height + nonClientH, SWP_NOZORDER);
 				Vst3NativeHost.Instance.EditorResized(width, height);
 			}
 		};

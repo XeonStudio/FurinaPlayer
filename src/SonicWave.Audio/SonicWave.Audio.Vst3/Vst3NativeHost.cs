@@ -33,6 +33,16 @@ public sealed class Vst3NativeHost
 
 	public string BusDump => _active?.GetBusDump() ?? "(none)";
 
+	public void SetTransportPlaying(bool playing)
+	{
+		_active?.SetTransportPlaying(playing);
+	}
+
+	public void TriggerTransportRestart(int pauseBlocks = 100)
+	{
+		_active?.TriggerTransportRestart(pauseBlocks);
+	}
+
 	public event Action? Unloaded;
 
 	public event Action<int, int>? EditorResizeRequested;
@@ -107,6 +117,7 @@ public sealed class Vst3NativeHost
 			error = text;
 			return false;
 		}
+		vst3NativeInstance.EditorResizeRequested += (w, h) => EditorResizeRequested?.Invoke(w, h);
 		bool flag = false;
 		lock (_gate)
 		{

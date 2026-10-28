@@ -1,0 +1,2764 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microsoft PowerPoint - ECHO Presentation</title>
+  <link rel="stylesheet" href="app.css?v=1.4.0">
+  <script>
+    (function() {
+      if (window.chrome && window.chrome.webview) {
+        window.chrome.webview.addEventListener('message', function(event) {
+          var data = event.data;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch(e) {}
+          }
+          window.dispatchEvent(new MessageEvent('message', { data: data }));
+        });
+        var forward = function(data, targetOrigin) {
+          try {
+            window.chrome.webview.postMessage(typeof data === 'object' ? JSON.stringify(data) : data);
+          } catch(e) {
+            window.chrome.webview.postMessage(data);
+          }
+        };
+        if (window.parent) {
+          window.parent.postMessage = forward;
+        }
+        window.postToHost = forward;
+      }
+    })();
+  </script>
+</head>
+<body class="ppt-app tone-light">
+  <!-- Host Title Bar Safe Area / Drag region -->
+  <div class="host-safe-top" aria-hidden="true"></div>
+
+  <!-- PowerPoint Top Titlebar -->
+  <header class="ppt-titlebar" role="banner">
+    <div class="titlebar-left">
+      <!-- PowerPoint App Icon -->
+      <div class="ppt-brand" title="Microsoft PowerPoint">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ppt-logo fluent-svg" id="ppt-logo">
+  <defs>
+    <linearGradient id="ppt-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#b73417"/>
+    </linearGradient>
+    <linearGradient id="ppt-p-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f3f2f1"/>
+    </linearGradient>
+    <filter id="ppt-drop" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-opacity="0.32" flood-color="#5a1506"/>
+    </filter>
+  </defs>
+  <!-- Main PowerPoint Tile -->
+  <rect x="6" y="6" width="52" height="52" rx="14" fill="url(#ppt-bg-grad)" filter="url(#ppt-drop)"/>
+  <!-- Decorative multi-layer slide sheets -->
+  <rect x="22" y="16" width="30" height="20" rx="4" fill="#ffffff" opacity="0.3"/>
+  <rect x="26" y="24" width="26" height="20" rx="4" fill="#ffffff" opacity="0.5"/>
+  <!-- Bold Front Tile with P Letter -->
+  <rect x="10" y="14" width="28" height="36" rx="8" fill="#d04423" filter="url(#ppt-drop)"/>
+  <path d="M20 22h8a7 7 0 0 1 0 14h-4v8h-4V22zm4 4v6h4a3 3 0 0 0 0-6h-4z" fill="url(#ppt-p-grad)"/>
+</svg>
+      </div>
+
+      <!-- Quick Access Toolbar -->
+      <div class="quick-access-bar" role="toolbar" aria-label="快速访问工具栏">
+        <label class="autosave-toggle" title="自动保存 (已开启)">
+          <span class="autosave-label" data-i18n="autoSave">自动保存</span>
+          <input type="checkbox" id="chk-autosave" checked>
+          <span class="switch-slider"></span>
+        </label>
+        <button class="qa-btn" id="btn-qa-save" title="保存 (Ctrl+S)" aria-label="保存">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="qa-save-casing" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d72d2"/>
+      <stop offset="100%" stop-color="#1b4ca1"/>
+    </linearGradient>
+    <linearGradient id="qa-save-slider" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#dadada"/>
+    </linearGradient>
+  </defs>
+  <!-- Floppy Casing -->
+  <path d="M12 10a4 4 0 0 1 4-4h30l10 10v38a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V10z" fill="url(#qa-save-casing)"/>
+  <!-- Metal Slider Plate -->
+  <rect x="22" y="6" width="22" height="20" rx="3" fill="url(#qa-save-slider)"/>
+  <rect x="34" y="9" width="6" height="14" rx="2" fill="#1b4ca1"/>
+  <!-- Bottom Label Area -->
+  <rect x="18" y="34" width="30" height="24" rx="3" fill="#ffffff"/>
+  <rect x="22" y="40" width="22" height="3" rx="1.5" fill="#2d72d2" opacity="0.8"/>
+  <rect x="22" y="46" width="16" height="3" rx="1.5" fill="#9e9e9e" opacity="0.6"/>
+</svg>
+          </button>
+        <button class="qa-btn" id="btn-qa-undo" title="撤消 (Ctrl+Z)" aria-label="撤消">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="qa-undo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <path d="M26 12L10 26l16 14V30c14 0 24 6 28 20 0-16-10-30-28-30V12z" fill="url(#qa-undo-grad)"/>
+</svg>
+          </button>
+        <button class="qa-btn" id="btn-qa-redo" title="恢复 (Ctrl+Y)" aria-label="恢复">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="qa-redo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <path d="M38 12l16 14-16 14V30C24 30 14 36 10 50c0-16 10-30 28-30V12z" fill="url(#qa-redo-grad)"/>
+</svg>
+          </button>
+        <button class="qa-btn" id="btn-qa-slideshow" title="从头开始放映 (F5)" aria-label="幻灯片放映">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="qa-slide-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+    <linearGradient id="qa-screen-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#edebe9"/>
+    </linearGradient>
+  </defs>
+  <!-- Projection Screen Body -->
+  <rect x="8" y="10" width="48" height="34" rx="4" fill="url(#qa-screen-grad)"/>
+  <rect x="6" y="8" width="52" height="4" rx="2" fill="#8a8886"/>
+  <!-- Tripod Stand -->
+  <path d="M32 44v12M22 58l10-2 10 2" stroke="#605e5c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Slide Play Triangle -->
+  <polygon points="26,20 42,27 26,34" fill="url(#qa-slide-grad)"/>
+</svg>
+          </button>
+      </div>
+
+      <!-- Window Title -->
+      <div class="window-title-text" id="window-title">
+        <span class="doc-title" id="ppt-doc-title">等待播放歌曲</span>
+        <span class="app-suffix"> - PowerPoint</span>
+      </div>
+    </div>
+
+    <!-- Center Search Bar (Mathematically Centered) -->
+    <div class="titlebar-center">
+      <div class="ppt-search-box" id="ppt-search-box-wrap" role="search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico-search fluent-svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="srch-lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#55a3ff"/>
+      <stop offset="100%" stop-color="#1967d2"/>
+    </linearGradient>
+    <linearGradient id="srch-glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#e1f0ff" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="srch-handle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#707070"/>
+      <stop offset="100%" stop-color="#404040"/>
+    </linearGradient>
+  </defs>
+  <!-- Handle -->
+  <rect x="38" y="38" width="8" height="22" rx="4" transform="rotate(-45 38 38)" fill="url(#srch-handle)"/>
+  <!-- Outer Rim -->
+  <circle cx="28" cy="28" r="18" fill="none" stroke="url(#srch-lens)" stroke-width="6"/>
+  <!-- Glass Reflection -->
+  <circle cx="28" cy="28" r="14" fill="url(#srch-glass)"/>
+  <path d="M20 20a10 10 0 0 1 12-2" stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none"/>
+</svg>
+        <input type="text" id="ppt-search-input" placeholder="搜索曲目、歌词或功能 (Alt+Q)" autocomplete="off">
+        <button class="search-clear-btn" id="btn-search-clear" title="清空搜索" type="button" hidden>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="srch-clr-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a6a6a6"/>
+      <stop offset="100%" stop-color="#6e6e6e"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="26" fill="url(#srch-clr-grad)"/>
+  <path d="M22 22l20 20M42 22L22 42" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+</svg>
+        </button>
+        <span class="search-shortcut">Alt+Q</span>
+
+        <!-- Quick Search Results Dropdown -->
+        <div class="ppt-search-dropdown" id="ppt-search-dropdown" hidden>
+          <div class="search-dropdown-header" data-i18n="searchHeader">播放队列与曲目匹配</div>
+          <div class="search-dropdown-list" id="search-results-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Window & Theme Controls -->
+    <div class="titlebar-right">
+      <button class="titlebar-btn theme-btn" id="btn-theme-toggle" title="切换 Office 日间 / 黑色主题">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="theme-svg-icon fluent-svg" id="theme-svg-icon">
+  <defs>
+    <linearGradient id="th-sun-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffc83b"/>
+      <stop offset="100%" stop-color="#ff9800"/>
+    </linearGradient>
+    <linearGradient id="th-moon-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7388ff"/>
+      <stop offset="100%" stop-color="#3b50df"/>
+    </linearGradient>
+  </defs>
+  <!-- Left Half Sun -->
+  <path d="M32 14a18 18 0 0 0 0 36V14z" fill="url(#th-sun-grad)"/>
+  <!-- Sun Rays -->
+  <path d="M32 6v4M18 10l3 3M12 24l4 1M12 40l4-1M18 54l3-3M32 58v-4" stroke="#ff9800" stroke-width="4" stroke-linecap="round"/>
+  <!-- Right Half Moon -->
+  <path d="M32 14c9.94 0 18 8.06 18 18s-8.06 18-18 18c6-4 10-10.5 10-18s-4-14-10-18z" fill="url(#th-moon-grad)"/>
+</svg>
+        <span class="theme-label" id="theme-label">明亮模式</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Office Fluent Ribbon Bar -->
+  <nav class="ppt-ribbon" role="region" aria-label="功能区">
+    <!-- Ribbon Tabs Row (Modeled after Audition DAW + PowerPoint) -->
+    <div class="ribbon-tabs" role="tablist">
+      <button class="ribbon-tab tab-file" id="tab-file" data-tab="file" role="tab" aria-selected="false">文件(F)</button>
+      <button class="ribbon-tab active" id="tab-home" data-tab="home" role="tab" aria-selected="true">开始(H)</button>
+      <button class="ribbon-tab" id="tab-design" data-tab="design" role="tab" aria-selected="false">设计(G)</button>
+      <button class="ribbon-tab" id="tab-edit" data-tab="edit" role="tab" aria-selected="false">编辑(E)</button>
+      <button class="ribbon-tab" id="tab-multitrack" data-tab="multitrack" role="tab" aria-selected="false">多轨(M)</button>
+      <button class="ribbon-tab" id="tab-clip" data-tab="clip" role="tab" aria-selected="false">剪辑(C)</button>
+      <button class="ribbon-tab" id="tab-effects" data-tab="effects" role="tab" aria-selected="false">效果(S)</button>
+      <button class="ribbon-tab" id="tab-zoom" data-tab="zoom" role="tab" aria-selected="false">缩放(Z)</button>
+      <button class="ribbon-tab" id="tab-transport" data-tab="transport" role="tab" aria-selected="false">控制(T)</button>
+      <button class="ribbon-tab" id="tab-window" data-tab="window" role="tab" aria-selected="false">窗口(W)</button>
+      <button class="ribbon-tab" id="tab-help" data-tab="help" role="tab" aria-selected="false">帮助(H)</button>
+    </div>
+
+    <!-- Ribbon Content Panels (Dynamic Switchable Secondary Menus) -->
+    <div class="ribbon-panels-container" id="ribbon-panels-container" role="toolbar" aria-label="功能选项卡二级功能">
+
+      <!-- Panel 1: 开始(H) - 排版与主控 -->
+      <div class="ribbon-panel active" id="panel-home">
+        <!-- 剪贴板 -->
+        <div class="ribbon-group" id="grp-clipboard">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-copy-title" title="复制歌曲名称与艺术家">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl01_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.24"/>
+    </filter>
+    <linearGradient id="fl01_back" x1="10" y1="6" x2="44" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C8C6C4"/>
+    </linearGradient>
+    <linearGradient id="fl01_front" x1="18" y1="16" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="55%" stop-color="#E05330"/>
+      <stop offset="100%" stop-color="#B02E0C"/>
+    </linearGradient>
+    <linearGradient id="fl01_top" x1="18" y1="16" x2="54" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="6" width="34" height="42" rx="6" fill="url(#fl01_back)" filter="url(#fl01_sh)"/>
+  <rect x="16" y="14" width="18" height="3.5" rx="1.75" fill="#A19F9D"/>
+  <rect x="16" y="21" width="12" height="3.5" rx="1.75" fill="#C8C6C4"/>
+  <rect x="20" y="16" width="34" height="42" rx="6" fill="url(#fl01_front)" filter="url(#fl01_sh)"/>
+  <path d="M20 22C20 18.6863 22.6863 16 26 16H48C51.3137 16 54 18.6863 54 22V25H20V22Z" fill="url(#fl01_top)"/>
+  <path d="M39 29V41.5C39 44.5376 36.5376 47 33.5 47C30.4624 47 28 44.5376 28 41.5C28 38.4624 30.4624 36 33.5 36C34.41 36 35.268 36.221 36 36.612V27C36 25.8954 36.8954 25 38 25H45C46.1046 25 47 25.8954 47 27V30C47 31.1046 46.1046 32 45 32H39V29Z" fill="#FFFFFF"/>
+  <rect x="26" y="50" width="22" height="3.5" rx="1.75" fill="#FFFFFF" fill-opacity="0.85"/>
+</svg>
+                <span data-i18n="btnCopyTitle">复制曲名</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-copy-lyrics" title="复制全部歌词文本">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl02_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl02_back" x1="8" y1="10" x2="40" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl02_doc" x1="16" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E1DFDD"/>
+    </linearGradient>
+    <linearGradient id="fl02_fold" x1="40" y1="6" x2="54" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C8C6C4"/>
+      <stop offset="100%" stop-color="#8A8886"/>
+    </linearGradient>
+    <linearGradient id="fl02_line" x1="22" y1="24" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="12" width="34" height="44" rx="6" fill="url(#fl02_back)" filter="url(#fl02_sh)"/>
+  <path d="M16 12C16 8.68629 18.6863 6 22 6H40L54 20V52C54 55.3137 51.3137 58 48 58H22C18.6863 58 16 55.3137 16 52V12Z" fill="url(#fl02_doc)" filter="url(#fl02_sh)"/>
+  <path d="M40 6L54 20H44C41.7909 20 40 18.2091 40 16V6Z" fill="url(#fl02_fold)"/>
+  <rect x="23" y="25" width="24" height="4" rx="2" fill="url(#fl02_line)"/>
+  <rect x="23" y="33" width="18" height="4" rx="2" fill="#2B88D8"/>
+  <rect x="23" y="41" width="24" height="4" rx="2" fill="url(#fl02_line)"/>
+  <rect x="23" y="49" width="14" height="4" rx="2" fill="#50E6FF"/>
+</svg>
+                <span data-i18n="btnCopyLyrics">复制歌词</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpClipboard">剪贴板</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <!-- 幻灯片管理 -->
+        <div class="ribbon-group" id="grp-slides">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-next-slide" title="下一首曲目 (新建幻灯片)">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl03_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl03_slide" x1="6" y1="10" x2="52" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="50%" stop-color="#E05330"/>
+      <stop offset="100%" stop-color="#B02E0C"/>
+    </linearGradient>
+    <linearGradient id="fl03_hdr" x1="6" y1="10" x2="52" y2="20" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="fl03_plus" x1="34" y1="34" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="55%" stop-color="#27AE60"/>
+      <stop offset="100%" stop-color="#0E6251"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="10" width="46" height="36" rx="6" fill="url(#fl03_slide)" filter="url(#fl03_sh)"/>
+  <path d="M6 16C6 12.6863 8.68629 10 12 10H46C49.3137 10 52 12.6863 52 16V19H6V16Z" fill="url(#fl03_hdr)"/>
+  <rect x="12" y="24" width="12" height="16" rx="2.5" fill="#FFFFFF" fill-opacity="0.88"/>
+  <rect x="28" y="24" width="18" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="28" y="31" width="14" height="3.5" rx="1.75" fill="#FFFFFF" fill-opacity="0.65"/>
+  <rect x="28" y="37" width="10" height="3.5" rx="1.75" fill="#FFFFFF" fill-opacity="0.45"/>
+  <circle cx="46" cy="46" r="13" fill="url(#fl03_plus)" filter="url(#fl03_sh)"/>
+  <path d="M46 39C47.1046 39 48 39.8954 48 41V44H51C52.1046 44 53 44.8954 53 46C53 47.1046 52.1046 48 51 48H48V51C48 52.1046 47.1046 53 46 53C44.8954 53 44 52.1046 44 51V48H41C39.8954 48 39 47.1046 39 46C39 44.8954 39.8954 44 41 44H44V41C44 39.8954 44.8954 39 46 39Z" fill="#FFFFFF"/>
+</svg>
+              <span data-i18n="btnNewSlide">下一首</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-prev-slide" title="上一首曲目">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl04_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl04_card" x1="16" y1="10" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#0078D4" stop-opacity="0.85"/>
+    </linearGradient>
+    <linearGradient id="fl04_arr" x1="8" y1="14" x2="42" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="12" width="36" height="40" rx="7" fill="url(#fl04_card)" filter="url(#fl04_sh)"/>
+  <path d="M35.8 14.6C38.1 13.1 41.2 14.8 41.2 17.5V46.5C41.2 49.2 38.1 50.9 35.8 49.4L13.2 34.9C11.1 33.5 11.1 30.5 13.2 29.1L35.8 14.6Z" fill="url(#fl04_arr)" filter="url(#fl04_sh)"/>
+  <rect x="45" y="22" width="6" height="20" rx="3" fill="#FFFFFF" fill-opacity="0.85"/>
+</svg>
+                <span data-i18n="btnPrevTrack">上一首</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-reset-layout" title="重置幻灯片排版与字号">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl05_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl05_ring" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="55%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl05_grid" x1="20" y1="20" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="20" y="21" width="24" height="8" rx="2.5" fill="url(#fl05_grid)"/>
+  <rect x="20" y="32" width="10" height="11" rx="2.5" fill="#EDEBE9"/>
+  <rect x="33" y="32" width="11" height="11" rx="2.5" fill="#C8C6C4"/>
+  <path d="M32 8C18.7452 8 8 18.7452 8 32C8 45.2548 18.7452 56 32 56C42.841 56 51.999 48.809 54.968 38.932C55.444 37.345 54.544 35.672 52.957 35.195C51.37 34.718 49.697 35.619 49.22 37.206C46.993 44.613 40.128 50 32 50C22.0589 50 14 41.9411 14 32C14 22.0589 22.0589 14 32 14C37.419 14 42.279 16.395 45.579 20.184L40.5 20.184C38.8431 20.184 37.5 21.5271 37.5 23.184C37.5 24.8409 38.8431 26.184 40.5 26.184H52C53.6569 26.184 55 24.8409 55 23.184V11.684C55 10.0271 53.6569 8.684 52 8.684C50.3431 8.684 49 10.0271 49 11.684V15.161C44.622 10.742 38.625 8 32 8Z" fill="url(#fl05_ring)" filter="url(#fl05_sh)"/>
+</svg>
+                <span data-i18n="btnResetLayout">重置版式</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpSlides">幻灯片</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <!-- 字体 (歌词排版定制) -->
+        <div class="ribbon-group" id="grp-font">
+          <div class="group-content font-group-content">
+            <div class="font-controls-row">
+              <select class="ribbon-select font-family-select" id="sel-lyrics-font" title="选择歌词字体">
+                <option value="'Segoe UI', 'Microsoft YaHei', sans-serif" data-i18n="fontYaHei" selected>微软雅黑 (Microsoft YaHei)</option>
+                <option value="'Microsoft YaHei Light', sans-serif">Microsoft YaHei Light</option>
+                <option value="'SimSun', 'Songti SC', serif" data-i18n="fontSimSun">宋体 (SimSun)</option>
+                <option value="'KaiTi', 'STKaiti', serif" data-i18n="fontKaiTi">楷体 (KaiTi)</option>
+                <option value="'FangSong', serif" data-i18n="fontFangSong">仿宋 (FangSong)</option>
+                <option value="'Segoe UI', sans-serif">Segoe UI (Office Modern)</option>
+                <option value="'Georgia', serif" data-i18n="fontGeorgia">Georgia (优雅衬线)</option>
+                <option value="'Consolas', monospace" data-i18n="fontConsolas">Consolas (等宽极简)</option>
+              </select>
+
+              <select class="ribbon-select font-size-select" id="sel-lyrics-size" title="字号">
+                <option value="16">16 pt</option>
+                <option value="18">18 pt</option>
+                <option value="20">20 pt</option>
+                <option value="22">22 pt</option>
+                <option value="24" selected>24 pt</option>
+                <option value="28">28 pt</option>
+                <option value="32">32 pt</option>
+                <option value="36">36 pt</option>
+                <option value="42">42 pt</option>
+              </select>
+
+              <button class="ribbon-mini-btn" id="btn-font-increase" title="增大字号 (A^)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-font-step fluent-svg">
+  <defs>
+    <filter id="fl06_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl06_a" x1="8" y1="12" x2="42" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl06_up" x1="38" y1="10" x2="58" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+  </defs>
+  <path d="M22.2 13.8C23.1 11.5 26.3 11.5 27.2 13.8L41.5 50.2C42.3 52.2 40.8 54.5 38.6 54.5H34.8C33.5 54.5 32.3 53.7 31.9 52.4L29.5 45.5H19.9L17.5 52.4C17.1 53.7 15.9 54.5 14.6 54.5H10.8C8.6 54.5 7.1 52.2 7.9 50.2L22.2 13.8ZM21.9 38.5H27.5L24.7 29.8L21.9 38.5Z" fill="url(#fl06_a)" filter="url(#fl06_sh)"/>
+  <path d="M47.4 11.2C48.2 10.1 49.8 10.1 50.6 11.2L58.6 22.4C59.5 23.7 58.6 25.5 57 25.5H41C39.4 25.5 38.5 23.7 39.4 22.4L47.4 11.2Z" fill="url(#fl06_up)" filter="url(#fl06_sh)"/>
+</svg>
+              </button>
+              <button class="ribbon-mini-btn" id="btn-font-decrease" title="减小字号 (Av)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-font-step fluent-svg">
+  <defs>
+    <filter id="fl07_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl07_a" x1="8" y1="18" x2="38" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#797775"/>
+      <stop offset="100%" stop-color="#323130"/>
+    </linearGradient>
+    <linearGradient id="fl07_dn" x1="38" y1="22" x2="58" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <path d="M21.4 19.6C22.2 17.5 25.2 17.5 26 19.6L38.2 50.4C38.9 52.3 37.5 54.5 35.4 54.5H32.2C31 54.5 29.9 53.7 29.5 52.6L27.5 46.8H19.9L17.9 52.6C17.5 53.7 16.4 54.5 15.2 54.5H12C9.9 54.5 8.5 52.3 9.2 50.4L21.4 19.6ZM21.6 40.5H25.8L23.7 33.8L21.6 40.5Z" fill="url(#fl07_a)" filter="url(#fl07_sh)"/>
+  <path d="M47.4 40.8C48.2 41.9 49.8 41.9 50.6 40.8L58.6 29.6C59.5 28.3 58.6 26.5 57 26.5H41C39.4 26.5 38.5 28.3 39.4 29.6L47.4 40.8Z" fill="url(#fl07_dn)" filter="url(#fl07_sh)"/>
+</svg>
+              </button>
+            </div>
+
+            <div class="font-styles-row">
+              <button class="ribbon-toggle-btn active" id="btn-style-bold" title="加粗 (Ctrl+B)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl08_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#001D3D" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl08_top" x1="14" y1="10" x2="46" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl08_bot" x1="14" y1="28" x2="50" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 29H36C43.732 29 50 34.8203 50 42C50 49.1797 43.732 55 36 55H20C16.6863 55 14 52.3137 14 49V29H16ZM25 37V46H35C37.7614 46 40 44.2091 40 41.5C40 38.7909 37.7614 37 35 37H25Z" fill="url(#fl08_bot)" filter="url(#fl08_sh)"/>
+  <path d="M20 10H34C41.1797 10 47 15.3726 47 22C47 28.6274 41.1797 34 34 34H14V16C14 12.6863 16.6863 10 20 10ZM25 18V26H33C35.2091 26 37 24.2091 37 22C37 19.7909 35.2091 18 33 18H25Z" fill="url(#fl08_top)" filter="url(#fl08_sh)"/>
+</svg>
+              </button>
+              <button class="ribbon-toggle-btn" id="btn-style-italic" title="倾斜 (Ctrl+I)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl09_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl09_bar" x1="14" y1="10" x2="50" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl09_stem" x1="38" y1="10" x2="24" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="22" y="10" width="28" height="8" rx="4" fill="url(#fl09_bar)"/>
+  <rect x="14" y="46" width="28" height="8" rx="4" fill="url(#fl09_bar)"/>
+  <path d="M33.5 12H42.5L30.5 52H21.5L33.5 12Z" fill="url(#fl09_stem)" filter="url(#fl09_sh)"/>
+</svg>
+              </button>
+              <button class="ribbon-toggle-btn" id="btn-style-underline" title="下划线 (Ctrl+U)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl10_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl10_u" x1="16" y1="10" x2="48" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="55%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl10_line" x1="12" y1="50" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="50%" stop-color="#E05330"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 13C16 10.7909 17.7909 9 20 9H22C24.2091 9 26 10.7909 26 13V28C26 32.4183 28.6863 35 32 35C35.3137 35 38 32.4183 38 28V13C38 10.7909 39.7909 9 42 9H44C46.2091 9 48 10.7909 48 13V28C48 37.3888 40.8366 44 32 44C23.1634 44 16 37.3888 16 28V13Z" fill="url(#fl10_u)" filter="url(#fl10_sh)"/>
+  <rect x="12" y="49" width="40" height="7" rx="3.5" fill="url(#fl10_line)" filter="url(#fl10_sh)"/>
+</svg>
+              </button>
+              <button class="ribbon-toggle-btn active" id="btn-style-shadow" title="文字阴影 (PowerPoint 文本阴影)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl11_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl11_back" x1="22" y1="16" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl11_front" x1="12" y1="8" x2="44" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#484644"/>
+      <stop offset="100%" stop-color="#201F1E"/>
+    </linearGradient>
+  </defs>
+  <path d="M37 16C28 16 22 20.5 22 27C22 33 27 36 35 38C41 39.5 43 41 43 44C43 47 39.5 49 35 49C30.5 49 27 47 25 44.5C23.5 42.5 20.5 43 19.5 45C18.5 47 21 51 24 53C27 55 31 56 35.5 56C44.5 56 51.5 51 51.5 43.5C51.5 37 46.5 33.5 38 31.5C32 30 30 28.5 30 26C30 23.5 33 22 37 22C41 22 44 23.5 46 25.5C47.5 27 50.5 26 51 24C51.5 22 49 19 46 17.5C43.5 16.5 40.5 16 37 16Z" fill="url(#fl11_back)" opacity="0.85"/>
+  <path d="M30 9C21 9 15 13.5 15 20C15 26 20 29 28 31C34 32.5 36 34 36 37C36 40 32.5 42 28 42C23.5 42 20 40 18 37.5C16.5 35.5 13.5 36 12.5 38C11.5 40 14 44 17 46C20 48 24 49 28.5 49C37.5 49 44.5 44 44.5 36.5C44.5 30 39.5 26.5 31 24.5C25 23 23 21.5 23 19C23 16.5 26 15 30 15C34 15 37 16.5 39 18.5C40.5 20 43.5 19 44 17C44.5 15 42 12 39 10.5C36.5 9.5 33.5 9 30 9Z" fill="url(#fl11_front)" filter="url(#fl11_sh)"/>
+</svg>
+              </button>
+
+              <div class="color-picker-wrap" title="修改歌词文字颜色">
+                <label for="color-lyrics-text" class="color-picker-label">
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl12_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl12_a" x1="18" y1="8" x2="46" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#484644"/>
+      <stop offset="100%" stop-color="#201F1E"/>
+    </linearGradient>
+    <linearGradient id="fl12_bar" x1="10" y1="48" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E05330"/>
+      <stop offset="50%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M29.4 9.8C30.3 7.5 33.7 7.5 34.6 9.8L47.8 41.2C48.6 43.2 47.1 45.5 44.9 45.5H41.2C39.9 45.5 38.7 44.7 38.2 43.5L36 37.8H28L25.8 43.5C25.3 44.7 24.1 45.5 22.8 45.5H19.1C16.9 45.5 15.4 43.2 16.2 41.2L29.4 9.8ZM29.7 31.2H34.3L32 24.2L29.7 31.2Z" fill="url(#fl12_a)" filter="url(#fl12_sh)"/>
+  <rect x="10" y="48" width="44" height="9" rx="4.5" fill="url(#fl12_bar)" filter="url(#fl12_sh)"/>
+</svg>
+                  <span class="color-bar" id="text-color-bar" style="background-color: #201f1e;"></span>
+                </label>
+                <input type="color" id="color-lyrics-text" value="#201f1e" class="native-color-picker">
+              </div>
+
+              <div class="color-picker-wrap" title="修改当前播放歌词高亮颜色">
+                <label for="color-lyrics-highlight" class="color-picker-label">
+                  <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl13_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl13_pen" x1="22" y1="8" x2="54" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="55%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="fl13_hl" x1="10" y1="48" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6A3B"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="48" width="44" height="9" rx="4.5" fill="url(#fl13_hl)" filter="url(#fl13_sh)"/>
+  <path d="M16 44L22 34L30 42L18 46L16 44Z" fill="#E05330"/>
+  <path d="M40.5 9.5C42.5 7.5 45.7 7.5 47.7 9.5L54.5 16.3C56.5 18.3 56.5 21.5 54.5 23.5L33 45L21 33L40.5 9.5Z" fill="url(#fl13_pen)" filter="url(#fl13_sh)"/>
+  <path d="M21 33L33 45L29 48L18 37L21 33Z" fill="#323130"/>
+</svg>
+                  <span class="color-bar" id="hl-color-bar" style="background-color: #c43e1c;"></span>
+                </label>
+                <input type="color" id="color-lyrics-highlight" value="#c43e1c" class="native-color-picker">
+              </div>
+            </div>
+          </div>
+          <div class="group-label" data-i18n="grpFont">字体 (歌词定制)</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <!-- 段落与对齐 (单行修复) -->
+        <div class="ribbon-group" id="grp-paragraph">
+          <div class="group-content paragraph-group-content">
+            <div class="align-buttons-row">
+              <button class="ribbon-toggle-btn" id="btn-align-left" title="文本左对齐">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl14_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#00264D" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="fl14_b1" x1="10" y1="12" x2="54" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl14_b2" x1="10" y1="22" x2="40" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="9" fill="#F3F2F1" filter="url(#fl14_sh)"/>
+  <rect x="14" y="15" width="36" height="5.5" rx="2.75" fill="url(#fl14_b1)"/>
+  <rect x="14" y="25" width="24" height="5.5" rx="2.75" fill="url(#fl14_b2)"/>
+  <rect x="14" y="35" width="36" height="5.5" rx="2.75" fill="url(#fl14_b1)"/>
+  <rect x="14" y="45" width="20" height="5.5" rx="2.75" fill="url(#fl14_b2)"/>
+</svg>
+              </button>
+              <button class="ribbon-toggle-btn active" id="btn-align-center" title="居中对齐">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl15_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#4A1205" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="fl15_b1" x1="14" y1="14" x2="50" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6A3B"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl15_b2" x1="20" y1="24" x2="44" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#E05330"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="9" fill="#F3F2F1" filter="url(#fl15_sh)"/>
+  <rect x="14" y="15" width="36" height="5.5" rx="2.75" fill="url(#fl15_b1)"/>
+  <rect x="20" y="25" width="24" height="5.5" rx="2.75" fill="url(#fl15_b2)"/>
+  <rect x="14" y="35" width="36" height="5.5" rx="2.75" fill="url(#fl15_b1)"/>
+  <rect x="22" y="45" width="20" height="5.5" rx="2.75" fill="url(#fl15_b2)"/>
+</svg>
+              </button>
+              <button class="ribbon-toggle-btn" id="btn-align-right" title="文本右对齐">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl16_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#00264D" flood-opacity="0.22"/>
+    </filter>
+    <linearGradient id="fl16_b1" x1="14" y1="12" x2="50" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl16_b2" x1="26" y1="22" x2="50" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="9" fill="#F3F2F1" filter="url(#fl16_sh)"/>
+  <rect x="14" y="15" width="36" height="5.5" rx="2.75" fill="url(#fl16_b1)"/>
+  <rect x="26" y="25" width="24" height="5.5" rx="2.75" fill="url(#fl16_b2)"/>
+  <rect x="14" y="35" width="36" height="5.5" rx="2.75" fill="url(#fl16_b1)"/>
+  <rect x="30" y="45" width="20" height="5.5" rx="2.75" fill="url(#fl16_b2)"/>
+</svg>
+              </button>
+            </div>
+
+            <div class="spacing-and-extra-row">
+              <select class="ribbon-select line-height-select" id="sel-line-height" title="行距">
+                <option value="1.2" data-i18n="lh12">单倍行距</option>
+                <option value="1.5" data-i18n="lh15" selected>1.5 倍行距</option>
+                <option value="1.8" data-i18n="lh18">1.8 倍行距</option>
+                <option value="2.2" data-i18n="lh20">2.0 双倍行距</option>
+              </select>
+              <button class="ribbon-toggle-btn btn-translation-pill active" id="btn-toggle-translation" title="切换歌词翻译与罗马音">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl17_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl17_grn" x1="26" y1="24" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+    <linearGradient id="fl17_blu" x1="8" y1="8" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="26" y="24" width="30" height="30" rx="7" fill="url(#fl17_grn)" filter="url(#fl17_sh)"/>
+  <path d="M40.1 31.5C40.5 30.5 41.9 30.5 42.3 31.5L47.8 45.5C48.1 46.3 47.5 47.2 46.7 47.2H45.2C44.7 47.2 44.2 46.9 44 46.4L43 43.8H39.4L38.4 46.4C38.2 46.9 37.7 47.2 37.2 47.2H35.7C34.9 47.2 34.3 46.3 34.6 45.5L40.1 31.5ZM40.2 40.8H42.2L41.2 37.9L40.2 40.8Z" fill="#FFFFFF"/>
+  <rect x="8" y="8" width="30" height="30" rx="7" fill="url(#fl17_blu)" filter="url(#fl17_sh)"/>
+  <path d="M23 13V16.5H31V19.5H27.8C27 22.8 25.3 25.5 23 27.6C25.3 29.1 28.2 30.1 31.5 30.6L30.3 33.4C26.7 32.7 23.6 31.4 21 29.5C18.5 31.4 15.5 32.7 12 33.4L10.8 30.6C14 30.1 16.8 29.1 19 27.6C17.1 25.8 15.7 23.5 14.9 20.8L17.7 20C18.3 22 19.4 23.8 21 25.3C22.7 23.7 24 21.7 24.7 19.5H13.5V16.5H20V13H23Z" fill="#FFFFFF"/>
+</svg>
+                <span class="pill-text" data-i18n="transPill">译/音</span>
+              </button>
+            </div>
+          </div>
+          <div class="group-label" data-i18n="grpParagraph">段落与对齐</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <!-- 设计与遮罩 (支持白色遮罩与高斯模糊调节) -->
+        <div class="ribbon-group" id="grp-design">
+          <div class="group-content">
+            <div class="overlay-slider-wrap">
+              <div class="slider-header-row">
+                <span class="lbl-small" data-i18n="lblOverlay">底纹遮罩:</span>
+                <span class="val-small" id="lbl-overlay-val">25%</span>
+              </div>
+              <input type="range" class="ribbon-range" id="rng-bg-overlay" min="0" max="85" value="25" title="调节专辑底图上的半透明遮罩浓度">
+            </div>
+            <div class="overlay-slider-wrap">
+              <div class="slider-header-row">
+                <span class="lbl-small" data-i18n="lblBlur">高斯模糊:</span>
+                <span class="val-small" id="lbl-blur-val">16px</span>
+              </div>
+              <input type="range" class="ribbon-range" id="rng-bg-blur" min="0" max="40" value="16" title="调节底纹专辑封面的高斯模糊强度">
+            </div>
+            <div class="vinyl-speed-wrap">
+              <span class="lbl-small" data-i18n="lblVinylSpeed">唱片转速:</span>
+              <select class="ribbon-select vinyl-speed-select" id="sel-vinyl-speed" title="调节黑胶旋转转速">
+                <option value="slow" data-i18n="rpm33">33 RPM (沉浸)</option>
+                <option value="normal" data-i18n="rpm45" selected>45 RPM (标准)</option>
+                <option value="fast" data-i18n="rpm78">78 RPM (轻快)</option>
+                <option value="stop" data-i18n="rpmStop">暂停旋转</option>
+              </select>
+            </div>
+          </div>
+          <div class="group-label" data-i18n="grpDesignMask">设计与遮罩</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <!-- 演示放映 -->
+        <div class="ribbon-group" id="grp-slideshow">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-fullscreen-show" title="全屏幻灯片放映 (F5)">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl18_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl18_scr" x1="6" y1="10" x2="58" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E1DFDD"/>
+    </linearGradient>
+    <linearGradient id="fl18_top" x1="6" y1="8" x2="58" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6A3B"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 42V56M20 56L32 45L44 56" stroke="#605E5C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="6" y="10" width="52" height="34" rx="5" fill="url(#fl18_scr)" filter="url(#fl18_sh)"/>
+  <path d="M6 15C6 12.2386 8.23858 10 11 10H53C55.7614 10 58 12.2386 58 15V18H6V15Z" fill="url(#fl18_top)"/>
+  <path d="M27 22.8C27 21.3 28.6 20.4 29.9 21.2L39.5 27.2C40.7 28 40.7 29.8 39.5 30.6L29.9 36.6C28.6 37.4 27 36.5 27 35V22.8Z" fill="url(#fl18_top)"/>
+</svg>
+              <span data-i18n="btnSlideShow">幻灯片放映</span>
+            </button>
+          </div>
+          <div class="group-label" data-i18n="grpSlideShow">放映</div>
+        </div>
+      </div>
+
+      <!-- Panel 2: 编辑(E) - 复制与元数据 -->
+      <div class="ribbon-panel" id="panel-edit">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-edit-copy-title" title="复制歌曲名称">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl19_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl19_card" x1="12" y1="14" x2="52" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl19_clip" x1="24" y1="6" x2="40" y2="18" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="14" width="40" height="42" rx="7" fill="url(#fl19_card)" filter="url(#fl19_sh)"/>
+  <rect x="24" y="8" width="16" height="10" rx="5" fill="url(#fl19_clip)" filter="url(#fl19_sh)"/>
+  <path d="M35 26V37.5C35 40.2614 32.7614 42.5 30 42.5C27.2386 42.5 25 40.2614 25 37.5C25 34.7386 27.2386 32.5 30 32.5C30.732 32.5 31.427 32.657 32.054 32.94V24.5C32.054 23.3954 32.9494 22.5 34.054 22.5H40C41.1046 22.5 42 23.3954 42 24.5V27C42 28.1046 41.1046 29 40 29H35V26Z" fill="#FFFFFF"/>
+  <rect x="20" y="47" width="24" height="3.5" rx="1.75" fill="#FFFFFF" fill-opacity="0.85"/>
+</svg>
+                <span data-i18n="btnCopyTitle">复制歌名</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-edit-copy-artist" title="复制艺术家名称">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl20_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl20_head" x1="18" y1="8" x2="38" y2="28" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl20_body" x1="10" y1="32" x2="46" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl20_mic" x1="40" y1="28" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+  </defs>
+  <circle cx="28" cy="19" r="10.5" fill="url(#fl20_head)" filter="url(#fl20_sh)"/>
+  <path d="M10 47C10 38.7157 16.7157 32 25 32H31C39.2843 32 46 38.7157 46 47V51C46 53.7614 43.7614 56 41 56H15C12.2386 56 10 53.7614 10 51V47Z" fill="url(#fl20_body)" filter="url(#fl20_sh)"/>
+  <rect x="43" y="28" width="10" height="16" rx="5" fill="url(#fl20_mic)" filter="url(#fl20_sh)"/>
+  <path d="M39 38C39 42.9706 43.0294 47 48 47C52.9706 47 57 42.9706 57 38" stroke="#FFB900" stroke-width="3" stroke-linecap="round"/>
+  <path d="M48 47V54M43 54H53" stroke="#D83B01" stroke-width="3" stroke-linecap="round"/>
+</svg>
+                <span data-i18n="btnCopyArtist">复制歌手</span>
+              </button>
+            <button class="ribbon-large-btn" id="btn-edit-copy-meta" title="复制当前音频完整元数据 JSON">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl21_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl21_card" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B3A39"/>
+      <stop offset="100%" stop-color="#201F1E"/>
+    </linearGradient>
+    <linearGradient id="fl21_brc" x1="16" y1="20" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="50%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#E05330"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="8" width="44" height="48" rx="7" fill="url(#fl21_card)" filter="url(#fl21_sh)"/>
+  <circle cx="17" cy="14" r="2" fill="#E05330"/>
+  <circle cx="23" cy="14" r="2" fill="#FFB900"/>
+  <circle cx="29" cy="14" r="2" fill="#27AE60"/>
+  <path d="M25 23H22C19.7909 23 18 24.7909 18 27V31C18 32.6569 16.6569 34 15 34C16.6569 34 18 35.3431 18 37V41C18 43.2091 19.7909 45 22 45H25" stroke="url(#fl21_brc)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M39 23H42C44.2091 23 46 24.7909 46 27V31C46 32.6569 47.3431 34 49 34C47.3431 34 46 35.3431 46 37V41C46 43.2091 44.2091 45 42 45H39" stroke="url(#fl21_brc)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="28" cy="34" r="2.5" fill="#50E6FF"/>
+  <circle cx="36" cy="34" r="2.5" fill="#58D68D"/>
+</svg>
+                <span data-i18n="btnCopyMeta">复制元数据</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-edit-copy-timecode" title="复制当前时间码">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl22_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl22_rim" x1="10" y1="12" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl22_sec" x1="32" y1="18" x2="48" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#E05330"/>
+    </linearGradient>
+  </defs>
+  <rect x="26" y="5" width="12" height="5" rx="2.5" fill="#FFB900"/>
+  <circle cx="32" cy="34" r="22" fill="url(#fl22_rim)" filter="url(#fl22_sh)"/>
+  <circle cx="32" cy="34" r="16.5" fill="#FFFFFF"/>
+  <path d="M32 17.5C41.1127 17.5 48.5 24.8873 48.5 34H32V17.5Z" fill="url(#fl22_sec)" opacity="0.85"/>
+  <path d="M32 22V34L41 39" stroke="#201F1E" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="32" cy="34" r="3" fill="#E05330"/>
+</svg>
+                <span data-i18n="btnCopyTimecode">复制时间码</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpClipData">剪贴板数据</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-edit-reset-peak" title="重置峰值电平指示 (快捷键 P)">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl23_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl23_bar" x1="20" y1="54" x2="20" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27AE60"/>
+      <stop offset="55%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#E05330"/>
+    </linearGradient>
+    <linearGradient id="fl23_cap" x1="8" y1="18" x2="56" y2="26" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="14" y="24" width="10" height="30" rx="3" fill="url(#fl23_bar)" filter="url(#fl23_sh)"/>
+  <rect x="27" y="16" width="10" height="38" rx="3" fill="url(#fl23_bar)" filter="url(#fl23_sh)"/>
+  <rect x="40" y="28" width="10" height="26" rx="3" fill="url(#fl23_bar)" filter="url(#fl23_sh)"/>
+  <rect x="14" y="10" width="10" height="5" rx="2" fill="#C43E1C"/>
+  <rect x="27" y="8" width="10" height="5" rx="2" fill="#C43E1C"/>
+  <rect x="40" y="12" width="10" height="5" rx="2" fill="#C43E1C"/>
+  <rect x="8" y="19" width="48" height="6" rx="3" fill="url(#fl23_cap)" filter="url(#fl23_sh)"/>
+</svg>
+              <span data-i18n="btnResetPeak">重置峰值</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-edit-rescan" title="刷新流媒体与歌词同步状态">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl24_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#073B22" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl24_top" x1="10" y1="8" x2="54" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+    <linearGradient id="fl24_bot" x1="10" y1="32" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27AE60"/>
+      <stop offset="100%" stop-color="#0E6251"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 10C21.5 10 12.7 17.3 10.5 27.1C10.1 28.7 11.2 30.3 12.8 30.6C14.4 31 16 29.9 16.4 28.3C18 21.2 24.4 16 32 16C36.8 16 41.1 18.1 44 21.5H39C37.3 21.5 36 22.8 36 24.5C36 26.2 37.3 27.5 39 27.5H50.5C52.2 27.5 53.5 26.2 53.5 24.5V13C53.5 11.3 52.2 10 50.5 10C48.8 10 47.5 11.3 47.5 13V16.6C43.5 12.5 38 10 32 10Z" fill="url(#fl24_top)" filter="url(#fl24_sh)"/>
+  <path d="M51.2 33.4C49.6 33 48 34.1 47.6 35.7C46 42.8 39.6 48 32 48C27.2 48 22.9 45.9 20 42.5H25C26.7 42.5 28 41.2 28 39.5C28 37.8 26.7 36.5 25 36.5H13.5C11.8 36.5 10.5 37.8 10.5 39.5V51C10.5 52.7 11.8 54 13.5 54C15.2 54 16.5 52.7 16.5 51V47.4C20.5 51.5 26 54 32 54C42.5 54 51.3 46.7 53.5 36.9C53.9 35.3 52.8 33.7 51.2 33.4Z" fill="url(#fl24_bot)" filter="url(#fl24_sh)"/>
+  <circle cx="32" cy="32" r="5" fill="#FFB900"/>
+</svg>
+                <span data-i18n="btnRescan">重新扫描</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-edit-clear-lyrics" title="清空并重新获取流媒体歌词">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl25_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl25_doc" x1="10" y1="8" x2="46" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl25_sw" x1="30" y1="30" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="8" width="36" height="44" rx="6" fill="url(#fl25_doc)" filter="url(#fl25_sh)"/>
+  <rect x="17" y="17" width="22" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="17" y="25" width="16" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.75"/>
+  <rect x="17" y="33" width="12" height="4" rx="2" fill="#FFFFFF" fill-opacity="0.6"/>
+  <circle cx="44" cy="44" r="14" fill="url(#fl25_sw)" filter="url(#fl25_sh)"/>
+  <path d="M44 36C39.6 36 36 39.6 36 44C36 48.4 39.6 52 44 52C47.2 52 49.9 50.1 51.2 47.4" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M47 35H52V40" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                <span data-i18n="btnRefreshLyrics">刷新歌词</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpStateReset">状态重置</div>
+        </div>
+      </div>
+
+      <!-- Panel 3: 多轨(M) - 音频与渲染 -->
+      <div class="ribbon-panel" id="panel-multitrack">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-multi-sync-queue" title="强制同步 ECHO 播放列表">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl26_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl26_bar" x1="8" y1="12" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl26_sync" x1="30" y1="30" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="12" width="36" height="8" rx="4" fill="url(#fl26_bar)" filter="url(#fl26_sh)"/>
+  <rect x="8" y="25" width="28" height="8" rx="4" fill="#2B88D8" filter="url(#fl26_sh)"/>
+  <rect x="8" y="38" width="22" height="8" rx="4" fill="#004E8C" filter="url(#fl26_sh)"/>
+  <circle cx="44" cy="44" r="14" fill="url(#fl26_sync)" filter="url(#fl26_sh)"/>
+  <path d="M38 44C38 40.7 40.7 38 44 38C46.4 38 48.5 39.4 49.4 41.5M50 44C50 47.3 47.3 50 44 50C41.6 50 39.5 48.6 38.6 46.5" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 37V42H45M38 51V46H43" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+              <span data-i18n="btnSyncQueue">同步队列</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-multi-realtime" title="实时 WASAPI 监听模式">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl27_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl27_band" x1="10" y1="8" x2="54" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#605E5C"/>
+      <stop offset="100%" stop-color="#201F1E"/>
+    </linearGradient>
+    <linearGradient id="fl27_cup" x1="8" y1="30" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M12 34V30C12 18.9543 20.9543 10 32 10C43.0457 10 52 18.9543 52 30V34" stroke="url(#fl27_band)" stroke-width="6" stroke-linecap="round"/>
+  <rect x="8" y="30" width="11" height="22" rx="5.5" fill="url(#fl27_cup)" filter="url(#fl27_sh)"/>
+  <rect x="45" y="30" width="11" height="22" rx="5.5" fill="url(#fl27_cup)" filter="url(#fl27_sh)"/>
+  <path d="M23 41H26.5L29.5 33L34.5 49L37.5 41H41" stroke="#27AE60" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                <span data-i18n="btnRealtime">实时监听</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-multi-high-quality" title="高保真 24-bit/44.1kHz 规格">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl28_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#4A2500" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl28_hex" x1="10" y1="6" x2="54" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="50%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="fl28_in" x1="16" y1="14" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#323130"/>
+      <stop offset="100%" stop-color="#11100F"/>
+    </linearGradient>
+  </defs>
+  <path d="M29.5 6.8C31.1 5.9 32.9 5.9 34.5 6.8L53.5 17.8C55.1 18.7 56 20.4 56 22.2V41.8C56 43.6 55.1 45.3 53.5 46.2L34.5 57.2C32.9 58.1 31.1 58.1 29.5 57.2L10.5 46.2C8.9 45.3 8 43.6 8 41.8V22.2C8 20.4 8.9 18.7 10.5 17.8L29.5 6.8Z" fill="url(#fl28_hex)" filter="url(#fl28_sh)"/>
+  <path d="M30.2 13.5C31.3 12.9 32.7 12.9 33.8 13.5L48.2 21.8C49.3 22.4 50 23.6 50 24.9V39.1C50 40.4 49.3 41.6 48.2 42.2L33.8 50.5C32.7 51.1 31.3 51.1 30.2 50.5L15.8 42.2C14.7 41.6 14 40.4 14 39.1V24.9C14 23.6 14.7 22.4 15.8 21.8L30.2 13.5Z" fill="url(#fl28_in)"/>
+  <path d="M20 33L27.5 40.5L44 24" stroke="#FFE066" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+                <span data-i18n="btnHiRes">高精采样</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpRenderQueue">渲染与队列</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-multi-stereo" title="双声道立体声规格">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl29_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl29_box" x1="8" y1="10" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="10" width="21" height="44" rx="5" fill="url(#fl29_box)" filter="url(#fl29_sh)"/>
+  <rect x="35" y="10" width="21" height="44" rx="5" fill="url(#fl29_box)" filter="url(#fl29_sh)"/>
+  <circle cx="18.5" cy="21" r="4" fill="#FFFFFF" fill-opacity="0.85"/>
+  <circle cx="18.5" cy="39" r="7" fill="#201F1E"/>
+  <circle cx="18.5" cy="39" r="3" fill="#50E6FF"/>
+  <circle cx="45.5" cy="21" r="4" fill="#FFFFFF" fill-opacity="0.85"/>
+  <circle cx="45.5" cy="39" r="7" fill="#201F1E"/>
+  <circle cx="45.5" cy="39" r="3" fill="#50E6FF"/>
+</svg>
+                <span data-i18n="btnStereoOut">立体声输出</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-multi-spectrum-mode" title="切换声场与电平显示模式">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl30_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl30_c1" x1="10" y1="28" x2="10" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl30_c2" x1="21" y1="18" x2="21" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+    <linearGradient id="fl30_c3" x1="32" y1="10" x2="32" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="fl30_c4" x1="43" y1="22" x2="43" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl30_c5" x1="54" y1="32" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D980FA"/>
+      <stop offset="100%" stop-color="#6C3483"/>
+    </linearGradient>
+  </defs>
+  <rect x="7" y="28" width="8" height="26" rx="4" fill="url(#fl30_c1)" filter="url(#fl30_sh)"/>
+  <rect x="18" y="18" width="8" height="36" rx="4" fill="url(#fl30_c2)" filter="url(#fl30_sh)"/>
+  <rect x="29" y="10" width="8" height="44" rx="4" fill="url(#fl30_c3)" filter="url(#fl30_sh)"/>
+  <rect x="40" y="22" width="8" height="32" rx="4" fill="url(#fl30_c4)" filter="url(#fl30_sh)"/>
+  <rect x="51" y="32" width="8" height="22" rx="4" fill="url(#fl30_c5)" filter="url(#fl30_sh)"/>
+</svg>
+                <span data-i18n="btnSpectrumBars">频谱分析柱</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpSoundstage">音频声场</div>
+        </div>
+      </div>
+
+      <!-- Panel 4: 剪辑(C) - 走带定位 -->
+      <div class="ribbon-panel" id="panel-clip">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-clip-center" title="居中播放针并跳转至当前高亮行">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl31_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl31_trk" x1="6" y1="20" x2="58" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl31_pin" x1="26" y1="6" x2="38" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="20" width="52" height="24" rx="6" fill="url(#fl31_trk)" filter="url(#fl31_sh)"/>
+  <path d="M12 32H17L20 25L24 39L28 28L32 36L36 26L40 39L44 27L47 32H52" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.85"/>
+  <rect x="29.5" y="10" width="5" height="46" rx="2.5" fill="url(#fl31_pin)" filter="url(#fl31_sh)"/>
+  <path d="M25 8H39L32 16L25 8Z" fill="#FFB900"/>
+</svg>
+              <span data-i18n="btnCenterPin">居中指针</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-clip-start" title="回到曲目起始点 (快捷键 Home)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl32_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl32_bar" x1="8" y1="12" x2="16" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl32_a1" x1="18" y1="14" x2="40" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl32_a2" x1="34" y1="14" x2="56" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="9" y="12" width="7" height="40" rx="3.5" fill="url(#fl32_bar)" filter="url(#fl32_sh)"/>
+  <path d="M51.2 15.2C53.2 13.8 56 15.2 56 17.7V46.3C56 48.8 53.2 50.2 51.2 48.8L31.5 34.5C29.8 33.3 29.8 30.7 31.5 29.5L51.2 15.2Z" fill="url(#fl32_a2)" filter="url(#fl32_sh)"/>
+  <path d="M35.2 15.2C37.2 13.8 40 15.2 40 17.7V46.3C40 48.8 37.2 50.2 35.2 48.8L15.5 34.5C13.8 33.3 13.8 30.7 15.5 29.5L35.2 15.2Z" fill="url(#fl32_a1)" filter="url(#fl32_sh)"/>
+</svg>
+                <span data-i18n="btnSeekStart">回到开头</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-clip-end" title="跳转到曲目结束前 5 秒">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl33_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl33_bar" x1="48" y1="12" x2="56" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl33_a1" x1="24" y1="14" x2="46" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl33_a2" x1="8" y1="14" x2="30" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="48" y="12" width="7" height="40" rx="3.5" fill="url(#fl33_bar)" filter="url(#fl33_sh)"/>
+  <path d="M12.8 15.2C10.8 13.8 8 15.2 8 17.7V46.3C8 48.8 10.8 50.2 12.8 48.8L32.5 34.5C34.2 33.3 34.2 30.7 32.5 29.5L12.8 15.2Z" fill="url(#fl33_a2)" filter="url(#fl33_sh)"/>
+  <path d="M28.8 15.2C26.8 13.8 24 15.2 24 17.7V46.3C24 48.8 26.8 50.2 28.8 48.8L48.5 34.5C50.2 33.3 50.2 30.7 48.5 29.5L28.8 15.2Z" fill="url(#fl33_a1)" filter="url(#fl33_sh)"/>
+</svg>
+                <span data-i18n="btnSeekEnd">快进至尾</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpPlayhead">播放针定位</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-clip-rw5" title="快退 5 秒 (快捷键 ←)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl34_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl34_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="34" r="22" fill="url(#fl34_bg)" filter="url(#fl34_sh)"/>
+  <path d="M20 14L29 7V21L20 14Z" fill="#50E6FF" filter="url(#fl34_sh)"/>
+  <path d="M26 25H38V29.5H29.5V32.5C30.4 32.1 31.4 31.9 32.5 31.9C36.6 31.9 39.5 34.6 39.5 38.5C39.5 42.6 36.2 45.5 31.8 45.5C27.8 45.5 24.8 43.2 24.4 39.8H29.1C29.4 41.1 30.4 41.9 31.9 41.9C33.7 41.9 34.9 40.6 34.9 38.6C34.9 36.6 33.7 35.3 31.8 35.3C30.5 35.3 29.6 35.8 29.1 36.7H25.2L26 25Z" fill="#FFFFFF"/>
+</svg>
+                <span data-i18n="btnRw5">快退 5 秒</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-clip-rw15" title="快退 15 秒 (快捷键 Shift+←)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl35_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl35_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#3B2E8C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="34" r="22" fill="url(#fl35_bg)" filter="url(#fl35_sh)"/>
+  <path d="M16 14L25 7V21L16 14Z" fill="#50E6FF"/>
+  <path d="M24 14L33 7V21L24 14Z" fill="#2B88D8"/>
+  <path d="M23 26.5V44H18.8V31H15.5V28C17.6 28 19.1 27.4 19.8 26.5H23ZM30.5 26.5H41.5V30.5H33.8V33.4C34.6 32.9 35.6 32.7 36.7 32.7C40.3 32.7 42.8 35.1 42.8 38.6C42.8 42.3 39.9 44.8 35.9 44.8C32.2 44.8 29.5 42.7 29.2 39.5H33.4C33.7 40.7 34.6 41.5 36 41.5C37.6 41.5 38.7 40.3 38.7 38.6C38.7 36.9 37.6 35.8 35.9 35.8C34.7 35.8 33.9 36.2 33.4 37H29.8L30.5 26.5Z" fill="#FFFFFF"/>
+</svg>
+                <span data-i18n="btnRw15">快退 15 秒</span>
+              </button>
+            <button class="ribbon-large-btn" id="btn-clip-ff5" title="快进 5 秒 (快捷键 →)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl36_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#4A1205" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl36_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFB900"/>
+      <stop offset="50%" stop-color="#E05330"/>
+      <stop offset="100%" stop-color="#B02E0C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="34" r="22" fill="url(#fl36_bg)" filter="url(#fl36_sh)"/>
+  <path d="M44 14L35 7V21L44 14Z" fill="#FFB900" filter="url(#fl36_sh)"/>
+  <path d="M26 25H38V29.5H29.5V32.5C30.4 32.1 31.4 31.9 32.5 31.9C36.6 31.9 39.5 34.6 39.5 38.5C39.5 42.6 36.2 45.5 31.8 45.5C27.8 45.5 24.8 43.2 24.4 39.8H29.1C29.4 41.1 30.4 41.9 31.9 41.9C33.7 41.9 34.9 40.6 34.9 38.6C34.9 36.6 33.7 35.3 31.8 35.3C30.5 35.3 29.6 35.8 29.1 36.7H25.2L26 25Z" fill="#FFFFFF"/>
+</svg>
+                <span data-i18n="btnFf5">快进 5 秒</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-clip-ff15" title="快进 15 秒 (快捷键 Shift+→)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl37_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#4A1205" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl37_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFB900"/>
+      <stop offset="50%" stop-color="#E05330"/>
+      <stop offset="100%" stop-color="#8C1D04"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="34" r="22" fill="url(#fl37_bg)" filter="url(#fl37_sh)"/>
+  <path d="M48 14L39 7V21L48 14Z" fill="#FFB900"/>
+  <path d="M40 14L31 7V21L40 14Z" fill="#FF6A3B"/>
+  <path d="M23 26.5V44H18.8V31H15.5V28C17.6 28 19.1 27.4 19.8 26.5H23ZM30.5 26.5H41.5V30.5H33.8V33.4C34.6 32.9 35.6 32.7 36.7 32.7C40.3 32.7 42.8 35.1 42.8 38.6C42.8 42.3 39.9 44.8 35.9 44.8C32.2 44.8 29.5 42.7 29.2 39.5H33.4C33.7 40.7 34.6 41.5 36 41.5C37.6 41.5 38.7 40.3 38.7 38.6C38.7 36.9 37.6 35.8 35.9 35.8C34.7 35.8 33.9 36.2 33.4 37H29.8L30.5 26.5Z" fill="#FFFFFF"/>
+</svg>
+                <span data-i18n="btnFf15">快进 15 秒</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpTimeJump">时间跳转</div>
+        </div>
+      </div>
+
+      <!-- Panel 5: 效果(S) - VST3 与分析 -->
+      <div class="ribbon-panel" id="panel-effects">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-fx-vst-rack" title="呼出 VST3 效果机架 (Ctrl+Alt+R)">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl38_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#220A2E" flood-opacity="0.32"/>
+    </filter>
+    <linearGradient id="fl38_rack" x1="6" y1="10" x2="58" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A569BD"/>
+      <stop offset="50%" stop-color="#7D3C98"/>
+      <stop offset="100%" stop-color="#4A235A"/>
+    </linearGradient>
+    <linearGradient id="fl38_knob" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#D4AC0D"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="10" width="52" height="44" rx="7" fill="url(#fl38_rack)" filter="url(#fl38_sh)"/>
+  <circle cx="11.5" cy="16" r="2.2" fill="#E1DFDD"/>
+  <circle cx="11.5" cy="48" r="2.2" fill="#E1DFDD"/>
+  <circle cx="52.5" cy="16" r="2.2" fill="#E1DFDD"/>
+  <circle cx="52.5" cy="48" r="2.2" fill="#E1DFDD"/>
+  <rect x="17" y="15" width="30" height="15" rx="3.5" fill="#1B1A19"/>
+  <path d="M20 23.5L25 18.5L30 26.5L35 19.5L40 24.5L44 21.5" stroke="#00FFC0" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="23" cy="41" r="5.5" fill="url(#fl38_knob)" filter="url(#fl38_sh)"/>
+  <circle cx="23" cy="41" r="2" fill="#4A235A"/>
+  <circle cx="41" cy="41" r="5.5" fill="url(#fl38_knob)" filter="url(#fl38_sh)"/>
+  <circle cx="41" cy="41" r="2" fill="#4A235A"/>
+</svg>
+              <span data-i18n="btnVstRack">VST3 机架</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-fx-vst-mgr" title="打开 VST3 插件管理器">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl39_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#1F0933" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl39_box" x1="8" y1="18" x2="46" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#9B59B6"/>
+      <stop offset="100%" stop-color="#5C2D91"/>
+    </linearGradient>
+    <linearGradient id="fl39_plug" x1="30" y1="8" x2="56" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#008272"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="20" width="36" height="36" rx="7" fill="url(#fl39_box)" filter="url(#fl39_sh)"/>
+  <circle cx="26" cy="20" r="6" fill="url(#fl39_box)"/>
+  <circle cx="44" cy="38" r="6" fill="url(#fl39_box)"/>
+  <rect x="32" y="8" width="24" height="24" rx="6" fill="url(#fl39_plug)" filter="url(#fl39_sh)"/>
+  <path d="M44 14V26M38 20H50" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+</svg>
+              <span data-i18n="btnVstMgr">插件管理</span>
+            </button>
+          </div>
+          <div class="group-label" data-i18n="grpVstPlugins">VST3 音频插件</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-fx-freeze" title="冻结 / 继续实时分析 (快捷键 F)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl40_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl40_ice" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#80F5FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 6L54.5 19V45L32 58L9.5 45V19L32 6Z" fill="url(#fl40_ice)" filter="url(#fl40_sh)"/>
+  <rect x="23" y="21" width="6.5" height="22" rx="3.25" fill="#FFFFFF"/>
+  <rect x="34.5" y="21" width="6.5" height="22" rx="3.25" fill="#FFFFFF"/>
+</svg>
+                <span data-i18n="btnFreezeSpec">冻结分析</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-fx-reset-spec" title="清除历史频谱电平">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl41_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl41_b1" x1="8" y1="14" x2="56" y2="22" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl41_b2" x1="14" y1="28" x2="50" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl41_b3" x1="22" y1="42" x2="42" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="14" width="48" height="8" rx="4" fill="url(#fl41_b1)" filter="url(#fl41_sh)"/>
+  <rect x="14" y="28" width="36" height="8" rx="4" fill="url(#fl41_b2)" filter="url(#fl41_sh)"/>
+  <rect x="22" y="42" width="20" height="8" rx="4" fill="url(#fl41_b3)" filter="url(#fl41_sh)"/>
+</svg>
+                <span data-i18n="btnClearLevels">清空电平</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpAnalyzerCtrl">分析器控制</div>
+        </div>
+      </div>
+
+      <!-- Panel 6: 缩放(Z) - 画布与比例 -->
+      <div class="ribbon-panel" id="panel-zoom">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-zoom-fit-ribbon" title="自适应适合当前窗口尺寸">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl42_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl42_cnt" x1="18" y1="20" x2="46" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl42_cor" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="18" y="20" width="28" height="24" rx="4" fill="url(#fl42_cnt)" filter="url(#fl42_sh)"/>
+  <path d="M8 22V12C8 9.79086 9.79086 8 12 8H22M42 8H52C54.2091 8 56 9.79086 56 12V22M56 42V52C56 54.2091 54.2091 56 52 56H42M22 56H12C9.79086 56 8 54.2091 8 52V42" stroke="url(#fl42_cor)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+              <span data-i18n="btnZoomFit">适合窗口</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-zoom-in-ribbon" title="放大幻灯片画布 (+10%)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl43_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl43_rim" x1="8" y1="8" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl43_pls" x1="18" y1="18" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+  </defs>
+  <path d="M40 40L54 54" stroke="#484644" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="27" cy="27" r="19" fill="url(#fl43_rim)" filter="url(#fl43_sh)"/>
+  <circle cx="27" cy="27" r="14" fill="#FFFFFF"/>
+  <path d="M27 19V35M19 27H35" stroke="url(#fl43_pls)" stroke-width="4.5" stroke-linecap="round"/>
+</svg>
+                <span data-i18n="btnZoomIn">放大</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-zoom-out-ribbon" title="缩小幻灯片画布 (-10%)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl44_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl44_rim" x1="8" y1="8" x2="46" y2="46" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl44_min" x1="19" y1="27" x2="35" y2="27" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <path d="M40 40L54 54" stroke="#484644" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="27" cy="27" r="19" fill="url(#fl44_rim)" filter="url(#fl44_sh)"/>
+  <circle cx="27" cy="27" r="14" fill="#FFFFFF"/>
+  <path d="M19 27H35" stroke="url(#fl44_min)" stroke-width="4.5" stroke-linecap="round"/>
+</svg>
+                <span data-i18n="btnZoomOut">缩小</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpSlideZoom">幻灯片缩放</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn active" id="btn-view-toggle-queue" title="展开或收起左侧播放队列">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl45_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl45_side" x1="8" y1="10" x2="26" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="10" width="48" height="44" rx="7" fill="#EDEBE9" filter="url(#fl45_sh)"/>
+  <path d="M8 17C8 13.134 11.134 10 15 10H25V54H15C11.134 54 8 50.866 8 47V17Z" fill="url(#fl45_side)"/>
+  <rect x="12" y="17" width="9" height="6" rx="1.5" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="12" y="27" width="9" height="6" rx="1.5" fill="#FFFFFF" fill-opacity="0.65"/>
+  <rect x="12" y="37" width="9" height="6" rx="1.5" fill="#FFFFFF" fill-opacity="0.45"/>
+  <rect x="31" y="20" width="19" height="14" rx="2.5" fill="#C8C6C4"/>
+</svg>
+                <span data-i18n="btnToggleQueue">左侧队列栏</span>
+              </button>
+              <button class="ribbon-large-btn active" id="btn-view-toggle-notes" title="展开或收起底部演讲者备注栏">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl46_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.25"/>
+    </filter>
+    <linearGradient id="fl46_bot" x1="8" y1="38" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="10" width="48" height="44" rx="7" fill="#EDEBE9" filter="url(#fl46_sh)"/>
+  <rect x="18" y="16" width="28" height="16" rx="3" fill="#C8C6C4"/>
+  <path d="M8 38H56V47C56 50.866 52.866 54 49 54H15C11.134 54 8 50.866 8 47V38Z" fill="url(#fl46_bot)"/>
+  <rect x="15" y="43" width="22" height="3.5" rx="1.75" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="15" y="48" width="14" height="3" rx="1.5" fill="#FFFFFF" fill-opacity="0.65"/>
+</svg>
+                <span data-i18n="btnToggleNotes">演讲备注栏</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpWorkspaceView">工作区视图</div>
+        </div>
+      </div>
+
+      <!-- Panel 7: 控制(T) - 播放走带 -->
+      <div class="ribbon-panel" id="panel-transport">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-trans-playpause" title="播放 / 暂停 (空格键)">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg" id="svg-trans-playpause">
+  <defs>
+    <filter id="fl47_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#00264D" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl47_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="12" fill="url(#fl47_bg)" filter="url(#fl47_sh)"/>
+  <path d="M18 22.5C18 20.6 20.1 19.4 21.7 20.5L34.5 29C35.9 30 35.9 32 34.5 33L21.7 41.5C20.1 42.6 18 41.4 18 39.5V22.5Z" fill="#FFFFFF"/>
+  <rect x="39" y="20" width="4.5" height="22" rx="2.25" fill="#FFFFFF" fill-opacity="0.92"/>
+  <rect x="46.5" y="20" width="4.5" height="22" rx="2.25" fill="#FFFFFF" fill-opacity="0.92"/>
+</svg>
+              <span data-i18n="btnPlayPause">播放 / 暂停</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-trans-prev" title="上一首 (Ctrl+←)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl48_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl48_bar" x1="10" y1="14" x2="18" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl48_tri" x1="20" y1="14" x2="52" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="11" y="14" width="7" height="36" rx="3.5" fill="url(#fl48_bar)" filter="url(#fl48_sh)"/>
+  <path d="M47.5 14.8C50 13.2 53.2 15 53.2 18V46C53.2 49 50 50.8 47.5 49.2L24.5 35.2C22.2 33.7 22.2 30.3 24.5 28.8L47.5 14.8Z" fill="url(#fl48_tri)" filter="url(#fl48_sh)"/>
+</svg>
+                <span data-i18n="btnPrevTrack">上一首</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-trans-next" title="下一首 (Ctrl+→)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl49_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl49_bar" x1="46" y1="14" x2="54" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl49_tri" x1="12" y1="14" x2="44" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2B88D8"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <rect x="46" y="14" width="7" height="36" rx="3.5" fill="url(#fl49_bar)" filter="url(#fl49_sh)"/>
+  <path d="M16.5 14.8C14 13.2 10.8 15 10.8 18V46C10.8 49 14 50.8 16.5 49.2L39.5 35.2C41.8 33.7 41.8 30.3 39.5 28.8L16.5 14.8Z" fill="url(#fl49_tri)" filter="url(#fl49_sh)"/>
+</svg>
+                <span data-i18n="btnNextTrack">下一首</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpBasicTransport">基础走带</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-trans-cycle-repeat" title="切换列表循环 / 单曲循环">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl50_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#073B22" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl50_top" x1="8" y1="10" x2="56" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+    <linearGradient id="fl50_bot" x1="8" y1="32" x2="56" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#27AE60"/>
+      <stop offset="100%" stop-color="#0E6251"/>
+    </linearGradient>
+  </defs>
+  <path d="M14 28V23C14 17.4772 18.4772 13 24 13H43V7.5L54 16L43 24.5V19H24C21.7909 19 20 20.7909 20 23V28H14Z" fill="url(#fl50_top)" filter="url(#fl50_sh)"/>
+  <path d="M50 36V41C50 46.5228 45.5228 51 40 51H21V56.5L10 48L21 39.5V45H40C42.2091 45 44 43.2091 44 41V36H50Z" fill="url(#fl50_bot)" filter="url(#fl50_sh)"/>
+</svg>
+                <span data-i18n="btnRepeatMode">循环模式</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-trans-toggle-shuffle" title="切换随机播放">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl51_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl51_or" x1="8" y1="14" x2="56" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl51_bl" x1="8" y1="50" x2="56" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 18H19C23 18 26 20 28.5 24L35.5 36C38 40 41 42 45 42H50" stroke="url(#fl51_or)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M46 34L56 42L46 50V34Z" fill="#C43E1C"/>
+  <path d="M10 42H19C23 42 26 40 28.5 36L35.5 24C38 20 41 18 45 18H50" stroke="url(#fl51_bl)" stroke-width="6" stroke-linecap="round" filter="url(#fl51_sh)"/>
+  <path d="M46 10L56 18L46 26V10Z" fill="#0078D4"/>
+</svg>
+                <span data-i18n="btnShufflePlay">随机播放</span>
+              </button>
+            <button class="ribbon-large-btn" id="btn-trans-mute-toggle" title="静音 / 恢复音量 (M)">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl52_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl52_spk" x1="8" y1="12" x2="36" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#797775"/>
+      <stop offset="100%" stop-color="#323130"/>
+    </linearGradient>
+    <linearGradient id="fl52_x" x1="38" y1="22" x2="56" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF6A3B"/>
+      <stop offset="100%" stop-color="#A80000"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 24H19L31 13C32.9 11.3 36 12.6 36 15.2V48.8C36 51.4 32.9 52.7 31 51L19 40H10C7.8 40 6 38.2 6 36V28C6 25.8 7.8 24 10 24Z" fill="url(#fl52_spk)" filter="url(#fl52_sh)"/>
+  <path d="M41 24L55 38M55 24L41 38" stroke="url(#fl52_x)" stroke-width="5.5" stroke-linecap="round"/>
+</svg>
+                <span data-i18n="btnMuteToggle">静音切换</span>
+              </button>
+              <button class="ribbon-large-btn" id="btn-trans-vol-100" title="设置音量为 100%">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl53_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl53_spk" x1="6" y1="12" x2="34" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl53_wv" x1="38" y1="12" x2="58" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#008272"/>
+    </linearGradient>
+  </defs>
+  <path d="M10 24H18L30 13C31.9 11.3 35 12.6 35 15.2V48.8C35 51.4 31.9 52.7 30 51L18 40H10C7.8 40 6 38.2 6 36V28C6 25.8 7.8 24 10 24Z" fill="url(#fl53_spk)" filter="url(#fl53_sh)"/>
+  <path d="M41 24C43.8 26.2 45.5 29 45.5 32C45.5 35 43.8 37.8 41 40" stroke="url(#fl53_wv)" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M47 16C52.2 20.1 55.5 25.7 55.5 32C55.5 38.3 52.2 43.9 47 48" stroke="url(#fl53_wv)" stroke-width="4.5" stroke-linecap="round"/>
+</svg>
+                <span data-i18n="btnMaxVolume">最大音量</span>
+              </button>
+          </div>
+          <div class="group-label" data-i18n="grpPlayModeVol">播放模式与音量</div>
+        </div>
+      </div>
+
+      <!-- Panel 8: 窗口(W) - 配色与布局 -->
+      <div class="ribbon-panel" id="panel-window">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-win-theme-light" title="应用 Office 经典明亮红白主题">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl54_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#592800" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl54_sun" x1="12" y1="10" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="55%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="fl54_cld" x1="28" y1="32" x2="58" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#E1DFDD"/>
+    </linearGradient>
+  </defs>
+  <circle cx="30" cy="30" r="18" fill="url(#fl54_sun)" filter="url(#fl54_sh)"/>
+  <path d="M30 5V8M30 52V55M5 30H8M52 30H55M12.3 12.3L14.5 14.5M45.5 45.5L47.7 47.7M47.7 12.3L45.5 14.5M14.5 45.5L12.3 47.7" stroke="#FFB900" stroke-width="4" stroke-linecap="round"/>
+  <path d="M34 52H50C54.4 52 58 48.4 58 44C58 39.9 54.9 36.5 50.9 36.1C49.5 31.4 45.1 28 40 28C33.9 28 29 32.9 29 39C29 39.4 29 39.8 29.1 40.2C26.7 41.2 25 43.6 25 46.5C25 50.1 28 52 34 52Z" fill="url(#fl54_cld)" filter="url(#fl54_sh)"/>
+</svg>
+              <span data-i18n="btnLightMode">明亮模式</span>
+            </button>
+            <button class="ribbon-large-btn" id="btn-win-theme-dark" title="应用 Office 经典暗黑夜间主题">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl55_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#120524" flood-opacity="0.35"/>
+    </filter>
+    <linearGradient id="fl55_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B3A39"/>
+      <stop offset="100%" stop-color="#161514"/>
+    </linearGradient>
+    <linearGradient id="fl55_mn" x1="16" y1="14" x2="48" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D980FA"/>
+      <stop offset="50%" stop-color="#8E44AD"/>
+      <stop offset="100%" stop-color="#4A235A"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="48" height="48" rx="12" fill="url(#fl55_bg)" filter="url(#fl55_sh)"/>
+  <path d="M35.5 16C25.8 16 18 23.8 18 33.5C18 43.2 25.8 51 35.5 51C42.5 51 48.5 46.9 51.3 41C49.6 41.6 47.8 42 45.8 42C36.7 42 29.3 34.6 29.3 25.5C29.3 21.9 30.5 18.6 32.5 15.9C33.5 16 34.5 16 35.5 16Z" fill="url(#fl55_mn)"/>
+  <circle cx="45" cy="21" r="2.5" fill="#FFE066"/>
+  <circle cx="38" cy="29" r="1.6" fill="#50E6FF"/>
+</svg>
+              <span data-i18n="btnDarkMode">暗黑模式</span>
+            </button>
+          </div>
+          <div class="group-label" data-i18n="grpColorTheme">色彩主题</div>
+        </div>
+
+        <div class="ribbon-separator"></div>
+
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-win-modal-options" title="打开主题选项与高级个性化设置对话框">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl56_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+    <linearGradient id="fl56_gr" x1="10" y1="10" x2="54" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A19F9D"/>
+      <stop offset="50%" stop-color="#605E5C"/>
+      <stop offset="100%" stop-color="#323130"/>
+    </linearGradient>
+    <linearGradient id="fl56_core" x1="20" y1="20" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <path d="M27.5 6H36.5L38.2 12.8C40.1 13.5 41.8 14.5 43.3 15.8L50 13.8L54.5 21.6L49.5 26.5C50 28.3 50.2 30.1 50.2 32C50.2 33.9 50 35.7 49.5 37.5L54.5 42.4L50 50.2L43.3 48.2C41.8 49.5 40.1 50.5 38.2 51.2L36.5 58H27.5L25.8 51.2C23.9 50.5 22.2 49.5 20.7 48.2L14 50.2L9.5 42.4L14.5 37.5C14 35.7 13.8 33.9 13.8 32C13.8 30.1 14 28.3 14.5 26.5L9.5 21.6L14 13.8L20.7 15.8C22.2 14.5 23.9 13.5 25.8 12.8L27.5 6Z" fill="url(#fl56_gr)" filter="url(#fl56_sh)"/>
+  <circle cx="32" cy="32" r="12" fill="url(#fl56_core)"/>
+  <circle cx="32" cy="32" r="6" fill="#FFFFFF"/>
+</svg>
+              <span data-i18n="navOptions">主题选项</span>
+            </button>
+          </div>
+          <div class="group-label" data-i18n="grpSettingsCenter">设置中心</div>
+        </div>
+      </div>
+
+      <!-- Panel 9: 帮助(H) - 协议与文档 -->
+      <div class="ribbon-panel" id="panel-help">
+        <div class="ribbon-group">
+          <div class="group-content">
+            <button class="ribbon-large-btn" id="btn-help-about" title="查看本插件版本与协议说明">
+              <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-large fluent-svg">
+  <defs>
+    <filter id="fl57_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl57_b1" x1="8" y1="8" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="55%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="24" fill="url(#fl57_b1)" filter="url(#fl57_sh)"/>
+  <circle cx="32" cy="20" r="3.5" fill="#FFFFFF"/>
+  <rect x="29" y="27" width="6" height="18" rx="3" fill="#FFFFFF"/>
+</svg>
+              <span data-i18n="navAbout">关于插件</span>
+            </button>
+            <div class="tool-stack">
+              <button class="ribbon-tool-btn" id="btn-help-shortcuts" title="查看键盘快捷键帮助">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl58_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl58_kb" x1="6" y1="14" x2="58" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#484644"/>
+      <stop offset="100%" stop-color="#201F1E"/>
+    </linearGradient>
+    <linearGradient id="fl58_sp" x1="20" y1="38" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <rect x="6" y="14" width="52" height="36" rx="7" fill="url(#fl58_kb)" filter="url(#fl58_sh)"/>
+  <rect x="12" y="20" width="7" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="22" y="20" width="7" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="32" y="20" width="7" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="42" y="20" width="10" height="6" rx="2" fill="#50E6FF"/>
+  <rect x="12" y="29" width="9" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="24" y="29" width="7" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="34" y="29" width="7" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="44" y="29" width="8" height="6" rx="2" fill="#FFFFFF"/>
+  <rect x="18" y="38" width="28" height="6" rx="3" fill="url(#fl58_sp)"/>
+</svg>
+                <span data-i18n="btnShortcuts">快捷键指南</span>
+              </button>
+              <button class="ribbon-tool-btn" id="btn-help-reload" title="重新加载外观运行时">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl59_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl59_ring" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl59_bolt" x1="24" y1="16" x2="40" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 10C19.8497 10 10 19.8497 10 32C10 44.1503 19.8497 54 32 54C41.9 54 50.3 47.4 53.1 38.4" stroke="url(#fl59_ring)" stroke-width="6" stroke-linecap="round" filter="url(#fl59_sh)"/>
+  <path d="M42 10H54V22" stroke="#50E6FF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M35 16L22 34H32L29 48L42 30H32L35 16Z" fill="url(#fl59_bolt)"/>
+</svg>
+                <span data-i18n="btnReloadRuntime">重新加载</span>
+              </button>
+            </div>
+          </div>
+          <div class="group-label" data-i18n="grpDocsSupport">文档与支持</div>
+        </div>
+      </div>
+
+      <!-- Panel: 设计(G) - 幻灯片版式与歌词页样式 -->
+      <div class="ribbon-panel" id="panel-design">
+        <!-- 幻灯片版式与歌词页样式选择区 -->
+        <div class="ribbon-group" id="grp-slide-layouts">
+          <div class="group-content">
+            <div class="layout-cards-strip">
+              <!-- Style 1: 经典黑胶唱机 -->
+              <button class="ribbon-layout-card active" id="btn-layout-ppt-vinyl" data-layout="ppt-vinyl" title="切换至 PowerPoint 经典黑胶唱机排版">
+                <div class="layout-card-preview preview-vinyl">
+                  <div class="preview-mini-disc"></div>
+                  <div class="preview-mini-lines"><span></span><span></span><span></span></div>
+                </div>
+                <div class="layout-card-info">
+                  <span class="layout-card-title" data-i18n="layoutVinylTitle">经典黑胶</span>
+                  <span class="layout-card-desc" data-i18n="layoutVinylDesc">唱机与参数</span>
+                </div>
+              </button>
+
+              <!-- Style 2: 网易云音乐歌词页样式 -->
+              <button class="ribbon-layout-card" id="btn-layout-netease" data-layout="netease" title="切换至网易云音乐歌词页样式">
+                <div class="layout-card-preview preview-netease">
+                  <div class="preview-mini-cover"></div>
+                  <div class="preview-mini-lines"><span></span><span></span><span></span></div>
+                </div>
+                <div class="layout-card-info">
+                  <span class="layout-card-title" data-i18n="layoutNeteaseTitle">网易云样式</span>
+                  <span class="layout-card-desc" data-i18n="layoutNeteaseDesc">大封面与歌词</span>
+                </div>
+              </button>
+
+              <!-- Style 3: Apple Music 歌词页样式 -->
+              <button class="ribbon-layout-card" id="btn-layout-applemusic" data-layout="applemusic" title="切换至 Apple Music 歌词页样式">
+                <div class="layout-card-preview preview-applemusic">
+                  <div class="preview-mini-cover am-cover"></div>
+                  <div class="preview-mini-lines am-lines"><span></span><span></span><span></span></div>
+                </div>
+                <div class="layout-card-info">
+                  <span class="layout-card-title" data-i18n="layoutAppleTitle">Apple Music</span>
+                  <span class="layout-card-desc" data-i18n="layoutAppleDesc">动感渐变全景</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <span class="group-label" data-i18n="grpSlideLayoutStyle">幻灯片版式样式</span>
+        </div>
+
+        <!-- 变体与背景格式 -->
+        <div class="ribbon-group" id="grp-design-format">
+          <div class="group-content">
+            <div class="tool-stack">
+              <div class="ribbon-slider-row">
+                <span class="slider-label" data-i18n="lblOverlay">底纹遮罩:</span>
+                <input type="range" class="ribbon-slider" id="design-rng-overlay" min="0" max="80" value="25" title="调整幻灯片底纹遮罩不透明度">
+                <span class="slider-val" id="design-lbl-overlay">25%</span>
+              </div>
+              <div class="ribbon-slider-row">
+                <span class="slider-label" data-i18n="lblBlur">高斯模糊:</span>
+                <input type="range" class="ribbon-slider" id="design-rng-blur" min="0" max="64" value="16" title="调整幻灯片背景封面高斯模糊半径">
+                <span class="slider-val" id="design-lbl-blur">16px</span>
+              </div>
+            </div>
+            <div class="tool-stack">
+              <button class="ribbon-tool-btn" id="btn-design-theme-toggle" title="切换 Office 日间 / 暗黑主题">
+                <svg viewBox="0 0 64 64" class="ico fluent-svg">
+                  <defs>
+                    <linearGradient id="des-th-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#ff9900"/>
+                      <stop offset="100%" stop-color="#e05330"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="32" cy="32" r="20" fill="url(#des-th-grad)"/>
+                  <path d="M32 14v6M32 44v6M14 32h6M44 32h6" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span data-i18n="btnThemeMode">主题模式</span>
+              </button>
+              <button class="ribbon-tool-btn" id="btn-design-reset-bg" title="重置背景格式为默认值">
+                <svg viewBox="0 0 64 64" class="ico fluent-svg">
+                  <path d="M18 32a14 14 0 1 1 4.5 10.2l-3.5 3.8" stroke="#e05330" stroke-width="4" stroke-linecap="round" fill="none"/>
+                  <polyline points="14,40 19,46 25,41" stroke="#e05330" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                <span data-i18n="btnResetBg">重置背景</span>
+              </button>
+            </div>
+          </div>
+          <span class="group-label" data-i18n="grpBgVariants">背景与变体</span>
+        </div>
+      </div>
+
+    </div>
+  </nav>
+
+  <!-- Main Presentation Workspace Area -->
+  <div class="ppt-workspace-body" id="ppt-workspace-body">
+    <!-- Left: Slide Thumbnails Panel (播放队列专辑封面与歌曲名称) -->
+    <aside class="ppt-thumbnails-panel" id="ppt-thumbnails-panel" aria-label="幻灯片播放队列">
+      <div class="thumbnails-header">
+        <span class="th-title" data-i18n="queuePanelTitle">幻灯片播放队列</span>
+        <span class="th-badge" id="queue-count-badge">0 首</span>
+      </div>
+      <div class="thumbnails-list" id="thumbnails-list" role="listbox" aria-label="曲目幻灯片缩略图列表">
+        <!-- Dynamically injected slide cards (1, 2, 3...) -->
+      </div>
+    </aside>
+
+    <!-- Center: Main Slide Presentation Stage -->
+    <main class="ppt-stage-area" id="ppt-stage-area">
+      <!-- 16:9 PowerPoint Slide Frame (Zoom Scale dynamically applied here) -->
+      <div class="ppt-slide-container" id="ppt-slide-container">
+        <div class="ppt-slide" id="ppt-slide">
+          <!-- Slide Background Cover Image -->
+          <div class="slide-bg-cover" id="slide-bg-cover"></div>
+          <!-- 20% Opacity White Overlay as specified in mockup -->
+          <div class="slide-bg-overlay" id="slide-bg-overlay"></div>
+          <!-- Apple Music Style Fluid Gradient Mesh Backdrop -->
+          <div class="am-fluid-mesh-bg" id="am-fluid-mesh-bg"></div>
+
+          <!-- ============================================================== -->
+          <!-- Layout 1: PowerPoint 经典黑胶唱机样式 (Classic Vinyl Turntable) -->
+          <!-- ============================================================== -->
+          <div class="slide-content-layout layout-mode-vinyl active" id="slide-layout-vinyl">
+            <!-- Left Column: Ultra-Realistic Vinyl Turntable + Floating Audio Specs -->
+            <div class="slide-col-left">
+              <!-- Rebuilt Ultra-Realistic Modern Vinyl Turntable Component (Tonearm Removed, Disc Centered) -->
+              <div class="turntable-component" id="turntable-component" title="单击唱片切换播放/暂停">
+                <div class="turntable-deck">
+                  <!-- Turntable Platter Base Ring -->
+                  <div class="platter-base"></div>
+                  <!-- Vinyl Record Disc Assembly -->
+                  <div class="vinyl-disc-assembly">
+                    <div class="vinyl-record-disc" id="vinyl-record-disc">
+                      <!-- Sound Grooves Layer -->
+                      <div class="vinyl-grooves"></div>
+                      <!-- Realistic Dual-Cone Specular Light Sheen -->
+                      <div class="vinyl-sheen"></div>
+                      <!-- Center Album Cover Label (Enlarged) -->
+                      <div class="vinyl-center-label" id="vinyl-center-label">
+                        <img src="" alt="" class="cover-img" id="cover-img">
+                        <!-- Default Vinyl Label Fallback (Ensures Record Never Appears Empty) -->
+                        <div class="vinyl-label-fallback" id="vinyl-label-fallback">
+                          <svg viewBox="0 0 64 64" width="48" height="48" class="fluent-svg">
+                            <defs>
+                              <linearGradient id="v-lbl-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#ff7a4d"/>
+                                <stop offset="100%" stop-color="#b02e0c"/>
+                              </linearGradient>
+                            </defs>
+                            <circle cx="32" cy="32" r="28" fill="url(#v-lbl-grad)"/>
+                            <circle cx="32" cy="32" r="10" fill="#201f1e"/>
+                            <path d="M28 24v16M28 24l12 8-12 8" fill="#ffffff"/>
+                          </svg>
+                        </div>
+                        <!-- Spindle Hub & Cap -->
+                        <div class="center-spindle-hub">
+                          <div class="center-spindle-pin"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Song Info Float -->
+                <div class="vinyl-meta-info">
+                  <h3 class="track-title" id="meta-track-title">等待播放歌曲</h3>
+                  <p class="track-artist" id="meta-track-artist">陈致逸 / HOYO-MiX</p>
+                  <p class="track-album" id="meta-track-album">原神-漩涡、落星与冰山</p>
+                </div>
+              </div>
+
+              <!-- Sleek Floating Audio Specs Pills (No box headers, no dashed borders, no shape fill) -->
+              <div class="audio-specs-floating" id="audio-specs-floating">
+                <div class="specs-pills-row">
+                  <span class="spec-pill codec-pill" id="prop-codec">FLAC</span>
+                  <span class="spec-pill" id="prop-bitdepth">24-bit</span>
+                  <span class="spec-pill" id="prop-samplerate">44.1 kHz</span>
+                  <span class="spec-pill" id="prop-bitrate">1256 kbps</span>
+                  <span class="spec-pill" id="prop-channels">双声道立体声</span>
+                  <span class="spec-pill" id="prop-backend">WASAPI Shared</span>
+                </div>
+                <!-- Sleek Mini Floating VU Level Meter -->
+                <div class="floating-vu-meter">
+                  <span class="vu-tag">LEVEL</span>
+                  <div class="vu-track">
+                    <div class="vu-fill" id="vu-meter-fill"></div>
+                    <div class="vu-peak-indicator" id="vu-peak-dot"></div>
+                  </div>
+                  <span class="vu-reading" id="vu-db-text">-60.0 dBFS</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Column: Big Floating Lyrics Presentation (Crisp, High-Performance Typography) -->
+            <div class="slide-col-right">
+              <div class="lyrics-floating-container" id="lyrics-scroll-container">
+                <div class="lyrics-lines-list" id="lyrics-lines-list">
+                  <div class="lyric-initial-notice">
+                    <p>正在连接 ECHO 播放器歌词流...</p>
+                    <small>可在上方【开始】或【设计】功能区自由定制版式、字体与配色</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================== -->
+          <!-- Layout 2: 网易云音乐歌词页样式 (NetEase Cloud Music Style) -->
+          <!-- ============================================================== -->
+          <div class="slide-content-layout layout-mode-netease" id="slide-layout-netease" hidden>
+            <!-- Left: Large Square Album Art -->
+            <div class="ne-cover-col">
+              <div class="ne-cover-wrapper" title="单击切换播放/暂停">
+                <img src="" alt="" class="ne-cover-img" id="ne-cover-img">
+                <div class="ne-cover-reflection"></div>
+              </div>
+            </div>
+
+            <!-- Right: Title, Metadata, Capsule Bar & Synced Lyrics Stream -->
+            <div class="ne-info-col">
+              <div class="ne-header-block">
+                <h2 class="ne-track-title" id="ne-track-title">等待播放歌曲</h2>
+                <div class="ne-meta-line">
+                  <span class="ne-meta-item"><span class="ne-meta-label" data-i18n="neAlbum">专辑:</span> <span id="ne-meta-album">—</span></span>
+                  <span class="ne-meta-item"><span class="ne-meta-label" data-i18n="neArtist">歌手:</span> <span id="ne-meta-artist">—</span></span>
+                  <span class="ne-meta-item"><span class="ne-meta-label" data-i18n="neSource">来源:</span> <span id="ne-meta-source">ECHO 曲库</span></span>
+                </div>
+                <!-- Pure Playback Tabs Bar (Promotion elements omitted per instructions) -->
+                <div class="ne-capsules-bar">
+                  <button class="ne-capsule-btn active" type="button" data-i18n="lyricsWord">歌词</button>
+                </div>
+              </div>
+
+              <!-- Synced Lyrics Scroll Area -->
+              <div class="ne-lyrics-scroll" id="ne-lyrics-scroll">
+                <div class="ne-lyrics-lines" id="ne-lyrics-lines">
+                  <div class="ne-empty-hint">
+                    <p>纯音乐，请欣赏</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================================== -->
+          <!-- Layout 3: Apple Music 歌词页样式 (Apple Music Fluid Dynamic Style) -->
+          <!-- ============================================================== -->
+          <div class="slide-content-layout layout-mode-applemusic" id="slide-layout-applemusic" hidden>
+            <!-- Left Side Column: Cover, Meta, and Integrated Player Controls -->
+            <div class="am-side-col">
+              <!-- Rounded Square Artwork -->
+              <div class="am-cover-card" title="单击切换播放/暂停">
+                <img src="" alt="" class="am-cover-img" id="am-cover-img">
+              </div>
+
+              <!-- Typography & Actions -->
+              <div class="am-track-meta">
+                <div class="am-title-row">
+                  <h3 class="am-track-title" id="am-track-title">等待播放歌曲</h3>
+                  <div class="am-action-icons">
+                    <button class="am-btn-icon" id="am-btn-star" title="喜欢曲目" type="button">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <path d="M12 2l2.9 6.6 7.1.6-5.3 4.7 1.6 7-6.3-3.8-6.3 3.8 1.6-7-5.3-4.7 7.1-.6z"/>
+                      </svg>
+                    </button>
+                    <button class="am-btn-icon" id="am-btn-more" title="曲目选项" type="button">
+                      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                        <circle cx="5" cy="12" r="2"/>
+                        <circle cx="12" cy="12" r="2"/>
+                        <circle cx="19" cy="12" r="2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="am-track-artist-album" id="am-track-artist-album">歌手 — 专辑</div>
+              </div>
+
+              <!-- Apple Music Style Integrated In-Slide Controls -->
+              <div class="am-transport-box">
+                <div class="am-progress-bar-wrap">
+                  <input type="range" class="am-progress-slider" id="am-progress-slider" min="0" max="1000" value="0">
+                  <div class="am-time-labels">
+                    <span class="am-time-cur" id="am-time-cur">0:00</span>
+                    <span class="am-time-rem" id="am-time-rem">-0:00</span>
+                  </div>
+                </div>
+                <div class="am-controls-row">
+                  <button class="am-ctrl-btn" id="am-btn-shuffle" title="随机播放" type="button">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/>
+                    </svg>
+                  </button>
+                  <button class="am-ctrl-btn" id="am-btn-prev" title="上一首" type="button">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                      <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                    </svg>
+                  </button>
+                  <button class="am-ctrl-btn am-btn-play" id="am-btn-play" title="播放 / 暂停" type="button">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" id="am-ico-play">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </button>
+                  <button class="am-ctrl-btn" id="am-btn-next" title="下一首" type="button">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                      <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                    </svg>
+                  </button>
+                  <button class="am-ctrl-btn" id="am-btn-repeat" title="循环模式" type="button">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                      <path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+                    </svg>
+                  </button>
+                </div>
+                <div class="am-volume-row">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" class="am-vol-ico">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+                  </svg>
+                  <input type="range" class="am-volume-slider" id="am-volume-slider" min="0" max="100" value="54">
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side Column: Large Apple Music Bold Synchronized Lyrics -->
+            <div class="am-lyrics-col">
+              <div class="am-lyrics-scroll" id="am-lyrics-scroll">
+                <div class="am-lyrics-lines" id="am-lyrics-lines">
+                  <!-- Apple Music Styled Lines -->
+                </div>
+              </div>
+              <!-- Floating Lyrics Icon Bubble -->
+              <!-- Floating Lyrics Icon Bubble (Hidden) -->
+              <div class="am-bubble-wrap" style="display: none !important;">
+                <button class="am-lyrics-bubble-btn" id="am-lyrics-bubble-btn" title="歌词视图" type="button" style="display: none !important;"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Bottom Presenter Notes & Full Playback Controls -->
+  <footer class="ppt-footer-control">
+    <!-- Presenter Notes Bar -->
+    <div class="ppt-notes-bar" id="ppt-notes-bar">
+      <div class="notes-drag-handle" title="拖动调节备注栏高度"></div>
+      <div class="notes-header">
+        <span class="notes-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="note-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffae0"/>
+      <stop offset="100%" stop-color="#ffe699"/>
+    </linearGradient>
+    <linearGradient id="note-pen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0078d4"/>
+      <stop offset="100%" stop-color="#004e8c"/>
+    </linearGradient>
+  </defs>
+  <!-- Notepad Page -->
+  <rect x="10" y="8" width="40" height="48" rx="6" fill="url(#note-bg)" stroke="#e0c060" stroke-width="2"/>
+  <!-- Ruled Lines -->
+  <line x1="18" y1="20" x2="42" y2="20" stroke="#d0a840" stroke-width="3" stroke-linecap="round"/>
+  <line x1="18" y1="28" x2="38" y2="28" stroke="#d0a840" stroke-width="3" stroke-linecap="round"/>
+  <line x1="18" y1="36" x2="40" y2="36" stroke="#d0a840" stroke-width="3" stroke-linecap="round"/>
+  <line x1="18" y1="44" x2="32" y2="44" stroke="#d0a840" stroke-width="3" stroke-linecap="round"/>
+  <!-- Stylized Blue Pen -->
+  <path d="M42 38l12-12a3 3 0 0 1 4 4L46 42l-6 2 2-6z" fill="url(#note-pen)"/>
+</svg>
+        </span>
+        <input type="text" class="notes-input" id="notes-input" placeholder="单击此处添加演示文稿备注 (当前曲目信息与备忘录)" value="单击此处添加演示文稿备注 (当前曲目信息与备忘录)">
+      </div>
+    </div>
+
+    <!-- Integrated Audio Player Control Bar -->
+    <div class="ppt-player-bar" id="ppt-player-bar" role="region" aria-label="走带控制栏">
+      <!-- Left: Track Mini Info -->
+      <div class="pc-track-left">
+        <div class="pc-title" id="pc-title">等待播放歌曲</div>
+        <div class="pc-artist" id="pc-artist">陈致逸 / HOYO-MiX</div>
+      </div>
+
+      <!-- Center: Transport & Progress -->
+      <div class="pc-transport-center">
+        <div class="transport-buttons">
+          <button class="t-btn" id="btn-t-shuffle" title="随机播放" aria-label="随机播放">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="shuf-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <path d="M42 16h8m0 0l-7-7m7 7l-7 7M10 20h12l16 24h10m0 0l-7-7m7 7l-7 7M10 44h12l5-7.5M37 27.5L42 20h8" stroke="url(#shuf-grad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
+          </button>
+          <button class="t-btn" id="btn-t-prev" title="上一首 (Ctrl+←)" aria-label="上一首">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="tp-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+  </defs>
+  <!-- Bar -->
+  <rect x="12" y="14" width="6" height="36" rx="3" fill="url(#tp-grad)"/>
+  <!-- Leftward Arrow / Double Triangle -->
+  <path d="M48 16a2 2 0 0 0-3.2-1.6L24 30.4a2 2 0 0 0 0 3.2l20.8 16a2 2 0 0 0 3.2-1.6V16z" fill="url(#tp-grad)"/>
+</svg>
+          </button>
+          <button class="t-btn t-btn-main" id="btn-t-play" title="播放 / 暂停 (空格键)" aria-label="播放">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico-main fluent-svg" id="ico-play-main">
+  <defs>
+    <linearGradient id="tpl-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f26522"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+    <filter id="tpl-drop" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.3" flood-color="#a0280a"/>
+    </filter>
+  </defs>
+  <path d="M20 15a3 3 0 0 1 4.6-2.5l28 17a3 3 0 0 1 0 5l-28 17A3 3 0 0 1 20 49V15z" fill="url(#tpl-grad)" filter="url(#tpl-drop)"/>
+</svg>
+          </button>
+          <button class="t-btn" id="btn-t-next" title="下一首 (Ctrl+→)" aria-label="下一首">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="tn-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 16a2 2 0 0 1 3.2-1.6L40 30.4a2 2 0 0 1 0 3.2l-20.8 16A2 2 0 0 1 16 48V16z" fill="url(#tn-grad)"/>
+  <rect x="46" y="14" width="6" height="36" rx="3" fill="url(#tn-grad)"/>
+</svg>
+          </button>
+          <button class="t-btn" id="btn-t-repeat" title="循环模式 (全部 / 单曲 / 顺序)" aria-label="循环播放">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg">
+  <defs>
+    <linearGradient id="rep-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <!-- Circular Loop Arrows -->
+  <path d="M20 18h24a10 10 0 0 1 10 10v4m0 0l-6-6m6 6l6-6M44 46H20A10 10 0 0 1 10 36v-4m0 0l6 6m-6-6l-6 6" stroke="url(#rep-grad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
+          </button>
+        </div>
+
+        <div class="progress-bar-row">
+          <span class="time-text" id="time-current">00:00</span>
+          <div class="progress-slider-wrap">
+            <input type="range" class="progress-slider" id="rng-progress" min="0" max="1000" value="0" title="进度控制">
+            <div class="progress-slider-fill" id="progress-fill"></div>
+          </div>
+          <span class="time-text" id="time-total">00:00</span>
+        </div>
+      </div>
+
+      <!-- Right: Volume Slider -->
+      <div class="pc-volume-right">
+        <button class="vol-btn" id="btn-mute" title="静音" aria-label="静音">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico fluent-svg" id="ico-volume">
+  <defs>
+    <linearGradient id="vol-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#55a3ff"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <!-- Speaker Cone -->
+  <path d="M12 24h10l12-10a2 2 0 0 1 3.3 1.5v33a2 2 0 0 1-3.3 1.5l-12-10H12a3 3 0 0 1-3-3V27a3 3 0 0 1 3-3z" fill="url(#vol-grad)"/>
+  <!-- Sound Waves -->
+  <path d="M43 22a14 14 0 0 1 0 20" stroke="url(#vol-grad)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+  <path d="M50 14a24 24 0 0 1 0 36" stroke="url(#vol-grad)" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+</svg>
+        </button>
+        <input type="range" class="vol-slider" id="rng-volume" min="0" max="100" value="100" title="音量调节" aria-label="音量">
+        <span class="vol-percent" id="lbl-volume">100%</span>
+      </div>
+    </div>
+
+    <!-- PowerPoint Classic Status Bar -->
+    <div class="ppt-statusbar" role="status">
+      <div class="sb-left">
+        <span class="sb-item sb-slide-counter" id="sb-slide-counter">幻灯片 1 共 1 张</span>
+        <span class="sb-sep">|</span>
+        <span class="sb-item" title="拼写检查：已就绪">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico-spell fluent-svg">
+  <defs>
+    <linearGradient id="spell-book" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e1dfdd"/>
+    </linearGradient>
+    <linearGradient id="spell-check" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#27ae60"/>
+      <stop offset="100%" stop-color="#147d3f"/>
+    </linearGradient>
+  </defs>
+  <!-- Book Body -->
+  <rect x="8" y="12" width="48" height="38" rx="6" fill="url(#spell-book)" stroke="#a19f9d" stroke-width="2"/>
+  <line x1="32" y1="12" x2="32" y2="50" stroke="#8a8886" stroke-width="2"/>
+  <line x1="14" y1="22" x2="26" y2="22" stroke="#a19f9d" stroke-width="3" stroke-linecap="round"/>
+  <line x1="14" y1="30" x2="24" y2="30" stroke="#a19f9d" stroke-width="3" stroke-linecap="round"/>
+  <!-- Large Green Proofing Checkmark -->
+  <path d="M24 38l10 10 22-22" stroke="url(#spell-check)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
+          <span data-i18n="spellCheckOk">无拼写错误</span>
+        </span>
+        <span class="sb-sep">|</span>
+        <div class="sb-lang-pill" id="sb-lang-pill" title="切换语言 / Switch Language">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg" width="14" height="14">
+  <defs>
+    <linearGradient id="lang-globe" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <!-- Globe Grid -->
+  <circle cx="32" cy="32" r="24" stroke="url(#lang-globe)" stroke-width="4.5" fill="none"/>
+  <ellipse cx="32" cy="32" rx="12" ry="24" stroke="url(#lang-globe)" stroke-width="3.5" fill="none"/>
+  <line x1="8" y1="32" x2="56" y2="32" stroke="url(#lang-globe)" stroke-width="3.5"/>
+</svg>
+          <span id="sb-lang-text">简体中文</span>
+          <div class="sb-lang-dropdown" id="sb-lang-dropdown" hidden>
+            <div class="sb-lang-item active" data-lang="zh-CN">简体中文 (Chinese)</div>
+            <div class="sb-lang-item" data-lang="en-US">English (US)</div>
+            <div class="sb-lang-item" data-lang="fr-FR">Français (French)</div>
+            <div class="sb-lang-item" data-lang="es-ES">Español (Spanish)</div>
+            <div class="sb-lang-item" data-lang="ru-RU">Русский (Russian)</div>
+            <div class="sb-lang-item" data-lang="ar-SA">العربية (Arabic)</div>
+            <div class="sb-lang-item" data-lang="ja-JP">日本語 (Japanese)</div>
+            <div class="sb-lang-item" data-lang="ko-KR">한국어 (Korean)</div>
+            <div class="sb-lang-item" data-lang="zh-TW">繁體中文 (Traditional)</div>
+          </div>
+        </div>
+        <span class="sb-sep">|</span>
+        <span class="sb-item sb-lyric-stats" id="sb-lyric-stats" title="歌词字数统计 (已播放字数 / 歌词总字数)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="ico-spell fluent-svg">
+  <defs>
+    <linearGradient id="stats-doc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#55a3ff"/>
+      <stop offset="100%" stop-color="#1967d2"/>
+    </linearGradient>
+  </defs>
+  <!-- Document Sheet -->
+  <path d="M14 8h24l12 12v32a4 4 0 0 1-4 4H14a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4z" fill="#ffffff" stroke="url(#stats-doc)" stroke-width="4"/>
+  <!-- Folded Corner -->
+  <path d="M38 8v12h12" fill="#cbe0fc"/>
+  <!-- Word Stat Lines -->
+  <line x1="18" y1="24" x2="32" y2="24" stroke="url(#stats-doc)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="18" y1="32" x2="42" y2="32" stroke="url(#stats-doc)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="18" y1="40" x2="36" y2="40" stroke="url(#stats-doc)" stroke-width="4" stroke-linecap="round"/>
+</svg>
+          <span id="sb-lyric-stats-text">歌词: 0 / 0 字</span>
+        </span>
+      </div>
+
+      <div class="sb-right">
+        <button class="sb-btn" id="btn-sb-notes" title="切换备注栏">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="sbn-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#605e5c"/>
+      <stop offset="100%" stop-color="#323130"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="10" width="40" height="44" rx="4" fill="none" stroke="url(#sbn-grad)" stroke-width="5"/>
+  <line x1="20" y1="20" x2="44" y2="20" stroke="url(#sbn-grad)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="20" y1="28" x2="44" y2="28" stroke="url(#sbn-grad)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="20" y1="36" x2="36" y2="36" stroke="url(#sbn-grad)" stroke-width="4" stroke-linecap="round"/>
+</svg>
+        <span data-i18n="notes">备注</span>
+      </button>
+        <button class="sb-btn" id="btn-sb-comments" title="批注">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="comm-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#55a3ff"/>
+      <stop offset="100%" stop-color="#1967d2"/>
+    </linearGradient>
+  </defs>
+  <!-- Speech Bubble -->
+  <path d="M12 14a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v22a6 6 0 0 1-6 6H24l-10 9v-9h-2a6 6 0 0 1-6-6V14z" fill="url(#comm-grad)"/>
+  <!-- Three Dots -->
+  <circle cx="24" cy="25" r="3" fill="#ffffff"/>
+  <circle cx="32" cy="25" r="3" fill="#ffffff"/>
+  <circle cx="40" cy="25" r="3" fill="#ffffff"/>
+</svg>
+        <span data-i18n="comments">批注</span>
+      </button>
+        <div class="sb-view-toggles">
+          <button class="sb-icon-btn active" id="btn-view-normal" title="普通视图">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="vnorm-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer Window Frame -->
+  <rect x="8" y="10" width="48" height="44" rx="4" fill="none" stroke="url(#vnorm-grad)" stroke-width="4"/>
+  <!-- Left Thumbnail Strip -->
+  <rect x="8" y="10" width="16" height="44" rx="2" fill="url(#vnorm-grad)" opacity="0.3"/>
+  <rect x="11" y="16" width="10" height="7" rx="1.5" fill="url(#vnorm-grad)"/>
+  <rect x="11" y="27" width="10" height="7" rx="1.5" fill="url(#vnorm-grad)"/>
+  <!-- Main Slide Canvas -->
+  <rect x="28" y="18" width="24" height="18" rx="2" fill="url(#vnorm-grad)" opacity="0.85"/>
+</svg>
+        </button>
+          <button class="sb-icon-btn" id="btn-view-sorter" title="幻灯片浏览">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="vsort-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ea5b2d"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+  </defs>
+  <!-- 2x2 Slide Grid -->
+  <rect x="10" y="12" width="18" height="15" rx="3" fill="url(#vsort-grad)"/>
+  <rect x="36" y="12" width="18" height="15" rx="3" fill="url(#vsort-grad)"/>
+  <rect x="10" y="37" width="18" height="15" rx="3" fill="url(#vsort-grad)"/>
+  <rect x="36" y="37" width="18" height="15" rx="3" fill="url(#vsort-grad)"/>
+</svg>
+        </button>
+          <button class="sb-icon-btn" id="btn-view-reader" title="阅读视图">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="vread-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4a90e2"/>
+      <stop offset="100%" stop-color="#1a5fb4"/>
+    </linearGradient>
+  </defs>
+  <!-- Left Page -->
+  <path d="M10 14h18v36H10a4 4 0 0 1-4-4V18a4 4 0 0 1 4-4z" fill="url(#vread-grad)"/>
+  <!-- Right Page -->
+  <path d="M36 14h18a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H36V14z" fill="url(#vread-grad)"/>
+  <!-- Middle Spine -->
+  <rect x="30" y="12" width="4" height="40" rx="2" fill="#2d72d2"/>
+</svg>
+        </button>
+          <button class="sb-icon-btn" id="btn-view-slideshow" title="幻灯片放映 (F5)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" class="fluent-svg">
+  <defs>
+    <linearGradient id="vshow-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f26522"/>
+      <stop offset="100%" stop-color="#c43e1c"/>
+    </linearGradient>
+  </defs>
+  <path d="M18 16a2 2 0 0 1 3.1-1.7l26 15a2 2 0 0 1 0 3.4l-26 15A2 2 0 0 1 18 46V16z" fill="url(#vshow-grad)"/>
+</svg>
+        </button>
+        </div>
+        <!-- Zoom Controls (Direct Inline Transform Driven) -->
+        <div class="sb-zoom-controls">
+          <button class="zoom-btn" id="btn-zoom-out" title="缩小幻灯片">－</button>
+          <input type="range" class="zoom-slider" id="rng-zoom" min="50" max="200" value="100">
+          <button class="zoom-btn" id="btn-zoom-in" title="放大幻灯片">＋</button>
+          <span class="zoom-label" id="lbl-zoom">100%</span>
+          <button class="sb-btn btn-fit-window" id="btn-fit-window" title="适应当前窗口" data-i18n="fitWindow">适应</button>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Office Backstage Modal (文件菜单) -->
+  <div class="ppt-modal-backdrop" id="modal-backdrop" hidden>
+    <div class="ppt-modal-dialog" role="dialog" aria-modal="true">
+      <div class="modal-nav">
+        <button class="modal-back-btn" id="btn-modal-back" title="返回演示文稿 (Esc)" aria-label="返回演示文稿">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-back fluent-svg">
+  <defs>
+    <filter id="fl60_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl60_bg" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="24" fill="url(#fl60_bg)" filter="url(#fl60_sh)"/>
+  <path d="M35 20L23 32L35 44M24 32H43" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+        </button>
+        <div class="modal-nav-items">
+          <div class="nav-item active" data-tab="info" id="nav-tab-info" ><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-nav fluent-svg">
+  <defs>
+    <filter id="fl61_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl61_doc" x1="10" y1="8" x2="46" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#C8C6C4"/>
+    </linearGradient>
+    <linearGradient id="fl61_bdg" x1="30" y1="30" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="8" width="36" height="46" rx="6" fill="url(#fl61_doc)" filter="url(#fl61_sh)"/>
+  <rect x="17" y="17" width="22" height="4" rx="2" fill="#0078D4"/>
+  <rect x="17" y="25" width="16" height="4" rx="2" fill="#605E5C"/>
+  <rect x="17" y="33" width="12" height="4" rx="2" fill="#8A8886"/>
+  <circle cx="43" cy="43" r="13" fill="url(#fl61_bdg)" filter="url(#fl61_sh)"/>
+  <circle cx="43" cy="37.5" r="2" fill="#FFFFFF"/>
+  <rect x="41.2" y="41.5" width="3.6" height="9" rx="1.8" fill="#FFFFFF"/>
+</svg><span data-i18n="navInfo">信息</span></div>
+          <div class="nav-item" data-tab="playlists" id="nav-tab-playlists" ><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-nav fluent-svg">
+  <defs>
+    <filter id="fl62_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#4A2500" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl62_bk" x1="6" y1="10" x2="58" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFB900"/>
+      <stop offset="100%" stop-color="#D83B01"/>
+    </linearGradient>
+    <linearGradient id="fl62_fr" x1="6" y1="22" x2="58" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#F7630C"/>
+    </linearGradient>
+  </defs>
+  <path d="M6 16C6 12.6863 8.68629 10 12 10H25L31 16H52C55.3137 16 58 18.6863 58 22V48C58 51.3137 55.3137 54 52 54H12C8.68629 54 6 51.3137 6 48V16Z" fill="url(#fl62_bk)"/>
+  <rect x="14" y="14" width="36" height="22" rx="4" fill="#FFFFFF" filter="url(#fl62_sh)"/>
+  <rect x="6" y="24" width="52" height="30" rx="6" fill="url(#fl62_fr)" filter="url(#fl62_sh)"/>
+  <path d="M35 32V42.5C35 44.7 33.2 46.5 31 46.5C28.8 46.5 27 44.7 27 42.5C27 40.3 28.8 38.5 31 38.5C31.6 38.5 32.1 38.6 32.6 38.8V31C32.6 30.2 33.2 29.5 34 29.5H39C39.8 29.5 40.5 30.2 40.5 31V33H35V32Z" fill="#FFFFFF"/>
+</svg><span data-i18n="navPlaylists">打开与导入歌单</span></div>
+          <div class="nav-item" data-tab="options" id="nav-tab-options" ><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico-nav fluent-svg">
+  <defs>
+    <filter id="fl63_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2.5" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <linearGradient id="fl63_k1" x1="18" y1="12" x2="30" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF7A4D"/>
+      <stop offset="100%" stop-color="#C43E1C"/>
+    </linearGradient>
+    <linearGradient id="fl63_k2" x1="36" y1="26" x2="48" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="100%" stop-color="#0078D4"/>
+    </linearGradient>
+    <linearGradient id="fl63_k3" x1="22" y1="40" x2="34" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="15" width="48" height="6" rx="3" fill="#C8C6C4"/>
+  <rect x="8" y="29" width="48" height="6" rx="3" fill="#C8C6C4"/>
+  <rect x="8" y="43" width="48" height="6" rx="3" fill="#C8C6C4"/>
+  <circle cx="24" cy="18" r="7" fill="url(#fl63_k1)" filter="url(#fl63_sh)"/>
+  <circle cx="42" cy="32" r="7" fill="url(#fl63_k2)" filter="url(#fl63_sh)"/>
+  <circle cx="28" cy="46" r="7" fill="url(#fl63_k3)" filter="url(#fl63_sh)"/>
+</svg><span data-i18n="navOptions">主题选项</span></div>
+          <div class="nav-item" data-tab="about" id="nav-tab-about" data-i18n="navAbout">关于插件</div>
+        </div>
+      </div>
+
+      <!-- Tab Pane 1: 信息 -->
+      <div class="modal-body-content modal-tab-pane active" id="pane-modal-info">
+        <h2 data-i18n="infoTitle">Microsoft PowerPoint · 音频与文档信息</h2>
+        <p class="modal-sub" data-i18n="infoSub">当前演示文稿音轨属性、硬件规格与宿主运行状态概览。</p>
+        <div class="info-card">
+          <div class="info-section-title" data-i18n="infoSecTrack">曲目与元数据</div>
+          <div class="info-grid-2col">
+            <div class="info-row"><strong data-i18n="infoTrackTitle">当前曲目：</strong> <span id="m-track-title">—</span></div>
+            <div class="info-row"><strong data-i18n="infoTrackArtist">艺术家：</strong> <span id="m-track-artist">—</span></div>
+            <div class="info-row"><strong data-i18n="infoTrackAlbum">专辑：</strong> <span id="m-track-album">—</span></div>
+            <div class="info-row"><strong data-i18n="infoTrackPath">存储路径：</strong> <span id="m-track-path" style="word-break: break-all;">—</span></div>
+          </div>
+
+          <div class="info-section-title" data-i18n="infoSecAudio">音频硬件与解码规格</div>
+          <div class="info-grid-2col">
+            <div class="info-row"><strong data-i18n="infoCodec">编码格式：</strong> <span id="m-audio-codec" class="info-tag">FLAC</span></div>
+            <div class="info-row"><strong data-i18n="infoSampleRate">采样率：</strong> <span id="m-audio-samplerate">44.1 kHz</span></div>
+            <div class="info-row"><strong data-i18n="infoBitDepth">量化位深：</strong> <span id="m-audio-bitdepth">24-bit</span></div>
+            <div class="info-row"><strong data-i18n="infoChannels">声道配置：</strong> <span id="m-audio-channels">立体声 (2.0)</span></div>
+            <div class="info-row"><strong data-i18n="infoBitrate">瞬时比特率：</strong> <span id="m-audio-bitrate">—</span></div>
+            <div class="info-row"><strong data-i18n="infoBackend">音频输出后端：</strong> <span id="m-audio-backend">ECHO Core Audio</span></div>
+          </div>
+
+          <div class="info-section-title" data-i18n="infoSecEngine">播放引擎与渲染状态</div>
+          <div class="info-grid-2col">
+            <div class="info-row"><strong data-i18n="infoPlayState">播放状态：</strong> <span id="m-play-state">已暂停</span></div>
+            <div class="info-row"><strong data-i18n="infoProgress">当前进度：</strong> <span id="m-audio-progress">00:00 / 00:00</span></div>
+            <div class="info-row"><strong data-i18n="infoLevels">峰值与 RMS：</strong> <span id="m-audio-levels">-24.0 dB / -34.9 dB</span></div>
+            <div class="info-row"><strong data-i18n="infoVolume">主音量：</strong> <span id="m-audio-volume">54%</span></div>
+            <div class="info-row"><strong data-i18n="infoLyricsType">歌词状态：</strong> <span id="m-lyrics-status">逐句同步歌词</span></div>
+            <div class="info-row"><strong data-i18n="infoWordStats">歌词字数：</strong> <span id="m-lyrics-words">已播 0 字 / 共 0 字</span></div>
+            <div class="info-row"><strong data-i18n="infoPresentationZoom">画布缩放：</strong> <span id="m-pres-zoom">100%</span></div>
+            <div class="info-row"><strong data-i18n="infoBlur">高斯模糊：</strong> <span id="m-pres-blur">16px</span></div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary btn-modal-return" id="btn-modal-close" data-i18n="btnReturn">返回演示文稿</button>
+        </div>
+      </div>
+
+      <!-- Tab Pane: 打开与导入歌单 (文件夹目录树形式) -->
+      <div class="modal-body-content modal-tab-pane" id="pane-modal-playlists" hidden>
+        <h2 data-i18n="playlistsTitle">打开与导入歌单</h2>
+        <p class="modal-sub" data-i18n="playlistsSub">浏览本地曲库与用户歌单，以文件夹目录树层级呈现，支持一键载入幻灯片播放队列。</p>
+        
+        <div class="modal-playlists-toolbar">
+          <input type="text" id="ipt-playlists-search" class="modal-search-input" placeholder="输入关键字过滤歌单或曲目..." data-i18n-ph="filterPlaylists">
+          <button class="tree-mini-btn" id="btn-refresh-playlists" ><svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" class="ico fluent-svg">
+  <defs>
+    <filter id="fl64_sh" x="-20%" y="-20%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#00264D" flood-opacity="0.28"/>
+    </filter>
+    <linearGradient id="fl64_db" x1="10" y1="8" x2="46" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#50E6FF"/>
+      <stop offset="50%" stop-color="#0078D4"/>
+      <stop offset="100%" stop-color="#004E8C"/>
+    </linearGradient>
+    <linearGradient id="fl64_rf" x1="32" y1="32" x2="58" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#58D68D"/>
+      <stop offset="100%" stop-color="#107C41"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="10" width="36" height="11" rx="5.5" fill="url(#fl64_db)" filter="url(#fl64_sh)"/>
+  <rect x="10" y="24" width="36" height="11" rx="5.5" fill="url(#fl64_db)" filter="url(#fl64_sh)"/>
+  <rect x="10" y="38" width="36" height="11" rx="5.5" fill="url(#fl64_db)" filter="url(#fl64_sh)"/>
+  <circle cx="45" cy="45" r="13" fill="url(#fl64_rf)" filter="url(#fl64_sh)"/>
+  <path d="M45 38C41.1 38 38 41.1 38 45C38 48.9 41.1 52 45 52C47.8 52 50.2 50.3 51.3 47.9" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <path d="M47 37H52V42" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg> <span data-i18n="btnRefresh">刷新曲库</span></button>
+        </div>
+
+        <div class="library-folder-tree" id="modal-playlists-tree">
+          <div style="padding: 20px; text-align: center; color: var(--text-muted);" data-i18n="loadingPlaylists">正在读取曲库与歌单目录...</div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-primary btn-modal-return" data-i18n="btnReturn">返回演示文稿</button>
+        </div>
+      </div>
+
+      <!-- Tab Pane 2: 主题选项 -->
+      <div class="modal-body-content modal-tab-pane" id="pane-modal-options" hidden>
+        <h2 data-i18n="optTitle">PowerPoint 主题选项与个性化设置</h2>
+        <p class="modal-sub" data-i18n="optSub">定制幻灯片放映视觉效果、排版偏好与黑胶播放器运行行为。</p>
+        <div class="options-grid">
+          <div class="option-card">
+            <h4 data-i18n="optThemeCard">外观主题色彩</h4>
+            <div class="opt-row">
+              <label class="radio-label">
+                <input type="radio" name="opt-theme-tone" value="light" id="opt-tone-light" checked>
+                <span data-i18n="optToneLight">Office 经典明亮 (白/红)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="opt-theme-tone" value="dark" id="opt-tone-dark">
+                <span data-i18n="optToneDark">Office 经典暗黑 (黑/红)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="option-card">
+            <h4 data-i18n="optOverlayCard">幻灯片专辑底图白色遮罩</h4>
+            <div class="opt-row">
+              <input type="range" id="opt-bg-overlay-range" min="0" max="80" value="20" class="opt-range">
+              <span id="opt-bg-overlay-val">20%</span>
+            </div>
+            <small class="opt-hint" data-i18n="optOverlayHint">调节专辑底图之上的白色遮罩不透明度，兼顾专辑艺术视觉与歌词排版对比度。</small>
+          </div>
+
+          <div class="option-card">
+            <h4 data-i18n="optVinylCard">黑胶唱片机旋转选项</h4>
+            <div class="opt-row">
+              <select id="opt-vinyl-speed-select" class="opt-select">
+                <option value="slow" data-i18n="rpm33">33 RPM (沉浸慢速)</option>
+                <option value="normal" data-i18n="rpm45" selected>45 RPM (标准转速)</option>
+                <option value="fast" data-i18n="rpm78">78 RPM (激昂快速)</option>
+                <option value="stop" data-i18n="rpmStop">暂停旋转</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="option-card">
+            <h4 data-i18n="optTransCard">歌词翻译与罗马音</h4>
+            <div class="opt-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="opt-chk-translation" checked>
+                <span data-i18n="optChkTrans">开启双语翻译 / 罗马音副标题展示</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary btn-modal-return" data-i18n="btnReturn">返回演示文稿</button>
+        </div>
+      </div>
+
+      <!-- Tab Pane 3: 关于插件 -->
+      <div class="modal-body-content modal-tab-pane" id="pane-modal-about" hidden>
+        <h2 data-i18n="aboutTitle">关于 Microsoft PowerPoint ECHO 创意工坊外观</h2>
+        <p class="modal-sub" data-i18n="aboutSub">专为 ECHO 音乐播放器打造的 Microsoft PowerPoint 经典演示文稿主题界面。</p>
+        <div class="info-card">
+          <div class="info-row"><strong data-i18n="aboutNameLbl">插件名称：</strong> <span data-i18n="aboutNameVal">Microsoft PowerPoint · 演示文稿外观主题</span></div>
+          <div class="info-row"><strong data-i18n="aboutIdLbl">插件 ID：</strong> <span>echo.powerpoint-theme</span></div>
+          <div class="info-row"><strong data-i18n="aboutVerLbl">当前版本：</strong> <span>v1.4.0 (Local Workshop Skin)</span></div>
+          <div class="info-row"><strong data-i18n="aboutProtoLbl">设计原型：</strong> <span data-i18n="aboutProtoVal">PowerPoint Fluent Ribbon + 左侧缩略图队列 + 旋转黑胶 + 底图遮罩 + 动态歌词排版</span></div>
+          <div class="info-row"><strong data-i18n="aboutRefLbl">蓝本参考：</strong> <span>Adobe Audition DAW Workshop Plugin</span></div>
+          <div class="info-row"><strong data-i18n="aboutAuthorLbl">作者：</strong> <span>Xeon</span></div>
+          <div class="info-row"><strong data-i18n="aboutProtocolLbl">工坊协议：</strong> <span>ECHO Workshop UI Runtime Protocol v1 (presentation: lyrics-view)</span></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-primary btn-modal-return" data-i18n="btnReturn">返回演示文稿</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating PowerPoint Slideshow HUD -->
+  <div class="slideshow-hud" id="slideshow-hud">
+    <button class="slideshow-hud-btn" id="btn-hud-prev" title="上一张幻灯片">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      <span>上一首</span>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-play" title="播放 / 暂停">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      <span>播放</span>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-next" title="下一张幻灯片">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      <span>下一首</span>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-exit" title="结束放映 (Esc)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      <span>结束放映</span>
+    </button>
+  </div>
+
+  <!-- Toast Notification Pill -->
+  <div class="ppt-toast" id="ppt-toast" hidden></div>
+
+  <script src="app.js?v=1.4.0"></script>
+</body>
+</html>

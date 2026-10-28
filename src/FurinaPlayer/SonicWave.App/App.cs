@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FurinaPlayer.UI;
+using FurinaPlayer.UI.Pages;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Markup;
@@ -112,15 +113,6 @@ public class App : Application, IXamlMetadataProvider
 			_settings = settings;
 			_wallpaperService = new WallpaperService(Path.Combine(text, "wallpapers"));
 			Log("settings loaded");
-			BackgroundMaterial backgroundMaterial = settings.BackgroundMaterial;
-			if ((uint)(backgroundMaterial - 1) <= 1u)
-			{
-				settings.BackgroundMaterial = BackgroundMaterial.Mica;
-				_settingsService.Update((AppSettings s) =>
-				{
-					s.BackgroundMaterial = BackgroundMaterial.Mica;
-				});
-			}
 			_library = new LibraryService(Path.Combine(text, "library.db"));
 			Log("library init begin");
 			await _library.InitializeAsync();
@@ -131,6 +123,16 @@ public class App : Application, IXamlMetadataProvider
 			_audioEngine.ConfigureOutput(settings.OutputMode, settings.OutputDeviceId, settings.OutputDeviceId, settings.BufferMilliseconds);
 			_audioEngine.Mode = settings.PlaybackMode;
 			_audioEngine.SetEqGains(settings.EqGains);
+			_audioEngine.SetEchoHeadroom(settings.EchoHeadroomDb);
+			_audioEngine.SetEchoCompressor(settings.EchoCompressorEnabled, (float)settings.EchoCompressorThresholdDb, (float)settings.EchoCompressorRatio, (float)settings.EchoCompressorAttackMs, (float)settings.EchoCompressorReleaseMs, (float)settings.EchoCompressorKneeDb, (float)settings.EchoCompressorMakeupDb, 1.0f);
+			_audioEngine.SetEchoCrossfeed(settings.EchoCrossfeedEnabled, (float)settings.EchoCrossfeedAmount, (float)settings.EchoCrossfeedCutoffHz);
+			_audioEngine.SetEchoStereoField(settings.EchoStereoFieldEnabled, (float)settings.EchoStereoWidth, (float)settings.EchoStereoCenterGainDb, (float)settings.EchoStereoSideGainDb);
+			_audioEngine.SetEchoChannelMatrix((SonicWave.Audio.Dsp.ChannelMatrixPreset)settings.EchoChannelMatrixPreset);
+			_audioEngine.SetEchoReplayGain((SonicWave.Audio.Dsp.ReplayGainMode)settings.EchoReplayGainMode, (float)settings.EchoReplayGainPreampDb, settings.EchoReplayGainPreventClipping);
+			if (settings.EchoConvolutionEnabled && !string.IsNullOrEmpty(settings.EchoConvolutionFilePath))
+			{
+				_audioEngine.LoadEchoConvolution(settings.EchoConvolutionFilePath, (float)settings.EchoConvolutionTrimDb);
+			}
 			_audioEngine.Volume = settings.Volume;
 			_audioEngine.VolumeChanged += (int v) =>
 			{
@@ -471,7 +473,62 @@ public class App : Application, IXamlMetadataProvider
 				{
 					_window.NavigateTo(page);
 				});
-				await Task.Delay(page == "playing" ? 3800 : 1200);
+				if (page == "playing")
+				{
+					await Task.Delay(2500);
+					if (_window?.MainContentFrame?.Content is NowPlayingPage npPage)
+					{
+						string dawPath = Path.Combine(outDir, "playing_audition.png");
+						bool okDaw = await npPage.CaptureDawPreviewAsync(dawPath);
+						Log("Captured playing_audition.png: " + okDaw);
+
+						_window?.DispatcherQueue.TryEnqueue(() =>
+						{
+							npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.PowerPoint);
+						});
+						await Task.Delay(3000);
+						string pptPath = Path.Combine(outDir, "playing_powerpoint.png");
+						bool okPpt = await npPage.CaptureDawPreviewAsync(pptPath);
+						Log("Captured playing_powerpoint.png: " + okPpt);
+
+						_window?.DispatcherQueue.TryEnqueue(() =>
+						{
+							npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.Classic);
+						});
+						await Task.Delay(2500);
+						_window?.DispatcherQueue.TryEnqueue(async () =>
+						{
+							try
+							{
+								if (_window.Content is Microsoft.UI.Xaml.UIElement rootElem)
+								{
+									var rtbC = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
+									await rtbC.RenderAsync(rootElem);
+									var pixelBuf = await rtbC.GetPixelsAsync();
+									byte[] cBytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuf);
+									string cPath = Path.Combine(outDir, "playing_classic.png");
+									using var cFs = File.Open(cPath, FileMode.Create);
+									var cEnc = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(cFs));
+									cEnc.SetPixelData(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied, (uint)rtbC.PixelWidth, (uint)rtbC.PixelHeight, 96, 96, cBytes);
+									await cEnc.FlushAsync();
+									Log("Captured playing_classic.png");
+								}
+							}
+							catch (Exception ex)
+							{
+								Log("Classic capture error: " + ex);
+							}
+						});
+						await Task.Delay(2000);
+
+						// Keep in Classic mode so RenderTargetBitmap can safely render the XAML visual tree
+						await Task.Delay(500);
+					}
+				}
+				else
+				{
+					await Task.Delay(1200);
+				}
 				_window?.DispatcherQueue.TryEnqueue(async () =>
 				{
 					try
@@ -494,7 +551,7 @@ public class App : Application, IXamlMetadataProvider
 							await encoder.FlushAsync();
 							if (page == "playing")
 							{
-								string dawCap = Path.Combine(outDir, "daw_preview.png");
+								string dawCap = Path.Combine(outDir, "playing_audition.png");
 								if (File.Exists(dawCap))
 								{
 									try
@@ -513,8 +570,28 @@ public class App : Application, IXamlMetadataProvider
 						Log("Screenshot render failed for " + page + ": " + ex);
 					}
 				});
-				await Task.Delay(800);
+				await Task.Delay(1000);
 			}
+
+			// Copy to brain artifact directory
+			string artifactDir = @"C:\Users\Xeon\.gemini\antigravity\brain\083a6d72-f694-4402-b683-fad78cc28269";
+			if (Directory.Exists(artifactDir))
+			{
+				foreach (var file in Directory.GetFiles(outDir, "*.png"))
+				{
+					try
+					{
+						File.Copy(file, Path.Combine(artifactDir, Path.GetFileName(file)), overwrite: true);
+					}
+					catch { }
+				}
+			}
+			Log("CapturePagesAsync finished all pages successfully!");
+			await Task.Delay(1000);
+			_window?.DispatcherQueue.TryEnqueue(() =>
+			{
+				_window.Close();
+			});
 		}
 		catch (Exception ex)
 		{

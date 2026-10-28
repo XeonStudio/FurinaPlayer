@@ -677,15 +677,11 @@ public class SettingsViewModel : ObservableObject
 		}
 	}
 
+	public BackgroundMaterial Material => _settings.BackgroundMaterial;
+
 	public void Load()
 	{
 		_settings = _settingsService.Load();
-		BackgroundMaterial backgroundMaterial = _settings.BackgroundMaterial;
-		if ((uint)(backgroundMaterial - 1) <= 1u)
-		{
-			_settings.BackgroundMaterial = BackgroundMaterial.Mica;
-			_settingsService.Save(_settings);
-		}
 		BufferMs = _settings.BufferMilliseconds;
 		VolumeNormalization = _settings.VolumeNormalization;
 		GaplessPlayback = _settings.GaplessPlayback;
@@ -762,24 +758,17 @@ public class SettingsViewModel : ObservableObject
 
 	public void SetMaterial(BackgroundMaterial material)
 	{
-		if ((uint)(material - 1) <= 1u)
-		{
-			material = BackgroundMaterial.Mica;
-		}
 		_settings.BackgroundMaterial = material;
 		MaterialText = material switch
 		{
 			BackgroundMaterial.MicaAlt => "Mica Alt", 
 			BackgroundMaterial.Acrylic => "亚克力", 
 			BackgroundMaterial.LiquidGlass => "液态玻璃", 
-			BackgroundMaterial.LiquidGlassDwm => "液态玻璃（新版·重启生效）", 
+			BackgroundMaterial.LiquidGlassDwm => "液态玻璃（新版）", 
 			_ => "Mica", 
 		};
 		_settingsService.Save(_settings);
-		if (material != BackgroundMaterial.LiquidGlassDwm)
-		{
-			MaterialChanged?.Invoke(material);
-		}
+		MaterialChanged?.Invoke(material);
 	}
 
 	public void SetLyricFont(string? familyName, string? filePath)

@@ -5,6 +5,8 @@ using System.Text;
 
 namespace SonicWave.Audio.Vst3;
 
+[ComVisible(true)]
+[ClassInterface(ClassInterfaceType.None)]
 internal sealed class Vst3AttributeListImpl : IAttributeListCom
 {
 	private readonly Dictionary<string, object> _data = new Dictionary<string, object>(StringComparer.Ordinal);

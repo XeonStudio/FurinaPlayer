@@ -2,6 +2,7 @@ using System;
 using System.CodeDom.Compiler;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -85,6 +86,8 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	public event Action? SessionClosing;
 
+	public Frame MainContentFrame => ContentFrame;
+
 	public MainWindow(HomeViewModel homeVm, NowPlayingViewModel nowPlayingVm, EditorViewModel editorVm, SettingsViewModel settingsVm, DspViewModel dspVm, AudioEngine engine)
 	{
 		InitializeComponent();
@@ -96,7 +99,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		_dspVm = dspVm;
 		MiniPlayer.DataContext = nowPlayingVm;
 		Title = "Furina player · 全格式无损音乐播放器";
-		ApplyMaterial(BackgroundMaterial.Mica);
+		ApplyMaterial(_settingsVm.Material);
 		Activated += OnFirstActivated;
 		ExtendsContentIntoTitleBar = true;
 		SetTitleBar(TitleBar);
@@ -113,6 +116,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		};
 		Nav.SelectedItem = Nav.MenuItems[0];
 		UpdateMaxIcon();
+		// Auto capture sequence is managed by App.CapturePagesAsync to avoid dual-runner conflict
 	}
 
 	private void OnFirstActivated(object sender, WindowActivatedEventArgs args)
@@ -304,6 +308,21 @@ public sealed class MainWindow : Window, IComponentConnector
 			}
 			catch
 			{
+			}
+		}
+		if (RootGrid != null)
+		{
+			if (material == BackgroundMaterial.LiquidGlass || material == BackgroundMaterial.LiquidGlassDwm)
+			{
+				RootGrid.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 20, 22, 30));
+			}
+			else if (material == BackgroundMaterial.Acrylic)
+			{
+				RootGrid.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 24, 26, 34));
+			}
+			else
+			{
+				RootGrid.Background = null;
 			}
 		}
 		if (LiquidGlassOverlay != null)
@@ -551,6 +570,120 @@ public sealed class MainWindow : Window, IComponentConnector
 			break;
 		}
 		_contentLoaded = true;
+	}
+
+	private void CheckCommandLineAndRunAutoCapture()
+	{
+		string[] args = Environment.GetCommandLineArgs();
+		if (args.Any(a => a.Equals("--capture-pages", StringComparison.OrdinalIgnoreCase)))
+		{
+			DispatcherQueue.TryEnqueue(async () =>
+			{
+				await RunAutoCaptureSequenceAsync();
+			});
+		}
+	}
+
+	private async Task RunAutoCaptureSequenceAsync()
+	{
+		try
+		{
+			string outDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Screenshots");
+			string artifactDir = @"C:\Users\Xeon\.gemini\antigravity\brain\083a6d72-f694-4402-b683-fad78cc28269";
+			if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
+
+			await Task.Delay(1500);
+
+			// 1. Home Page
+			await CaptureCurrentWindowAsync(Path.Combine(outDir, "home.png"), Path.Combine(artifactDir, "home.png"));
+
+			// 2. NowPlaying Page - Audition DAW
+			ContentFrame.Navigate(typeof(NowPlayingPage), _nowPlayingVm, new SuppressNavigationTransitionInfo());
+			await Task.Delay(1500);
+			if (ContentFrame.Content is NowPlayingPage npPage)
+			{
+				npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.AuditionDaw);
+				await Task.Delay(1500);
+				try
+				{
+					await Task.WhenAny(npPage.CaptureDawPreviewAsync(Path.Combine(outDir, "playing_audition.png")), Task.Delay(1500));
+				}
+				catch {}
+				await CaptureCurrentWindowAsync(Path.Combine(outDir, "playing_audition_full.png"), Path.Combine(artifactDir, "playing_audition.png"));
+
+				// 3. NowPlaying Page - PowerPoint Theme
+				npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.PowerPoint);
+				await Task.Delay(1500);
+				try
+				{
+					await Task.WhenAny(npPage.CaptureDawPreviewAsync(Path.Combine(outDir, "playing_powerpoint.png")), Task.Delay(1500));
+				}
+				catch {}
+				await CaptureCurrentWindowAsync(Path.Combine(outDir, "playing_powerpoint_full.png"), Path.Combine(artifactDir, "playing_powerpoint.png"));
+
+				// 4. NowPlaying Page - Classic Centered Mode
+				npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.Classic);
+				await Task.Delay(1500);
+				await CaptureCurrentWindowAsync(Path.Combine(outDir, "playing_classic.png"), Path.Combine(artifactDir, "playing_classic.png"));
+			}
+
+			// 5. DSP Page
+			ContentFrame.Navigate(typeof(DspPage), _dspVm, new SuppressNavigationTransitionInfo());
+			await Task.Delay(1500);
+			await CaptureCurrentWindowAsync(Path.Combine(outDir, "dsp.png"), Path.Combine(artifactDir, "dsp.png"));
+
+			// 6. Settings Page
+			ContentFrame.Navigate(typeof(SettingsPage), _settingsVm, new SuppressNavigationTransitionInfo());
+			await Task.Delay(1000);
+			await CaptureCurrentWindowAsync(Path.Combine(outDir, "settings.png"), Path.Combine(artifactDir, "settings.png"));
+
+			await Task.Delay(500);
+			Close();
+		}
+		catch (Exception ex)
+		{
+			Debug.WriteLine($"Auto capture failed: {ex.Message}");
+			Close();
+		}
+	}
+
+	private async Task CaptureCurrentWindowAsync(string filePath, string? artifactCopyPath = null)
+	{
+		try
+		{
+			var rtb = new RenderTargetBitmap();
+			await rtb.RenderAsync(RootGrid);
+			var buffer = await rtb.GetPixelsAsync();
+			using (var stream = File.Create(filePath))
+			{
+				var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(
+					Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId,
+					System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(stream));
+				encoder.SetPixelData(
+					Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+					Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+					(uint)rtb.PixelWidth,
+					(uint)rtb.PixelHeight,
+					96, 96,
+					System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(buffer));
+				await encoder.FlushAsync();
+			}
+
+			if (!string.IsNullOrEmpty(artifactCopyPath) && File.Exists(filePath))
+			{
+				try
+				{
+					string? dir = Path.GetDirectoryName(artifactCopyPath);
+					if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+					File.Copy(filePath, artifactCopyPath, true);
+				}
+				catch {}
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.WriteLine($"CaptureCurrentWindowAsync failed: {ex.Message}");
+		}
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]

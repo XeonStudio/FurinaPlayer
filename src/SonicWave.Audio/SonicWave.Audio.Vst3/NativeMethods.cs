@@ -20,6 +20,12 @@ internal static class NativeMethods
 	public delegate int GetPointFn(nint self, int index, out int sampleOffset, out double value);
 
 	[DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
+	public static extern nint LoadLibraryW(string lpFileName);
+
+	[DllImport("kernel32", SetLastError = true)]
+	public static extern bool FreeLibrary(nint hModule);
+
+	[DllImport("kernel32", CharSet = CharSet.Unicode, SetLastError = true)]
 	public static extern nint LoadLibraryExW(string lpFileName, nint hFile, uint dwFlags);
 
 	[DllImport("kernel32", CharSet = CharSet.Ansi, SetLastError = true)]
