@@ -1554,13 +1554,19 @@ public static class FluentIconFactory
         FluentIconKind? matchedKind = MapButtonToFluentKind(btn.Name, text, glyph, tooltip);
         if (matchedKind.HasValue)
         {
-            bool isBigTransport = string.IsNullOrWhiteSpace(text) && (btn.Width >= 44 || btn.Height >= 44 || (tooltip == "播放" || tooltip == "暂停") && btn.Parent is StackPanel sp && sp.Spacing >= 10);
-            double size = isBigTransport ? 42 : (string.IsNullOrWhiteSpace(text) ? 20 : 18);
+            bool isBigTransport = string.IsNullOrWhiteSpace(text) && (btn.Width >= 48 || btn.Height >= 48 || (tooltip == "播放" || tooltip == "暂停") && btn.Parent is StackPanel sp && sp.Spacing >= 10);
+            double size = isBigTransport
+                ? (btn.Width > 0 && btn.Width < 48 ? Math.Min(38, btn.Width - 6) : 42)
+                : (string.IsNullOrWhiteSpace(text) ? (btn.Width >= 38 ? Math.Min(36, btn.Width - 6) : (btn.Width > 0 ? Math.Min(20, btn.Width - 10) : 20)) : 18);
             if (isBigTransport)
             {
                 btn.Padding = new Thickness(0);
                 btn.Background = new SolidColorBrush(Colors.Transparent);
                 btn.BorderThickness = new Thickness(0);
+            }
+            else if (btn.Width >= 38)
+            {
+                btn.Padding = new Thickness(0);
             }
             SetButtonFluentIcon(btn, matchedKind.Value, text, size);
             if (btn.Tag == null)

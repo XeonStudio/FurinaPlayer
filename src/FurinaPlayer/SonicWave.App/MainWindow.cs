@@ -98,6 +98,8 @@ public sealed class MainWindow : Window, IComponentConnector
 		_settingsVm = settingsVm;
 		_dspVm = dspVm;
 		MiniPlayer.DataContext = nowPlayingVm;
+		this.MiniPlayer.NavigateToPlayingRequested += () => NavigateTo("playing");
+		FurinaPlayer.UI.Controls.MiniPlayer.OpenNowPlayingRequested += () => NavigateTo("playing");
 		Title = "Furina player · 全格式无损音乐播放器";
 		ApplyMaterial(_settingsVm.Material);
 		Activated += OnFirstActivated;
@@ -596,6 +598,22 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		try
 		{
+			if (Nav != null && Nav.MenuItems != null)
+			{
+				foreach (var item in Nav.MenuItems)
+				{
+					if (item is NavigationViewItem nvi && (string?)nvi.Tag == tag)
+					{
+						if (Nav.SelectedItem != nvi)
+						{
+							Nav.SelectedItem = nvi;
+							return;
+						}
+						break;
+					}
+				}
+			}
+
 			switch (tag)
 			{
 			case "home":

@@ -453,3 +453,38 @@ Tests Completed: 24 | Passed: 24 | Failed: 0 (100% PASS)
 - **Release 资产**：
   生成全量免安装便携版发行包：
   `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.1-win-x64.zip`，内置完整的运行时依赖、WebView2 组件及最新的 DAW / PPT / DSP 产物。
+
+---
+
+## 11. v1.2.2 播放控制栏视觉规范与交互体验深度优化 (播放/暂停黄金比例放大、专辑封面/曲目信息点击一键跳转正在播放)
+
+### 11.1 底部播放控制栏现代三段式黄金比例重构
+- **重构背景**：
+  原有播放栏时间进度滑块与右侧按钮由于旧版嵌套布局出现滑块 Thumb 截断、未播音轨颜色过淡难以辨识以及走带按钮尺寸均一缺乏视觉焦点的问题。
+- **重构方案**：
+  1. 将 `MiniPlayer.xaml` 重构为清晰的现代三段式布局：
+     - **左侧（Auto，MinWidth 160，MaxWidth 280）**：展示专辑封面（44×44 圆角 8px）与歌曲名、歌手信息；
+     - **中间（*，居中，MaxWidth 620）**：上方居中放置核心走带按钮群（上一曲、播放/暂停、下一曲），下方横跨高精度播放时间标签（`00:00`）与完整进度条滑块；
+     - **右侧（Auto）**：放置播放模式切换按钮与「最近播放」历史列表弹窗。
+  2. 进度条滑块（Slider）高度设为 `26px`，轨道背景色调整为高对比半透明 `#2E808080`，圆润饱满的滑块 Thumb 获得充足内边距，彻底告别上下截断与显示不全。
+  3. 清理了阻碍 XAML 热加载的旧版 `MiniPlayer.xbf`，确保界面改动即时生效。
+
+### 11.2 核心播放/暂停走带按钮黄金比例放大
+- **重构方案**：
+  1. 在 `MiniPlayer.xaml` 中将主控「播放/暂停」按钮尺寸由 32×32 放大至 **44×44**（与左侧封面 44×44 等高对齐，符合 WCAG 2.5.5 标准触控与黄金点击目标），两侧「上一曲 / 下一曲」保持 32×32，按钮间距设为 10px，营造出极其清晰的视觉交互主次层级。
+  2. 在 `FluentIconFactory.cs` 中增加对 `btn.Width < 48` 尺寸映射的智能自适应，针对 44×44 按钮渲染 **38px** 双层渐变圆环与纯白核心矢量图形，视觉丰满醒目且不触壁，呈现精致的 Fluent 3D 质感。
+
+### 11.3 底部播放栏专辑封面与曲目信息点击一键跳转「正在播放」
+- **交互设计**：
+  用户在底部播放栏点击专辑封面或歌曲标题/歌手区域时，期望直接呼出正在播放的大屏沉浸式页面。
+- **技术实现**：
+  1. 在 `MiniPlayer.xaml` 中为左侧 `TrackInfoPanel` 与 `CoverBorder` 挂载 `Background="Transparent"` 与 `ToolTipService.ToolTip="点击跳转正在播放"`。
+  2. 在 `MiniPlayer.cs` 中通过反射机制配置桌面级手型光标 `InputSystemCursorShape.Hand`，同时挂载 `PointerPressed` 与 `Tapped` 双交互手势，触发 `RequestOpenNowPlaying()`。
+  3. 在 `MainWindow.cs` 中订阅该请求，并增强 `NavigateTo("playing")` 逻辑：当导航至目标选项卡时，自动同步遍历并设置 `Nav.SelectedItem = nvi`，实现**页面瞬时切换与左侧导航栏高亮胶囊指示完美同步联动**。
+
+### 11.4 GitHub 源码推送与 Release 打包
+- **Git 仓库**：
+  已向 GitHub `origin` (`XeonStudio/Furina-Player`) 与 `upstream` (`XeonStudio/FurinaPlayer`) 成功推送最新 commit 与正式版本标签 `v1.2.2`。
+- **Release 资产**：
+  全量免安装便携版发行包：
+  `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.2-win-x64.zip`。

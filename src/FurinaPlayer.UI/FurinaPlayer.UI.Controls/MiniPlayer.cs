@@ -27,8 +27,15 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	private bool _contentLoaded;
 
 	private Slider? _seekSlider;
+	private TextBlock? _positionText;
+	private TextBlock? _durationText;
+	private UIElement? _trackInfoPanel;
+	private UIElement? _coverBorder;
 	private bool _isDraggingSlider;
 	private NowPlayingViewModel? _currentVm;
+
+	public static event Action? OpenNowPlayingRequested;
+	public event Action? NavigateToPlayingRequested;
 
 	private NowPlayingViewModel? ViewModel => DataContext as NowPlayingViewModel;
 
@@ -40,9 +47,76 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		DataContextChanged += OnDataContextChanged;
 	}
 
+	public void RequestOpenNowPlaying()
+	{
+		OpenNowPlayingRequested?.Invoke();
+		NavigateToPlayingRequested?.Invoke();
+
+		try
+		{
+			var win = WindowManager.CurrentWindow;
+			if (win != null)
+			{
+				var navMethod = win.GetType().GetMethod("NavigateTo", new[] { typeof(string) });
+				navMethod?.Invoke(win, new object[] { "playing" });
+			}
+		}
+		catch { }
+	}
+
+	private void AttachOpenNowPlayingGesture(UIElement? element)
+	{
+		if (element == null) return;
+		try
+		{
+			var prop = typeof(UIElement).GetProperty("ProtectedCursor", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+			prop?.SetValue(element, Microsoft.UI.Input.InputSystemCursor.Create(Microsoft.UI.Input.InputSystemCursorShape.Hand));
+		}
+		catch { }
+
+		element.PointerPressed -= OnTrackInfoPointerPressed;
+		element.PointerPressed += OnTrackInfoPointerPressed;
+		element.Tapped -= OnTrackInfoTapped;
+		element.Tapped += OnTrackInfoTapped;
+	}
+
+	private void OnTrackInfoPointerPressed(object sender, PointerRoutedEventArgs e)
+	{
+		e.Handled = true;
+		RequestOpenNowPlaying();
+	}
+
+	private void OnTrackInfoTapped(object sender, TappedRoutedEventArgs e)
+	{
+		e.Handled = true;
+		RequestOpenNowPlaying();
+	}
+
+	private static UIElement? FindElementByName(DependencyObject? parent, string name)
+	{
+		if (parent == null) return null;
+		int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(parent);
+		for (int i = 0; i < count; i++)
+		{
+			var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(parent, i);
+			if (child is FrameworkElement fe && fe.Name == name)
+			{
+				return fe;
+			}
+			var result = FindElementByName(child, name);
+			if (result != null) return result;
+		}
+		return null;
+	}
+
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
 		HookViewModel(ViewModel);
+		FluentIconFactory.UpgradeButtonsInVisualTree(this);
+		UpdateModeButtonFluentIcon();
+		UpdateTimes();
+		AttachOpenNowPlayingGesture(_trackInfoPanel ?? FindName("TrackInfoPanel") as UIElement ?? FindElementByName(this, "TrackInfoPanel"));
+		AttachOpenNowPlayingGesture(_coverBorder ?? FindName("CoverBorder") as UIElement ?? FindElementByName(this, "CoverBorder"));
 	}
 
 	private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -66,6 +140,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		{
 			_currentVm.PropertyChanged += OnVmPropertyChanged;
 			UpdateSlider();
+			UpdateTimes();
 		}
 	}
 
@@ -85,6 +160,41 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		    e.PropertyName == nameof(NowPlayingViewModel.Duration))
 		{
 			UpdateSlider();
+			if (!_isDraggingSlider)
+			{
+				UpdateTimes();
+			}
+		}
+		else if (e.PropertyName == nameof(NowPlayingViewModel.ModeText))
+		{
+			UpdateModeButtonFluentIcon();
+		}
+	}
+
+	private void UpdateModeButtonFluentIcon()
+	{
+		try
+		{
+			FindAndUpdateModeButton(this, _currentVm?.ModeText ?? "顺序播放");
+		}
+		catch
+		{
+		}
+	}
+
+	private static void FindAndUpdateModeButton(DependencyObject? root, string modeText)
+	{
+		if (root == null) return;
+		int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
+			if (child is Button btn && ToolTipService.GetToolTip(btn) is string tt && tt.Contains("播放模式"))
+			{
+				FluentIconFactory.SetButtonFluentIcon(btn, FluentIconFactory.ResolvePlayModeKind(modeText), modeText, 18);
+				return;
+			}
+			FindAndUpdateModeButton(child, modeText);
 		}
 	}
 
@@ -93,6 +203,21 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		if (!_isDraggingSlider && _seekSlider != null && _currentVm != null)
 		{
 			_seekSlider.Value = _currentVm.PositionPercent;
+		}
+	}
+
+	private void UpdateTimes()
+	{
+		if (_currentVm != null)
+		{
+			if (_positionText != null)
+			{
+				_positionText.Text = NowPlayingPage.FormatTime(_currentVm.Position);
+			}
+			if (_durationText != null)
+			{
+				_durationText.Text = NowPlayingPage.FormatTime(_currentVm.Duration);
+			}
 		}
 	}
 
@@ -117,6 +242,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		if (viewModel != null && sender is Slider slider)
 		{
 			viewModel.SeekToPercent(slider.Value);
+			UpdateTimes();
 		}
 	}
 
@@ -127,6 +253,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		if (viewModel != null && sender is Slider slider)
 		{
 			viewModel.SeekToPercent(slider.Value);
+			UpdateTimes();
 		}
 	}
 
@@ -137,6 +264,10 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		{
 			TimeSpan t = TimeSpan.FromSeconds(Math.Clamp(e.GetCurrentPoint(slider).Position.X / slider.ActualWidth, 0.0, 1.0) * viewModel.Duration.TotalSeconds);
 			ToolTipService.SetToolTip(slider, NowPlayingPage.FormatTime(t) + " / " + NowPlayingPage.FormatTime(viewModel.Duration));
+			if (_isDraggingSlider && _positionText != null)
+			{
+				_positionText.Text = NowPlayingPage.FormatTime(t);
+			}
 		}
 	}
 
@@ -196,6 +327,22 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 			UpdateSlider();
 			break;
 		}
+		case 8:
+			_positionText = target.As<TextBlock>();
+			UpdateTimes();
+			break;
+		case 9:
+			_durationText = target.As<TextBlock>();
+			UpdateTimes();
+			break;
+		case 10:
+			_trackInfoPanel = target as UIElement ?? (target is IWinRTObject ? target.As<UIElement>() : null);
+			AttachOpenNowPlayingGesture(_trackInfoPanel);
+			break;
+		case 11:
+			_coverBorder = target as UIElement ?? (target is IWinRTObject ? target.As<UIElement>() : null);
+			AttachOpenNowPlayingGesture(_coverBorder);
+			break;
 		}
 		_contentLoaded = true;
 	}
