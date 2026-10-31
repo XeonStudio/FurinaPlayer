@@ -518,8 +518,15 @@ internal sealed class AudioSession : IDisposable
 	{
 		if (CurrentTrack == null)
 		{
-			Trace("Play: no current track");
-			return;
+			if (_queue.Count > 0)
+			{
+				_index = 0;
+			}
+			else
+			{
+				Trace("Play: no current track and queue is empty");
+				return;
+			}
 		}
 		bool flag = CurrentTrack.Id == _activeTrackId;
 		if (!flag)
@@ -545,12 +552,19 @@ internal sealed class AudioSession : IDisposable
 			if (flag)
 			{
 				CurrentBackend.Play();
-				SetState(PlaybackState.Playing);
-				_watchdog.Reset(Position);
-				Trace("Play: resumed from pause");
-				return;
+				if (IsDecoderActuallyPlaying())
+				{
+					SetState(PlaybackState.Playing);
+					_watchdog.Reset(Position);
+					Trace("Play: resumed from pause");
+					return;
+				}
+				Trace("Play: resume failed, reopening current");
 			}
-			Trace("Play: paused but different track requested, switching track");
+			else
+			{
+				Trace("Play: paused but different track requested, switching track");
+			}
 		}
 		else if ((State == PlaybackState.Playing && IsDecoderActuallyPlaying()) & flag)
 		{
@@ -637,7 +651,7 @@ internal sealed class AudioSession : IDisposable
 		{
 			Play();
 		}
-		else if (CurrentTrack != null)
+		else
 		{
 			Play();
 		}

@@ -466,15 +466,38 @@ public class App : Application, IXamlMetadataProvider
 		{
 			Directory.CreateDirectory(outDir);
 			await Task.Delay(2500);
-			string[] pages = new string[] { "home", "playing", "dsp", "settings" };
+			string[] pages = new string[] { "home", "playing", "editor", "dsp", "settings" };
 			foreach (var page in pages)
 			{
 				_window?.DispatcherQueue.TryEnqueue(() =>
 				{
 					_window.NavigateTo(page);
+					if (page == "dsp" && _window.MainContentFrame?.Content is DspPage dp)
+					{
+						dp.SetDspViewCategory("vst3");
+					}
 				});
 				if (page == "playing")
 				{
+					try
+					{
+						if (_library != null && _audioEngine != null)
+						{
+							var allTracks = await _library.GetAllTracksAsync();
+							var targetTrack = allTracks.FirstOrDefault(t => t.FilePath != null && t.FilePath.Contains("远航星")) ?? allTracks.FirstOrDefault(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath));
+							if (targetTrack != null && _audioEngine.CurrentTrack?.Id != targetTrack.Id)
+							{
+								_window?.DispatcherQueue.TryEnqueue(() =>
+								{
+									int idx = Math.Max(0, allTracks.IndexOf(targetTrack));
+									_audioEngine.SetQueue(allTracks, idx);
+									_audioEngine.PrepareRestore(TimeSpan.FromSeconds(12.28));
+								});
+								await Task.Delay(600);
+							}
+						}
+					}
+					catch { }
 					await Task.Delay(2500);
 					if (_window?.MainContentFrame?.Content is NowPlayingPage npPage)
 					{
@@ -571,6 +594,39 @@ public class App : Application, IXamlMetadataProvider
 					}
 				});
 				await Task.Delay(1000);
+
+				if (page == "dsp" && _window?.MainContentFrame?.Content is DspPage dpFree)
+				{
+					_window?.DispatcherQueue.TryEnqueue(() =>
+					{
+						dpFree.SetDspViewCategory("free");
+					});
+					await Task.Delay(1500);
+					_window?.DispatcherQueue.TryEnqueue(async () =>
+					{
+						try
+						{
+							if (_window.Content is Microsoft.UI.Xaml.UIElement rootFree)
+							{
+								var rtbF = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
+								await rtbF.RenderAsync(rootFree);
+								var pixelBuf = await rtbF.GetPixelsAsync();
+								byte[] fBytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuf);
+								string fPath = Path.Combine(outDir, "dsp_free.png");
+								using var fFs = File.Open(fPath, FileMode.Create);
+								var fEnc = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fFs));
+								fEnc.SetPixelData(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied, (uint)rtbF.PixelWidth, (uint)rtbF.PixelHeight, 96, 96, fBytes);
+								await fEnc.FlushAsync();
+								Log("Captured dsp_free.png (" + rtbF.PixelWidth + "x" + rtbF.PixelHeight + ")");
+							}
+						}
+						catch (Exception ex)
+						{
+							Log("Captured dsp_free.png error: " + ex);
+						}
+					});
+					await Task.Delay(1500);
+				}
 			}
 
 			// Copy to brain artifact directory

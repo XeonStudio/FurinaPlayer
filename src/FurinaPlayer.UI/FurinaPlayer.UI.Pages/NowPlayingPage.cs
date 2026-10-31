@@ -18,6 +18,7 @@ using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Web.WebView2.Core;
+using SonicWave.Audio.Renderers;
 using SonicWave.Core.Models;
 using WinRT;
 using WinRT.Interop;
@@ -118,6 +119,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	{
 		ApplyResponsiveLayout();
 		SetupPageContainers();
+		FluentIconFactory.UpgradeButtonsInVisualTree(_classicContainer ?? (DependencyObject)this);
+		UpdateClassicModeButtonIcon();
 		if (ViewModel != null)
 		{
 			ViewModel.Initialize();
@@ -131,6 +134,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				SpeedCombo.SelectedIndex = num;
 			}
 			UpdateTimeTexts();
+			UpdateClassicModeButtonIcon();
 		}
 	}
 
@@ -169,6 +173,37 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			{
 				SendDawLyrics();
 			}
+		}
+		else if (e.PropertyName == nameof(NowPlayingViewModel.ModeText))
+		{
+			UpdateClassicModeButtonIcon();
+		}
+	}
+
+	private void UpdateClassicModeButtonIcon()
+	{
+		try
+		{
+			FindAndUpdateClassicModeButton(_classicContainer, ViewModel?.ModeText ?? "顺序播放");
+		}
+		catch
+		{
+		}
+	}
+
+	private static void FindAndUpdateClassicModeButton(DependencyObject? root, string modeText)
+	{
+		if (root == null) return;
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is Button btn && ToolTipService.GetToolTip(btn) is string tt && tt.Contains("循环模式"))
+			{
+				FluentIconFactory.SetButtonFluentIcon(btn, FluentIconFactory.ResolvePlayModeKind(modeText), modeText, 18);
+				return;
+			}
+			FindAndUpdateClassicModeButton(child, modeText);
 		}
 	}
 
@@ -316,21 +351,14 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 		var iconCircle = new Border
 		{
-			Width = 84,
-			Height = 84,
-			CornerRadius = new CornerRadius(42),
+			Width = 88,
+			Height = 88,
+			CornerRadius = new CornerRadius(44),
 			HorizontalAlignment = HorizontalAlignment.Center,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(45, 0, 229, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(100, 0, 229, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(45, 56, 189, 248)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(110, 56, 189, 248)),
 			BorderThickness = new Thickness(1.5),
-			Child = new FontIcon
-			{
-				Glyph = "\uE8D6",
-				FontSize = 34,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(240, 0, 229, 255)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Child = FluentIconFactory.Create(FluentIconKind.MusicHero, 54)
 		};
 
 		var textStack = new StackPanel { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center };
@@ -355,18 +383,9 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			HorizontalAlignment = HorizontalAlignment.Center,
 			Margin = new Thickness(0, 6, 0, 0),
 			Padding = new Thickness(16, 7, 16, 7),
-			CornerRadius = new CornerRadius(16),
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 8,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE8B7", FontSize = 13 },
-					new TextBlock { Text = "导入本地 LRC 歌词", FontSize = 12 }
-				}
-			}
+			CornerRadius = new CornerRadius(16)
 		};
+		FluentIconFactory.SetButtonFluentIcon(importBtn, FluentIconKind.LyricsImport, "导入本地 LRC 歌词", 18);
 		importBtn.Click += OnBatchImportLyricsClick;
 
 		_noLyricsPlaceholder.Children.Add(iconCircle);
@@ -482,6 +501,33 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 		try
 		{
+			var track = ViewModel?.CurrentTrack;
+			if (track != null && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
+			{
+				var env = await Task.Run(() => WaveformRenderer.ComputeAuditionEnvelopeFromFile(track.FilePath, 4096));
+				if (env != null)
+				{
+					PostDawMessage(new
+					{
+						protocolVersion = 1,
+						type = "echo:audition:envelopeData",
+						trackId = track.Id,
+						p = env.Peak,
+						r = env.Rms,
+						lMin = env.LeftMin,
+						lMax = env.LeftMax,
+						rMin = env.RightMin,
+						rMax = env.RightMax,
+						specCols = env.SpecCols,
+						specBins = env.SpecBins,
+						sampleRate = env.SampleRate,
+						specL = env.SpecLeftBase64,
+						specR = env.SpecRightBase64
+					});
+					await Task.Delay(250);
+				}
+			}
+
 			string? dir = Path.GetDirectoryName(filePath);
 			if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
 			{
@@ -516,29 +562,29 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	private void UpdateModeSwitchButtonUI()
 	{
 		if (_modeSwitchBtn == null) return;
-		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		if (s_currentMode == LyricsPageMode.AuditionDaw)
 		{
 			_modeSwitchBtn.Margin = new Thickness(0, 4, 12, 0);
 			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255));
-			sp.Children.Add(new FontIcon { Glyph = "\uE995", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255)) });
-			sp.Children.Add(new TextBlock { Text = "Audition DAW 模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModeAudition, 18));
+			sp.Children.Add(new TextBlock { Text = "Audition DAW 模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
 			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：Audition 专业母带工作台（点击切换到 PowerPoint 演示，右键选择）");
 		}
 		else if (s_currentMode == LyricsPageMode.PowerPoint)
 		{
 			_modeSwitchBtn.Margin = new Thickness(0, 4, 12, 0);
 			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 91, 45));
-			sp.Children.Add(new FontIcon { Glyph = "\uE8B8", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 91, 45)) });
-			sp.Children.Add(new TextBlock { Text = "PowerPoint 演示模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModePowerPoint, 18));
+			sp.Children.Add(new TextBlock { Text = "PowerPoint 演示模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
 			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：PowerPoint 幻灯片演示文稿（点击切换到经典极简，右键选择）");
 		}
 		else
 		{
 			_modeSwitchBtn.Margin = new Thickness(0, 16, 140, 0);
 			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 140, 255));
-			sp.Children.Add(new FontIcon { Glyph = "\uE8D6", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 140, 255)) });
-			sp.Children.Add(new TextBlock { Text = "经典歌词页 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModeClassic, 18));
+			sp.Children.Add(new TextBlock { Text = "经典歌词页 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
 			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：原生极简歌词视图（点击切换到 Audition DAW，右键选择）");
 		}
 		_modeSwitchBtn.Content = sp;
@@ -906,6 +952,12 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				return;
 			}
 
+			if (type == "echo:audition:getEnvelope")
+			{
+				SendDawEnvelope();
+				return;
+			}
+
 			if (type == "echo:powerpoint:getPreset")
 			{
 				SendPptPreset();
@@ -1192,6 +1244,56 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		SendDawAudioFormat();
 		SendDawLyrics();
 		SendDawQueue();
+		SendDawEnvelope();
+	}
+
+	private void SendDawEnvelope()
+	{
+		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
+		var track = ViewModel.CurrentTrack;
+		if (track == null) return;
+		long trackId = track.Id;
+		string? path = track.FilePath;
+
+		if (!string.IsNullOrEmpty(path) && File.Exists(path))
+		{
+			_ = Task.Run(() =>
+			{
+				try
+				{
+					var env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(path, 4096);
+					if (env != null && env.Peak.Length > 0)
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							if (ViewModel?.CurrentTrack?.Id == trackId)
+							{
+								PostDawMessage(new
+								{
+									protocolVersion = 1,
+									type = "echo:audition:envelopeData",
+									trackId,
+									p = env.Peak,
+									r = env.Rms,
+									lMin = env.LeftMin,
+									lMax = env.LeftMax,
+									rMin = env.RightMin,
+									rMax = env.RightMax,
+									specCols = env.SpecCols,
+									specBins = env.SpecBins,
+									sampleRate = env.SampleRate,
+									specL = env.SpecLeftBase64,
+									specR = env.SpecRightBase64
+								});
+							}
+						});
+					}
+				}
+				catch
+				{
+				}
+			});
+		}
 	}
 
 	private void SendDawPlaybackState()

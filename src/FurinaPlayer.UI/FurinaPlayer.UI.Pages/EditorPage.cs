@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SonicWave.Core.Models;
 using WinRT;
@@ -159,6 +160,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			Interval = TimeSpan.FromMilliseconds(33.0)
 		};
 		_previewTimer.Tick += OnPreviewTick;
+		Loaded += (s, e) => FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		Unloaded += (object _, RoutedEventArgs _) =>
 		{
 			_previewTimer.Stop();
@@ -204,6 +206,8 @@ public sealed class EditorPage : Page, IComponentConnector
 			DataContext = editorViewModel;
 		}
 		EditorEq.Gains = ViewModel.Equalizer.Gains;
+		SetupEditorVstListStyling();
+		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		RestoreLayouts();
 		ReverbPresetCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 		{
@@ -586,6 +590,62 @@ public sealed class EditorPage : Page, IComponentConnector
 		if (PreviewPlayButton?.Content is FontIcon fontIcon)
 		{
 			fontIcon.Glyph = ((ViewModel != null && ViewModel.Preview.IsPlaying) ? "\ue769" : "\ue768");
+		}
+	}
+
+	private void SetupEditorVstListStyling()
+	{
+		if (EditorVstList == null) return;
+		EditorVstList.ContainerContentChanging -= OnEditorVstContainerChanging;
+		EditorVstList.ContainerContentChanging += OnEditorVstContainerChanging;
+	}
+
+	private void OnEditorVstContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+	{
+		if (args.ItemContainer != null)
+		{
+			FormatVstItemVisuals(args.ItemContainer);
+		}
+	}
+
+	private static void FormatVstItemVisuals(DependencyObject root)
+	{
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is Button btn)
+			{
+				string text = btn.Content as string ?? "";
+				bool isUiBtn = text.Contains("界面");
+				if (!isUiBtn && btn.Content is StackPanel spCheck)
+				{
+					isUiBtn = spCheck.Children.Any(c => c is TextBlock tb && tb.Text.Contains("界面"));
+				}
+				if (isUiBtn)
+				{
+					btn.Height = 28;
+					btn.Padding = new Thickness(8, 2, 8, 2);
+					btn.Margin = new Thickness(6, 0, 8, 0);
+					var icon = FluentIconFactory.Create(FluentIconKind.VstPlugin, 14);
+					var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, VerticalAlignment = VerticalAlignment.Center };
+					panel.Children.Add(icon);
+					panel.Children.Add(new TextBlock { Text = "界面", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center });
+					btn.Content = panel;
+					btn.Tag = "__fluent_upgraded";
+				}
+			}
+			else if (child is ToggleButton tb)
+			{
+				tb.Height = 28;
+				tb.Padding = new Thickness(8, 2, 8, 2);
+				tb.FontSize = 11;
+			}
+			else if (child is TextBlock txt)
+			{
+				if (txt.FontSize > 13) txt.FontSize = 12;
+			}
+			FormatVstItemVisuals(child);
 		}
 	}
 

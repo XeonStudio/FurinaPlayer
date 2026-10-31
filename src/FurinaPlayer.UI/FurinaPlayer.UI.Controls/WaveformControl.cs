@@ -138,8 +138,27 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 		for (int i = 0; i < _peaks.Count; i++)
 		{
 			float num4 = ((float)i + 0.5f) * num / (float)_peaks.Count;
-			float y = num2 / 2f - Math.Max(0f, _peaks[i].Max) * num2 / 2f;
-			float y2 = num2 / 2f - Math.Min(0f, _peaks[i].Min) * num2 / 2f;
+			float min = _peaks[i].Min;
+			float max = _peaks[i].Max;
+			float halfH = num2 / 2f - 2f;
+			float y;
+			float y2;
+			if (min >= 0f)
+			{
+				float amp = Math.Clamp(max, 0f, 1f) * halfH;
+				y = num2 / 2f - amp;
+				y2 = num2 / 2f + amp;
+			}
+			else
+			{
+				y = num2 / 2f - Math.Clamp(max, 0f, 1f) * halfH;
+				y2 = num2 / 2f - Math.Clamp(min, -1f, 0f) * halfH;
+			}
+			if (y2 - y < 1.5f)
+			{
+				y = num2 / 2f - 0.75f;
+				y2 = num2 / 2f + 0.75f;
+			}
 			canvas.DrawLine(num4, y, num4, y2, paint4);
 		}
 		double playhead = _playhead;

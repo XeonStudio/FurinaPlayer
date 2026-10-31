@@ -2453,9 +2453,24 @@ body {
   min-height: 0;
 }
 
-/* Give the spectrum waterfall real estate and keep it bright */
+/* Give the Adobe Audition dual-channel spectral display proper height */
+.waveform-body {
+  flex: 1.18;
+  min-height: 110px;
+}
+
 .spectrogram-strip {
-  min-height: 62px;
+  flex: 0.92;
+  height: auto;
+  min-height: 108px;
+  background: #000000;
+  border-top: 2px solid #262b32;
+  cursor: crosshair;
+}
+
+.spectrogram-strip .strip-title,
+.spectrogram-strip .spectral-scale {
+  display: none;
 }
 
 /* The transport keeps its interactive row above the host's hover strip even
@@ -2632,7 +2647,7 @@ body {
 
 /* Freed vertical space goes to the visualisers. */
 .panel-waveform {
-  height: 48%;
+  height: 53%;
 }
 
 .level-row {

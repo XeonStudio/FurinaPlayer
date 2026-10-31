@@ -103,10 +103,35 @@ public sealed class MainWindow : Window, IComponentConnector
 		Activated += OnFirstActivated;
 		ExtendsContentIntoTitleBar = true;
 		SetTitleBar(TitleBar);
+		nint hwnd = WindowNative.GetWindowHandle(this);
+		DwmGlass.RemoveBorderColor(hwnd);
+		if (AppWindowTitleBar.IsCustomizationSupported())
+		{
+			var tb = AppWindow.TitleBar;
+			tb.ExtendsContentIntoTitleBar = true;
+			tb.ButtonBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+			tb.ButtonInactiveBackgroundColor = Windows.UI.Color.FromArgb(0, 0, 0, 0);
+			tb.ButtonHoverBackgroundColor = Windows.UI.Color.FromArgb(40, 128, 128, 128);
+			tb.ButtonPressedBackgroundColor = Windows.UI.Color.FromArgb(70, 128, 128, 128);
+			UpdateTitleBarButtonColors(ElementTheme.Default);
+		}
 		if (AppWindow.Presenter is OverlappedPresenter overlappedPresenter)
 		{
-			overlappedPresenter.SetBorderAndTitleBar(hasBorder: false, hasTitleBar: false);
+			overlappedPresenter.SetBorderAndTitleBar(hasBorder: true, hasTitleBar: true);
 		}
+		if (TitleBar != null)
+		{
+			TitleBar.Margin = new Thickness(0);
+			TitleBar.Padding = new Thickness(0);
+		}
+		if (RootGrid != null)
+		{
+			RootGrid.Margin = new Thickness(0);
+			RootGrid.Padding = new Thickness(0);
+		}
+		if (MinButton != null) MinButton.Visibility = Visibility.Collapsed;
+		if (MaxButton != null) MaxButton.Visibility = Visibility.Collapsed;
+		if (CloseButton != null) CloseButton.Visibility = Visibility.Collapsed;
 		Closed += (object _, WindowEventArgs _) =>
 		{
 			SaveWindowPlacement();
@@ -114,9 +139,75 @@ public sealed class MainWindow : Window, IComponentConnector
 			_engine.Dispose();
 			Vst3NativeHost.Instance.Unload();
 		};
+		ApplyFluentWindowIcons();
 		Nav.SelectedItem = Nav.MenuItems[0];
 		UpdateMaxIcon();
 		// Auto capture sequence is managed by App.CapturePagesAsync to avoid dual-runner conflict
+	}
+
+	private void ApplyFluentWindowIcons()
+	{
+		try
+		{
+			if (TitleBar != null)
+			{
+				FluentIconFactory.UpgradeButtonsInVisualTree(TitleBar);
+			}
+			if (MinButton != null) MinButton.Visibility = Visibility.Collapsed;
+			if (MaxButton != null) MaxButton.Visibility = Visibility.Collapsed;
+			if (CloseButton != null) CloseButton.Visibility = Visibility.Collapsed;
+
+			if (Nav != null)
+			{
+				foreach (var obj in Nav.MenuItems)
+				{
+					if (obj is NavigationViewItem item && item.Tag is string tag)
+					{
+						UpgradeNavItemIcon(item, tag);
+					}
+				}
+				foreach (var obj in Nav.FooterMenuItems)
+				{
+					if (obj is NavigationViewItem item && item.Tag is string tag)
+					{
+						UpgradeNavItemIcon(item, tag);
+					}
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.WriteLine($"ApplyFluentWindowIcons error: {ex.Message}");
+		}
+	}
+
+	private static void UpgradeNavItemIcon(NavigationViewItem item, string tag)
+	{
+		FluentIconKind kind = tag switch
+		{
+			"home" => FluentIconKind.Home,
+			"playing" => FluentIconKind.NowPlaying,
+			"editor" => FluentIconKind.AudioEditor,
+			"dsp" => FluentIconKind.DspEffects,
+			"settings" => FluentIconKind.Settings,
+			_ => FluentIconKind.AppLogo
+		};
+		string label = item.Content as string ?? tag;
+		item.Icon = null;
+		var sp = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 12,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		sp.Children.Add(FluentIconFactory.Create(kind, 20));
+		sp.Children.Add(new TextBlock
+		{
+			Text = label,
+			VerticalAlignment = VerticalAlignment.Center,
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium
+		});
+		item.Content = sp;
 	}
 
 	private void OnFirstActivated(object sender, WindowActivatedEventArgs args)
@@ -259,10 +350,9 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	private void UpdateMaxIcon()
 	{
-		if (MaxButton?.Content is FontIcon fontIcon)
+		if (MaxButton != null)
 		{
-			bool flag = AppWindow.Presenter is OverlappedPresenter overlappedPresenter && overlappedPresenter.State == OverlappedPresenterState.Maximized;
-			fontIcon.Glyph = (flag ? "\ue923" : "\ue922");
+			MaxButton.Visibility = Visibility.Collapsed;
 		}
 	}
 
@@ -280,13 +370,40 @@ public sealed class MainWindow : Window, IComponentConnector
 			ThemeMode.Light => ElementTheme.Light, 
 			_ => ElementTheme.Default, 
 		};
+		UpdateTitleBarButtonColors(rootGrid.RequestedTheme);
 		ApplyMaterial(_currentMaterial);
+	}
+
+	private void UpdateTitleBarButtonColors(ElementTheme theme)
+	{
+		if (!AppWindowTitleBar.IsCustomizationSupported()) return;
+		try
+		{
+			var tb = AppWindow.TitleBar;
+			bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+			if (isDark)
+			{
+				tb.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 230, 235, 245);
+				tb.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 255, 255, 255);
+				tb.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 180, 190, 205);
+			}
+			else
+			{
+				tb.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 30, 36, 46);
+				tb.ButtonHoverForegroundColor = Windows.UI.Color.FromArgb(255, 0, 0, 0);
+				tb.ButtonInactiveForegroundColor = Windows.UI.Color.FromArgb(140, 100, 110, 125);
+			}
+		}
+		catch
+		{
+		}
 	}
 
 	public void ApplyMaterial(BackgroundMaterial material)
 	{
 		_currentMaterial = material;
 		nint windowHandle = WindowNative.GetWindowHandle(this);
+		DwmGlass.RemoveBorderColor(windowHandle);
 		try
 		{
 			if (material == BackgroundMaterial.LiquidGlassDwm)
@@ -559,14 +676,17 @@ public sealed class MainWindow : Window, IComponentConnector
 		case 9:
 			MinButton = target.As<Button>();
 			MinButton.Click += OnMinimizeClick;
+			MinButton.Visibility = Visibility.Collapsed;
 			break;
 		case 10:
 			MaxButton = target.As<Button>();
 			MaxButton.Click += OnMaximizeClick;
+			MaxButton.Visibility = Visibility.Collapsed;
 			break;
 		case 11:
 			CloseButton = target.As<Button>();
 			CloseButton.Click += OnCloseClick;
+			CloseButton.Visibility = Visibility.Collapsed;
 			break;
 		}
 		_contentLoaded = true;

@@ -426,6 +426,7 @@ public sealed class DspPage : Page, IComponentConnector
 		_layout.RegisterResizeHandle(Vst3ResizeHandle, Vst3Panel);
 
 		InitializeEchoDspPanels();
+		Loaded += (s, e) => FluentIconFactory.UpgradeButtonsInVisualTree(this);
 
 		PanelLayoutController layout = _layout;
 		layout.LayoutChanged = (Action)Delegate.Combine(layout.LayoutChanged, new Action(SaveLayouts));
@@ -457,25 +458,61 @@ public sealed class DspPage : Page, IComponentConnector
 		ReverbPresetCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ReverbNames, ViewModel.ReverbPreset));
 		DrawEqCurve(ViewModel.EqGains);
 		RestoreLayouts();
+		OptimizeVst3PanelLayout();
+		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		if (_currentDspCategory != "free")
 		{
 			SetDspViewCategory(_currentDspCategory);
 		}
 	}
 
-	private void RestoreLayouts()
+	private void RestoreLayouts(bool forceReset = false)
 	{
-		Dictionary<string, double[]> layouts = ViewModel.LoadPanelLayouts();
-		RestorePanel(EqPanel, "dsp.eq", layouts, 20.0, 16.0, 600.0, 380.0);
-		RestorePanel(EffectsPanel, "dsp.effects", layouts, 640.0, 16.0, 560.0, 380.0);
-		RestorePanel(TimbrePanel, "dsp.timbre", layouts, 1820.0, 416.0, 560.0, 350.0);
-		RestorePanel(Vst3Panel, "dsp.vst3", layouts, 20.0, 416.0, 600.0, 360.0);
-		if (_compressorPanel != null) RestorePanel(_compressorPanel, "dsp.compressor", layouts, 20.0, 796.0, 600.0, 370.0);
-		if (_spatialCrossfeedPanel != null) RestorePanel(_spatialCrossfeedPanel, "dsp.spatial", layouts, 640.0, 416.0, 560.0, 360.0);
-		if (_convolutionPanel != null) RestorePanel(_convolutionPanel, "dsp.convolution", layouts, 1220.0, 16.0, 580.0, 380.0);
-		if (_advancedPanel != null) RestorePanel(_advancedPanel, "dsp.advanced", layouts, 1220.0, 416.0, 580.0, 360.0);
-		if (_replayGainHeadroomPanel != null) RestorePanel(_replayGainHeadroomPanel, "dsp.replaygain", layouts, 1820.0, 16.0, 560.0, 380.0);
-		if (_rackOrderPanel != null) RestorePanel(_rackOrderPanel, "dsp.rack", layouts, 640.0, 796.0, 1160.0, 370.0);
+		Dictionary<string, double[]> layouts = forceReset ? new Dictionary<string, double[]>() : (ViewModel?.LoadPanelLayouts() ?? new Dictionary<string, double[]>());
+		// 检测是否存在病态重叠堆叠（例如两个或多个面板 X、Y 坐标极其接近 <= 30px）
+		if (!forceReset && layouts.Count > 1)
+		{
+			int overlapCount = 0;
+			var posList = new List<(double X, double Y)>();
+			foreach (var kv in layouts)
+			{
+				if (kv.Value != null && kv.Value.Length >= 2)
+				{
+					double x = kv.Value[0];
+					double y = kv.Value[1];
+					if (posList.Any(p => Math.Abs(p.X - x) < 30.0 && Math.Abs(p.Y - y) < 30.0))
+					{
+						overlapCount++;
+					}
+					posList.Add((x, y));
+				}
+			}
+			if (overlapCount >= 2)
+			{
+				layouts.Clear();
+			}
+		}
+
+		if (PanelCanvas != null)
+		{
+			PanelCanvas.Width = 3050;
+			PanelCanvas.Height = 1100;
+		}
+
+		// 第一排（顶部，Y = 16，标准高度 440）
+		RestorePanel(_rackOrderPanel, "dsp.rack", layouts, 20.0, 16.0, 620.0, 440.0);
+		RestorePanel(EqPanel, "dsp.eq", layouts, 660.0, 16.0, 580.0, 440.0);
+		RestorePanel(_convolutionPanel, "dsp.convolution", layouts, 1260.0, 16.0, 570.0, 440.0);
+		RestorePanel(_replayGainHeadroomPanel, "dsp.replaygain", layouts, 1850.0, 16.0, 570.0, 440.0);
+
+		// 第二排（底部，Y = 476，标准高度 480）
+		RestorePanel(Vst3Panel, "dsp.vst3", layouts, 20.0, 476.0, 620.0, 480.0);
+		RestorePanel(_spatialCrossfeedPanel, "dsp.spatial", layouts, 660.0, 476.0, 580.0, 480.0);
+		RestorePanel(_compressorPanel, "dsp.compressor", layouts, 1260.0, 476.0, 570.0, 480.0);
+		RestorePanel(_advancedPanel, "dsp.advanced", layouts, 1850.0, 476.0, 570.0, 480.0);
+
+		RestorePanel(EffectsPanel, "dsp.effects", layouts, 2440.0, 16.0, 560.0, 440.0);
+		RestorePanel(TimbrePanel, "dsp.timbre", layouts, 2440.0, 476.0, 560.0, 480.0);
 	}
 
 	private void RestorePanel(Border panel, string key, Dictionary<string, double[]> layouts, double defLeft, double defTop, double defWidth, double defHeight)
@@ -496,6 +533,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 	private void SaveLayouts()
 	{
+		if (_currentDspCategory != "free") return;
 		if (ViewModel != null)
 		{
 			var dict = new Dictionary<string, double[]>
@@ -578,16 +616,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 	private void OnResetLayoutClick(object sender, RoutedEventArgs e)
 	{
-		ResetPanelLayout(EqPanel, 20.0, 16.0, 600.0, 370.0);
-		ResetPanelLayout(EffectsPanel, 640.0, 16.0, 560.0, 370.0);
-		ResetPanelLayout(TimbrePanel, 1820.0, 416.0, 560.0, 350.0);
-		ResetPanelLayout(Vst3Panel, 20.0, 416.0, 600.0, 360.0);
-		if (_compressorPanel != null) ResetPanelLayout(_compressorPanel, 20.0, 796.0, 600.0, 370.0);
-		if (_spatialCrossfeedPanel != null) ResetPanelLayout(_spatialCrossfeedPanel, 640.0, 416.0, 560.0, 360.0);
-		if (_convolutionPanel != null) ResetPanelLayout(_convolutionPanel, 1220.0, 16.0, 580.0, 380.0);
-		if (_advancedPanel != null) ResetPanelLayout(_advancedPanel, 1220.0, 416.0, 580.0, 360.0);
-		if (_replayGainHeadroomPanel != null) ResetPanelLayout(_replayGainHeadroomPanel, 1820.0, 16.0, 560.0, 380.0);
-		if (_rackOrderPanel != null) ResetPanelLayout(_rackOrderPanel, 640.0, 796.0, 1160.0, 370.0);
+		RestoreLayouts(forceReset: true);
 		SaveLayouts();
 	}
 
@@ -852,14 +881,16 @@ public sealed class DspPage : Page, IComponentConnector
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		headerGrid.Children.Add(new FontIcon
+		FluentIconKind headerIconKind = glyph switch
 		{
-			Glyph = glyph,
-			FontSize = 15,
-			Opacity = 0.85,
-			VerticalAlignment = VerticalAlignment.Center,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255))
-		});
+			"\uE9D9" or "\uE994" => FluentIconKind.Dynamics,
+			"\uE950" => FluentIconKind.Spatial,
+			"\uE8B7" => FluentIconKind.FolderScan,
+			"\uE774" => FluentIconKind.HiRes,
+			"\uE8B8" => FluentIconKind.Rack,
+			_ => FluentIconKind.Eq
+		};
+		headerGrid.Children.Add(FluentIconFactory.Create(headerIconKind, 20));
 
 		var titleTb = new TextBlock
 		{
@@ -1021,18 +1052,10 @@ public sealed class DspPage : Page, IComponentConnector
 
 		var btnLoad = new Button
 		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE8B7", FontSize = 13 },
-					new TextBlock { Text = "载入脉冲响应 IR (.wav)", FontSize = 12 }
-				}
-			},
-			Padding = new Thickness(12, 6, 12, 6)
+			Padding = new Thickness(12, 6, 12, 6),
+			Tag = "__fluent_upgraded"
 		};
+		FluentIconFactory.SetButtonFluentIcon(btnLoad, FluentIconKind.FolderScan, "载入脉冲响应 IR (.wav)", 18);
 		btnLoad.Click += OnConvolutionImportClick;
 		sp.Children.Add(btnLoad);
 
@@ -1178,18 +1201,18 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		var sp = new StackPanel { Spacing = 8 };
 
-		var modules = new (string Name, string Glyph, string Desc)[]
+		var modules = new (string Name, FluentIconKind Kind, string Desc)[]
 		{
-			("余量管理 (Headroom)", "\uE994", "数字余量下压防削波"),
-			("响度均衡 (ReplayGain)", "\uE895", "曲目/专辑感知响度自动对齐"),
-			("10段图形EQ & AutoEq", "\uE995", "多段高精度参数化均衡校准"),
-			("母带动态压缩器 (Compressor)", "\uE9D9", "瞬态与动态范围塑造"),
-			("双耳互馈 (Crossfeed)", "\uE950", "消除耳机听觉疲劳与头中效应"),
-			("声场宽度与声道矩阵", "\uE74C", "0~200% 声场宽度与极性控制"),
-			("FIR 卷积房间校正", "\uE8B7", "脉冲响应逆滤波器修正"),
-			("多相升频重采样 (Resampler)", "\uE774", "最高 384kHz 高解析升频"),
-			("PCM 转 DSD (SDM 调制器)", "\uE8B8", "DSD64/128/256 高阶噪声整形"),
-			("VST3 插件宿主", "\uE71D", "外接第三方专业音频效果器")
+			("余量管理 (Headroom)", FluentIconKind.Dynamics, "数字余量下压防削波"),
+			("响度均衡 (ReplayGain)", FluentIconKind.Volume, "曲目/专辑感知响度自动对齐"),
+			("10段图形EQ & AutoEq", FluentIconKind.Eq, "多段高精度参数化均衡校准"),
+			("母带动态压缩器 (Compressor)", FluentIconKind.Dynamics, "瞬态与动态范围塑造"),
+			("双耳互馈 (Crossfeed)", FluentIconKind.Spatial, "消除耳机听觉疲劳与头中效应"),
+			("声场宽度与声道矩阵", FluentIconKind.Spatial, "0~200% 声场宽度与极性控制"),
+			("FIR 卷积房间校正", FluentIconKind.FolderScan, "脉冲响应逆滤波器修正"),
+			("多相升频重采样 (Resampler)", FluentIconKind.HiRes, "最高 384kHz 高解析升频"),
+			("PCM 转 DSD (SDM 调制器)", FluentIconKind.HiRes, "DSD64/128/256 高阶噪声整形"),
+			("VST3 插件宿主", FluentIconKind.VstPlugin, "外接第三方专业音频效果器")
 		};
 
 		var listGrid = new Grid { RowSpacing = 6 };
@@ -1211,7 +1234,10 @@ public sealed class DspPage : Page, IComponentConnector
 			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-			var chk = new CheckBox { IsChecked = true, Content = $"{i + 1}. {m.Name}", FontSize = 12 };
+			var chkContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+			chkContent.Children.Add(FluentIconFactory.Create(m.Kind, 18));
+			chkContent.Children.Add(new TextBlock { Text = $"{i + 1}. {m.Name}", FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+			var chk = new CheckBox { IsChecked = true, Content = chkContent, FontSize = 12 };
 			var descTb = new TextBlock { Text = m.Desc, FontSize = 11, Opacity = 0.6, VerticalAlignment = VerticalAlignment.Center };
 			Grid.SetColumn(descTb, 1);
 
@@ -1248,19 +1274,11 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				var btnAutoEq = new Button
 				{
-					Content = new StackPanel
-					{
-						Orientation = Orientation.Horizontal,
-						Spacing = 6,
-						Children =
-						{
-							new FontIcon { Glyph = "\uE896", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255)) },
-							new TextBlock { Text = "导入 AutoEq 耳机预设", FontSize = 12 }
-						}
-					},
 					Padding = new Thickness(10, 4, 10, 4),
-					CornerRadius = new CornerRadius(6)
+					CornerRadius = new CornerRadius(6),
+					Tag = "__fluent_upgraded"
 				};
+				FluentIconFactory.SetButtonFluentIcon(btnAutoEq, FluentIconKind.Eq, "导入 AutoEq 耳机预设", 18);
 				btnAutoEq.Click += OnAutoEqImportClick;
 				presetStack.Children.Add(btnAutoEq);
 			}
@@ -1283,15 +1301,15 @@ public sealed class DspPage : Page, IComponentConnector
 				Margin = new Thickness(0, 4, 0, 4)
 			};
 
-			var items = new (string Key, string Name, string Glyph)[]
+			var items = new (string Key, string Name, FluentIconKind Kind)[]
 			{
-				("rack", "全景机架", "\uE8B8"),
-				("eq", "均衡与校正", "\uE995"),
-				("spatial", "空间声场", "\uE950"),
-				("dynamics", "动态母带", "\uE9D9"),
-				("hires", "高解析DSD", "\uE774"),
-				("vst3", "扩展与VST3", "\uE71D"),
-				("free", "自由画布", "\uE74C")
+				("rack", "全景机架", FluentIconKind.Rack),
+				("eq", "均衡与校正", FluentIconKind.Eq),
+				("spatial", "空间声场", FluentIconKind.Spatial),
+				("dynamics", "动态母带", FluentIconKind.Dynamics),
+				("hires", "高解析DSD", FluentIconKind.HiRes),
+				("vst3", "扩展与VST3", FluentIconKind.VstPlugin),
+				("free", "自由画布", FluentIconKind.FreeCanvas)
 			};
 
 			foreach (var item in items)
@@ -1299,17 +1317,18 @@ public sealed class DspPage : Page, IComponentConnector
 				var btn = new Button
 				{
 					Tag = item.Key,
-					Padding = new Thickness(12, 5, 12, 5),
+					Padding = new Thickness(12, 6, 12, 6),
 					CornerRadius = new CornerRadius(14),
 					BorderThickness = new Thickness(1),
 					Content = new StackPanel
 					{
 						Orientation = Orientation.Horizontal,
-						Spacing = 6,
+						Spacing = 7,
+						VerticalAlignment = VerticalAlignment.Center,
 						Children =
 						{
-							new FontIcon { Glyph = item.Glyph, FontSize = 12 },
-							new TextBlock { Text = item.Name, FontSize = 12 }
+							FluentIconFactory.Create(item.Kind, 18),
+							new TextBlock { Text = item.Name, FontSize = 12, VerticalAlignment = VerticalAlignment.Center }
 						}
 					}
 				};
@@ -1357,7 +1376,7 @@ public sealed class DspPage : Page, IComponentConnector
 		yield return TimbrePanel;
 	}
 
-	private void SetDspViewCategory(string category)
+	public void SetDspViewCategory(string category)
 	{
 		_currentDspCategory = category;
 		UpdateCategoryTabButtons();
@@ -1397,8 +1416,8 @@ public sealed class DspPage : Page, IComponentConnector
 				ShowAndArrangePanel(_advancedPanel, 20, 20, 1160, 480);
 				break;
 			case "vst3":
-				ShowAndArrangePanel(Vst3Panel, 20, 20, 570, 480);
-				ShowAndArrangePanel(EffectsPanel, 610, 20, 570, 480);
+				ShowAndArrangePanel(Vst3Panel, 20, 20, 1160, 520);
+				OptimizeVst3PanelLayout();
 				break;
 		}
 
@@ -1433,12 +1452,6 @@ public sealed class DspPage : Page, IComponentConnector
 					: new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255));
 				if (btn.Content is StackPanel sp && sp.Children.Count >= 2)
 				{
-					if (sp.Children[0] is FontIcon icon)
-					{
-						icon.Foreground = isSelected
-							? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 15, 25))
-							: new SolidColorBrush(Windows.UI.Color.FromArgb(200, 0, 229, 255));
-					}
 					if (sp.Children[1] is TextBlock tb)
 					{
 						tb.Foreground = isSelected
@@ -1448,6 +1461,87 @@ public sealed class DspPage : Page, IComponentConnector
 					}
 				}
 			}
+		}
+	}
+
+	private void OptimizeVst3PanelLayout()
+	{
+		if (Vst3Panel == null) return;
+		try
+		{
+			Vst3Panel.MinWidth = 1000;
+			if (Vst3FoldersList != null)
+			{
+				Vst3FoldersList.MinWidth = 340;
+			}
+			if (Vst3PluginsList != null)
+			{
+				Vst3PluginsList.MinWidth = 650;
+				Vst3PluginsList.Padding = new Thickness(0, 0, 16, 0);
+				Vst3PluginsList.ContainerContentChanging -= OnVst3PluginsContainerContentChanging;
+				Vst3PluginsList.ContainerContentChanging += OnVst3PluginsContainerContentChanging;
+			}
+			AdjustVst3VisualTree(Vst3Panel);
+		}
+		catch {}
+	}
+
+	private void OnVst3PluginsContainerContentChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
+	{
+		if (args.ItemContainer != null)
+		{
+			FormatVst3PluginItem(args.ItemContainer);
+		}
+	}
+
+	private static void FormatVst3PluginItem(DependencyObject root)
+	{
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is TextBlock tb)
+			{
+				if (tb.MaxWidth < 400 && tb.MaxWidth > 0)
+				{
+					tb.MaxWidth = 450;
+				}
+				tb.TextTrimming = TextTrimming.CharacterEllipsis;
+			}
+			else if (child is Button btn)
+			{
+				btn.Height = 28;
+				btn.Padding = new Thickness(8, 2, 8, 2);
+				btn.Margin = new Thickness(6, 0, 8, 0);
+			}
+			else if (child is ToggleButton tog)
+			{
+				tog.Height = 28;
+				tog.Padding = new Thickness(8, 2, 8, 2);
+			}
+			FormatVst3PluginItem(child);
+		}
+	}
+
+	private static void AdjustVst3VisualTree(DependencyObject node)
+	{
+		if (node is Grid grid)
+		{
+			if (grid.ColumnDefinitions.Count >= 2)
+			{
+				grid.ColumnDefinitions[0].Width = new GridLength(380);
+				grid.ColumnDefinitions[1].Width = new GridLength(1.0, GridUnitType.Star);
+			}
+		}
+		else if (node is StackPanel sp && sp.Orientation == Orientation.Horizontal)
+		{
+			sp.Spacing = 8;
+		}
+
+		int c = VisualTreeHelper.GetChildrenCount(node);
+		for (int i = 0; i < c; i++)
+		{
+			AdjustVst3VisualTree(VisualTreeHelper.GetChild(node, i));
 		}
 	}
 
