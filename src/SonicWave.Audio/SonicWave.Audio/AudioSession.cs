@@ -224,14 +224,8 @@ internal sealed class AudioSession : IDisposable
 	{
 		get
 		{
-			if (!_reverbEnabled)
-			{
-				TimbreSettings timbre = _timbre;
-				if (timbre == null || !timbre.IsActive)
-				{
-					return Vst3Active;
-				}
-			}
+			// Always route through NAudio by default so that DspSampleProvider
+			// processes audio with real-time 1024 FFT spectrum, EQ, VST3, and stereo phase/balance meters.
 			return true;
 		}
 	}
@@ -337,17 +331,17 @@ internal sealed class AudioSession : IDisposable
 		_useVlc = mode == OutputMode.SoftwareDecode && !RequiresNaudioPath;
 	}
 
-	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters()
+	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation) GetLiveAudioMeters()
 	{
 		if (_naudioBackend is NaudioAudioBackend naudio)
 		{
 			var dsp = naudio.Decoder.Dsp;
 			if (dsp != null && State == PlaybackState.Playing)
 			{
-				return (dsp.LatestPeakDb, dsp.LatestRmsDb, dsp.LatestBands);
+				return (dsp.LatestPeakDb, dsp.LatestRmsDb, dsp.LatestBands, dsp.LatestStereoBalance, dsp.LatestPhaseCorrelation);
 			}
 		}
-		return (-90.0, -90.0, Array.Empty<float>());
+		return (-90.0, -90.0, Array.Empty<float>(), 0f, 1f);
 	}
 
 	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails()

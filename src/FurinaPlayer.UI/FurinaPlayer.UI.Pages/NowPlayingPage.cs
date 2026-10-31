@@ -797,7 +797,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		if (_meterTimer == null)
 		{
 			_meterTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
-			_meterTimer.Interval = TimeSpan.FromMilliseconds(40);
+			_meterTimer.Interval = TimeSpan.FromMilliseconds(25);
 			_meterTimer.Tick += OnMeterTimerTick;
 		}
 		if (!_meterTimer.IsRunning)
@@ -835,6 +835,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				state = isPlaying ? "playing" : "paused",
 				positionSeconds = posSec,
 				durationSeconds = durSec,
+				sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+				playbackRate = 1.0,
 				currentTrackId = ViewModel.CurrentTrack?.Id ?? 0L
 			}
 		});
@@ -847,26 +849,55 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			levels = new
 			{
 				peakDb = isPlaying ? meters.PeakDb : -90.0,
-				rmsDb = isPlaying ? meters.RmsDb : -90.0
+				rmsDb = isPlaying ? meters.RmsDb : -90.0,
+				balance = isPlaying ? meters.StereoBalance : 0.0,
+				correlation = isPlaying ? meters.PhaseCorrelation : 1.0
 			},
 			spectrum = new
 			{
 				bands = isPlaying ? meters.Bands : Array.Empty<float>(),
-				energy
+				energy,
+				balance = isPlaying ? meters.StereoBalance : 0.0,
+				correlation = isPlaying ? meters.PhaseCorrelation : 1.0
 			}
 		});
 	}
 
 	private void PostDawMessage(object message)
 	{
-		if (_webView?.CoreWebView2 == null) return;
-		try
+		if (_webView == null) return;
+		if (DispatcherQueue.HasThreadAccess)
 		{
-			string json = JsonSerializer.Serialize(message);
-			_webView.CoreWebView2.PostWebMessageAsJson(json);
+			try
+			{
+				if (_webView.CoreWebView2 != null)
+				{
+					string json = JsonSerializer.Serialize(message);
+					_webView.CoreWebView2.PostWebMessageAsJson(json);
+				}
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"PostDawMessage error: {ex.Message}");
+			}
 		}
-		catch
+		else
 		{
+			DispatcherQueue.TryEnqueue(() =>
+			{
+				try
+				{
+					if (_webView?.CoreWebView2 != null)
+					{
+						string json = JsonSerializer.Serialize(message);
+						_webView.CoreWebView2.PostWebMessageAsJson(json);
+					}
+				}
+				catch (Exception ex)
+				{
+					Debug.WriteLine($"PostDawMessage error: {ex.Message}");
+				}
+			});
 		}
 	}
 
@@ -1025,22 +1056,22 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		switch (cmd)
 		{
 			case "playPause":
-				ViewModel?.TogglePlayPauseCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.TogglePlayPauseCommand?.Execute(null));
 				break;
 			case "play":
-				ViewModel?.PlayCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.PlayCommand?.Execute(null));
 				break;
 			case "pause":
-				ViewModel?.PauseCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.PauseCommand?.Execute(null));
 				break;
 			case "previous":
-				ViewModel?.PreviousCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.PreviousCommand?.Execute(null));
 				break;
 			case "next":
-				ViewModel?.NextCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.NextCommand?.Execute(null));
 				break;
 			case "stop":
-				ViewModel?.StopCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.StopCommand?.Execute(null));
 				break;
 			case "seek":
 				if (payload.ValueKind == JsonValueKind.Object)
@@ -1054,7 +1085,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					{
 						sec = timeProp.GetDouble();
 					}
-					ViewModel?.SeekSeconds(sec);
+					DispatcherQueue.TryEnqueue(() => ViewModel?.SeekSeconds(sec));
 				}
 				break;
 			case "setVolume":
@@ -1062,34 +1093,40 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				{
 					double vol = volProp.GetDouble();
 					int intVol = vol <= 1.0 ? (int)Math.Round(vol * 100.0) : (int)Math.Round(vol);
-					ViewModel?.SetVolumePercent(intVol);
+					DispatcherQueue.TryEnqueue(() => ViewModel?.SetVolumePercent(intVol));
 				}
 				break;
 			case "cycleRepeat":
-				ViewModel?.CycleModeCommand?.Execute(null);
+				DispatcherQueue.TryEnqueue(() => ViewModel?.CycleModeCommand?.Execute(null));
 				break;
 			case "setRepeat":
 				if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("mode", out var modeProp))
 				{
 					string mode = modeProp.GetString() ?? "off";
-					if (ViewModel?.Engine != null)
+					DispatcherQueue.TryEnqueue(() =>
 					{
-						ViewModel.Engine.Mode = mode switch
+						if (ViewModel?.Engine != null)
 						{
-							"one" => PlaybackMode.RepeatOne,
-							"all" => PlaybackMode.RepeatAll,
-							_ => PlaybackMode.Sequential
-						};
-					}
+							ViewModel.Engine.Mode = mode switch
+							{
+								"one" => PlaybackMode.RepeatOne,
+								"all" => PlaybackMode.RepeatAll,
+								_ => PlaybackMode.Sequential
+							};
+						}
+					});
 				}
 				break;
 			case "toggleShuffle":
-				if (ViewModel?.Engine != null)
+				DispatcherQueue.TryEnqueue(() =>
 				{
-					ViewModel.Engine.Mode = ViewModel.Engine.Mode == PlaybackMode.Shuffle
-						? PlaybackMode.Sequential
-						: PlaybackMode.Shuffle;
-				}
+					if (ViewModel?.Engine != null)
+					{
+						ViewModel.Engine.Mode = ViewModel.Engine.Mode == PlaybackMode.Shuffle
+							? PlaybackMode.Sequential
+							: PlaybackMode.Shuffle;
+					}
+				});
 				break;
 			case "queue:playTrack":
 			case "queue:playItem":
@@ -1111,18 +1148,27 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 						}
 					}
 				}
-				if (tid != 0 && ViewModel?.Engine != null)
+				if (tid != 0)
 				{
-					var trk = ViewModel.Engine.Queue.FirstOrDefault(t => t.Id == tid);
-					if (trk != null) ViewModel.Engine.PlayTrack(trk);
+					DispatcherQueue.TryEnqueue(() =>
+					{
+						if (ViewModel?.Engine != null)
+						{
+							var trk = ViewModel.Engine.Queue.FirstOrDefault(t => t.Id == tid);
+							if (trk != null) ViewModel.Engine.PlayTrack(trk);
+						}
+					});
 				}
 				break;
 			case "queue:playAlbum":
 			case "queue:playPlaylist":
 				if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("firstTrackId", out var ftProp) && ftProp.TryGetInt64(out long ftid))
 				{
-					var trk = ViewModel?.Engine.Queue.FirstOrDefault(t => t.Id == ftid);
-					if (trk != null) ViewModel?.Engine.PlayTrack(trk);
+					DispatcherQueue.TryEnqueue(() =>
+					{
+						var trk = ViewModel?.Engine.Queue.FirstOrDefault(t => t.Id == ftid);
+						if (trk != null) ViewModel?.Engine.PlayTrack(trk);
+					});
 				}
 				break;
 			case "lyrics:get":

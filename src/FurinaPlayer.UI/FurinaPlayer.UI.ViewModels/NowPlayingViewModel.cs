@@ -932,7 +932,7 @@ public class NowPlayingViewModel : ObservableObject
 
 	public AudioEngine Engine => _engine;
 
-	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters() => _engine.GetLiveAudioMeters();
+	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation) GetLiveAudioMeters() => _engine.GetLiveAudioMeters();
 
 	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails() => _engine.GetAudioFormatDetails();
 

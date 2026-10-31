@@ -126,7 +126,7 @@ public sealed class AudioEngine : IDisposable
 		_session.ConfigureOutput(mode, deviceId, asioDriver, bufferMs);
 	}
 
-	public (double PeakDb, double RmsDb, float[] Bands) GetLiveAudioMeters() => _session.GetLiveAudioMeters();
+	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation) GetLiveAudioMeters() => _session.GetLiveAudioMeters();
 
 	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails() => _session.GetAudioFormatDetails();
 

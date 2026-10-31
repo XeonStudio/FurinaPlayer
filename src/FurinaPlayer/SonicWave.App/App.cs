@@ -491,9 +491,27 @@ public class App : Application, IXamlMetadataProvider
 								{
 									int idx = Math.Max(0, allTracks.IndexOf(targetTrack));
 									_audioEngine.SetQueue(allTracks, idx);
-									_audioEngine.PrepareRestore(TimeSpan.FromSeconds(12.28));
+									_audioEngine.PlayTrack(targetTrack);
 								});
-								await Task.Delay(600);
+								await Task.Delay(1500);
+							}
+
+							if (_audioEngine.State != SonicWave.Audio.PlaybackState.Playing)
+							{
+								_window?.DispatcherQueue.TryEnqueue(() =>
+								{
+									if (_audioEngine.CurrentTrack != null)
+									{
+										_audioEngine.Play();
+									}
+									else if (targetTrack != null)
+									{
+										int idx = Math.Max(0, allTracks.IndexOf(targetTrack));
+										_audioEngine.SetQueue(allTracks, idx);
+										_audioEngine.PlayTrack(targetTrack);
+									}
+								});
+								await Task.Delay(2000);
 							}
 						}
 					}

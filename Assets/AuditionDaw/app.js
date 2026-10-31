@@ -244,12 +244,12 @@
       "shortcuts.waveColor": "切换波形色彩 (天蓝 / 粉樱)",
       "shortcuts.prefs": "首选项设置",
       "shortcuts.reload": "重新加载 DAW 界面",
-      "shortcuts.close": "关闭弹窗 / 返回 ECHO",
+      "shortcuts.close": "关闭弹窗",
 
       "about.title": "关于 Adobe Audition DAW",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW 专业母带主题",
       "about.version": "版本 1.3.4 (Multilingual Edition)",
-      "about.desc": "专为 ECHO 音乐播放器打造的高仿真 Adobe Audition 专业数字音频工作站 (DAW) 沉浸式主题与实时分析仪套件。",
+      "about.desc": "高仿真 Adobe Audition 专业数字音频工作站 (DAW) 沉浸式主题与实时母带分析仪套件。",
       "about.featTitle": "功能特性：",
       "about.f1": "• 支持经典黑暗 / 日间明亮双主题无缝切换 (Ctrl+T)",
       "about.f2": "• 波形色彩支持淡雅天蓝与柔美粉樱双色彩方案 (Ctrl+Alt+W)",
@@ -260,7 +260,7 @@
       "about.f7": "• 广播级 LUFS 响度与 True Peak 峰值电平指示",
       "about.f8": "• 顶栏专业下拉菜单与全局快捷键（文件、编辑、多轨、控制、缩放等）",
       "about.f9": "• 智能多源流媒体与本地封面回退保护，零闪烁高保真",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "已切换界面语言：简体中文",
       "toast.pathCopied": "已复制音频路径至剪贴板",
@@ -400,7 +400,7 @@
       "lyrics.instrumentalBig": "纯音乐",
       "lyrics.instrumentalDesc": "该曲目被标记为纯音乐，请欣赏",
       "lyrics.emptyBig": "暂无歌词",
-      "lyrics.emptyDesc": "可在 ECHO 歌词设置中搜索或导入歌词",
+      "lyrics.emptyDesc": "可在歌词设置中搜索或导入本地歌词",
       "lyrics.badgeInstrumental": "纯音乐",
       "lyrics.badgeNoLyrics": "无歌词",
       "lyrics.badgeSynced": "逐行同步",
@@ -610,12 +610,12 @@
       "shortcuts.waveColor": "Toggle Waveform Color (Azure / Sakura)",
       "shortcuts.prefs": "Preferences",
       "shortcuts.reload": "Reload DAW Interface",
-      "shortcuts.close": "Close Dialog / Back to ECHO",
+      "shortcuts.close": "Close Dialog",
 
       "about.title": "About Adobe Audition DAW",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW Professional Theme",
       "about.version": "Version 1.3.4 (Multilingual Edition)",
-      "about.desc": "High-fidelity Adobe Audition professional Digital Audio Workstation (DAW) theme & realtime analyzer suite crafted for the ECHO music player.",
+      "about.desc": "High-fidelity Adobe Audition professional Digital Audio Workstation (DAW) theme & realtime analyzer suite.",
       "about.featTitle": "Features:",
       "about.f1": "• Seamless Light & Dark mastering themes (Ctrl+T)",
       "about.f2": "• Dual waveform colorways: Azure Blue & Sakura Pink (Ctrl+Alt+W)",
@@ -626,7 +626,7 @@
       "about.f7": "• Broadcast-standard LUFS loudness radar and True Peak metering",
       "about.f8": "• Professional top menubar & global hotkeys (File, Edit, Multitrack, etc.)",
       "about.f9": "• Multi-source streaming & local artwork fallback with zero flicker",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "Interface language switched to: English",
       "toast.pathCopied": "Audio file path copied to clipboard",
@@ -766,7 +766,7 @@
       "lyrics.instrumentalBig": "Instrumental",
       "lyrics.instrumentalDesc": "This track is marked as instrumental. Enjoy the music.",
       "lyrics.emptyBig": "No Lyrics",
-      "lyrics.emptyDesc": "Search or import lyrics in ECHO lyrics settings",
+      "lyrics.emptyDesc": "Search or import lyrics in player settings",
       "lyrics.badgeInstrumental": "Instrumental",
       "lyrics.badgeNoLyrics": "No Lyrics",
       "lyrics.badgeSynced": "Synced",
@@ -967,12 +967,12 @@
       "shortcuts.waveColor": "Couleur de forme d'onde (Azur / Sakura)",
       "shortcuts.prefs": "Préférences",
       "shortcuts.reload": "Recharger l'interface DAW",
-      "shortcuts.close": "Fermer / Retour à ECHO",
+      "shortcuts.close": "Fermer le dialogue",
 
       "about.title": "À propos d'Adobe Audition DAW",
-      "about.headerTitle": "Thème Adobe Audition DAW pour ECHO",
+      "about.headerTitle": "Thème Adobe Audition DAW Professionnel",
       "about.version": "Version 1.3.4 (Édition Multilingue)",
-      "about.desc": "Thème immersif et suite d'analyseurs en temps réel haute fidélité inspirés d'Adobe Audition pour le lecteur audio ECHO.",
+      "about.desc": "Thème immersif et suite d'analyseurs en temps réel haute fidélité inspirés d'Adobe Audition.",
       "about.featTitle": "Fonctionnalités :",
       "about.f1": "• Thèmes de mastering Clair et Sombre sans coupure (Ctrl+T)",
       "about.f2": "• Deux palettes de formes d'onde : Bleu Azur et Rose Sakura (Ctrl+Alt+W)",
@@ -983,7 +983,7 @@
       "about.f7": "• Radar de sonie LUFS et indicateurs True Peak de niveau professionnel",
       "about.f8": "• Barre de menus DAW supérieure et raccourcis globaux complets",
       "about.f9": "• Pochette de disque intelligente sans clignotement",
-      "about.footer": "Inspiré d'Adobe Audition CC &bull; Conçu pour ECHO",
+      "about.footer": "Inspiré d'Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "Langue de l'interface : Français",
       "toast.pathCopied": "Chemin du fichier audio copié dans le presse-papiers",
@@ -1132,7 +1132,7 @@
       "lyrics.instrumentalBig": "Instrumental",
       "lyrics.instrumentalDesc": "Ce morceau est instrumental. Bonne écoute.",
       "lyrics.emptyBig": "Aucune parole",
-      "lyrics.emptyDesc": "Recherchez ou importez des paroles dans les paramètres d'ECHO",
+      "lyrics.emptyDesc": "Recherchez ou importez des paroles dans les paramètres",
       "lyrics.badgeInstrumental": "Instrumental",
       "lyrics.badgeNoLyrics": "Sans paroles",
       "lyrics.badgeSynced": "Synchronisé",
@@ -1333,12 +1333,12 @@
       "shortcuts.waveColor": "波形カラー切替 (藍色 / 桜色)",
       "shortcuts.prefs": "環境設定",
       "shortcuts.reload": "DAW UIを再読み込み",
-      "shortcuts.close": "ダイアログを閉じる / ECHOに戻る",
+      "shortcuts.close": "ダイアログを閉じる",
 
       "about.title": "Adobe Audition DAW について",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW プロフェッショナルテーマ",
       "about.version": "バージョン 1.3.4 (多言語エディション)",
-      "about.desc": "ECHO 音楽プレーヤーのために設計された、高精度 Adobe Audition スタイルのプロフェッショナル DAW イマーシブテーマ＆リアルタイムアナライザースイート。",
+      "about.desc": "高精度 Adobe Audition スタイルのプロフェッショナル DAW イマーシブテーマ＆リアルタイムアナライザースイート。",
       "about.featTitle": "主な機能：",
       "about.f1": "• 洗練されたダーク / ライト マスタリングテーマのシームレス切替 (Ctrl+T)",
       "about.f2": "• 淡雅な藍色と柔らかな桜色の2つの波形カラーパレット (Ctrl+Alt+W)",
@@ -1349,7 +1349,7 @@
       "about.f7": "• 放送規格準拠 LUFS ラウドネスレーダーおよび True Peak メーター",
       "about.f8": "• プロ仕様のトップメニューバー＆包括的なショートカットキー",
       "about.f9": "• マルチソースアートワークとローカルカバーのスマートフォールバック",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "表示言語を切り替えました：日本語",
       "toast.pathCopied": "オーディオパスをクリップボードにコピーしました",
@@ -1498,7 +1498,7 @@
       "lyrics.instrumentalBig": "インストゥルメンタル",
       "lyrics.instrumentalDesc": "このトラックはインスト曲としてマークされています。音楽をお楽しみください。",
       "lyrics.emptyBig": "歌詞なし",
-      "lyrics.emptyDesc": "ECHOの歌詞設定で検索またはインポートできます",
+      "lyrics.emptyDesc": "歌詞設定で検索またはインポートできます",
       "lyrics.badgeInstrumental": "インスト",
       "lyrics.badgeNoLyrics": "歌詞なし",
       "lyrics.badgeSynced": "行同期",
@@ -1699,12 +1699,12 @@
       "shortcuts.waveColor": "파형 색상 전환 (하늘색 / 벚꽃색)",
       "shortcuts.prefs": "환경설정",
       "shortcuts.reload": "DAW UI 다시 불러오기",
-      "shortcuts.close": "창 닫기 / ECHO로 복귀",
+      "shortcuts.close": "창 닫기",
 
       "about.title": "Adobe Audition DAW 정보",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW 전문 마스터링 테마",
       "about.version": "버전 1.3.4 (다국어 에디션)",
-      "about.desc": "ECHO 음악 플레이어를 위해 정밀 설계된 고품질 Adobe Audition 스타일의 전문가급 디지털 오디오 워크스테이션(DAW) 테마 및 실시간 분석기 스위트.",
+      "about.desc": "고품질 Adobe Audition 스타일의 전문가급 디지털 오디오 워크스테이션(DAW) 테마 및 실시간 분석기 스위트.",
       "about.featTitle": "주요 기능:",
       "about.f1": "• 다크 / 라이트 전문 마스터링 테마 매끄러운 전환 (Ctrl+T)",
       "about.f2": "• 하늘색 및 벚꽃색 파형 컬러 팔레트 지원 (Ctrl+Alt+W)",
@@ -1715,7 +1715,7 @@
       "about.f7": "• 방송 표준 규격 LUFS 라우드니스 레이더 및 True Peak 미터링",
       "about.f8": "• 상단 전문가 메뉴바 및 글로벌 단축키 완벽 지원",
       "about.f9": "• 멀티 소스 스트리밍 및 로컬 앨범 아트 무깜빡임 폴백",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "인터페이스 언어 변경됨: 한국어",
       "toast.pathCopied": "오디오 파일 경로가 클립보드에 복사되었습니다",
@@ -1864,7 +1864,7 @@
       "lyrics.instrumentalBig": "연주곡",
       "lyrics.instrumentalDesc": "이 곡은 연주곡으로 표시되어 있습니다. 음악을 감상해 주세요.",
       "lyrics.emptyBig": "가사 없음",
-      "lyrics.emptyDesc": "ECHO 가사 설정에서 가사를 검색하거나 가져올 수 있습니다",
+      "lyrics.emptyDesc": "가사 설정에서 가사를 검색하거나 가져올 수 있습니다",
       "lyrics.badgeInstrumental": "연주곡",
       "lyrics.badgeNoLyrics": "가사 없음",
       "lyrics.badgeSynced": "줄별 동기화",
@@ -2076,10 +2076,17 @@
   };
 
   async function sendPlaybackCommand(name, payload = {}, timeoutMs = 2500) {
+    if (name === "playPause") {
+      const isPlay = state.playback.state === "playing";
+      state.playback.state = isPlay ? "paused" : "playing";
+      applyPlayback();
+    }
     const result = await command(name, payload, timeoutMs);
     if (result && result.ok === false) {
       const error = result.error || "command-failed";
-      toast(COMMAND_HINTS[error] || `命令失败：${name}（${error}）`);
+      if (error !== "timeout") {
+        toast(COMMAND_HINTS[error] || `命令失败：${name}（${error}）`);
+      }
       return false;
     }
     return true;
@@ -2472,8 +2479,8 @@
     if (!clock || (clock.currentTrackId && activeTrackId && clock.currentTrackId !== activeTrackId)) {
       return num(state.playback.positionSeconds, 0) || 0;
     }
-    const now = performance.timeOrigin + performance.now();
-    const elapsed = clamp(now - num(clock.sampledAtMs, now), 0, 1500);
+    const now = Date.now();
+    const elapsed = clamp(now - num(clock.sampledAtMs, now), 0, 1000);
     const extra = clock.state === "playing" ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
     const limit = num(clock.durationSeconds, 0) || Infinity;
     return clamp((num(clock.positionSeconds, 0) || 0) + extra, 0, limit);
@@ -3060,11 +3067,10 @@
       const visible = ratio >= 0 && ratio <= 1;
       playhead.style.display = visible ? "" : "none";
       if (visible) {
-        playhead.style.left = `${ratio * 100}%`;
+        playhead.style.left = `${(ratio * w).toFixed(2)}px`;
         setText("playhead-flag", fmtClock(pos, false));
       }
     }
-    renderSpectrogram();
   }
 
   // Adobe Audition Spectral Frequency Display 256-entry RGBA Lookup Table
@@ -3324,12 +3330,24 @@
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = isLight ? "#edf0f4" : "#0d0f11";
     ctx.fillRect(0, 0, w, h);
-    const bars = 48;
+    const bars = 64;
     const fresh = hasSignal(state.spectrum.bands);
-    const bands = fresh || !entry.lastBars
-      ? normalizeBands(state.spectrum.bands, bars)
-      : entry.lastBars;
-    if (fresh) entry.lastBars = bands;
+    const targetBands = normalizeBands(state.spectrum.bands, bars);
+    if (!entry.smoothBands || entry.smoothBands.length !== bars) {
+      entry.smoothBands = new Float32Array(bars);
+    }
+    for (let i = 0; i < bars; i++) {
+      if (fresh) {
+        if (targetBands[i] > entry.smoothBands[i]) {
+          entry.smoothBands[i] = entry.smoothBands[i] * 0.35 + targetBands[i] * 0.65;
+        } else {
+          entry.smoothBands[i] = entry.smoothBands[i] * 0.84 + targetBands[i] * 0.16;
+        }
+      } else {
+        entry.smoothBands[i] = Math.max(0, entry.smoothBands[i] * 0.88 - 0.005);
+      }
+    }
+    const bands = entry.smoothBands;
     const top = 12;
     const avail = h - top - 2;
     const xAt = (i) => (i / (bars - 1)) * w;
@@ -3349,11 +3367,10 @@
 
     if (!entry.peakHold || entry.peakHold.length !== bars) entry.peakHold = new Float32Array(bars);
     for (let i = 0; i < bars; i++) {
-      entry.peakHold[i] = Math.max(bands[i], entry.peakHold[i] - 0.006);
+      entry.peakHold[i] = Math.max(bands[i], entry.peakHold[i] - 0.005);
     }
 
-    // Smooth curve + gradient area (midpoint-quadratic interpolation, the same
-    // technique d3-shape's curveCardinal exposes) instead of discrete bars.
+    // Smooth curve + gradient area (midpoint-quadratic interpolation)
     const traceSpectrum = (values) => {
       ctx.beginPath();
       const firstX = xAt(0);
@@ -3548,6 +3565,20 @@
     const isPlaying = isPlayingState() && (fresh || energy > 0.001);
     const mode = state.soundfieldMode || "polar-sample";
 
+    // Real measurement values from C# DSP engine
+    const rawBal = typeof state.levels.balance === "number" ? state.levels.balance : 0.0;
+    const rawCorr = typeof state.levels.correlation === "number" ? state.levels.correlation : 1.0;
+    const balance = isPlaying ? clamp(rawBal, -1.0, 1.0) : 0.0;
+    const correlation = isPlaying ? clamp(rawCorr, -1.0, 1.0) : 1.0;
+
+    // Update global phase correlation meter (+1 is top, 0 center, -1 bottom)
+    if (entry.corrVal === undefined || entry.corrVal === null) entry.corrVal = 1.0;
+    const targetCorr = isPlaying ? correlation : 1.0;
+    entry.corrVal = entry.corrVal * 0.85 + targetCorr * 0.15;
+    const corrPct = clamp(((1.0 - entry.corrVal) / 2.0) * 100, 3, 97);
+    const corrPip = el("soundfield-corr-pip");
+    if (corrPip) corrPip.style.top = `${corrPct.toFixed(1)}%`;
+
     if (mode === "lissajous") {
       // ══════════════════════════════════════════════════════════════════════
       // Adobe Audition / iZotope Insight 2 Professional Lissajous Goniometer
@@ -3612,13 +3643,11 @@
       // 45° Diagonal Axes for Left (L) and Right (R) channels
       const diagCos = 0.70710678;
       ctx.strokeStyle = gridSubStroke;
-      // L channel diagonal (-45° from up = 135° in cartesian: up-left to down-right)
       ctx.beginPath();
       ctx.moveTo(cx - R * diagCos, cy - R * diagCos);
       ctx.lineTo(cx + R * diagCos, cy + R * diagCos);
       ctx.stroke();
 
-      // R channel diagonal (+45° from up = 45° in cartesian: up-right to down-left)
       ctx.beginPath();
       ctx.moveTo(cx + R * diagCos, cy - R * diagCos);
       ctx.lineTo(cx - R * diagCos, cy + R * diagCos);
@@ -3649,7 +3678,6 @@
       ctx.fillText("-6", cx + 4, cy - R * 0.5 + 4);
 
       // 2. Multiband Stereo Phasor Synthesis Engine (100% Music-Driven)
-      // Extract acoustic sub-bands from real host FFT
       let bBass = 0;
       for (let i = 0; i < 6; i++) bBass += bands[i] || 0;
       bBass /= 6;
@@ -3678,12 +3706,9 @@
         if (entry.lissAmp < 0.5) entry.lissAmp = 0;
       }
 
-      // Dynamic stereo width from real spectral diffusion
-      const stereoWidth = clamp(0.18 + bHigh * 1.5 + bMid * 0.65 + bAir * 1.8 + transient * 0.35, 0.10, 0.95);
-
-      // Instantaneous Phase Correlation Calculation (M^2 vs S^2)
-      let sumMidSq = 0;
-      let sumSideSq = 0;
+      // Dynamic stereo width from real spectral diffusion and phase correlation
+      const decorr = clamp((1.0 - correlation) * 0.9, 0.04, 1.2);
+      const stereoWidth = clamp(0.10 + decorr * 0.65 + bHigh * 0.35 + bAir * 0.35, 0.06, 1.15);
 
       if (entry.lissAmp > 0.8) {
         const PTS = 240;
@@ -3709,17 +3734,16 @@
           const m4 = Math.sin(theta * 5.0 + t * 5.2) * (bAir * 0.4 + transient * 0.45);
           const s4 = Math.cos(theta * 5.0 + t * 5.2 + 2.9) * (bAir * 0.65 + transient * 0.6) * stereoWidth;
 
-          // Sum rotated Mid & Side components
+          // Sum rotated Mid & Side components with balance tilt
           const midTot = (m1 + m2 + m3 + m4);
           const sideTot = (s1 + s2 + s3 + s4);
+          const tiltAngle = balance * 0.32;
 
-          // Accumulate power for true Pearson correlation coefficient
-          sumMidSq += midTot * midTot;
-          sumSideSq += sideTot * sideTot;
+          const rotSide = sideTot * Math.cos(tiltAngle) + midTot * Math.sin(tiltAngle);
+          const rotMid = midTot * Math.cos(tiltAngle) - sideTot * Math.sin(tiltAngle);
 
-          // Screen coordinate projection
-          lissPoints[i * 2] = cx + sideTot * entry.lissAmp;
-          lissPoints[i * 2 + 1] = cy - midTot * entry.lissAmp;
+          lissPoints[i * 2] = cx + rotSide * entry.lissAmp;
+          lissPoints[i * 2 + 1] = cy - rotMid * entry.lissAmp;
         }
 
         // Layer 1: CRT Phosphor Aura Glow
@@ -3752,7 +3776,7 @@
         ctx.lineWidth = 1.3;
         ctx.stroke();
 
-        // Layer 3: Transient Excitation Sparkles (triggered on sharp drum / percussion attacks)
+        // Layer 3: Transient Excitation Sparkles (triggered on sharp attacks)
         if (transient > 0.12 && energy > 0.15) {
           const sparkCount = Math.min(8, Math.floor(transient * 14));
           ctx.fillStyle = isLight ? "rgba(0, 151, 167, 0.85)" : "rgba(255, 255, 255, 0.9)";
@@ -3766,18 +3790,6 @@
           }
         }
       }
-
-      // True Phase Correlation Meter Update: r = (Mid^2 - Side^2) / (Mid^2 + Side^2)
-      let targetCorr = 0.92;
-      if (sumMidSq + sumSideSq > 0.001) {
-        targetCorr = clamp((sumMidSq - sumSideSq) / (sumMidSq + sumSideSq + 0.0001), -0.85, 0.98);
-      } else if (!isPlaying) {
-        targetCorr = 0.98;
-      }
-      entry.corrVal = entry.corrVal * 0.88 + targetCorr * 0.12;
-      const corrPct = clamp(((1 - entry.corrVal) / 2) * 100, 4, 96);
-      const corrPip = el("soundfield-corr-pip");
-      if (corrPip) corrPip.style.top = `${corrPct}%`;
 
       // Central Origin Zero Pip
       ctx.fillStyle = isLight ? "#007c8c" : "#26c281";
@@ -3795,24 +3807,9 @@
     // ══════════════════════════════════════════════════════════════════════
     // Polar Modes: Polar Sample & Polar Level (Semicircular Dome)
     // ══════════════════════════════════════════════════════════════════════
-    // Coordinates for the semicircular polar dome (origin at bottom center)
     const cx = w / 2;
     const cy = h - 6;
     const R = Math.max(12, Math.min(w / 2 - 12, cy - 8));
-
-    // Update phase correlation meter for polar modes
-    if (!entry.corrVal) entry.corrVal = 0.85;
-    let targetCorr = 0.85;
-    if (isPlaying) {
-      const spread = Math.abs((bands[8] || 0) - (bands[28] || 0)) + Math.abs((bands[16] || 0) - (bands[40] || 0));
-      targetCorr = clamp(0.92 - spread * 0.4 + Math.sin(performance.now() * 0.003) * 0.05, 0.15, 0.98);
-    } else {
-      targetCorr = 0.95;
-    }
-    entry.corrVal = entry.corrVal * 0.9 + targetCorr * 0.1;
-    const corrPct = clamp(((1 - entry.corrVal) / 2) * 100, 4, 96);
-    const corrPip = el("soundfield-corr-pip");
-    if (corrPip) corrPip.style.top = `${corrPct}%`;
 
     // Draw Polar Graticule
     ctx.strokeStyle = isLight ? "rgba(51, 65, 85, 0.22)" : "rgba(90, 130, 150, 0.22)";
@@ -3858,20 +3855,26 @@
       if (!entry.particles) entry.particles = [];
 
       if (isPlaying) {
-        const emitCount = Math.min(22, Math.max(8, Math.floor(energy * 38)));
-        const t = performance.now() * 0.0022;
+        let bandEnergy = 0;
+        for (let i = 0; i < bars; i++) bandEnergy += bands[i];
+        const avgEnergy = bandEnergy / bars;
+        const emitCount = Math.min(26, Math.max(10, Math.floor((avgEnergy * 1.5 + energy * 0.6) * 32)));
+        const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.05, 1.0);
+
         for (let k = 0; k < emitCount; k++) {
           const bandIdx = Math.floor(Math.random() * bars);
-          const bVal = bands[bandIdx] || 0.1;
-          const pan = (Math.sin(t * 2.8 + bandIdx * 0.7) * 0.52) + ((Math.random() - 0.5) * 0.65);
-          const angle = -Math.PI / 2 + clamp(pan, -0.92, 0.92) * (Math.PI / 4);
-          const dist = R * clamp(bVal * (0.42 + Math.random() * 0.65) * 1.12, 0.05, 0.98);
+          const bVal = bands[bandIdx] || 0.05;
+          const panJitter = (Math.random() - 0.5) * 1.5 * stereoSpread;
+          const pan = clamp(balance * 0.85 + panJitter, -1.0, 1.0);
+          const angle = -Math.PI / 2 + pan * (Math.PI / 4);
+          const dist = R * clamp(bVal * (0.6 + Math.random() * 0.5) * 1.1, 0.08, 0.98);
+
           entry.particles.push({
             x: cx + Math.cos(angle) * dist,
             y: cy + Math.sin(angle) * dist,
             alpha: 1.0,
-            decay: 0.032 + Math.random() * 0.03,
-            size: Math.random() > 0.85 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.6 : 1.2),
+            decay: 0.038 + Math.random() * 0.03,
+            size: Math.random() > 0.8 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.5 : 1.2),
             bright: Math.random() > 0.35,
           });
         }
@@ -3902,16 +3905,21 @@
       // Polar Level: radial rays / smooth filled envelope
       const RAY_COUNT = 48;
       if (!entry.rays || entry.rays.length !== RAY_COUNT) entry.rays = new Float32Array(RAY_COUNT);
-      const t = performance.now() * 0.0016;
+
+      const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.12, 1.0);
+      const centerRay = (balance * 0.5 + 0.5) * (RAY_COUNT - 1);
 
       for (let i = 0; i < RAY_COUNT; i++) {
-        const norm = i / (RAY_COUNT - 1);
-        const centerDist = Math.abs(norm - 0.5) * 2;
-        const bandIdx = Math.floor((1 - centerDist) * (bars - 1));
-        const bVal = bands[bandIdx] || 0;
-        const flutter = isPlaying ? Math.sin(t * 3.8 + i * 0.55) * 0.07 : 0;
-        const target = isPlaying ? clamp(bVal * 0.88 + flutter, 0.04, 0.96) : 0;
-        entry.rays[i] = Math.max(target, entry.rays[i] - 0.024);
+        const distFromCenter = Math.abs(i - centerRay) / ((RAY_COUNT - 1) * 0.5);
+        const gaussWeight = Math.exp(-Math.pow(distFromCenter / Math.max(0.18, stereoSpread), 2) * 1.8);
+        const bandIdx = Math.floor((i / (RAY_COUNT - 1)) * (bars - 1));
+        const bVal = bands[bandIdx] || 0.05;
+        const target = isPlaying ? clamp((bVal * 0.75 + energy * 0.25) * gaussWeight * 1.15, 0.04, 0.96) : 0;
+        if (target > entry.rays[i]) {
+          entry.rays[i] = entry.rays[i] * 0.4 + target * 0.6;
+        } else {
+          entry.rays[i] = Math.max(target, entry.rays[i] - 0.03);
+        }
       }
 
       ctx.beginPath();
@@ -4956,9 +4964,18 @@
     bindScrub("time-ruler-bar", vrSeconds);
     bindScrub("waveform-navigator", (ratio) => ratio * currentDuration());
 
-    // onclick (not addEventListener) keeps wiring idempotent if boot runs twice.
+    // Transport playback controls: robust pointer & click binding
     const playPause = el("btn-playpause");
-    if (playPause) playPause.onclick = () => void sendPlaybackCommand("playPause");
+    if (playPause) {
+      const doPlayPause = (e) => {
+        if (e) e.preventDefault();
+        void sendPlaybackCommand("playPause");
+      };
+      playPause.onclick = doPlayPause;
+      playPause.onpointerdown = (e) => {
+        e.stopPropagation();
+      };
+    }
     const pillPlay = el("pill-play-btn");
     if (pillPlay) {
       pillPlay.onclick = (event) => {
@@ -4969,13 +4986,25 @@
     const island = el("header-center-pill");
     if (island) island.onclick = () => void sendPlaybackCommand("playPause");
     const prev = el("btn-prev");
-    if (prev) prev.onclick = () => void sendPlaybackCommand("previous");
+    if (prev) {
+      prev.onclick = (e) => { if (e) e.preventDefault(); void sendPlaybackCommand("previous"); };
+      prev.onpointerdown = (e) => e.stopPropagation();
+    }
     const next = el("btn-next");
-    if (next) next.onclick = () => void sendPlaybackCommand("next");
+    if (next) {
+      next.onclick = (e) => { if (e) e.preventDefault(); void sendPlaybackCommand("next"); };
+      next.onpointerdown = (e) => e.stopPropagation();
+    }
     const rw = el("btn-rw");
-    if (rw) rw.onclick = () => seekTo(positionSeconds() - 5);
+    if (rw) {
+      rw.onclick = (e) => { if (e) e.preventDefault(); seekTo(positionSeconds() - 5); };
+      rw.onpointerdown = (e) => e.stopPropagation();
+    }
     const ff = el("btn-ff");
-    if (ff) ff.onclick = () => seekTo(positionSeconds() + 5);
+    if (ff) {
+      ff.onclick = (e) => { if (e) e.preventDefault(); seekTo(positionSeconds() + 5); };
+      ff.onpointerdown = (e) => e.stopPropagation();
+    }
     const repeat = el("btn-repeat");
     if (repeat) {
       repeat.onclick = async () => {
@@ -5177,7 +5206,6 @@
         if (typeof closeDropdown === "function") {
           closeDropdown();
         }
-        post({ type: "echo:workshop-ui:interaction", action: "back" });
         return;
       }
 
@@ -5796,11 +5824,6 @@
           get label() { return t("menu.file.prefs"); },
           shortcut: "Ctrl+,",
           action: () => showPreferencesModal(),
-        },
-        {
-          get label() { return t("menu.file.back"); },
-          shortcut: "Esc",
-          action: () => post({ type: "echo:workshop-ui:interaction", action: "back" }),
         },
       ],
       edit: [
