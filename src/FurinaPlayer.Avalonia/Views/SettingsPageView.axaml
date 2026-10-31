@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             x:Class="FurinaPlayer.Avalonia.Views.SettingsPageView"
+             x:DataType="vm:MainViewModel">
+
+    <ScrollViewer Margin="24,16">
+        <StackPanel Spacing="16" MaxWidth="800" HorizontalAlignment="Stretch">
+            <!-- App Info Card -->
+            <Border Background="#18FFFFFF" BorderBrush="#30FFFFFF" BorderThickness="1" CornerRadius="12" Padding="20">
+                <Grid ColumnDefinitions="Auto,*">
+                    <controls:FluentIcon Grid.Column="0" Kind="AppLogo" IconSize="48" Margin="0,0,20,0" VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                        <TextBlock Text="Furina Player (Avalonia 11 NextGen)" FontSize="18" FontWeight="Bold" Foreground="#F8FAFC" />
+                        <TextBlock Text="高性能跨平台 Hi-Res 音频播放器 · 采用 Direct Skia 硬件加速自绘架构" FontSize="12" Foreground="#94A3B8" />
+                        <TextBlock Text="版本: 2.1.0-preview (Avalonia 11.1.3 + .NET 8)" FontSize="11" Foreground="#38BDF8" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Material & Theme Options -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="外观与材质" FontWeight="SemiBold" FontSize="15" Foreground="#F8FAFC" />
+                    <TextBlock Text="当前采用 Liquid Glass 液态透明亚克力玻璃材质，结合 GPU 渐变漫反射环境光，大幅降低 CPU/内存硬件开销。"
+                               FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Classes="glass-btn" Content="液态玻璃 (Mica / Acrylic)" />
+                        <Button Classes="glass-btn" Content="深邃暗黑模式" />
+                        <Button Classes="glass-btn" Content="明亮模式" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Audio Engine Specs -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="20">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="音频引擎配置" FontWeight="SemiBold" FontSize="15" Foreground="#F8FAFC" />
+                    <TextBlock Text="输出后端: WASAPI Exclusive / DirectSound (低延迟 200ms 双重环形缓冲)" FontSize="12" Foreground="#94A3B8" />
+                    <TextBlock Text="DSP 架构: ECHO 40-Pass Hi-Res Pipeline, 支持 PCM / DSD / OPRA 双轨校准" FontSize="12" Foreground="#94A3B8" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

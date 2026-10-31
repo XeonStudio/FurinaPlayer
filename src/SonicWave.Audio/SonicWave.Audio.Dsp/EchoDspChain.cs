@@ -19,6 +19,7 @@ public sealed class EchoDspChain
 	public EchoPcmResampler Resampler { get; }
 	public EchoSdmModulator SdmModulator { get; }
 	public DspRackOrder RackOrder { get; }
+	public LockFreeAudioVisualBuffer VisualBuffer => LockFreeAudioVisualBuffer.Instance;
 
 	public bool SafetyLimiterEnabled
 	{
@@ -116,6 +117,9 @@ public sealed class EchoDspChain
 		{
 			ApplySafetyLimiter(buffer, offset, count);
 		}
+
+		// Push to real-time 60fps lock-free visual buffer for waveform, spectrum, and loudness metering
+		LockFreeAudioVisualBuffer.Instance.PushSamples(buffer, offset, count, channels);
 	}
 
 	private static void ApplySafetyLimiter(float[] buffer, int offset, int count)

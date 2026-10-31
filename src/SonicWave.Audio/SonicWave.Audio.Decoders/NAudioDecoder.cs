@@ -61,11 +61,7 @@ public sealed class NAudioDecoder : IDisposable
 		{
 			lock (_lock)
 			{
-				if (!(_player is WasapiOut { Volume: var volume }))
-				{
-					return _reader?.Volume ?? 1f;
-				}
-				return volume;
+				return _dsp?.OutputVolume ?? 1f;
 			}
 		}
 		set
@@ -73,13 +69,13 @@ public sealed class NAudioDecoder : IDisposable
 			lock (_lock)
 			{
 				float volume = Math.Clamp(value, 0f, 1f);
-				if (_player is WasapiOut wasapiOut)
-				{
-					wasapiOut.Volume = volume;
-				}
 				if (_reader != null)
 				{
-					_reader.Volume = volume;
+					_reader.Volume = 1f;
+				}
+				if (_dsp != null)
+				{
+					_dsp.OutputVolume = volume;
 				}
 			}
 		}

@@ -1,0 +1,163 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             x:Class="FurinaPlayer.Avalonia.Views.EditorPageView"
+             x:DataType="vm:EditorViewModel">
+
+    <ScrollViewer Margin="24,12,24,12">
+        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+            
+            <!-- 1. Header Banner -->
+            <Border Background="#2000B4D8"
+                    BorderBrush="#4038BDF8"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="18,14">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <controls:FluentIcon Grid.Column="0" Kind="AudioEditor" IconSize="34" VerticalAlignment="Center" Margin="0,0,16,0" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock Text="音频波形可视化与 A-B 片段微调编辑器" FontSize="17" FontWeight="Bold" Foreground="#F8FAFC" />
+                        <TextBlock Text="基于 LockFreeAudioVisualBuffer 8192 帧无锁环形缓冲区 · 实时高刷示波器 · A-B 精准区间循环"
+                                   FontSize="11" Foreground="#94A3B8" />
+                    </StackPanel>
+
+                    <!-- Speed Display Badge -->
+                    <Border Grid.Column="2" Background="#1538BDF8" BorderBrush="#4038BDF8" BorderThickness="1" CornerRadius="8" Padding="12,6" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="当前倍速:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding PlaybackSpeedText}" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 2. Real-time Waveform Scope -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                            <controls:FluentIcon Kind="AudioEditor" IconSize="18" />
+                            <TextBlock Text="实时音频示波器 (Live Dual-Channel Scope)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="256 采样帧窗口 · 硬件加速渲染" FontSize="11" Foreground="#64748B" />
+                    </Grid>
+
+                    <!-- Custom Waveform Scope Control -->
+                    <controls:LiveWaveformScope Height="160" />
+
+                    <!-- Peak & RMS Indicators -->
+                    <Grid ColumnDefinitions="*,*,*">
+                        <!-- Left Peak -->
+                        <Border Grid.Column="0" Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="0,0,6,0">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Grid.Column="0" Text="L 峰值:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                <ProgressBar Grid.Column="1" Minimum="-60" Maximum="3" Value="{Binding PeakLevelLeft}" Height="6" Margin="8,0" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding PeakLevelLeft, StringFormat={}{0:0.0} dB}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Right Peak -->
+                        <Border Grid.Column="1" Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="3,0">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Grid.Column="0" Text="R 峰值:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                <ProgressBar Grid.Column="1" Minimum="-60" Maximum="3" Value="{Binding PeakLevelRight}" Height="6" Margin="8,0" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding PeakLevelRight, StringFormat={}{0:0.0} dB}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+
+                        <!-- RMS Loudness -->
+                        <Border Grid.Column="2" Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="10,6" Margin="6,0,0,0">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <TextBlock Grid.Column="0" Text="RMS 响度:" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                                <ProgressBar Grid.Column="1" Minimum="-60" Maximum="0" Value="{Binding RmsLevel}" Height="6" Margin="8,0" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding RmsLevel, StringFormat={}{0:0.0} dB}" FontSize="11" Foreground="#34D399" FontWeight="Bold" VerticalAlignment="Center" />
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. A-B Loop Region Editing Console -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="14">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:FluentIcon Kind="RecentList" IconSize="18" />
+                        <TextBlock Text="A-B 片段循环控制台 (A-B Precision Loop Trimmer)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" />
+                    </StackPanel>
+
+                    <Grid ColumnDefinitions="*,*,Auto">
+                        <!-- Marker A -->
+                        <Border Grid.Column="0" Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,8,0">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="循环起点 (Marker A):" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Text="{Binding MarkerAText}" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="glass-btn" Click="OnSetMarkerAClick" VerticalAlignment="Center">
+                                    <TextBlock Text="定在当前位置" FontSize="11" />
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Marker B -->
+                        <Border Grid.Column="1" Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="8,0">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="循环终点 (Marker B):" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Text="{Binding MarkerBText}" FontSize="16" FontWeight="Bold" Foreground="#38BDF8" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="glass-btn" Click="OnSetMarkerBClick" VerticalAlignment="Center">
+                                    <TextBlock Text="定在当前位置" FontSize="11" />
+                                </Button>
+                            </Grid>
+                        </Border>
+
+                        <!-- Loop Actions -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="8,0,0,0">
+                            <Button Classes="glass-btn" Click="OnClearLoopClick">
+                                <TextBlock Text="清除循环" FontSize="12" />
+                            </Button>
+                            <Button Classes="glass-btn" Click="OnExportSelectionClick">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:FluentIcon Kind="Save" IconSize="16" />
+                                    <TextBlock Text="导出选中片段" FontSize="12" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Status Text -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding ExportStatus}" FontSize="12" Foreground="#38BDF8" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{Binding LoopDurationText}" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 4. Playback Speed Pitch Controller -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <controls:FluentIcon Kind="MusicHero" IconSize="18" />
+                            <TextBlock Text="播放倍速调节 (Speed / Tempo Control)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="glass-btn" Padding="8,4" Click="OnSpeed075Click"><TextBlock Text="0.75x" FontSize="11" /></Button>
+                            <Button Classes="glass-btn" Padding="8,4" Click="OnSpeed100Click"><TextBlock Text="1.00x 原速" FontSize="11" /></Button>
+                            <Button Classes="glass-btn" Padding="8,4" Click="OnSpeed125Click"><TextBlock Text="1.25x" FontSize="11" /></Button>
+                            <Button Classes="glass-btn" Padding="8,4" Click="OnSpeed150Click"><TextBlock Text="1.50x" FontSize="11" /></Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,4,0,0">
+                        <TextBlock Grid.Column="0" Text="0.5x" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="0,0,12,0" />
+                        <Slider Grid.Column="1" Minimum="0.5" Maximum="2.0" Value="{Binding PlaybackSpeed, Mode=TwoWay}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="2.0x" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" Margin="12,0,0,0" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

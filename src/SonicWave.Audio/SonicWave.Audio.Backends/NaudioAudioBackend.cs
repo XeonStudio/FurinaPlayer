@@ -19,7 +19,7 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	private int _gen;
 
-	private int _volume = 5;
+	private int _volume = 80;
 
 	private bool _applyDsp = true;
 

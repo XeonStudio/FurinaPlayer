@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -379,6 +380,8 @@ public sealed class HomePage : Page, IComponentConnector
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private ListView TracksList;
 
+	private Button? _albumViewToggleBtn;
+
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private bool _contentLoaded;
 
@@ -392,6 +395,7 @@ public sealed class HomePage : Page, IComponentConnector
 	public HomePage()
 	{
 		InitializeComponent();
+		Loaded += (s, e) => FluentIconFactory.UpgradeButtonsInVisualTree(this);
 	}
 
 	public HomePage(HomeViewModel viewModel)
@@ -409,8 +413,21 @@ public sealed class HomePage : Page, IComponentConnector
 			ViewModel = homeViewModel;
 			DataContext = homeViewModel;
 		}
+		FluentIconFactory.UpgradeButtonsInVisualTree(this);
+		UpdateAlbumToggleBtnIcon();
 		SyncAlbumColWidthResource();
 		await ViewModel.InitializeAsync();
+		UpdateAlbumToggleBtnIcon();
+	}
+
+	private void UpdateAlbumToggleBtnIcon()
+	{
+		if (_albumViewToggleBtn != null)
+		{
+			string label = (ViewModel != null && !ViewModel.AlbumGridView) ? "网格视图" : "列表视图";
+			FluentIconFactory.SetButtonFluentIcon(_albumViewToggleBtn, FluentIconKind.AlbumGrid, label, 16);
+			_albumViewToggleBtn.Tag = "__fluent_upgraded";
+		}
 	}
 
 	private void SyncAlbumColWidthResource()
@@ -513,6 +530,7 @@ public sealed class HomePage : Page, IComponentConnector
 	private void OnAlbumViewToggleClick(object sender, RoutedEventArgs e)
 	{
 		ViewModel.ToggleAlbumViewCommand.Execute(null);
+		UpdateAlbumToggleBtnIcon();
 	}
 
 	private void OnTrackRightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -664,7 +682,8 @@ public sealed class HomePage : Page, IComponentConnector
 			break;
 		}
 		case 17:
-			target.As<Button>().Click += OnAlbumViewToggleClick;
+			_albumViewToggleBtn = target.As<Button>();
+			_albumViewToggleBtn.Click += OnAlbumViewToggleClick;
 			break;
 		case 18:
 			target.As<TextBox>().KeyDown += OnSearchKeyDown;

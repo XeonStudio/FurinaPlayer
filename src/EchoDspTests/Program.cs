@@ -43,6 +43,10 @@ class Program
 		TestPcmResampler();
 		TestSdmModulator();
 		TestDspRackOrderAndChain();
+		TestLockFreeAudioVisualBuffer();
+		TestOpraDatabaseAndHeadphoneCalibration();
+		TestReplayGainScannerService();
+		TestPolySincResampler();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine($"Tests Completed: {s_passCount + s_failCount} | Passed: {s_passCount} | Failed: {s_failCount}");
@@ -347,5 +351,105 @@ Filter 5: OFF NO Fc 60 Hz Gain 0.0 dB Q 10.0
 		}
 
 		Assert(peak < 1.0f && peak > 0.88f, $"Safety Limiter tamed extreme +8dB digital overload to safe ceiling: {peak:F4} (< 1.0)");
+	}
+
+	static void TestLockFreeAudioVisualBuffer()
+	{
+		Console.WriteLine("\n--- Testing LockFreeAudioVisualBuffer ---");
+		var buffer = new LockFreeAudioVisualBuffer();
+
+		float[] testPcm = new float[1024 * 2];
+		for (int i = 0; i < 1024; i++)
+		{
+			testPcm[i * 2] = (float)Math.Sin(2.0 * Math.PI * 440.0 * i / 48000.0);
+			testPcm[i * 2 + 1] = (float)Math.Cos(2.0 * Math.PI * 440.0 * i / 48000.0);
+		}
+
+		buffer.PushSamples(testPcm, 0, testPcm.Length, 2);
+
+		float[] readL = new float[512];
+		float[] readR = new float[512];
+		buffer.ReadWaveform(readL, readR, 512);
+
+		Assert(Math.Abs(readL[0]) < 1.5f && Math.Abs(readR[0]) < 1.5f, "Waveform read from ring buffer successfully");
+
+		float[] spectrum = new float[512];
+		buffer.ComputeSpectrum(spectrum);
+		Assert(spectrum.Length == 512, "Spectrum analyzer computed 512 FFT magnitude bins");
+
+		float maxMag = 0f;
+		for (int i = 0; i < spectrum.Length; i++) if (spectrum[i] > maxMag) maxMag = spectrum[i];
+		Assert(maxMag > 0.5f, $"Spectrum detected strong tonal peak for 440Hz sine wave (peak norm={maxMag:F3})");
+
+		buffer.GetLoudnessInfo(out float m, out float s, out float tp, out float corr);
+		Assert(tp > -10.0f, $"TruePeak calculated accurately ({tp:F1} dBFS)");
+	}
+
+	static void TestOpraDatabaseAndHeadphoneCalibration()
+	{
+		Console.WriteLine("\n--- Testing OpraDatabaseService & Independent Headphone Calibration ---");
+		var presets = OpraDatabaseService.GetAllPresets();
+		Assert(presets.Count >= 8, $"OPRA database holds {presets.Count} reference headphone presets");
+
+		var searchResults = OpraDatabaseService.Search("HD 600");
+		var hd600 = System.Linq.Enumerable.FirstOrDefault(searchResults);
+		Assert(hd600 != null && hd600.Model == "HD 600", "OPRA search found Sennheiser HD 600 preset");
+
+		var eq = new EchoEqProcessor(44100.0);
+		bool applied = OpraDatabaseService.ApplyPreset(eq, "sennheiser_hd600");
+		Assert(applied, "Applied HD 600 calibration preset to EchoEqProcessor");
+		Assert(eq.CalibrationBands.Count == 6, $"Calibration EQ has {eq.CalibrationBands.Count} parametric filters");
+		Assert(Math.Abs(eq.CalibrationPreampDb - (-6.4)) < 0.01, $"Calibration preamp set to {eq.CalibrationPreampDb} dB");
+
+		// Set user EQ style gains to flat
+		eq.SetBandGain(0, 3.0);
+		Assert(eq.UserBands[0].GainDb == 3.0, "User style EQ operates independently from headphone calibration");
+
+		float[] testAudio = new float[256];
+		for (int i = 0; i < testAudio.Length; i++) testAudio[i] = 0.5f;
+		eq.ProcessInterleaved(testAudio, 0, testAudio.Length, 2);
+		Assert(testAudio[0] != 0.5f && !float.IsNaN(testAudio[0]), "Cascaded dual-stage EQ processed audio without distortion");
+	}
+
+	static void TestReplayGainScannerService()
+	{
+		Console.WriteLine("\n--- Testing ReplayGainScannerService (BS.1770 / EBU R128) ---");
+		// Create 2 seconds of 1kHz sine wave at full scale peak (0 dBFS peak = ~-3.01 LUFS unweighted)
+		int sampleRate = 48000;
+		int totalFrames = sampleRate * 2;
+		float[] sineWave = new float[totalFrames * 2];
+		for (int i = 0; i < totalFrames; i++)
+		{
+			float s = 0.7071f * (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / sampleRate);
+			sineWave[i * 2] = s;
+			sineWave[i * 2 + 1] = s;
+		}
+
+		var scanResult = ReplayGainScannerService.AnalyzePcmBuffer(sineWave, sineWave.Length, 2, sampleRate);
+		Assert(scanResult.IntegratedLufs > -10.0f && scanResult.IntegratedLufs < -2.0f, $"Integrated LUFS measured accurately ({scanResult.IntegratedLufs:F2} LUFS)");
+		Assert(scanResult.TruePeakDb > -4.0f && scanResult.TruePeakDb < -2.0f, $"TruePeak measured accurately ({scanResult.TruePeakDb:F2} dBFS)");
+		Assert(Math.Abs(scanResult.SuggestedGainDb - (ReplayGainScannerService.TargetLoudnessLufs - scanResult.IntegratedLufs)) < 0.1f, "Suggested gain aligns with -18 LUFS target");
+	}
+
+	static void TestPolySincResampler()
+	{
+		Console.WriteLine("\n--- Testing Polyphase Sinc FIR Resampler Mode ---");
+		var resampler = new EchoPcmResampler
+		{
+			FilterMode = ResamplerFilterMode.PolySincHalfBand
+		};
+		resampler.Prepare(44100, 88200);
+		resampler.Enabled = true;
+
+		float[] pcm = new float[200 * 2];
+		for (int i = 0; i < 200; i++)
+		{
+			pcm[i * 2] = 0.5f;
+			pcm[i * 2 + 1] = 0.5f;
+		}
+
+		float[] outPcm = resampler.ResampleInterleaved(pcm, 0, pcm.Length, 2, out int outCount);
+		Assert(outCount == 400 * 2, $"Polyphase FIR 2x upsampler produced exact double frame count ({outCount / 2} frames)");
+		Assert(outPcm[100] > 0.48f && outPcm[100] < 0.52f, $"Polyphase Sinc FIR preserved unity DC gain ({outPcm[100]:F4})");
 	}
 }

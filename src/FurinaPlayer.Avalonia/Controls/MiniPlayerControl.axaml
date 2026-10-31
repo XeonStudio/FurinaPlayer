@@ -1,0 +1,185 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             x:Class="FurinaPlayer.Avalonia.Controls.MiniPlayerControl"
+             x:DataType="vm:MiniPlayerViewModel">
+
+    <!-- Frosted Liquid Glass Transport Dock -->
+    <Border Background="#2D0B1220"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="0,1,0,0">
+        <Grid Height="86" Margin="16,0" ColumnDefinitions="300,*,280">
+            
+            <!-- Left: Current Track Artwork & Information -->
+            <Grid Grid.Column="0" ColumnDefinitions="52,*" VerticalAlignment="Center">
+                <!-- Album Art Cover / Fallback Plate -->
+                <Border Grid.Column="0"
+                        Width="48"
+                        Height="48"
+                        CornerRadius="8"
+                        ClipToBounds="True"
+                        Background="#2038BDF8"
+                        BorderBrush="#40FFFFFF"
+                        BorderThickness="1">
+                    <Panel>
+                        <!-- Fallback Fluent Vinyl Disc -->
+                        <controls:FluentIcon Kind="MusicHero" 
+                                             IconSize="32" 
+                                             HorizontalAlignment="Center" 
+                                             VerticalAlignment="Center"
+                                             IsVisible="{Binding CoverImage, Converter={x:Static ObjectConverters.IsNull}}" />
+                        <!-- Loaded Bitmap -->
+                        <Image Source="{Binding CoverImage}"
+                               Stretch="UniformToFill"
+                               IsVisible="{Binding CoverImage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                    </Panel>
+                </Border>
+
+                <!-- Title, Artist & Hi-Res Badge -->
+                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" Spacing="3">
+                    <TextBlock Text="{Binding Title}"
+                               FontWeight="Bold"
+                               FontSize="14"
+                               Foreground="#FFFFFF"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="220" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="{Binding Artist}"
+                                   FontSize="12"
+                                   Foreground="#94A3B8"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="140" />
+                        <Border Background="#2538BDF8"
+                                CornerRadius="4"
+                                Padding="5,1"
+                                BorderBrush="#4038BDF8"
+                                BorderThickness="1">
+                            <TextBlock Text="{Binding FormatBadge}"
+                                       FontSize="9"
+                                       FontWeight="Bold"
+                                       Foreground="#38BDF8" />
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- Center: Playback Buttons & Interactive Seek Bar -->
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto" VerticalAlignment="Center" Margin="24,0">
+                <!-- Transport Buttons -->
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="12">
+                    <!-- Loop / Shuffle Mode Button -->
+                    <Button Classes="transport-circle"
+                            Width="32" Height="32"
+                            ToolTip.Tip="{Binding ModeTooltip}"
+                            Click="OnToggleModeClick">
+                        <controls:FluentIcon Kind="{Binding ModeIconKind}" IconSize="15" />
+                    </Button>
+
+                    <!-- Previous Track Button -->
+                    <Button Classes="transport-circle"
+                            Width="34" Height="34"
+                            ToolTip.Tip="上一曲"
+                            Click="OnPreviousClick">
+                        <controls:FluentIcon Kind="Previous" IconSize="16" />
+                    </Button>
+
+                    <!-- Prominent Play / Pause Button -->
+                    <Button Classes="play-hero"
+                            Width="44" Height="44"
+                            ToolTip.Tip="播放 / 暂停"
+                            Click="OnPlayPauseClick">
+                        <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Play Icon -->
+                            <controls:FluentIcon Kind="Play" 
+                                                 IconSize="36"
+                                                 IsVisible="{Binding !IsPlaying}" />
+                            <!-- Pause Icon -->
+                            <controls:FluentIcon Kind="Pause" 
+                                                 IconSize="36"
+                                                 IsVisible="{Binding IsPlaying}" />
+                        </Panel>
+                    </Button>
+
+                    <!-- Next Track Button -->
+                    <Button Classes="transport-circle"
+                            Width="34" Height="34"
+                            ToolTip.Tip="下一曲"
+                            Click="OnNextClick">
+                        <controls:FluentIcon Kind="Next" IconSize="16" />
+                    </Button>
+                </StackPanel>
+
+                <!-- Seek Slider & Time Displays -->
+                <Grid Grid.Row="1" ColumnDefinitions="45,*,45" VerticalAlignment="Center" Margin="0,4,0,0">
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding PositionText}"
+                               FontSize="11"
+                               Foreground="#CBD5E1"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0" />
+
+                    <!-- High Precision Seek Slider -->
+                    <Slider Grid.Column="1"
+                            x:Name="SeekSlider"
+                            Minimum="0"
+                            Maximum="{Binding DurationMs}"
+                            Value="{Binding PositionMs, Mode=TwoWay}"
+                            Height="20"
+                            VerticalAlignment="Center"
+                            PointerPressed="OnSliderPointerPressed"
+                            PointerReleased="OnSliderPointerReleased" />
+
+                    <TextBlock Grid.Column="2"
+                               Text="{Binding DurationText}"
+                               FontSize="11"
+                               Foreground="#CBD5E1"
+                               HorizontalAlignment="Left"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0" />
+                </Grid>
+            </Grid>
+
+            <!-- Right: Volume Slider & DSP Audio Badges -->
+            <StackPanel Grid.Column="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+                <!-- Volume / Mute Button -->
+                <Button Classes="transport-circle"
+                        Width="32" Height="32"
+                        ToolTip.Tip="静音 / 恢复"
+                        Click="OnMuteClick">
+                    <Panel>
+                        <controls:FluentIcon Kind="Volume" 
+                                             IconSize="16"
+                                             IsVisible="{Binding !IsMuted}" />
+                        <controls:FluentIcon Kind="VolumeMute" 
+                                             IconSize="16"
+                                             IsVisible="{Binding IsMuted}" />
+                    </Panel>
+                </Button>
+
+                <!-- Volume Slider -->
+                <Slider Width="95"
+                        Minimum="0"
+                        Maximum="100"
+                        Value="{Binding Volume, Mode=TwoWay}"
+                        VerticalAlignment="Center" />
+
+                <!-- Volume Percentage -->
+                <TextBlock Text="{Binding Volume, StringFormat={}{0}%}"
+                           FontSize="11"
+                           Foreground="#CBD5E1"
+                           Width="34"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

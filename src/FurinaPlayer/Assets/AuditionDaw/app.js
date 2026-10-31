@@ -244,12 +244,12 @@
       "shortcuts.waveColor": "切换波形色彩 (天蓝 / 粉樱)",
       "shortcuts.prefs": "首选项设置",
       "shortcuts.reload": "重新加载 DAW 界面",
-      "shortcuts.close": "关闭弹窗 / 返回 ECHO",
+      "shortcuts.close": "关闭弹窗",
 
       "about.title": "关于 Adobe Audition DAW",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW 专业母带主题",
       "about.version": "版本 1.3.4 (Multilingual Edition)",
-      "about.desc": "专为 ECHO 音乐播放器打造的高仿真 Adobe Audition 专业数字音频工作站 (DAW) 沉浸式主题与实时分析仪套件。",
+      "about.desc": "高仿真 Adobe Audition 专业数字音频工作站 (DAW) 沉浸式主题与实时母带分析仪套件。",
       "about.featTitle": "功能特性：",
       "about.f1": "• 支持经典黑暗 / 日间明亮双主题无缝切换 (Ctrl+T)",
       "about.f2": "• 波形色彩支持淡雅天蓝与柔美粉樱双色彩方案 (Ctrl+Alt+W)",
@@ -260,7 +260,7 @@
       "about.f7": "• 广播级 LUFS 响度与 True Peak 峰值电平指示",
       "about.f8": "• 顶栏专业下拉菜单与全局快捷键（文件、编辑、多轨、控制、缩放等）",
       "about.f9": "• 智能多源流媒体与本地封面回退保护，零闪烁高保真",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "已切换界面语言：简体中文",
       "toast.pathCopied": "已复制音频路径至剪贴板",
@@ -400,7 +400,7 @@
       "lyrics.instrumentalBig": "纯音乐",
       "lyrics.instrumentalDesc": "该曲目被标记为纯音乐，请欣赏",
       "lyrics.emptyBig": "暂无歌词",
-      "lyrics.emptyDesc": "可在 ECHO 歌词设置中搜索或导入歌词",
+      "lyrics.emptyDesc": "可在歌词设置中搜索或导入本地歌词",
       "lyrics.badgeInstrumental": "纯音乐",
       "lyrics.badgeNoLyrics": "无歌词",
       "lyrics.badgeSynced": "逐行同步",
@@ -610,12 +610,12 @@
       "shortcuts.waveColor": "Toggle Waveform Color (Azure / Sakura)",
       "shortcuts.prefs": "Preferences",
       "shortcuts.reload": "Reload DAW Interface",
-      "shortcuts.close": "Close Dialog / Back to ECHO",
+      "shortcuts.close": "Close Dialog",
 
       "about.title": "About Adobe Audition DAW",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW Professional Theme",
       "about.version": "Version 1.3.4 (Multilingual Edition)",
-      "about.desc": "High-fidelity Adobe Audition professional Digital Audio Workstation (DAW) theme & realtime analyzer suite crafted for the ECHO music player.",
+      "about.desc": "High-fidelity Adobe Audition professional Digital Audio Workstation (DAW) theme & realtime analyzer suite.",
       "about.featTitle": "Features:",
       "about.f1": "• Seamless Light & Dark mastering themes (Ctrl+T)",
       "about.f2": "• Dual waveform colorways: Azure Blue & Sakura Pink (Ctrl+Alt+W)",
@@ -626,7 +626,7 @@
       "about.f7": "• Broadcast-standard LUFS loudness radar and True Peak metering",
       "about.f8": "• Professional top menubar & global hotkeys (File, Edit, Multitrack, etc.)",
       "about.f9": "• Multi-source streaming & local artwork fallback with zero flicker",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "Interface language switched to: English",
       "toast.pathCopied": "Audio file path copied to clipboard",
@@ -766,7 +766,7 @@
       "lyrics.instrumentalBig": "Instrumental",
       "lyrics.instrumentalDesc": "This track is marked as instrumental. Enjoy the music.",
       "lyrics.emptyBig": "No Lyrics",
-      "lyrics.emptyDesc": "Search or import lyrics in ECHO lyrics settings",
+      "lyrics.emptyDesc": "Search or import lyrics in player settings",
       "lyrics.badgeInstrumental": "Instrumental",
       "lyrics.badgeNoLyrics": "No Lyrics",
       "lyrics.badgeSynced": "Synced",
@@ -967,12 +967,12 @@
       "shortcuts.waveColor": "Couleur de forme d'onde (Azur / Sakura)",
       "shortcuts.prefs": "Préférences",
       "shortcuts.reload": "Recharger l'interface DAW",
-      "shortcuts.close": "Fermer / Retour à ECHO",
+      "shortcuts.close": "Fermer le dialogue",
 
       "about.title": "À propos d'Adobe Audition DAW",
-      "about.headerTitle": "Thème Adobe Audition DAW pour ECHO",
+      "about.headerTitle": "Thème Adobe Audition DAW Professionnel",
       "about.version": "Version 1.3.4 (Édition Multilingue)",
-      "about.desc": "Thème immersif et suite d'analyseurs en temps réel haute fidélité inspirés d'Adobe Audition pour le lecteur audio ECHO.",
+      "about.desc": "Thème immersif et suite d'analyseurs en temps réel haute fidélité inspirés d'Adobe Audition.",
       "about.featTitle": "Fonctionnalités :",
       "about.f1": "• Thèmes de mastering Clair et Sombre sans coupure (Ctrl+T)",
       "about.f2": "• Deux palettes de formes d'onde : Bleu Azur et Rose Sakura (Ctrl+Alt+W)",
@@ -983,7 +983,7 @@
       "about.f7": "• Radar de sonie LUFS et indicateurs True Peak de niveau professionnel",
       "about.f8": "• Barre de menus DAW supérieure et raccourcis globaux complets",
       "about.f9": "• Pochette de disque intelligente sans clignotement",
-      "about.footer": "Inspiré d'Adobe Audition CC &bull; Conçu pour ECHO",
+      "about.footer": "Inspiré d'Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "Langue de l'interface : Français",
       "toast.pathCopied": "Chemin du fichier audio copié dans le presse-papiers",
@@ -1132,7 +1132,7 @@
       "lyrics.instrumentalBig": "Instrumental",
       "lyrics.instrumentalDesc": "Ce morceau est instrumental. Bonne écoute.",
       "lyrics.emptyBig": "Aucune parole",
-      "lyrics.emptyDesc": "Recherchez ou importez des paroles dans les paramètres d'ECHO",
+      "lyrics.emptyDesc": "Recherchez ou importez des paroles dans les paramètres",
       "lyrics.badgeInstrumental": "Instrumental",
       "lyrics.badgeNoLyrics": "Sans paroles",
       "lyrics.badgeSynced": "Synchronisé",
@@ -1333,12 +1333,12 @@
       "shortcuts.waveColor": "波形カラー切替 (藍色 / 桜色)",
       "shortcuts.prefs": "環境設定",
       "shortcuts.reload": "DAW UIを再読み込み",
-      "shortcuts.close": "ダイアログを閉じる / ECHOに戻る",
+      "shortcuts.close": "ダイアログを閉じる",
 
       "about.title": "Adobe Audition DAW について",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW プロフェッショナルテーマ",
       "about.version": "バージョン 1.3.4 (多言語エディション)",
-      "about.desc": "ECHO 音楽プレーヤーのために設計された、高精度 Adobe Audition スタイルのプロフェッショナル DAW イマーシブテーマ＆リアルタイムアナライザースイート。",
+      "about.desc": "高精度 Adobe Audition スタイルのプロフェッショナル DAW イマーシブテーマ＆リアルタイムアナライザースイート。",
       "about.featTitle": "主な機能：",
       "about.f1": "• 洗練されたダーク / ライト マスタリングテーマのシームレス切替 (Ctrl+T)",
       "about.f2": "• 淡雅な藍色と柔らかな桜色の2つの波形カラーパレット (Ctrl+Alt+W)",
@@ -1349,7 +1349,7 @@
       "about.f7": "• 放送規格準拠 LUFS ラウドネスレーダーおよび True Peak メーター",
       "about.f8": "• プロ仕様のトップメニューバー＆包括的なショートカットキー",
       "about.f9": "• マルチソースアートワークとローカルカバーのスマートフォールバック",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "表示言語を切り替えました：日本語",
       "toast.pathCopied": "オーディオパスをクリップボードにコピーしました",
@@ -1498,7 +1498,7 @@
       "lyrics.instrumentalBig": "インストゥルメンタル",
       "lyrics.instrumentalDesc": "このトラックはインスト曲としてマークされています。音楽をお楽しみください。",
       "lyrics.emptyBig": "歌詞なし",
-      "lyrics.emptyDesc": "ECHOの歌詞設定で検索またはインポートできます",
+      "lyrics.emptyDesc": "歌詞設定で検索またはインポートできます",
       "lyrics.badgeInstrumental": "インスト",
       "lyrics.badgeNoLyrics": "歌詞なし",
       "lyrics.badgeSynced": "行同期",
@@ -1699,12 +1699,12 @@
       "shortcuts.waveColor": "파형 색상 전환 (하늘색 / 벚꽃색)",
       "shortcuts.prefs": "환경설정",
       "shortcuts.reload": "DAW UI 다시 불러오기",
-      "shortcuts.close": "창 닫기 / ECHO로 복귀",
+      "shortcuts.close": "창 닫기",
 
       "about.title": "Adobe Audition DAW 정보",
-      "about.headerTitle": "Adobe Audition DAW Theme for ECHO",
+      "about.headerTitle": "Adobe Audition DAW 전문 마스터링 테마",
       "about.version": "버전 1.3.4 (다국어 에디션)",
-      "about.desc": "ECHO 음악 플레이어를 위해 정밀 설계된 고품질 Adobe Audition 스타일의 전문가급 디지털 오디오 워크스테이션(DAW) 테마 및 실시간 분석기 스위트.",
+      "about.desc": "고품질 Adobe Audition 스타일의 전문가급 디지털 오디오 워크스테이션(DAW) 테마 및 실시간 분석기 스위트.",
       "about.featTitle": "주요 기능:",
       "about.f1": "• 다크 / 라이트 전문 마스터링 테마 매끄러운 전환 (Ctrl+T)",
       "about.f2": "• 하늘색 및 벚꽃색 파형 컬러 팔레트 지원 (Ctrl+Alt+W)",
@@ -1715,7 +1715,7 @@
       "about.f7": "• 방송 표준 규격 LUFS 라우드니스 레이더 및 True Peak 미터링",
       "about.f8": "• 상단 전문가 메뉴바 및 글로벌 단축키 완벽 지원",
       "about.f9": "• 멀티 소스 스트리밍 및 로컬 앨범 아트 무깜빡임 폴백",
-      "about.footer": "Inspired by Adobe Audition CC &bull; Built for ECHO",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
 
       "toast.langSwitched": "인터페이스 언어 변경됨: 한국어",
       "toast.pathCopied": "오디오 파일 경로가 클립보드에 복사되었습니다",
@@ -1864,7 +1864,7 @@
       "lyrics.instrumentalBig": "연주곡",
       "lyrics.instrumentalDesc": "이 곡은 연주곡으로 표시되어 있습니다. 음악을 감상해 주세요.",
       "lyrics.emptyBig": "가사 없음",
-      "lyrics.emptyDesc": "ECHO 가사 설정에서 가사를 검색하거나 가져올 수 있습니다",
+      "lyrics.emptyDesc": "가사 설정에서 가사를 검색하거나 가져올 수 있습니다",
       "lyrics.badgeInstrumental": "연주곡",
       "lyrics.badgeNoLyrics": "가사 없음",
       "lyrics.badgeSynced": "줄별 동기화",
@@ -2025,13 +2025,16 @@
   const PROTOCOL = 1;
   const post = (message) => {
     const payload = { protocolVersion: PROTOCOL, ...message };
-    try {
-      if (window.chrome && window.chrome.webview) {
+    if (window.chrome && window.chrome.webview) {
+      try {
         window.chrome.webview.postMessage(JSON.stringify(payload));
-      }
-    } catch (_) {}
+      } catch (_) {}
+      return;
+    }
     try {
-      parent.postMessage(payload, "*");
+      if (parent && parent !== window) {
+        parent.postMessage(payload, "*");
+      }
     } catch (_) {}
   };
   let requestSeq = 0;
@@ -2076,10 +2079,31 @@
   };
 
   async function sendPlaybackCommand(name, payload = {}, timeoutMs = 2500) {
+    if (name === "playPause") {
+      const now = performance.now();
+      if (state.lastPlayPauseClickAt && now - state.lastPlayPauseClickAt < 160) {
+        return true;
+      }
+      state.lastPlayPauseClickAt = now;
+      const isPlay = state.playback.state === "playing";
+      const nextState = isPlay ? "paused" : "playing";
+      state.playback.state = nextState;
+      if (state.clock) {
+        const curPos = positionSeconds();
+        state.clock.positionSeconds = curPos;
+        state.clock.smoothPositionSeconds = curPos;
+        state.clock.localSampledAtMs = now;
+        state.clock.state = nextState;
+      }
+      applyPlayback();
+      updateStatusLine();
+    }
     const result = await command(name, payload, timeoutMs);
     if (result && result.ok === false) {
       const error = result.error || "command-failed";
-      toast(COMMAND_HINTS[error] || `命令失败：${name}（${error}）`);
+      if (error !== "timeout") {
+        toast(COMMAND_HINTS[error] || `命令失败：${name}（${error}）`);
+      }
       return false;
     }
     return true;
@@ -2388,7 +2412,10 @@
           }
         }
       }
-      if (prefs?.value?.volume !== undefined) state.volume = clamp(num(prefs.value.volume, 1) || 1, 0, 1);
+      if (prefs?.value?.volume !== undefined) {
+        const loadedVol = clamp(num(prefs.value.volume, 0.85) || 0.85, 0, 1);
+        state.volume = loadedVol <= 0.05 ? 0.85 : loadedVol;
+      }
       if (prefs?.value?.autoScan === false) state.prefs.autoScan = false;
       if (typeof prefs?.value?.preRender === "boolean") state.prefs.preRender = prefs.value.preRender;
       if (SCAN_QUALITY[prefs?.value?.scanQuality]) state.prefs.scanQuality = prefs.value.scanQuality;
@@ -2467,16 +2494,22 @@
     num(state.track?.durationSeconds, 0) || 0;
 
   const positionSeconds = () => {
+    if (state.seeking && Number.isFinite(state.previewPosition)) {
+      return state.previewPosition;
+    }
     const clock = state.clock;
     const activeTrackId = state.playback?.currentTrackId || state.track?.id;
     if (!clock || (clock.currentTrackId && activeTrackId && clock.currentTrackId !== activeTrackId)) {
       return num(state.playback.positionSeconds, 0) || 0;
     }
-    const now = performance.timeOrigin + performance.now();
-    const elapsed = clamp(now - num(clock.sampledAtMs, now), 0, 1500);
-    const extra = clock.state === "playing" ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
+    const now = performance.now();
+    const refTime = num(clock.localSampledAtMs, now);
+    const elapsed = clamp(now - refTime, 0, 1500);
+    const isPlaying = state.playback.state === "playing" || clock.state === "playing";
+    const extra = isPlaying ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
     const limit = num(clock.durationSeconds, 0) || Infinity;
-    return clamp((num(clock.positionSeconds, 0) || 0) + extra, 0, limit);
+    const basePos = num(clock.smoothPositionSeconds ?? clock.positionSeconds, 0) || 0;
+    return clamp(basePos + extra, 0, limit);
   };
 
   function normalizeBands(bands, count) {
@@ -2666,91 +2699,29 @@
     }
   }
 
-  async function scanWaveform({ silent = true, points = 0, frameMs = 80 } = {}) {
-    if (state.scan.active) {
-      state.scan.cancel = true;
-      return;
-    }
-    const duration = currentDuration();
+  async function scanWaveform() {
     const trackId = state.playback.currentTrackId || state.track?.id;
-    if (!trackId || duration <= 0) {
+    if (!trackId) {
       state.scan.message = t("scan.noTrack");
       updateScanUi();
       return;
     }
-    if (!isPlayingState()) {
-      state.scan.message = t("scan.needPlaying");
-      updateScanUi();
-      return;
-    }
-    // Adaptive sampling per the selected precision preset (极速 / 标准 / 精细).
-    const effectivePoints = points > 0 ? points : scanPoints(duration, state.prefs.scanQuality);
-    const series = envelopeFor(trackId);
-    const startPos = positionSeconds();
-    const savedVolume = state.volume;
-    const scanStartedAt = performance.now();
-    state.scan.active = true;
-    state.scan.cancel = false;
-    state.scan.progress = 0;
-    state.scan.message = "";
-    state.scan.points = effectivePoints;
-    state.scan.perPointMs = frameMs + 30;
+    state.scan.active = false;
+    state.scan.progress = 1;
+    state.scan.message = t("scan.completed");
+    post({ type: "echo:audition:getEnvelope", trackId });
     updateScanUi();
-    if (silent) commandNoWait("setVolume", { volume: 0 });
-    try {
-      for (let i = 0; i < effectivePoints; i++) {
-        if (state.scan.cancel) break;
-        const pointStartedAt = performance.now();
-        const target = ((i + 0.5) / effectivePoints) * duration;
-        // Pipelined scan: fire the seek without awaiting its acknowledgement, then
-        // wait only as long as the host needs to publish a fresh level sample
-        // (~10 Hz upstream). This removes a full round-trip per sample.
-        commandNoWait("seek", { positionSeconds: target });
-        await sleep(frameMs);
-        const b0 = Math.floor((i / effectivePoints) * ENV_BUCKETS);
-        const b1 = Math.min(ENV_BUCKETS, Math.floor(((i + 1) / effectivePoints) * ENV_BUCKETS));
-        const peak = num(state.levels.peakDb, null);
-        const rms = num(state.levels.rmsDb, null);
-        const energy = num(state.spectrum.energy, 0) || 0;
-        const isLinear = state.prefs.waveScale !== "db";
-        const pv = peak === null ? energy : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
-        const rv = rms === null ? (isLinear ? pv * 0.7 : pv * 0.85) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
-        const count = Math.max(1, b1 - b0);
-        for (let b = b0; b < b0 + count && b < ENV_BUCKETS; b++) {
-          series.p[b] = pv;
-          series.r[b] = rv;
-        }
-        state.scan.perPointMs = performance.now() - pointStartedAt;
-        state.scan.progress = (i + 1) / effectivePoints;
-      }
-    } finally {
-      commandNoWait("seek", { positionSeconds: startPos });
-      if (silent) commandNoWait("setVolume", { volume: savedVolume });
-      interpolateEnvelope(series);
-      state.envRev += 1;
-      // Pre-scan samples (silence + jumps) must not pollute the loudness stats.
-      state.rmsHistory = [];
-      state.peakHoldDb = -Infinity;
-      state.scan.active = false;
-      state.scan.lastCostMs = performance.now() - scanStartedAt;
-      state.scan.message = state.scan.cancel ? t("scan.cancelled") : t("scan.completed");
-      updateScanUi();
-      scheduleSave();
-    }
   }
 
   function maybeAutoScan() {
-    if (!state.prefs.preRender || !state.prefs.autoScan || state.scan.active || !isPlayingState()) return;
     const trackId = state.playback.currentTrackId || state.track?.id;
     if (!trackId) return;
-    const series = state.envelopes.get(trackId);
-    if (series && envelopeCoverage(series) >= 0.55) return;
+    const series = state.envelopes.get(trackId) || state.envelopes.get(String(trackId));
+    if (series && (series.isTruePcm || envelopeCoverage(series) >= 0.55)) return;
     const now = performance.now();
-    if (now - state.scan.lastAutoAt < 8000) return;
+    if (now - state.scan.lastAutoAt < 5000) return;
     state.scan.lastAutoAt = now;
-    window.setTimeout(() => {
-      if (!state.scan.active && state.prefs.autoScan) void scanWaveform();
-    }, 1500);
+    post({ type: "echo:audition:getEnvelope", trackId });
   }
 
   // Sanitize measured samples and clamp to [0, 1].
@@ -3060,8 +3031,195 @@
       const visible = ratio >= 0 && ratio <= 1;
       playhead.style.display = visible ? "" : "none";
       if (visible) {
-        playhead.style.left = `${ratio * 100}%`;
+        playhead.style.left = `${(ratio * w).toFixed(2)}px`;
         setText("playhead-flag", fmtClock(pos, false));
+      }
+    }
+  }
+
+  // Adobe Audition Spectral Frequency Display 256-entry RGBA Lookup Table
+  // (Black -> Deep Violet -> Purple -> Magenta/Crimson -> Fiery Red -> Vivid Orange -> Golden Yellow -> White-Yellow)
+  const AUDITION_SPEC_LUT = (() => {
+    const lut = new Uint8ClampedArray(256 * 4);
+    const stops = [
+      [0.00,   0,   0,   0],
+      [0.12,  22,   6,  52],
+      [0.26,  72,  13, 106],
+      [0.42, 154,  23,  98],
+      [0.58, 220,  48,  38],
+      [0.74, 250, 126,  18],
+      [0.88, 254, 214,  52],
+      [0.96, 255, 248, 160],
+      [1.00, 255, 255, 240],
+    ];
+    for (let idx = 0; idx < 256; idx++) {
+      const t = idx / 255;
+      let r = 255, g = 255, b = 240;
+      for (let i = 1; i < stops.length; i++) {
+        if (t <= stops[i][0]) {
+          const [t0, r0, g0, b0] = stops[i - 1];
+          const [t1, r1, g1, b1] = stops[i];
+          const k = (t - t0) / Math.max(0.0001, t1 - t0);
+          r = Math.round(r0 + (r1 - r0) * k);
+          g = Math.round(g0 + (g1 - g0) * k);
+          b = Math.round(b0 + (b1 - b0) * k);
+          break;
+        }
+      }
+      const p = idx * 4;
+      lut[p] = r;
+      lut[p + 1] = g;
+      lut[p + 2] = b;
+      lut[p + 3] = 255;
+    }
+    return lut;
+  })();
+
+  function drawSpectrogramLayer(lctx, w, h, vr, duration, series) {
+    lctx.fillStyle = "#000000";
+    lctx.fillRect(0, 0, w, h);
+
+    const midY = Math.floor(h / 2);
+    const span = Math.max(0.001, vr.end - vr.start);
+    const specCols = series?.specCols || 0;
+    const specBins = series?.specBins || 0;
+    const hasSpec = Boolean(series?.specL && series?.specR && specCols > 0 && specBins > 0 && duration > 0);
+
+    if (hasSpec) {
+      const imgData = lctx.createImageData(w, h);
+      const data = imgData.data;
+      const specL = series.specL;
+      const specR = series.specR;
+
+      const colC0 = new Int32Array(w);
+      const colC1 = new Int32Array(w);
+      const colCFloat = new Float32Array(w);
+      for (let x = 0; x < w; x++) {
+        const t0 = vr.start + (x / w) * span;
+        const t1 = vr.start + ((x + 1) / w) * span;
+        const c0 = clamp(Math.floor((t0 / duration) * specCols), 0, specCols - 1);
+        const c1 = clamp(Math.floor((t1 / duration) * specCols), c0, specCols - 1);
+        colC0[x] = c0;
+        colC1[x] = c1;
+        colCFloat[x] = clamp(((t0 + t1) * 0.5 / duration) * (specCols - 1), 0, specCols - 1);
+      }
+
+      for (let chIdx = 0; chIdx < 2; chIdx++) {
+        const src = chIdx === 0 ? specL : specR;
+        const yStart = chIdx === 0 ? 0 : midY + 1;
+        const laneH = chIdx === 0 ? midY : Math.max(1, h - midY - 1);
+
+        for (let ly = 0; ly < laneH; ly++) {
+          const py = yStart + ly;
+          const u = clamp(1.0 - ly / Math.max(1, laneH - 1), 0, 1);
+          const bFloat = u * (specBins - 1);
+          const b0 = Math.floor(bFloat);
+          const b1 = Math.min(specBins - 1, b0 + 1);
+          const bFrac = bFloat - b0;
+          const invBFrac = 1.0 - bFrac;
+          const rowOffset = py * w * 4;
+
+          for (let x = 0; x < w; x++) {
+            const c0 = colC0[x];
+            const c1 = colC1[x];
+            let val = 0;
+            if (c1 > c0) {
+              for (let c = c0; c <= c1; c++) {
+                const base = c * specBins;
+                const v = src[base + b0] * invBFrac + src[base + b1] * bFrac;
+                if (v > val) val = v;
+              }
+            } else {
+              const cf = colCFloat[x];
+              const ci0 = Math.floor(cf);
+              const ci1 = Math.min(specCols - 1, ci0 + 1);
+              const cFrac = cf - ci0;
+              const base0 = ci0 * specBins;
+              const base1 = ci1 * specBins;
+              const v0 = src[base0 + b0] * invBFrac + src[base0 + b1] * bFrac;
+              const v1 = src[base1 + b0] * invBFrac + src[base1 + b1] * bFrac;
+              val = v0 * (1.0 - cFrac) + v1 * cFrac;
+            }
+            const lutIdx = (val < 0 ? 0 : val > 255 ? 255 : (val + 0.5) | 0) * 4;
+            const px = rowOffset + x * 4;
+            data[px] = AUDITION_SPEC_LUT[lutIdx];
+            data[px + 1] = AUDITION_SPEC_LUT[lutIdx + 1];
+            data[px + 2] = AUDITION_SPEC_LUT[lutIdx + 2];
+            data[px + 3] = 255;
+          }
+        }
+      }
+
+      // 1px stereo channel separator line at midY
+      const divOffset = midY * w * 4;
+      for (let x = 0; x < w; x++) {
+        const px = divOffset + x * 4;
+        data[px] = 72;
+        data[px + 1] = 80;
+        data[px + 2] = 88;
+        data[px + 3] = 255;
+      }
+
+      lctx.putImageData(imgData, 0, 0);
+    } else {
+      // Divider line even when waiting
+      lctx.strokeStyle = "#333940";
+      lctx.beginPath();
+      lctx.moveTo(0, midY + 0.5);
+      lctx.lineTo(w, midY + 0.5);
+      lctx.stroke();
+
+      lctx.fillStyle = "rgba(255,255,255,0.35)";
+      lctx.font = "10px var(--font-ui, sans-serif)";
+      lctx.textAlign = "center";
+      lctx.fillText(t("spectrogram.waiting"), w / 2, h / 2 + 3);
+      lctx.textAlign = "start";
+    }
+
+    // Adobe Audition right-hand perceptual Frequency Scale (Hz, 10k, 6k, 4k, 2k, 1k) per stereo lane
+    const rulerW = 28;
+    lctx.fillStyle = "rgba(18, 21, 25, 0.86)";
+    lctx.fillRect(w - rulerW, 0, rulerW, h);
+    lctx.strokeStyle = "rgba(58, 66, 76, 0.85)";
+    lctx.beginPath();
+    lctx.moveTo(w - rulerW + 0.5, 0);
+    lctx.lineTo(w - rulerW + 0.5, h);
+    lctx.moveTo(w - rulerW, midY + 0.5);
+    lctx.lineTo(w, midY + 0.5);
+    lctx.stroke();
+
+    const f0 = 2600.0;
+    const sr = series?.sampleRate || 48000;
+    const fMax = Math.min(22000.0, sr * 0.485);
+    const logDenom = Math.log(1.0 + fMax / f0);
+    const freqTicks = [
+      [10000, "10k"],
+      [6000, "6k"],
+      [4000, "4k"],
+      [2000, "2k"],
+      [1000, "1k"],
+    ];
+
+    lctx.font = "8.5px var(--font-mono, Consolas, monospace)";
+    lctx.textAlign = "left";
+    for (let chIdx = 0; chIdx < 2; chIdx++) {
+      const yStart = chIdx === 0 ? 0 : midY + 1;
+      const laneH = chIdx === 0 ? midY : Math.max(1, h - midY - 1);
+      lctx.fillStyle = "#9aa4b0";
+      lctx.fillText("Hz", w - rulerW + 5, yStart + 9);
+
+      for (const [hz, label] of freqTicks) {
+        if (hz >= fMax) continue;
+        const u = Math.log(1.0 + hz / f0) / logDenom;
+        const y = Math.round(yStart + (1.0 - u) * (laneH - 1));
+        if (y < yStart + 13 || y > yStart + laneH - 3) continue;
+        lctx.strokeStyle = "#68727e";
+        lctx.beginPath();
+        lctx.moveTo(w - rulerW, y + 0.5);
+        lctx.lineTo(w - rulerW + 3, y + 0.5);
+        lctx.stroke();
+        lctx.fillStyle = "#88929e";
+        lctx.fillText(label, w - rulerW + 5, y + 3);
       }
     }
   }
@@ -3070,87 +3228,62 @@
     const entry = canvases.get("spectrogram-canvas");
     if (!entry) return;
     const { canvas, ctx, w, h } = resizeCanvas(entry);
-    // The history lives in a FIXED logical buffer (independent of the canvas
-    // pixel size) so window resizes / DPR changes never wipe the waterfall —
-    // that wipe was why the pane looked empty.
-    const BW = 1024;
-    const BH = 160;
-    if (!entry.off) {
-      entry.off = document.createElement("canvas");
-      entry.off.width = BW;
-      entry.off.height = BH;
-      // NOTE: the offscreen buffer must NOT be desynchronized — a low-latency
-      // context is not a reliable drawImage source, which made the waterfall
-      // render as an empty strip.
-      entry.offCtx = entry.off.getContext("2d", { alpha: false });
-      entry.offCtx.fillStyle = "#0b0f13";
-      entry.offCtx.fillRect(0, 0, BW, BH);
-      entry.filled = false;
+    const vr = viewRange();
+    const duration = currentDuration();
+    const tid = String(state.playback.currentTrackId || state.track?.id || "");
+    let series = state.envelopes.get(tid) || state.envelopes.get(Number(tid));
+    if (!series && state.envelopes.size > 0) {
+      series = state.envelopes.values().next().value;
     }
-    const off = entry.off;
-    const octx = entry.offCtx;
 
-    const playing = isPlayingState();
-    const fresh = hasSignal(state.spectrum.bands);
-    if (!state.frozen && playing && fresh) {
-      octx.globalCompositeOperation = "copy";
-      octx.drawImage(off, 2, 0);
-      octx.globalCompositeOperation = "source-over";
-      const bands = normalizeBands(state.spectrum.bands, 96);
-      const colX = 0;
-      const cellH = BH / bands.length;
-      for (let i = 0; i < bands.length; i++) {
-        const v = bands[i];
-        const y = BH - (i + 1) * cellH;
-        octx.fillStyle = heatColor(Math.pow(clamp(v, 0, 1), 0.72));
-        octx.fillRect(colX, y, 2, Math.ceil(cellH) + 1);
+    const layerKey = [
+      state.playback.currentTrackId ?? "",
+      vr.start.toFixed(3),
+      vr.end.toFixed(3),
+      w,
+      h,
+      state.envRev,
+      series?.specCols || 0,
+    ].join("|");
+
+    if (!entry.layer || entry.layerKey !== layerKey) {
+      if (!entry.layer) {
+        entry.layer = document.createElement("canvas");
+        entry.layerCtx = entry.layer.getContext("2d", { alpha: false });
       }
-      entry.filled = true;
+      if (entry.layer.width !== w || entry.layer.height !== h) {
+        entry.layer.width = w;
+        entry.layer.height = h;
+      }
+      drawSpectrogramLayer(entry.layerCtx, w, h, vr, duration, series);
+      entry.layerKey = layerKey;
     }
 
-    ctx.fillStyle = "#0b0f13";
-    ctx.fillRect(0, 0, w, h);
-    if (entry.filled) ctx.drawImage(off, 0, 0, w, h);
-    else {
-      ctx.fillStyle = "rgba(255,255,255,0.35)";
-      ctx.font = "10px var(--font-ui, sans-serif)";
-      ctx.textAlign = "center";
-      ctx.fillText(t("spectrogram.waiting"), w / 2, h / 2 + 3);
-      ctx.textAlign = "start";
-    }
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
-    for (let i = 1; i < 5; i++) {
-      const y = (i / 5) * h;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
+    ctx.drawImage(entry.layer, 0, 0, w, h);
+
+    // Draw synchronized smooth playhead line across spectrogram
+    const pos = positionSeconds();
+    if (duration > 0) {
+      const ratio = (pos - vr.start) / Math.max(0.001, vr.end - vr.start);
+      if (ratio >= 0 && ratio <= 1) {
+        const px = ratio * w;
+        ctx.save();
+        ctx.strokeStyle = "#ff3344";
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = "rgba(255, 51, 68, 0.75)";
+        ctx.shadowBlur = 4;
+        ctx.beginPath();
+        ctx.moveTo(px, 0);
+        ctx.lineTo(px, h);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   }
 
   function heatColor(v) {
-    const t = clamp(v, 0, 1);
-    if (t < 0.02) return "rgba(8,10,14,0.85)";
-    const stops = [
-      [0.0, 10, 20, 45],
-      [0.28, 40, 60, 165],
-      [0.5, 0, 180, 200],
-      [0.7, 235, 200, 40],
-      [0.86, 245, 120, 30],
-      [1.0, 255, 60, 60],
-    ];
-    for (let i = 1; i < stops.length; i++) {
-      if (t <= stops[i][0]) {
-        const [t0, r0, g0, b0] = stops[i - 1];
-        const [t1, r1, g1, b1] = stops[i];
-        const k = (t - t0) / Math.max(0.0001, t1 - t0);
-        const r = Math.round(r0 + (r1 - r0) * k);
-        const g = Math.round(g0 + (g1 - g0) * k);
-        const b = Math.round(b0 + (b1 - b0) * k);
-        return `rgb(${r},${g},${b})`;
-      }
-    }
-    return "rgb(255,60,60)";
+    const idx = clamp(Math.round(clamp(v, 0, 1) * 255), 0, 255) * 4;
+    return `rgb(${AUDITION_SPEC_LUT[idx]},${AUDITION_SPEC_LUT[idx + 1]},${AUDITION_SPEC_LUT[idx + 2]})`;
   }
 
   function renderSpectrum() {
@@ -3161,12 +3294,24 @@
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = isLight ? "#edf0f4" : "#0d0f11";
     ctx.fillRect(0, 0, w, h);
-    const bars = 48;
+    const bars = 64;
     const fresh = hasSignal(state.spectrum.bands);
-    const bands = fresh || !entry.lastBars
-      ? normalizeBands(state.spectrum.bands, bars)
-      : entry.lastBars;
-    if (fresh) entry.lastBars = bands;
+    const targetBands = normalizeBands(state.spectrum.bands, bars);
+    if (!entry.smoothBands || entry.smoothBands.length !== bars) {
+      entry.smoothBands = new Float32Array(bars);
+    }
+    for (let i = 0; i < bars; i++) {
+      if (fresh) {
+        if (targetBands[i] > entry.smoothBands[i]) {
+          entry.smoothBands[i] = entry.smoothBands[i] * 0.35 + targetBands[i] * 0.65;
+        } else {
+          entry.smoothBands[i] = entry.smoothBands[i] * 0.84 + targetBands[i] * 0.16;
+        }
+      } else {
+        entry.smoothBands[i] = Math.max(0, entry.smoothBands[i] * 0.88 - 0.005);
+      }
+    }
+    const bands = entry.smoothBands;
     const top = 12;
     const avail = h - top - 2;
     const xAt = (i) => (i / (bars - 1)) * w;
@@ -3186,11 +3331,10 @@
 
     if (!entry.peakHold || entry.peakHold.length !== bars) entry.peakHold = new Float32Array(bars);
     for (let i = 0; i < bars; i++) {
-      entry.peakHold[i] = Math.max(bands[i], entry.peakHold[i] - 0.006);
+      entry.peakHold[i] = Math.max(bands[i], entry.peakHold[i] - 0.005);
     }
 
-    // Smooth curve + gradient area (midpoint-quadratic interpolation, the same
-    // technique d3-shape's curveCardinal exposes) instead of discrete bars.
+    // Smooth curve + gradient area (midpoint-quadratic interpolation)
     const traceSpectrum = (values) => {
       ctx.beginPath();
       const firstX = xAt(0);
@@ -3385,6 +3529,20 @@
     const isPlaying = isPlayingState() && (fresh || energy > 0.001);
     const mode = state.soundfieldMode || "polar-sample";
 
+    // Real measurement values from C# DSP engine
+    const rawBal = typeof state.levels.balance === "number" ? state.levels.balance : 0.0;
+    const rawCorr = typeof state.levels.correlation === "number" ? state.levels.correlation : 1.0;
+    const balance = isPlaying ? clamp(rawBal, -1.0, 1.0) : 0.0;
+    const correlation = isPlaying ? clamp(rawCorr, -1.0, 1.0) : 1.0;
+
+    // Update global phase correlation meter (+1 is top, 0 center, -1 bottom)
+    if (entry.corrVal === undefined || entry.corrVal === null) entry.corrVal = 1.0;
+    const targetCorr = isPlaying ? correlation : 1.0;
+    entry.corrVal = entry.corrVal * 0.85 + targetCorr * 0.15;
+    const corrPct = clamp(((1.0 - entry.corrVal) / 2.0) * 100, 3, 97);
+    const corrPip = el("soundfield-corr-pip");
+    if (corrPip) corrPip.style.top = `${corrPct.toFixed(1)}%`;
+
     if (mode === "lissajous") {
       // ══════════════════════════════════════════════════════════════════════
       // Adobe Audition / iZotope Insight 2 Professional Lissajous Goniometer
@@ -3449,13 +3607,11 @@
       // 45° Diagonal Axes for Left (L) and Right (R) channels
       const diagCos = 0.70710678;
       ctx.strokeStyle = gridSubStroke;
-      // L channel diagonal (-45° from up = 135° in cartesian: up-left to down-right)
       ctx.beginPath();
       ctx.moveTo(cx - R * diagCos, cy - R * diagCos);
       ctx.lineTo(cx + R * diagCos, cy + R * diagCos);
       ctx.stroke();
 
-      // R channel diagonal (+45° from up = 45° in cartesian: up-right to down-left)
       ctx.beginPath();
       ctx.moveTo(cx + R * diagCos, cy - R * diagCos);
       ctx.lineTo(cx - R * diagCos, cy + R * diagCos);
@@ -3486,7 +3642,6 @@
       ctx.fillText("-6", cx + 4, cy - R * 0.5 + 4);
 
       // 2. Multiband Stereo Phasor Synthesis Engine (100% Music-Driven)
-      // Extract acoustic sub-bands from real host FFT
       let bBass = 0;
       for (let i = 0; i < 6; i++) bBass += bands[i] || 0;
       bBass /= 6;
@@ -3515,17 +3670,17 @@
         if (entry.lissAmp < 0.5) entry.lissAmp = 0;
       }
 
-      // Dynamic stereo width from real spectral diffusion
-      const stereoWidth = clamp(0.18 + bHigh * 1.5 + bMid * 0.65 + bAir * 1.8 + transient * 0.35, 0.10, 0.95);
-
-      // Instantaneous Phase Correlation Calculation (M^2 vs S^2)
-      let sumMidSq = 0;
-      let sumSideSq = 0;
+      // Dynamic stereo width from real spectral diffusion and phase correlation
+      const decorr = clamp((1.0 - correlation) * 0.9, 0.04, 1.2);
+      const stereoWidth = clamp(0.10 + decorr * 0.65 + bHigh * 0.35 + bAir * 0.35, 0.06, 1.15);
 
       if (entry.lissAmp > 0.8) {
         const PTS = 240;
         const t = performance.now() * 0.0032;
         const lissPoints = new Float32Array(PTS * 2);
+        const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
+        const hasVec = vecPts.length >= 32;
+        const vecPairs = hasVec ? Math.floor(vecPts.length / 2) : 0;
 
         for (let i = 0; i < PTS; i++) {
           const theta = (i / PTS) * Math.PI * 4; // Dual-cycle closed loop
@@ -3546,17 +3701,29 @@
           const m4 = Math.sin(theta * 5.0 + t * 5.2) * (bAir * 0.4 + transient * 0.45);
           const s4 = Math.cos(theta * 5.0 + t * 5.2 + 2.9) * (bAir * 0.65 + transient * 0.6) * stereoWidth;
 
-          // Sum rotated Mid & Side components
-          const midTot = (m1 + m2 + m3 + m4);
-          const sideTot = (s1 + s2 + s3 + s4);
+          let midTot = (m1 + m2 + m3 + m4);
+          let sideTot = (s1 + s2 + s3 + s4);
 
-          // Accumulate power for true Pearson correlation coefficient
-          sumMidSq += midTot * midTot;
-          sumSideSq += sideTot * sideTot;
+          if (hasVec) {
+            const vf = (i / PTS) * vecPairs;
+            const vi0 = Math.floor(vf) % vecPairs;
+            const vi1 = (vi0 + 1) % vecPairs;
+            const vFrac = vf - Math.floor(vf);
+            const vl = (Number(vecPts[vi0 * 2]) || 0) * (1 - vFrac) + (Number(vecPts[vi1 * 2]) || 0) * vFrac;
+            const vr = (Number(vecPts[vi0 * 2 + 1]) || 0) * (1 - vFrac) + (Number(vecPts[vi1 * 2 + 1]) || 0) * vFrac;
+            const vMid = (vl + vr) * 0.70710678;
+            const vSide = (vr - vl) * 0.70710678;
+            midTot = midTot * 0.55 + vMid * 0.45;
+            sideTot = sideTot * 0.55 + vSide * 0.45;
+          }
 
-          // Screen coordinate projection
-          lissPoints[i * 2] = cx + sideTot * entry.lissAmp;
-          lissPoints[i * 2 + 1] = cy - midTot * entry.lissAmp;
+          const tiltAngle = balance * 0.32;
+
+          const rotSide = sideTot * Math.cos(tiltAngle) + midTot * Math.sin(tiltAngle);
+          const rotMid = midTot * Math.cos(tiltAngle) - sideTot * Math.sin(tiltAngle);
+
+          lissPoints[i * 2] = cx + rotSide * entry.lissAmp;
+          lissPoints[i * 2 + 1] = cy - rotMid * entry.lissAmp;
         }
 
         // Layer 1: CRT Phosphor Aura Glow
@@ -3589,7 +3756,7 @@
         ctx.lineWidth = 1.3;
         ctx.stroke();
 
-        // Layer 3: Transient Excitation Sparkles (triggered on sharp drum / percussion attacks)
+        // Layer 3: Transient Excitation Sparkles (triggered on sharp attacks)
         if (transient > 0.12 && energy > 0.15) {
           const sparkCount = Math.min(8, Math.floor(transient * 14));
           ctx.fillStyle = isLight ? "rgba(0, 151, 167, 0.85)" : "rgba(255, 255, 255, 0.9)";
@@ -3603,18 +3770,6 @@
           }
         }
       }
-
-      // True Phase Correlation Meter Update: r = (Mid^2 - Side^2) / (Mid^2 + Side^2)
-      let targetCorr = 0.92;
-      if (sumMidSq + sumSideSq > 0.001) {
-        targetCorr = clamp((sumMidSq - sumSideSq) / (sumMidSq + sumSideSq + 0.0001), -0.85, 0.98);
-      } else if (!isPlaying) {
-        targetCorr = 0.98;
-      }
-      entry.corrVal = entry.corrVal * 0.88 + targetCorr * 0.12;
-      const corrPct = clamp(((1 - entry.corrVal) / 2) * 100, 4, 96);
-      const corrPip = el("soundfield-corr-pip");
-      if (corrPip) corrPip.style.top = `${corrPct}%`;
 
       // Central Origin Zero Pip
       ctx.fillStyle = isLight ? "#007c8c" : "#26c281";
@@ -3632,24 +3787,9 @@
     // ══════════════════════════════════════════════════════════════════════
     // Polar Modes: Polar Sample & Polar Level (Semicircular Dome)
     // ══════════════════════════════════════════════════════════════════════
-    // Coordinates for the semicircular polar dome (origin at bottom center)
     const cx = w / 2;
     const cy = h - 6;
     const R = Math.max(12, Math.min(w / 2 - 12, cy - 8));
-
-    // Update phase correlation meter for polar modes
-    if (!entry.corrVal) entry.corrVal = 0.85;
-    let targetCorr = 0.85;
-    if (isPlaying) {
-      const spread = Math.abs((bands[8] || 0) - (bands[28] || 0)) + Math.abs((bands[16] || 0) - (bands[40] || 0));
-      targetCorr = clamp(0.92 - spread * 0.4 + Math.sin(performance.now() * 0.003) * 0.05, 0.15, 0.98);
-    } else {
-      targetCorr = 0.95;
-    }
-    entry.corrVal = entry.corrVal * 0.9 + targetCorr * 0.1;
-    const corrPct = clamp(((1 - entry.corrVal) / 2) * 100, 4, 96);
-    const corrPip = el("soundfield-corr-pip");
-    if (corrPip) corrPip.style.top = `${corrPct}%`;
 
     // Draw Polar Graticule
     ctx.strokeStyle = isLight ? "rgba(51, 65, 85, 0.22)" : "rgba(90, 130, 150, 0.22)";
@@ -3691,26 +3831,61 @@
     ctx.fillText("R", Math.min(w - 7, cx + (R - 2) * spokeCos + 6), Math.max(7, cy - (R - 2) * spokeSin - 6));
 
     if (mode === "polar-sample") {
-      // Polar Sample: cloud of sample vectors radiating from origin
+      // Polar Sample: cloud of real stereo sample vectors (L, R) radiating from origin (iZotope Insight 2 standard)
       if (!entry.particles) entry.particles = [];
+      const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
 
       if (isPlaying) {
-        const emitCount = Math.min(22, Math.max(8, Math.floor(energy * 38)));
-        const t = performance.now() * 0.0022;
-        for (let k = 0; k < emitCount; k++) {
-          const bandIdx = Math.floor(Math.random() * bars);
-          const bVal = bands[bandIdx] || 0.1;
-          const pan = (Math.sin(t * 2.8 + bandIdx * 0.7) * 0.52) + ((Math.random() - 0.5) * 0.65);
-          const angle = -Math.PI / 2 + clamp(pan, -0.92, 0.92) * (Math.PI / 4);
-          const dist = R * clamp(bVal * (0.42 + Math.random() * 0.65) * 1.12, 0.05, 0.98);
-          entry.particles.push({
-            x: cx + Math.cos(angle) * dist,
-            y: cy + Math.sin(angle) * dist,
-            alpha: 1.0,
-            decay: 0.032 + Math.random() * 0.03,
-            size: Math.random() > 0.85 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.6 : 1.2),
-            bright: Math.random() > 0.35,
-          });
+        if (vecPts.length >= 16) {
+          const pairCount = Math.floor(vecPts.length / 2);
+          const step = Math.max(1, Math.floor(pairCount / 36));
+          for (let p = 0; p < pairCount; p += step) {
+            const l = Number(vecPts[p * 2]) || 0;
+            const r = Number(vecPts[p * 2 + 1]) || 0;
+            const mag = Math.sqrt(0.5 * (l * l + r * r));
+            if (mag < 0.004) continue;
+            const mid = (l + r) * 0.70710678;
+            const side = (r - l) * 0.70710678;
+            const signedSide = mid >= 0 ? side : -side;
+            const phi = Math.atan2(signedSide, Math.abs(mid) + 1e-5); // [-pi/2 .. +pi/2]
+            const jitterAngle = (Math.sin(p * 12.9898 + performance.now() * 0.01) * 0.035);
+            const angle = clamp(-Math.PI / 2 + phi + jitterAngle, -Math.PI + 0.04, -0.04);
+            const radialNorm = clamp(0.16 + 0.82 * Math.pow(clamp(mag, 0, 1), 0.45), 0.14, 0.97);
+            const dist = R * radialNorm * (0.86 + 0.14 * Math.sin(p * 7.13));
+
+            entry.particles.push({
+              x: cx + Math.cos(angle) * dist,
+              y: cy + Math.sin(angle) * dist,
+              alpha: 1.0,
+              decay: 0.038 + (p % 3) * 0.01,
+              size: mag > 0.40 ? (isLight ? 2.2 : 1.9) : (isLight ? 1.6 : 1.35),
+              bright: mag > 0.30,
+            });
+          }
+        } else {
+          let bandEnergy = 0;
+          for (let i = 0; i < bars; i++) bandEnergy += bands[i];
+          const avgEnergy = bandEnergy / bars;
+          const emitCount = Math.min(26, Math.max(10, Math.floor((avgEnergy * 1.5 + energy * 0.6) * 32)));
+          const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.08, 1.0);
+
+          for (let k = 0; k < emitCount; k++) {
+            const bandIdx = Math.floor(Math.random() * bars);
+            const bVal = bands[bandIdx] || 0.05;
+            const panJitter = (Math.random() - 0.5) * 1.5 * stereoSpread;
+            const pan = clamp(balance * 0.85 + panJitter, -1.0, 1.0);
+            const angle = -Math.PI / 2 + pan * (Math.PI / 4);
+            const dist = R * clamp(bVal * (0.6 + Math.random() * 0.5) * 1.1, 0.08, 0.98);
+
+            entry.particles.push({
+              x: cx + Math.cos(angle) * dist,
+              y: cy + Math.sin(angle) * dist,
+              alpha: 1.0,
+              decay: 0.038 + Math.random() * 0.03,
+              size: Math.random() > 0.8 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.5 : 1.2),
+              bright: Math.random() > 0.35,
+            });
+          }
         }
       }
 
@@ -3725,30 +3900,62 @@
               : `rgba(16, 149, 106, ${clamp(p.alpha * 0.85, 0, 1)})`;
           } else {
             ctx.fillStyle = p.bright
-              ? `rgba(255, 255, 255, ${p.alpha * 0.9})`
-              : `rgba(38, 194, 129, ${p.alpha * 0.78})`;
+              ? `rgba(230, 255, 248, ${p.alpha * 0.92})`
+              : `rgba(38, 194, 129, ${p.alpha * 0.82})`;
           }
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-      entry.particles = alive.slice(-280);
+      entry.particles = alive.slice(-340);
 
     } else if (mode === "polar-level") {
-      // Polar Level: radial rays / smooth filled envelope
+      // Polar Level: radial rays / smooth filled envelope driven by real stereo vector bins
       const RAY_COUNT = 48;
       if (!entry.rays || entry.rays.length !== RAY_COUNT) entry.rays = new Float32Array(RAY_COUNT);
-      const t = performance.now() * 0.0016;
+      const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
+      const sectorPeaks = new Float32Array(RAY_COUNT);
+
+      if (isPlaying && vecPts.length >= 16) {
+        const pairCount = Math.floor(vecPts.length / 2);
+        for (let p = 0; p < pairCount; p++) {
+          const l = Number(vecPts[p * 2]) || 0;
+          const r = Number(vecPts[p * 2 + 1]) || 0;
+          const mag = clamp(Math.pow(Math.sqrt(0.5 * (l * l + r * r)), 0.62), 0, 1);
+          const mid = (l + r) * 0.70710678;
+          const side = (r - l) * 0.70710678;
+          const signedSide = mid >= 0 ? side : -side;
+          const phi = Math.atan2(signedSide, Math.abs(mid) + 1e-5); // [-pi/2 .. +pi/2]
+          const normAngle = clamp((phi + Math.PI / 2) / Math.PI, 0, 1);
+          const sIdx = clamp(Math.round(normAngle * (RAY_COUNT - 1)), 0, RAY_COUNT - 1);
+          for (let d = -2; d <= 2; d++) {
+            const ni = sIdx + d;
+            if (ni >= 0 && ni < RAY_COUNT) {
+              const wgt = d === 0 ? 1.0 : (Math.abs(d) === 1 ? 0.72 : 0.4);
+              sectorPeaks[ni] = Math.max(sectorPeaks[ni], mag * wgt);
+            }
+          }
+        }
+      }
+
+      const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.14, 1.0);
+      const centerRay = (balance * 0.5 + 0.5) * (RAY_COUNT - 1);
 
       for (let i = 0; i < RAY_COUNT; i++) {
-        const norm = i / (RAY_COUNT - 1);
-        const centerDist = Math.abs(norm - 0.5) * 2;
-        const bandIdx = Math.floor((1 - centerDist) * (bars - 1));
-        const bVal = bands[bandIdx] || 0;
-        const flutter = isPlaying ? Math.sin(t * 3.8 + i * 0.55) * 0.07 : 0;
-        const target = isPlaying ? clamp(bVal * 0.88 + flutter, 0.04, 0.96) : 0;
-        entry.rays[i] = Math.max(target, entry.rays[i] - 0.024);
+        const distFromCenter = Math.abs(i - centerRay) / ((RAY_COUNT - 1) * 0.5);
+        const gaussWeight = Math.exp(-Math.pow(distFromCenter / Math.max(0.18, stereoSpread), 2) * 1.8);
+        const bandIdx = Math.floor((i / (RAY_COUNT - 1)) * (bars - 1));
+        const bVal = bands[bandIdx] || 0.05;
+        const modelTarget = clamp((bVal * 0.75 + energy * 0.25) * gaussWeight * 1.15, 0.04, 0.96);
+        const target = isPlaying
+          ? clamp(Math.max(sectorPeaks[i] * 0.95, modelTarget * 0.65), 0.04, 0.96)
+          : 0;
+        if (target > entry.rays[i]) {
+          entry.rays[i] = entry.rays[i] * 0.35 + target * 0.65;
+        } else {
+          entry.rays[i] = Math.max(target, entry.rays[i] - 0.028);
+        }
       }
 
       ctx.beginPath();
@@ -4177,11 +4384,10 @@
     renderQueueList();
 
     const targetQueueId = item.queueId || state.liveQueue.find((q) => q.id === item.id)?.queueId;
-    parent.postMessage({
-      type: "echo:audition:playTrack",
+    void sendPlaybackCommand("queue:playTrack", {
       trackId: item.id,
       queueId: targetQueueId,
-    }, "*");
+    });
   }
 
   let lastRenderedQueueKey = "";
@@ -4756,7 +4962,14 @@
   // ── interaction ───────────────────────────────────────────────────────────
   function seekTo(seconds) {
     if (!Number.isFinite(seconds)) return;
-    void command("seek", { positionSeconds: Math.max(0, seconds) });
+    const target = clamp(seconds, 0, Math.max(0, currentDuration() || Infinity));
+    state.playback.positionSeconds = target;
+    if (state.clock) {
+      state.clock.positionSeconds = target;
+      state.clock.smoothPositionSeconds = target;
+      state.clock.localSampledAtMs = performance.now();
+    }
+    void command("seek", { positionSeconds: target });
   }
 
   function bindScrub(targetId, mapXtoSeconds) {
@@ -4793,9 +5006,18 @@
     bindScrub("time-ruler-bar", vrSeconds);
     bindScrub("waveform-navigator", (ratio) => ratio * currentDuration());
 
-    // onclick (not addEventListener) keeps wiring idempotent if boot runs twice.
+    // Transport playback controls: robust pointer & click binding
     const playPause = el("btn-playpause");
-    if (playPause) playPause.onclick = () => void sendPlaybackCommand("playPause");
+    if (playPause) {
+      const doPlayPause = (e) => {
+        if (e) e.preventDefault();
+        void sendPlaybackCommand("playPause");
+      };
+      playPause.onclick = doPlayPause;
+      playPause.onpointerdown = (e) => {
+        e.stopPropagation();
+      };
+    }
     const pillPlay = el("pill-play-btn");
     if (pillPlay) {
       pillPlay.onclick = (event) => {
@@ -4806,13 +5028,25 @@
     const island = el("header-center-pill");
     if (island) island.onclick = () => void sendPlaybackCommand("playPause");
     const prev = el("btn-prev");
-    if (prev) prev.onclick = () => void sendPlaybackCommand("previous");
+    if (prev) {
+      prev.onclick = (e) => { if (e) e.preventDefault(); void sendPlaybackCommand("previous"); };
+      prev.onpointerdown = (e) => e.stopPropagation();
+    }
     const next = el("btn-next");
-    if (next) next.onclick = () => void sendPlaybackCommand("next");
+    if (next) {
+      next.onclick = (e) => { if (e) e.preventDefault(); void sendPlaybackCommand("next"); };
+      next.onpointerdown = (e) => e.stopPropagation();
+    }
     const rw = el("btn-rw");
-    if (rw) rw.onclick = () => seekTo(positionSeconds() - 5);
+    if (rw) {
+      rw.onclick = (e) => { if (e) e.preventDefault(); seekTo(positionSeconds() - 5); };
+      rw.onpointerdown = (e) => e.stopPropagation();
+    }
     const ff = el("btn-ff");
-    if (ff) ff.onclick = () => seekTo(positionSeconds() + 5);
+    if (ff) {
+      ff.onclick = (e) => { if (e) e.preventDefault(); seekTo(positionSeconds() + 5); };
+      ff.onpointerdown = (e) => e.stopPropagation();
+    }
     const repeat = el("btn-repeat");
     if (repeat) {
       repeat.onclick = async () => {
@@ -4980,7 +5214,7 @@
       state.queueTab = "tracks";
       tabTracks.classList.add("active");
       tabHistory?.classList.remove("active");
-      parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+      post({ type: "echo:audition:getQueue" });
       renderQueueList();
     });
     tabHistory?.addEventListener("click", () => {
@@ -5014,7 +5248,6 @@
         if (typeof closeDropdown === "function") {
           closeDropdown();
         }
-        post({ type: "echo:workshop-ui:interaction", action: "back" });
         return;
       }
 
@@ -5187,7 +5420,37 @@
           rMin[i] = msg.rMin ? clamp(Math.abs(num(msg.rMin[i], -pk) || 0), 0, 1) : pk;
           rMax[i] = msg.rMax ? clamp(num(msg.rMax[i], pk) || 0, 0, 1) : pk;
         }
-        const envData = { p, r, lMin, lMax, rMin, rMax, filled: len, isTruePcm: true };
+        const decodeB64 = (b64) => {
+          if (!b64 || typeof b64 !== "string") return null;
+          try {
+            const bin = atob(b64);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return arr;
+          } catch {
+            return null;
+          }
+        };
+        const specL = decodeB64(msg.specL);
+        const specR = decodeB64(msg.specR) || specL;
+        const specCols = Number(msg.specCols) || 0;
+        const specBins = Number(msg.specBins) || 0;
+        const sampleRate = Number(msg.sampleRate) || 48000;
+        const envData = {
+          p,
+          r,
+          lMin,
+          lMax,
+          rMin,
+          rMax,
+          filled: len,
+          isTruePcm: true,
+          specL,
+          specR,
+          specCols,
+          specBins,
+          sampleRate,
+        };
         state.envelopes.set(rawTid, envData);
         state.envelopes.set(String(rawTid), envData);
         if (typeof rawTid === "string" && !isNaN(Number(rawTid))) {
@@ -5204,7 +5467,13 @@
           waveEntry.layer = null;
           waveEntry.layerKey = null;
         }
+        const specEntry = canvases.get("spectrogram-canvas");
+        if (specEntry) {
+          specEntry.layer = null;
+          specEntry.layerKey = null;
+        }
         renderWaveform();
+        renderSpectrogram();
         renderNavigator();
         updateScanUi();
       }
@@ -5235,7 +5504,13 @@
       case "echo:workshop-ui:state": {
         state.connected = true;
         if (msg.playback) {
-          state.playback = { ...state.playback, ...msg.playback };
+          const nowPerf = performance.now();
+          const recentlyToggled = state.lastPlayPauseClickAt && (nowPerf - state.lastPlayPauseClickAt < 240);
+          const mergedPlayback = { ...state.playback, ...msg.playback };
+          if (recentlyToggled && msg.playback.state) {
+            mergedPlayback.state = state.playback.state;
+          }
+          state.playback = mergedPlayback;
           applyPlayback();
         }
         if (msg.currentTrack) applyTrack(msg.currentTrack);
@@ -5256,9 +5531,9 @@
           const tid = state.playback.currentTrackId || state.track?.id;
           if (tid && state.lyricsRequested !== tid) {
             state.lyricsRequested = tid;
-            if (tid.startsWith("streaming:")) {
+            if (String(tid).startsWith("streaming:")) {
               try {
-                parent.postMessage({ type: "echo:audition:getLyrics", trackId: tid }, "*");
+                post({ type: "echo:audition:getLyrics", trackId: tid });
               } catch {}
             } else {
               command("lyrics:get", { trackId: tid }).then((res) => {
@@ -5293,19 +5568,48 @@
         break;
       }
       case "echo:workshop-ui:clock": {
-        state.clock = msg.clock ?? null;
-        if (msg.motion) state.motion = { ...state.motion, ...msg.motion };
-        if (msg.clock?.state) {
-          state.playback.state = msg.clock.state;
-          if (msg.clock.state !== "playing" && msg.clock.state !== "loading") {
-            // Silence spectrum energy when paused/idle
+        const incoming = msg.clock ?? null;
+        if (incoming) {
+          const nowPerf = performance.now();
+          const prevClock = state.clock;
+          const curInterp = positionSeconds();
+          const rawPos = num(incoming.positionSeconds, 0) || 0;
+          const recentlyToggled = state.lastPlayPauseClickAt && (nowPerf - state.lastPlayPauseClickAt < 240);
+          const effectiveState = recentlyToggled ? state.playback.state : (incoming.state || state.playback.state);
+
+          let smoothPos = rawPos;
+          if (
+            prevClock &&
+            effectiveState === "playing" &&
+            prevClock.state === "playing" &&
+            prevClock.currentTrackId === incoming.currentTrackId
+          ) {
+            const drift = rawPos - curInterp;
+            if (Math.abs(drift) < 0.32) {
+              // Phase-locked loop (PLL) smooth follower: eliminates buffer step jitter
+              smoothPos = Math.max(0, curInterp + drift * 0.20);
+            }
+          }
+          state.clock = {
+            ...incoming,
+            state: effectiveState,
+            smoothPositionSeconds: smoothPos,
+            localSampledAtMs: nowPerf,
+          };
+          state.playback.positionSeconds = smoothPos;
+          state.playback.state = effectiveState;
+          if (effectiveState !== "playing" && effectiveState !== "loading") {
             state.spectrum.energy = 0;
             if (Array.isArray(state.spectrum.bands)) {
               state.spectrum.bands.fill(0);
             }
+            state.spectrum.vectorPoints = [];
           }
+          if (incoming.currentTrackId) state.playback.currentTrackId = incoming.currentTrackId;
+        } else {
+          state.clock = null;
         }
-        if (msg.clock?.currentTrackId) state.playback.currentTrackId = msg.clock.currentTrackId;
+        if (msg.motion) state.motion = { ...state.motion, ...msg.motion };
         applyPlayback();
         updateStatusLine();
         maybeAutoScan();
@@ -5597,11 +5901,6 @@
           get label() { return t("menu.file.prefs"); },
           shortcut: "Ctrl+,",
           action: () => showPreferencesModal(),
-        },
-        {
-          get label() { return t("menu.file.back"); },
-          shortcut: "Esc",
-          action: () => post({ type: "echo:workshop-ui:interaction", action: "back" }),
         },
       ],
       edit: [
@@ -5974,7 +6273,7 @@
           get label() { return t("menu.trans.syncQueue"); },
           shortcut: "F5",
           action: () => {
-            parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+            post({ type: "echo:audition:getQueue" });
             toast(t("toast.syncQueue"), "ok", 1500);
           },
         },
@@ -6254,15 +6553,6 @@
     setConnectionState("ok", t("header.connecting"));
 
     window.addEventListener("message", onMessage);
-    if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.addEventListener("message", (ev) => {
-        let d = ev.data;
-        if (typeof d === "string") {
-          try { d = JSON.parse(d); } catch (_) {}
-        }
-        onMessage({ data: d, source: window });
-      });
-    }
     try {
       post({ type: "echo:audition:getCover" });
       post({ type: "echo:audition:getLyrics" });

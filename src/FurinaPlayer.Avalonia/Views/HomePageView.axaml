@@ -1,0 +1,281 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             xmlns:models="using:SonicWave.Core.Models"
+             x:Class="FurinaPlayer.Avalonia.Views.HomePageView"
+             x:DataType="vm:HomeViewModel">
+
+    <Grid RowDefinitions="Auto,*" Margin="24,16,24,16">
+        
+        <!-- Header Toolbar & Controls -->
+        <Grid Grid.Row="0" Margin="0,0,0,16" RowDefinitions="Auto,Auto">
+            <!-- Action Buttons & Search Box -->
+            <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,260">
+                <!-- Add Files Button -->
+                <Button Grid.Column="0" 
+                        Classes="glass-btn" 
+                        Margin="0,0,10,0"
+                        Click="OnAddFilesClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:FluentIcon Kind="FileAdd" IconSize="18" />
+                        <TextBlock Text="添加音频" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Scan Folder Button -->
+                <Button Grid.Column="1" 
+                        Classes="glass-btn" 
+                        Margin="0,0,10,0"
+                        Click="OnScanFolderClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:FluentIcon Kind="FolderScan" IconSize="18" />
+                        <TextBlock Text="扫描文件夹" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- View Toggle Button (List / Grid) -->
+                <Button Grid.Column="2" 
+                        Classes="glass-btn" 
+                        Margin="0,0,10,0"
+                        Click="OnToggleViewClick">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:FluentIcon Kind="AlbumGrid" IconSize="18" />
+                        <TextBlock Text="{Binding ViewToggleText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
+
+                <!-- Refresh Library Button -->
+                <Button Grid.Column="3" 
+                        Classes="glass-btn" 
+                        Margin="0,0,10,0"
+                        Click="OnRefreshClick"
+                        ToolTip.Tip="重新加载曲库">
+                    <controls:FluentIcon Kind="RefreshReset" IconSize="18" />
+                </Button>
+
+                <!-- Search Input Box -->
+                <TextBox Grid.Column="5"
+                         Classes="clearButton"
+                         Watermark="搜索曲名、艺术家、专辑..."
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         Height="34"
+                         CornerRadius="8"
+                         Background="#25FFFFFF"
+                         BorderBrush="#33FFFFFF"
+                         Foreground="#F8FAFC"
+                         VerticalAlignment="Center">
+                    <TextBox.InnerLeftContent>
+                        <controls:FluentIcon Kind="Search" IconSize="16" Margin="10,0,4,0" VerticalAlignment="Center" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+            </Grid>
+
+            <!-- Library Summary & Scan Status Bar -->
+            <Grid Grid.Row="1" Margin="0,12,0,0" ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0"
+                           Text="{Binding SummaryText}"
+                           FontSize="13"
+                           Foreground="#94A3B8"
+                           VerticalAlignment="Center" />
+
+                <!-- Scan Indicator -->
+                <StackPanel Grid.Column="1" 
+                            Orientation="Horizontal" 
+                            Spacing="8" 
+                            IsVisible="{Binding IsScanning}">
+                    <ProgressBar IsIndeterminate="True" Width="100" Height="4" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ScanStatusText}"
+                               FontSize="12"
+                               Foreground="#38BDF8"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Main Content Area: High-Performance Virtualized List or Album Grid -->
+        <Panel Grid.Row="1">
+            <!-- Track List View -->
+            <Border Background="#15000000"
+                    BorderBrush="#25FFFFFF"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    ClipToBounds="True"
+                    IsVisible="{Binding !IsAlbumGridView}">
+                <Grid RowDefinitions="38,*">
+                    <!-- Column Header -->
+                    <Border Grid.Row="0" Background="#1AFFFFFF" BorderBrush="#25FFFFFF" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="45,50,3*,2*,2*,80,75,80" Margin="12,0">
+                            <TextBlock Grid.Column="0" Text="#" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="1" Text="封面" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="2" Text="标题" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="3" Text="艺术家" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="4" Text="专辑" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="5" Text="格式" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="6" Text="时长" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            <TextBlock Grid.Column="7" Text="操作" FontWeight="SemiBold" Foreground="#64748B" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Virtualized Tracks ListBox -->
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding VisibleTracks}"
+                             SelectedItem="{Binding SelectedTrack, Mode=TwoWay}"
+                             Background="Transparent"
+                             DoubleTapped="OnTrackDoubleTapped">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:Track">
+                                <Grid ColumnDefinitions="45,50,3*,2*,2*,80,75,80" Margin="0,4" Height="40">
+                                    <!-- Track Number -->
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding TrackNumber}"
+                                               FontSize="12"
+                                               Foreground="#64748B"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Cover Thumbnail Plate -->
+                                    <Border Grid.Column="1"
+                                            Width="32" Height="32"
+                                            CornerRadius="6"
+                                            ClipToBounds="True"
+                                            Background="#2538BDF8"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center">
+                                        <controls:FluentIcon Kind="MusicHero" IconSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+
+                                    <!-- Title -->
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding DisplayTitle}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"
+                                               Foreground="#F8FAFC"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Artist -->
+                                    <TextBlock Grid.Column="3"
+                                               Text="{Binding Artist}"
+                                               FontSize="12"
+                                               Foreground="#94A3B8"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Album -->
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding Album}"
+                                               FontSize="12"
+                                               Foreground="#94A3B8"
+                                               TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Format Badge -->
+                                    <Border Grid.Column="5"
+                                            Background="#1838BDF8"
+                                            CornerRadius="4"
+                                            Padding="6,2"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Format}"
+                                                   FontSize="10"
+                                                   FontWeight="Bold"
+                                                   Foreground="#38BDF8" />
+                                    </Border>
+
+                                    <!-- Duration -->
+                                    <TextBlock Grid.Column="6"
+                                               Text="{Binding DurationText}"
+                                               FontSize="12"
+                                               Foreground="#94A3B8"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Action Buttons -->
+                                    <StackPanel Grid.Column="7"
+                                                Orientation="Horizontal"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Spacing="6">
+                                        <!-- Play Button -->
+                                        <Button Classes="transport-circle"
+                                                Width="28" Height="28"
+                                                Tag="{Binding}"
+                                                Click="OnPlayTrackClick"
+                                                ToolTip.Tip="立即播放">
+                                            <controls:FluentIcon Kind="Play" IconSize="16" />
+                                        </Button>
+
+                                        <!-- Delete Button -->
+                                        <Button Classes="transport-circle"
+                                                Width="28" Height="28"
+                                                Tag="{Binding}"
+                                                Click="OnDeleteTrackClick"
+                                                ToolTip.Tip="从曲库移除">
+                                            <controls:FluentIcon Kind="Delete" IconSize="14" />
+                                        </Button>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
+            <!-- Album Grid View -->
+            <ScrollViewer IsVisible="{Binding IsAlbumGridView}">
+                <ItemsControl ItemsSource="{Binding Albums}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:Album">
+                            <Border Width="160"
+                                    Margin="10"
+                                    Padding="10"
+                                    Background="#1AFFFFFF"
+                                    BorderBrush="#30FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="12">
+                                <StackPanel Spacing="8">
+                                    <!-- Album Artwork Card -->
+                                    <Border Width="140"
+                                            Height="140"
+                                            CornerRadius="10"
+                                            ClipToBounds="True"
+                                            Background="#200078D4">
+                                        <controls:FluentIcon Kind="MusicHero" IconSize="64" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+
+                                    <!-- Album Title -->
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="Bold"
+                                               FontSize="13"
+                                               Foreground="#F8FAFC"
+                                               TextTrimming="CharacterEllipsis" />
+
+                                    <!-- Artist & Track Count -->
+                                    <TextBlock Text="{Binding Artist}"
+                                               FontSize="11"
+                                               Foreground="#94A3B8"
+                                               TextTrimming="CharacterEllipsis" />
+                                    
+                                    <TextBlock Text="{Binding TrackCount, StringFormat={}{0} 首曲目}"
+                                               FontSize="10"
+                                               Foreground="#38BDF8" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Panel>
+    </Grid>
+</UserControl>

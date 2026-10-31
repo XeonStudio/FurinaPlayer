@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -12,6 +12,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FurinaPlayer", "FurinaPlayer\FurinaPlayer.csproj", "{2CF0F19B-D249-431D-B277-B61B3C7C5020}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EchoDspTests", "EchoDspTests\EchoDspTests.csproj", "{3E3B6899-7A8E-45A7-A2BE-C6790B55E572}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FurinaPlayer.Avalonia", "FurinaPlayer.Avalonia\FurinaPlayer.Avalonia.csproj", "{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -71,6 +73,18 @@ Global
 		{2CF0F19B-D249-431D-B277-B61B3C7C5020}.Release|x64.Build.0 = Release|Any CPU
 		{2CF0F19B-D249-431D-B277-B61B3C7C5020}.Release|x86.ActiveCfg = Release|Any CPU
 		{2CF0F19B-D249-431D-B277-B61B3C7C5020}.Release|x86.Build.0 = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|x64.Build.0 = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Debug|x86.Build.0 = Debug|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|x64.ActiveCfg = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|x64.Build.0 = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|x86.ActiveCfg = Release|Any CPU
+		{CE6C3585-1F31-4331-9D6F-3DADC7E1BCEE}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

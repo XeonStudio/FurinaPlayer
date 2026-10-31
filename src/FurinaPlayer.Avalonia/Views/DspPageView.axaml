@@ -1,0 +1,270 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             xmlns:dsp="using:SonicWave.Audio.Dsp"
+             x:Class="FurinaPlayer.Avalonia.Views.DspPageView"
+             x:DataType="vm:DspViewModel">
+
+    <ScrollViewer Margin="24,12,24,12">
+        <StackPanel Spacing="16" MaxWidth="1100" HorizontalAlignment="Stretch">
+            
+            <!-- 1. Master DSP Header & Safety Limiter -->
+            <Border Background="#200078D4"
+                    BorderBrush="#4038BDF8"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="18,14">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                    <controls:FluentIcon Grid.Column="0" Kind="DspEffects" IconSize="34" VerticalAlignment="Center" Margin="0,0,16,0" />
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                        <TextBlock Text="ECHO 专业级 Hi-Fi 效果器与 DSP 机架" FontSize="17" FontWeight="Bold" Foreground="#F8FAFC" />
+                        <TextBlock Text="逐采样参数平滑 · 独立双轨 EQ / OPRA 耳机校准 · 多相 Sinc FIR 升频 · 无锁环形可视化"
+                                   FontSize="11" Foreground="#94A3B8" />
+                    </StackPanel>
+
+                    <!-- Headroom Trim -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8" Margin="0,0,20,0">
+                        <TextBlock Text="输出余量:" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" />
+                        <Slider Width="90" Minimum="-12.0" Maximum="0.0" Value="{Binding HeadroomDb, Mode=TwoWay}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding HeadroomLabel}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" Width="45" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Safety Limiter Toggle -->
+                    <Border Grid.Column="3" Background="#1510B981" BorderBrush="#4010B981" BorderThickness="1" CornerRadius="8" Padding="10,4" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <controls:FluentIcon Kind="Checkmark" IconSize="14" />
+                            <TextBlock Text="0dBFS 安全限幅" FontSize="11" FontWeight="SemiBold" Foreground="#34D399" VerticalAlignment="Center" />
+                            <ToggleSwitch IsChecked="{Binding LimiterEnabled, Mode=TwoWay}" OnContent="" OffContent="" Margin="0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 2. 10-Band Graphic / Style Equalizer -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="14">
+                    <!-- EQ Header & Controls -->
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <controls:FluentIcon Kind="Eq" IconSize="22" />
+                            <TextBlock Text="10 段风格均衡器 (Graphic Equalizer)" FontWeight="Bold" FontSize="15" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- EQ Toggle -->
+                        <ToggleSwitch Grid.Column="1" Margin="14,0,0,0" IsChecked="{Binding EqEnabled, Mode=TwoWay}" OnContent="已开启" OffContent="已旁路" VerticalAlignment="Center" />
+
+                        <!-- EQ Preamp Slider -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" VerticalAlignment="Center" Margin="0,0,16,0">
+                            <TextBlock Text="前级增益 (Preamp):" FontSize="12" Foreground="#94A3B8" VerticalAlignment="Center" />
+                            <Slider Width="100" Minimum="-15.0" Maximum="15.0" Value="{Binding EqPreampDb, Mode=TwoWay}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding EqPreampLabel}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" Width="50" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Preset Buttons -->
+                        <Button Grid.Column="3" Classes="glass-btn" Margin="0,0,8,0" Click="OnResetEqClick">
+                            <TextBlock Text="归零重置" FontSize="12" />
+                        </Button>
+                        <Button Grid.Column="4" Classes="glass-btn" Margin="0,0,8,0" Click="OnBassBoostClick">
+                            <TextBlock Text="重低音增强" FontSize="12" />
+                        </Button>
+                        <Button Grid.Column="5" Classes="glass-btn" Click="OnVocalBoostClick">
+                            <TextBlock Text="人声润色" FontSize="12" />
+                        </Button>
+                    </Grid>
+
+                    <!-- 10 Vertical Slider Columns -->
+                    <ItemsControl ItemsSource="{Binding EqBands}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Rows="1" Columns="10" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:EqBandViewModel">
+                                <Border Background="#0CFFFFFF" BorderBrush="#18FFFFFF" BorderThickness="1" CornerRadius="8" Padding="6,10" Margin="4">
+                                    <Grid RowDefinitions="Auto,120,Auto">
+                                        <TextBlock Grid.Row="0" Text="{Binding GainLabel}" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" Margin="0,0,0,6" />
+                                        <Slider Grid.Row="1" Orientation="Vertical" Minimum="-12.0" Maximum="12.0" Value="{Binding GainDb, Mode=TwoWay}" HorizontalAlignment="Center" Height="110" />
+                                        <TextBlock Grid.Row="2" Text="{Binding FrequencyLabel}" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- 3. OPRA Headphone Calibration Section -->
+            <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="18">
+                <StackPanel Spacing="14">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <controls:FluentIcon Kind="Headphones" IconSize="22" />
+                            <TextBlock Text="OPRA 旗舰耳机权威校准器 (Harman Target Target Curve)" FontWeight="Bold" FontSize="15" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Calibration Switch -->
+                        <ToggleSwitch Grid.Column="1" Margin="14,0,0,0" IsChecked="{Binding CalibrationEnabled, Mode=TwoWay}" OnContent="已开启" OffContent="已旁路" VerticalAlignment="Center" />
+
+                        <!-- Status Badge -->
+                        <Border Grid.Column="3" Background="#1838BDF8" BorderBrush="#3038BDF8" BorderThickness="1" CornerRadius="6" Padding="8,3" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding CalibrationStatus}" FontSize="11" Foreground="#38BDF8" />
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="3*,*,2*" Margin="0,4,0,0">
+                        <!-- Headphone Preset Selector -->
+                        <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,16,0">
+                            <TextBlock Text="选择参考耳机型号 (内置 Oratory1990 / Crinacle 校准矩阵):" FontSize="12" Foreground="#94A3B8" />
+                            <ComboBox ItemsSource="{Binding HeadphonePresets}"
+                                      SelectedItem="{Binding SelectedHeadphone, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch"
+                                      Height="36">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="dsp:OpraHeadphonePreset">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Brand}" FontWeight="Bold" Foreground="#F8FAFC" />
+                                            <TextBlock Text="{Binding Model}" Foreground="#E2E8F0" />
+                                            <TextBlock Text="{Binding TargetCurve, StringFormat=({0})}" Foreground="#38BDF8" FontSize="11" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <!-- Calibration Preamp -->
+                        <StackPanel Grid.Column="1" Spacing="6" Margin="0,0,16,0">
+                            <TextBlock Text="校准前级 (Preamp):" FontSize="12" Foreground="#94A3B8" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Slider Grid.Column="0" Minimum="-15.0" Maximum="5.0" Value="{Binding CalibrationPreampDb, Mode=TwoWay}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding CalibrationPreampLabel}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" Margin="8,0,0,0" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Independent Dual-Track Architecture Note -->
+                        <Border Grid.Column="2" Background="#0CFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" CornerRadius="8" Padding="12,8">
+                            <TextBlock Text="双轨串联模式：耳机校准位于独立级联槽中运行，完全不影响上方 10 段风格 EQ，实现音色修饰与声学矫正的彻底解耦。"
+                                       FontSize="11" Foreground="#94A3B8" TextWrapping="Wrap" />
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 4. Resampler, Compressor, Spatial & Crossfeed Grid -->
+            <Grid ColumnDefinitions="*,*">
+                <!-- Left: Resampler & Dynamic Compressor -->
+                <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,8,0">
+                    <!-- Polyphase Sinc FIR Resampler Card -->
+                    <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <controls:FluentIcon Kind="HiRes" IconSize="20" />
+                                    <TextBlock Text="多相 Sinc FIR 升频重采样" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" IsChecked="{Binding ResamplerEnabled, Mode=TwoWay}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,*">
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0" Spacing="4">
+                                    <TextBlock Text="目标采样率:" FontSize="11" Foreground="#94A3B8" />
+                                    <ComboBox SelectedIndex="{Binding ResamplerSampleRateIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                                        <ComboBoxItem Content="48 kHz" />
+                                        <ComboBoxItem Content="96 kHz (Hi-Res)" />
+                                        <ComboBoxItem Content="192 kHz (Studio Master)" />
+                                        <ComboBoxItem Content="384 kHz (Ultra Hi-Fi)" />
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="4">
+                                    <TextBlock Text="插值滤波器算法:" FontSize="11" Foreground="#94A3B8" />
+                                    <ComboBox SelectedIndex="{Binding ResamplerFilterModeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                                        <ComboBoxItem Content="31-Tap Kaiser 多相半带 FIR" />
+                                        <ComboBoxItem Content="Hermite 三次样条插值" />
+                                    </ComboBox>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Dynamics Compressor Card -->
+                    <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <controls:FluentIcon Kind="Dynamics" IconSize="20" />
+                                    <TextBlock Text="动态范围压缩器 (Compressor)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" IsChecked="{Binding CompressorEnabled, Mode=TwoWay}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,*">
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0" Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="压缩阈值 (Threshold):" FontSize="11" Foreground="#94A3B8" />
+                                        <TextBlock Grid.Column="1" Text="{Binding CompressorThresholdLabel}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" />
+                                    </Grid>
+                                    <Slider Minimum="-40.0" Maximum="0.0" Value="{Binding CompressorThresholdDb, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="8,0,0,0" Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="压缩比 (Ratio):" FontSize="11" Foreground="#94A3B8" />
+                                        <TextBlock Grid.Column="1" Text="{Binding CompressorRatioLabel}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" />
+                                    </Grid>
+                                    <Slider Minimum="1.0" Maximum="16.0" Value="{Binding CompressorRatio, Mode=TwoWay}" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Right: Spatial Audio & Crossfeed -->
+                <StackPanel Grid.Column="1" Spacing="16" Margin="8,0,0,0">
+                    <!-- Bauer Crossfeed Card -->
+                    <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <controls:FluentIcon Kind="Spatial" IconSize="20" />
+                                    <TextBlock Text="Bauer 耳机互馈 (Crossfeed)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" IsChecked="{Binding CrossfeedEnabled, Mode=TwoWay}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="互馈混合强度 (消除头中效应):" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Grid.Column="1" Text="{Binding CrossfeedAmountLabel}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" />
+                                </Grid>
+                                <Slider Minimum="0.0" Maximum="1.0" Value="{Binding CrossfeedAmount, Mode=TwoWay}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Stereo Field Expansion Card -->
+                    <Border Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" CornerRadius="12" Padding="16">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <controls:FluentIcon Kind="FreeCanvas" IconSize="20" />
+                                    <TextBlock Text="立体声场声像宽度 (Stereo Width)" FontWeight="Bold" FontSize="14" Foreground="#F8FAFC" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="2" IsChecked="{Binding StereoFieldEnabled, Mode=TwoWay}" OnContent="" OffContent="" VerticalAlignment="Center" />
+                            </Grid>
+
+                            <StackPanel Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="Mid/Side 声场宽度 (0.0x 单声道 ~ 2.0x 宽广声场):" FontSize="11" Foreground="#94A3B8" />
+                                    <TextBlock Grid.Column="1" Text="{Binding StereoWidthLabel}" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" />
+                                </Grid>
+                                <Slider Minimum="0.0" Maximum="2.0" Value="{Binding StereoWidth, Mode=TwoWay}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

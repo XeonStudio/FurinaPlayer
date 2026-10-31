@@ -1,0 +1,471 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+             xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+             x:Class="FurinaPlayer.Avalonia.Views.NowPlayingPageView"
+             x:DataType="vm:NowPlayingViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+        <!-- Top Mode Selector Pill Bar -->
+        <Border Grid.Row="0"
+                Background="#18000000"
+                BorderBrush="#20FFFFFF"
+                BorderThickness="0,0,0,1"
+                Padding="16,8">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <controls:FluentIcon Kind="NowPlaying" IconSize="16" VerticalAlignment="Center" />
+                    <TextBlock Text="正在播放视图" FontSize="12" FontWeight="SemiBold" Foreground="#94A3B8" VerticalAlignment="Center" />
+                    <TextBlock Text="•" FontSize="12" Foreground="#475569" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ThemeButtonLabel}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Theme Mode Segmented Buttons -->
+                <Border Grid.Column="1" Background="#1AFFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="8" Padding="3">
+                    <StackPanel Orientation="Horizontal" Spacing="2">
+                        <Button Classes="glass-btn" Padding="10,4" Click="OnSelectClassicClick">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:FluentIcon Kind="ModeClassic" IconSize="14" />
+                                <TextBlock Text="经典歌词" FontSize="11" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="glass-btn" Padding="10,4" Click="OnSelectAuditionClick">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:FluentIcon Kind="ModeAudition" IconSize="14" />
+                                <TextBlock Text="Audition DAW" FontSize="11" />
+                            </StackPanel>
+                        </Button>
+                        <Button Classes="glass-btn" Padding="10,4" Click="OnSelectPowerPointClick">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:FluentIcon Kind="ModePowerPoint" IconSize="14" />
+                                <TextBlock Text="PowerPoint" FontSize="11" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- View Panels -->
+        <Panel Grid.Row="1">
+            
+            <!-- ========================================== -->
+            <!-- 1. CLASSIC LIQUID GLASS LYRICS VIEW       -->
+            <!-- ========================================== -->
+            <Grid IsVisible="{Binding IsClassicActive}" RowDefinitions="*,Auto" Margin="32,24,32,16">
+                <!-- Main Area: Album Art Left + Dynamic Scrolling Lyrics Right -->
+                <Grid Grid.Row="0" ColumnDefinitions="400,*">
+                    <!-- Left: Hero Vinyl / Artwork & Metadata -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="20">
+                        <Border Width="280" Height="280"
+                                CornerRadius="16"
+                                ClipToBounds="True"
+                                Background="#1A38BDF8"
+                                BorderBrush="#40FFFFFF"
+                                BorderThickness="1">
+                            <Panel>
+                                <controls:FluentIcon Kind="MusicHero" IconSize="120"
+                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                     IsVisible="{Binding MiniPlayerVm.CoverImage, Converter={x:Static ObjectConverters.IsNull}}" />
+                                <Image Source="{Binding MiniPlayerVm.CoverImage}"
+                                       Stretch="UniformToFill"
+                                       IsVisible="{Binding MiniPlayerVm.CoverImage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </Panel>
+                        </Border>
+
+                        <StackPanel Spacing="6" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding MiniPlayerVm.Title}"
+                                       FontSize="20" FontWeight="Bold" Foreground="#FFFFFF"
+                                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="320" />
+                            <TextBlock Text="{Binding MiniPlayerVm.Artist}"
+                                       FontSize="14" Foreground="#94A3B8" TextAlignment="Center" />
+                            <TextBlock Text="{Binding MiniPlayerVm.Album}"
+                                       FontSize="12" Foreground="#64748B" TextAlignment="Center" />
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Right: Dynamic Scrolling Lyrics -->
+                    <Border Grid.Column="1"
+                            Background="#0CFFFFFF"
+                            BorderBrush="#18FFFFFF"
+                            BorderThickness="1"
+                            CornerRadius="14"
+                            Padding="24"
+                            Margin="24,0,0,0">
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="0,0,0,10" Margin="0,0,0,16">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="动态歌词 (ECHO 双语实时对齐)" FontSize="12" FontWeight="SemiBold" Foreground="#94A3B8" />
+                                    <TextBlock Grid.Column="1" Text="LRC · 逐词高亮" FontSize="11" Foreground="#38BDF8" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Lyrics Items -->
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding Lyrics}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Padding="12,8" Margin="0,4" CornerRadius="8">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding Text}"
+                                                               FontSize="{Binding IsActive, Converter={x:Static ObjectConverters.IsNotNull}, ConverterParameter=18}"
+                                                               FontWeight="{Binding IsActive, Converter={x:Static ObjectConverters.IsNotNull}, ConverterParameter=Bold}"
+                                                               Foreground="{Binding IsActive, Converter={x:Static ObjectConverters.IsNotNull}, ConverterParameter=#38BDF8}" />
+                                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="#64748B"
+                                                               IsVisible="{Binding Subtitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Dedicated Classic Bottom Control Bar (Image 1 Style) -->
+                <Border Grid.Row="1"
+                        Background="#1E0D1B2A"
+                        BorderBrush="#25FFFFFF"
+                        BorderThickness="1"
+                        CornerRadius="12"
+                        Padding="18,10"
+                        Margin="0,16,0,0">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <!-- Progress & Time -->
+                        <Grid Grid.Row="0" ColumnDefinitions="45,*,45" Margin="0,0,0,6">
+                            <TextBlock Grid.Column="0" Text="{Binding MiniPlayerVm.PositionText}" FontSize="11" Foreground="#94A3B8" VerticalAlignment="Center" />
+                            <Slider Grid.Column="1"
+                                    Minimum="0" Maximum="{Binding MiniPlayerVm.DurationMs}"
+                                    Value="{Binding MiniPlayerVm.PositionMs, Mode=TwoWay}"
+                                    Height="16" VerticalAlignment="Center" Margin="8,0" />
+                            <TextBlock Grid.Column="2" Text="{Binding MiniPlayerVm.DurationText}" FontSize="11" Foreground="#94A3B8" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                        </Grid>
+
+                        <!-- Buttons Row -->
+                        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto">
+                            <!-- Left: Play Mode -->
+                            <Button Grid.Column="0" Classes="glass-btn" Padding="8,4" Click="OnCycleModeClick">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <controls:FluentIcon Kind="{Binding MiniPlayerVm.ModeIconKind}" IconSize="14" />
+                                    <TextBlock Text="{Binding MiniPlayerVm.ModeTooltip}" FontSize="11" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- Center: Previous, Play, Next -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+                                <Button Classes="transport-circle" Width="36" Height="36" Click="OnPreviousClick">
+                                    <controls:FluentIcon Kind="Previous" IconSize="16" />
+                                </Button>
+
+                                <Button Classes="play-hero" Width="46" Height="46" Click="OnPlayPauseClick">
+                                    <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <controls:FluentIcon Kind="Play" IconSize="38" IsVisible="{Binding !MiniPlayerVm.IsPlaying}" />
+                                        <controls:FluentIcon Kind="Pause" IconSize="38" IsVisible="{Binding MiniPlayerVm.IsPlaying}" />
+                                    </Panel>
+                                </Button>
+
+                                <Button Classes="transport-circle" Width="36" Height="36" Click="OnNextClick">
+                                    <controls:FluentIcon Kind="Next" IconSize="16" />
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Right: Speed Dropdown & EQ Button -->
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                <Button Classes="glass-btn" Padding="8,4" Click="OnSpeedClick">
+                                    <TextBlock Text="1.0x" FontSize="11" Foreground="#38BDF8" FontWeight="Bold" />
+                                </Button>
+                                <Button Classes="glass-btn" Padding="8,4" Click="OnEqQuickClick">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <controls:FluentIcon Kind="Eq" IconSize="14" />
+                                        <TextBlock Text="EQ" FontSize="11" FontWeight="Bold" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!-- 2. AUDITION DAW PRO MONITOR VIEW          -->
+            <!-- ========================================== -->
+            <Grid IsVisible="{Binding IsAuditionActive}" RowDefinitions="32,*,190,Auto" Background="#14181F" Margin="4">
+                <!-- Au Top Menu Bar -->
+                <Border Grid.Row="0" Background="#1E232B" BorderBrush="#333842" BorderThickness="0,0,0,1" Padding="8,0">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Border Background="#00B4D8" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="Au" FontWeight="Bold" FontSize="11" Foreground="#000000" />
+                            </Border>
+                            <TextBlock Text="文件(F)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="编辑(E)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="多轨(M)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="剪辑(C)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="效果(S)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="捕获(T)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="窗口(W)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="视图(V)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                            <TextBlock Text="帮助(H)" FontSize="11" Foreground="#CBD5E1" VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <Border Grid.Column="2" Background="#00B4D8" CornerRadius="12" Padding="10,2" VerticalAlignment="Center">
+                            <TextBlock Text="Audition DAW 模式" FontSize="10" FontWeight="Bold" Foreground="#000000" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- DAW Middle Top: Waveform Envelope & Track Info -->
+                <Grid Grid.Row="1" ColumnDefinitions="260,*,260" Margin="8,8,8,4">
+                    <!-- Left Panel: Playlist & Vinyl Record -->
+                    <Border Grid.Column="0" Background="#181D24" BorderBrush="#2D333B" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,6,0">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="播放列表" FontSize="11" FontWeight="Bold" Foreground="#38BDF8" />
+                                <TextBlock Text="历史记录" FontSize="11" Foreground="#64748B" />
+                            </StackPanel>
+
+                            <!-- Vinyl Turntable Display -->
+                            <Border Width="100" Height="100" CornerRadius="50" Background="#0F141C" BorderBrush="#38BDF8" BorderThickness="2" HorizontalAlignment="Center">
+                                <Panel>
+                                    <controls:FluentIcon Kind="MusicHero" IconSize="44" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <Ellipse Width="24" Height="24" Fill="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Panel>
+                            </Border>
+
+                            <!-- Audio Specs Box -->
+                            <Border Background="#10FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6" Padding="8">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="音频属性与信源" FontSize="10" FontWeight="Bold" Foreground="#38BDF8" />
+                                    <TextBlock Text="解码: MP3 FLOAT / 320 kbps" FontSize="10" Foreground="#CBD5E1" />
+                                    <TextBlock Text="重采样: 44.1 kHz -> 96 kHz Sinc" FontSize="10" Foreground="#CBD5E1" />
+                                    <TextBlock Text="声学校准: Harman Target 已激活" FontSize="10" Foreground="#34D399" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Center Panel: Multi-track Waveform Scope -->
+                    <Border Grid.Column="1" Background="#181D24" BorderBrush="#2D333B" BorderThickness="1" CornerRadius="6" Padding="12" Margin="3,0">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="波形包络 (Waveform Envelope)" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" />
+                                    <Border Background="#2538BDF8" CornerRadius="3" Padding="4,1">
+                                        <TextBlock Text="实时" FontSize="9" Foreground="#38BDF8" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding DawTimecode}" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" />
+                            </Grid>
+
+                            <controls:LiveWaveformScope Grid.Row="1" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Right Panel: Lyrics -->
+                    <Border Grid.Column="2" Background="#181D24" BorderBrush="#2D333B" BorderThickness="1" CornerRadius="6" Padding="12" Margin="6,0,0,0">
+                        <Grid RowDefinitions="Auto,*">
+                            <TextBlock Grid.Row="0" Text="实时歌词" FontSize="11" FontWeight="Bold" Foreground="#E2E8F0" Margin="0,0,0,8" />
+                            <StackPanel Grid.Row="1" VerticalAlignment="Center" Spacing="8" HorizontalAlignment="Center">
+                                <TextBlock Text="{Binding ActiveLyricText}" FontSize="14" FontWeight="Bold" Foreground="#38BDF8" TextAlignment="Center" TextWrapping="Wrap" />
+                                <TextBlock Text="可在 ECHO 顶级音频引擎中导入双语歌词" FontSize="10" Foreground="#64748B" TextAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- DAW Middle Bottom: iZotope Insight 2 Pro Monitor -->
+                <Border Grid.Row="2" Background="#181D24" BorderBrush="#2D333B" BorderThickness="1" CornerRadius="6" Padding="10" Margin="8,4">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="iZotope Insight 2 Pro - 环绕与全景响度分析" FontSize="11" FontWeight="Bold" Foreground="#00B4D8" Margin="0,0,0,8" />
+                        <Grid Grid.Row="1" ColumnDefinitions="280,*,*">
+                            <!-- Left: Loudness Readouts -->
+                            <Grid Grid.Column="0" ColumnDefinitions="*,*" RowDefinitions="*,*" Margin="0,0,8,0">
+                                <Border Grid.Row="0" Grid.Column="0" Background="#0F141C" CornerRadius="4" Padding="6" Margin="2">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="INTEGRATED" FontSize="9" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding IntegratedLufs, StringFormat={}{0:0.0} LUFS}" FontSize="13" FontWeight="Bold" Foreground="#34D399" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="0" Grid.Column="1" Background="#0F141C" CornerRadius="4" Padding="6" Margin="2">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="SHORT-TERM" FontSize="9" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding ShortTermLufs, StringFormat={}{0:0.0} LUFS}" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="0" Background="#0F141C" CornerRadius="4" Padding="6" Margin="2">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="MOMENTARY" FontSize="9" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding MomentaryLufs, StringFormat={}{0:0.0} LUFS}" FontSize="13" FontWeight="Bold" Foreground="#38BDF8" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Row="1" Grid.Column="1" Background="#0F141C" CornerRadius="4" Padding="6" Margin="2">
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="LOUDNESS RANGE" FontSize="9" Foreground="#64748B" />
+                                        <TextBlock Text="{Binding LoudnessRange, StringFormat={}{0:0.0} LU}" FontSize="13" FontWeight="Bold" Foreground="#F59E0B" />
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <!-- Center: Phase Correlation Radar -->
+                            <Border Grid.Column="1" Background="#0F141C" CornerRadius="4" Padding="6" Margin="4,0">
+                                <Grid RowDefinitions="Auto,*">
+                                    <TextBlock Grid.Row="0" Text="相位相关仪 (Phase Radar)" FontSize="10" Foreground="#94A3B8" Margin="0,0,0,4" />
+                                    <controls:InsightPhaseRadar Grid.Row="1" />
+                                </Grid>
+                            </Border>
+
+                            <!-- Right: Polar Sound Field vectorscope -->
+                            <Border Grid.Column="2" Background="#0F141C" CornerRadius="4" Padding="6" Margin="4,0,0,0">
+                                <Grid RowDefinitions="Auto,*">
+                                    <TextBlock Grid.Row="0" Text="立体声场像 (Sound Field)" FontSize="10" Foreground="#94A3B8" Margin="0,0,0,4" />
+                                    <controls:InsightSoundField Grid.Row="1" />
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- DAW Transport Dock -->
+                <Border Grid.Row="3" Background="#181D24" BorderBrush="#2D333B" BorderThickness="0,1,0,0" Padding="12,6">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding DawTimecode}" FontSize="14" FontWeight="Bold" Foreground="#00B4D8" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                            <Button Classes="transport-circle" Width="30" Height="30" Click="OnPreviousClick">
+                                <controls:FluentIcon Kind="Previous" IconSize="14" />
+                            </Button>
+                            <Button Classes="play-hero" Width="38" Height="38" Click="OnPlayPauseClick">
+                                <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <controls:FluentIcon Kind="Play" IconSize="30" IsVisible="{Binding !MiniPlayerVm.IsPlaying}" />
+                                    <controls:FluentIcon Kind="Pause" IconSize="30" IsVisible="{Binding MiniPlayerVm.IsPlaying}" />
+                                </Panel>
+                            </Button>
+                            <Button Classes="transport-circle" Width="30" Height="30" Click="OnNextClick">
+                                <controls:FluentIcon Kind="Next" IconSize="14" />
+                            </Button>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding MiniPlayerVm.FormatBadge}" FontSize="11" Foreground="#38BDF8" VerticalAlignment="Center" />
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ========================================== -->
+            <!-- 3. POWERPOINT PRESENTATION VIEW (Image 3)  -->
+            <!-- ========================================== -->
+            <Grid IsVisible="{Binding IsPowerPointActive}" RowDefinitions="Auto,*,Auto,Auto" Background="#F1F5F9">
+                <!-- Top Memo Header Banner -->
+                <Border Grid.Row="0" Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="0,0,0,1" Padding="16,8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <controls:FluentIcon Kind="Save" IconSize="14" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding PptMemoNote, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 FontSize="11" Foreground="#92400E" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Center: 16:9 Slide Canvas -->
+                <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Margin="40,20" Padding="40">
+                    <Grid ColumnDefinitions="320,*">
+                        <!-- Slide Left: Album Artwork -->
+                        <Border Grid.Column="0" Width="260" Height="260" CornerRadius="12" ClipToBounds="True" Background="#E0E7FF" BorderBrush="#C7D2FE" BorderThickness="1" VerticalAlignment="Center">
+                            <Panel>
+                                <controls:FluentIcon Kind="MusicHero" IconSize="100" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                     IsVisible="{Binding MiniPlayerVm.CoverImage, Converter={x:Static ObjectConverters.IsNull}}" />
+                                <Image Source="{Binding MiniPlayerVm.CoverImage}" Stretch="UniformToFill"
+                                       IsVisible="{Binding MiniPlayerVm.CoverImage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                            </Panel>
+                        </Border>
+
+                        <!-- Slide Right: Large Presentation Lyrics Typography -->
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="16" Margin="32,0,0,0">
+                            <Border Background="#FEE2E2" BorderBrush="#FCA5A5" BorderThickness="1" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                <TextBlock Text="PRESENTATION SLIDE" FontSize="10" FontWeight="Bold" Foreground="#B91C1C" />
+                            </Border>
+
+                            <TextBlock Text="{Binding MiniPlayerVm.Title}" FontSize="28" FontWeight="Bold" Foreground="#0F172A" />
+                            <TextBlock Text="{Binding MiniPlayerVm.Artist}" FontSize="16" Foreground="#64748B" />
+
+                            <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,8,0,0">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding ActiveLyricText}" FontSize="18" FontWeight="Bold" Foreground="#D97706" />
+                                    <TextBlock Text="纯水流转着未曾被遗忘的颂歌 · 愿静穆之梦常驻夜晚" FontSize="12" Foreground="#94A3B8" />
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- PPT Playback Control Bar (Image 3 Style with Orange Accents) -->
+                <Border Grid.Row="2" Background="#FFFFFF" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="24,10">
+                    <Grid ColumnDefinitions="260,*,260" VerticalAlignment="Center">
+                        <!-- Left: Song Info -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="{Binding MiniPlayerVm.Title}" FontSize="13" FontWeight="Bold" Foreground="#0F172A" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding MiniPlayerVm.Artist}" FontSize="11" Foreground="#64748B" />
+                        </StackPanel>
+
+                        <!-- Center: PPT Orange Controls & Slider -->
+                        <StackPanel Grid.Column="1" Spacing="4">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                                <Button Classes="transport-circle" Width="28" Height="28" Click="OnCycleModeClick">
+                                    <controls:FluentIcon Kind="{Binding MiniPlayerVm.ModeIconKind}" IconSize="13" />
+                                </Button>
+                                <Button Classes="transport-circle" Width="30" Height="30" Click="OnPreviousClick">
+                                    <controls:FluentIcon Kind="Previous" IconSize="14" />
+                                </Button>
+                                <!-- Orange Round Play Button -->
+                                <Button Classes="play-hero" Width="38" Height="38" Background="#EA580C" BorderBrush="#C2410C" Click="OnPlayPauseClick">
+                                    <Panel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <controls:FluentIcon Kind="Play" IconSize="30" IsVisible="{Binding !MiniPlayerVm.IsPlaying}" />
+                                        <controls:FluentIcon Kind="Pause" IconSize="30" IsVisible="{Binding MiniPlayerVm.IsPlaying}" />
+                                    </Panel>
+                                </Button>
+                                <Button Classes="transport-circle" Width="30" Height="30" Click="OnNextClick">
+                                    <controls:FluentIcon Kind="Next" IconSize="14" />
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Orange Slider with Timestamps -->
+                            <Grid ColumnDefinitions="40,*,40" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Text="{Binding MiniPlayerVm.PositionText}" FontSize="10" Foreground="#64748B" VerticalAlignment="Center" />
+                                <Slider Grid.Column="1" Minimum="0" Maximum="{Binding MiniPlayerVm.DurationMs}" Value="{Binding MiniPlayerVm.PositionMs, Mode=TwoWay}" Height="14" Margin="6,0" />
+                                <TextBlock Grid.Column="2" Text="{Binding MiniPlayerVm.DurationText}" FontSize="10" Foreground="#64748B" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Right: Volume Slider (Orange Accent) -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" VerticalAlignment="Center">
+                            <controls:FluentIcon Kind="Volume" IconSize="14" />
+                            <Slider Width="90" Minimum="0" Maximum="100" Value="{Binding MiniPlayerVm.Volume, Mode=TwoWay}" />
+                            <TextBlock Text="{Binding MiniPlayerVm.Volume, StringFormat={}{0}%}" FontSize="10" Foreground="#64748B" Width="30" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- PPT Bottom Status Bar (Image 3 Style) -->
+                <Border Grid.Row="3" Background="#F1F5F9" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0" Padding="12,4">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <!-- Left Status Metrics -->
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding PptSlideInfo}" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="|" Foreground="#CBD5E1" />
+                            <TextBlock Text="✓ 无拼写错误" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="|" Foreground="#CBD5E1" />
+                            <TextBlock Text="🌐 简体中文" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="|" Foreground="#CBD5E1" />
+                            <TextBlock Text="{Binding PptWordInfo}" FontSize="11" Foreground="#475569" />
+                        </StackPanel>
+
+                        <!-- Right PPT View Mode Buttons -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="📝 备注" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="💬 批注" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="100%" FontSize="11" Foreground="#475569" />
+                            <TextBlock Text="适应" FontSize="11" Foreground="#475569" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Panel>
+    </Grid>
+</UserControl>

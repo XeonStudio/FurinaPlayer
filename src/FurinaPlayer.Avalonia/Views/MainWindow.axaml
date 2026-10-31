@@ -1,0 +1,204 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
+        xmlns:views="using:FurinaPlayer.Avalonia.Views"
+        xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
+        x:Class="FurinaPlayer.Avalonia.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Furina Player"
+        Width="1240"
+        Height="780"
+        MinWidth="960"
+        MinHeight="620"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="-1"
+        TransparencyLevelHint="Mica, AcrylicBlur, Transparent"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen">
+
+    <Panel Background="#0A0F1D">
+        <!-- Layer 1: Ambient Glowing Liquid Hydro Aura Spheres -->
+        <Canvas IsHitTestVisible="False">
+            <!-- Top Right Cyan Glow -->
+            <Ellipse Width="650" Height="650" Canvas.Right="-150" Canvas.Top="-150">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%">
+                        <GradientStop Color="#4500B4D8" Offset="0.0" />
+                        <GradientStop Color="#180077B6" Offset="0.5" />
+                        <GradientStop Color="#00000000" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+
+            <!-- Bottom Left Furina Blue / Indigo Glow -->
+            <Ellipse Width="550" Height="550" Canvas.Left="-100" Canvas.Bottom="-100">
+                <Ellipse.Fill>
+                    <RadialGradientBrush Center="50%,50%" GradientOrigin="50%,50%" RadiusX="50%" RadiusY="50%">
+                        <GradientStop Color="#404F46E5" Offset="0.0" />
+                        <GradientStop Color="#121E1B4B" Offset="0.6" />
+                        <GradientStop Color="#00000000" Offset="1.0" />
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+        </Canvas>
+
+        <!-- Layer 2: Experimental Acrylic Frosted Glass -->
+        <ExperimentalAcrylicBorder IsHitTestVisible="False">
+            <ExperimentalAcrylicBorder.Material>
+                <ExperimentalAcrylicMaterial
+                    TintColor="#090E17"
+                    TintOpacity="0.75"
+                    MaterialOpacity="0.70" />
+            </ExperimentalAcrylicBorder.Material>
+        </ExperimentalAcrylicBorder>
+
+        <!-- Layer 3: Main Frameless Interface Structure -->
+        <Grid RowDefinitions="38,*,86">
+            
+            <!-- Row 0: Immersive Custom Titlebar -->
+            <Grid Grid.Row="0"
+                  x:Name="TitleBar"
+                  Background="#08FFFFFF"
+                  PointerPressed="OnTitleBarPointerPressed"
+                  ColumnDefinitions="Auto,*,Auto">
+                
+                <!-- Left: App Icon & Brand Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <controls:FluentIcon Kind="AppLogo" IconSize="20" VerticalAlignment="Center" />
+                    <TextBlock Text="Furina Player"
+                               FontWeight="Bold"
+                               FontSize="13"
+                               Foreground="#F8FAFC"
+                               VerticalAlignment="Center" />
+                    <Border Background="#2538BDF8" CornerRadius="4" Padding="6,1" Margin="4,0,0,0">
+                        <TextBlock Text="AVALONIA 11" FontSize="9" FontWeight="Bold" Foreground="#38BDF8" />
+                    </Border>
+                </StackPanel>
+
+                <!-- Center: Active View Title Header -->
+                <TextBlock Grid.Column="1"
+                           Text="{Binding PageTitle}"
+                           FontSize="12"
+                           Foreground="#64748B"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+
+                <!-- Right: Frameless Window Control Buttons -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Stretch">
+                    <!-- Minimize Button -->
+                    <Button Classes="transport-circle"
+                            Width="44" Height="38"
+                            CornerRadius="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnMinimizeClick">
+                        <controls:FluentIcon Kind="WindowMin" IconSize="12" />
+                    </Button>
+
+                    <!-- Maximize / Restore Button -->
+                    <Button Classes="transport-circle"
+                            Width="44" Height="38"
+                            CornerRadius="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnMaximizeClick">
+                        <controls:FluentIcon Kind="WindowMax" IconSize="12" />
+                    </Button>
+
+                    <!-- Close Button -->
+                    <Button Classes="transport-circle"
+                            Width="44" Height="38"
+                            CornerRadius="0"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="OnCloseClick">
+                        <controls:FluentIcon Kind="WindowClose" IconSize="12" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Row 1: Workspace Grid (Sidebar Navigation + Dynamic Page View) -->
+            <Grid Grid.Row="1" ColumnDefinitions="210,*">
+                <!-- Sidebar Navigation Panel -->
+                <Border Grid.Column="0"
+                        Background="#10FFFFFF"
+                        BorderBrush="#20FFFFFF"
+                        BorderThickness="0,0,1,0"
+                        Padding="12,16">
+                    <StackPanel Spacing="6">
+                        <!-- Home / Library -->
+                        <Button x:Name="BtnNavHome" Classes="nav-active" Click="OnNavHomeClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FluentIcon Kind="Home" IconSize="20" />
+                                <TextBlock Text="音乐曲库" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Now Playing -->
+                        <Button x:Name="BtnNavNowPlaying" Classes="nav-item" Click="OnNavNowPlayingClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FluentIcon Kind="NowPlaying" IconSize="20" />
+                                <TextBlock Text="正在播放" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- DSP Effects & Equalizer -->
+                        <Button x:Name="BtnNavDsp" Classes="nav-item" Click="OnNavDspClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FluentIcon Kind="DspEffects" IconSize="20" />
+                                <TextBlock Text="效果器与 DSP" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Audio Waveform Editor -->
+                        <Button x:Name="BtnNavEditor" Classes="nav-item" Click="OnNavEditorClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FluentIcon Kind="AudioEditor" IconSize="20" />
+                                <TextBlock Text="音频编辑器" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Settings -->
+                        <Button x:Name="BtnNavSettings" Classes="nav-item" Click="OnNavSettingsClick">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <controls:FluentIcon Kind="Settings" IconSize="20" />
+                                <TextBlock Text="设置与偏好" FontSize="13" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Page Content Area -->
+                <Panel Grid.Column="1">
+                    <!-- Home Page -->
+                    <Panel IsVisible="{Binding IsHomeActive}">
+                        <views:HomePageView DataContext="{Binding HomeVm}" />
+                    </Panel>
+
+                    <!-- Now Playing Page -->
+                    <Panel IsVisible="{Binding IsNowPlayingActive}">
+                        <views:NowPlayingPageView DataContext="{Binding NowPlayingVm}" />
+                    </Panel>
+
+                    <!-- DSP Page -->
+                    <Panel IsVisible="{Binding IsDspActive}">
+                        <views:DspPageView DataContext="{Binding DspVm}" />
+                    </Panel>
+
+                    <!-- Editor Page -->
+                    <Panel IsVisible="{Binding IsAudioEditorActive}">
+                        <views:EditorPageView DataContext="{Binding EditorVm}" />
+                    </Panel>
+
+                    <!-- Settings Page -->
+                    <views:SettingsPageView IsVisible="{Binding IsSettingsActive}" />
+                </Panel>
+            </Grid>
+
+            <!-- Row 2: Fixed Global MiniPlayer Transport Dock -->
+            <controls:MiniPlayerControl Grid.Row="2"
+                                        DataContext="{Binding MiniPlayerVm}" />
+        </Grid>
+    </Panel>
+</Window>

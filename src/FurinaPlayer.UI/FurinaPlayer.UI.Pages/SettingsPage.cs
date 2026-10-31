@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -129,6 +130,15 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
+		if (LyricFontButton != null)
+		{
+			LyricFontButton.Tag = "__fluent_upgraded";
+			if (LyricFontButton.Content is DependencyObject dobj)
+			{
+				FluentIconFactory.UpgradeButtonsInVisualTree(dobj);
+			}
+		}
+		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		UpdateResponsiveLayout(ActualWidth);
 	}
 
@@ -647,14 +657,26 @@ public sealed class SettingsPage : Page, IComponentConnector
 			_fetchAlbumArtButton.Click += OnFetchAlbumArtClick;
 			break;
 		case 6:
-			target.As<Button>().Click += OnAddFolderClick;
+		{
+			Button b6 = target.As<Button>();
+			b6.Padding = new Thickness(8, 5, 8, 5);
+			b6.Click += OnAddFolderClick;
 			break;
+		}
 		case 7:
-			target.As<Button>().Click += OnRemoveFolderClick;
+		{
+			Button b7 = target.As<Button>();
+			b7.Padding = new Thickness(8, 5, 8, 5);
+			b7.Click += OnRemoveFolderClick;
 			break;
+		}
 		case 8:
-			target.As<Button>().Click += OnScanNowClick;
+		{
+			Button b8 = target.As<Button>();
+			b8.Padding = new Thickness(8, 5, 8, 5);
+			b8.Click += OnScanNowClick;
 			break;
+		}
 		case 9:
 			ThemeCombo = target.As<ComboBox>();
 			break;
