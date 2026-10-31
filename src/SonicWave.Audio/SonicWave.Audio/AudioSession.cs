@@ -49,7 +49,7 @@ internal sealed class AudioSession : IDisposable
 
 	private TimeSpan _abEnd = TimeSpan.MinValue;
 
-	private int _volume = 5;
+	private int _volume = 80;
 
 	private double[] _eqGains = new double[10];
 
@@ -331,17 +331,17 @@ internal sealed class AudioSession : IDisposable
 		_useVlc = mode == OutputMode.SoftwareDecode && !RequiresNaudioPath;
 	}
 
-	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation) GetLiveAudioMeters()
+	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation, float[] VectorPoints) GetLiveAudioMeters()
 	{
 		if (_naudioBackend is NaudioAudioBackend naudio)
 		{
 			var dsp = naudio.Decoder.Dsp;
 			if (dsp != null && State == PlaybackState.Playing)
 			{
-				return (dsp.LatestPeakDb, dsp.LatestRmsDb, dsp.LatestBands, dsp.LatestStereoBalance, dsp.LatestPhaseCorrelation);
+				return (dsp.LatestPeakDb, dsp.LatestRmsDb, dsp.LatestBands, dsp.LatestStereoBalance, dsp.LatestPhaseCorrelation, dsp.LatestVectorPoints);
 			}
 		}
-		return (-90.0, -90.0, Array.Empty<float>(), 0f, 1f);
+		return (-90.0, -90.0, Array.Empty<float>(), 0f, 1f, Array.Empty<float>());
 	}
 
 	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails()
@@ -585,7 +585,7 @@ internal sealed class AudioSession : IDisposable
 			}
 			_activeTrackId = CurrentTrack.Id;
 			SetState(PlaybackState.Playing);
-			_positionTimer.Change(0, 500);
+			_positionTimer.Change(0, 50);
 			_watchdog.Reset(Position);
 			Trace("Play: resume restored session");
 		}
@@ -614,7 +614,7 @@ internal sealed class AudioSession : IDisposable
 				_naudioBackend.Play();
 			}
 			SetState(PlaybackState.Playing);
-			_positionTimer.Change(0, 500);
+			_positionTimer.Change(0, 50);
 			_watchdog.Reset(Position);
 			Trace("Play: playing (" + (_useVlc ? "vlc" : "naudio") + ")");
 		}

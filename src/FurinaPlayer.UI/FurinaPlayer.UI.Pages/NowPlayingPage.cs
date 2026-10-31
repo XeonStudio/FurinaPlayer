@@ -711,8 +711,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	private async Task EnsureDawWebViewAsync(LyricsPageMode mode = LyricsPageMode.AuditionDaw)
 	{
 		string targetUri = (mode == LyricsPageMode.PowerPoint)
-			? "https://powerpoint.theme/index.html"
-			: "https://audition.daw/index.html";
+			? "https://powerpoint.theme/index.html?v=2.0.0"
+			: "https://audition.daw/index.html?v=2.0.0";
 
 		if (_webView != null)
 		{
@@ -819,10 +819,12 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		if (!_isDawMode || !_dawReady || _webView?.CoreWebView2 == null || ViewModel == null) return;
 
 		var meters = ViewModel.GetLiveAudioMeters();
-		bool isPlaying = ViewModel.IsPlaying;
+		bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
 
-		double posSec = ViewModel.Position.TotalSeconds;
-		double durSec = ViewModel.Duration.TotalSeconds;
+		double posSec = ViewModel.Engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds;
+		double durSec = ViewModel.Duration.TotalSeconds > 0
+			? ViewModel.Duration.TotalSeconds
+			: (ViewModel.Engine?.Duration.TotalSeconds ?? 0.0);
 
 		PostDawMessage(new
 		{
@@ -836,7 +838,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				positionSeconds = posSec,
 				durationSeconds = durSec,
 				sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-				playbackRate = 1.0,
+				playbackRate = ViewModel.Speed > 0 ? ViewModel.Speed : 1.0,
 				currentTrackId = ViewModel.CurrentTrack?.Id ?? 0L
 			}
 		});
@@ -858,7 +860,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				bands = isPlaying ? meters.Bands : Array.Empty<float>(),
 				energy,
 				balance = isPlaying ? meters.StereoBalance : 0.0,
-				correlation = isPlaying ? meters.PhaseCorrelation : 1.0
+				correlation = isPlaying ? meters.PhaseCorrelation : 1.0,
+				vectorPoints = isPlaying ? meters.VectorPoints : Array.Empty<float>()
 			}
 		});
 	}
@@ -1048,21 +1051,50 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		}
 	}
 
+	private long _lastPlayPauseTick;
+	private string _lastHandledRequestId = string.Empty;
+
 	private void HandleDawCommand(string cmd, string requestId, JsonElement payload)
 	{
 		bool ok = true;
 		object? extraValue = null;
 
+		if (!string.IsNullOrEmpty(requestId) && requestId == _lastHandledRequestId)
+		{
+			return;
+		}
+		if (!string.IsNullOrEmpty(requestId))
+		{
+			_lastHandledRequestId = requestId;
+		}
+
 		switch (cmd)
 		{
 			case "playPause":
-				DispatcherQueue.TryEnqueue(() => ViewModel?.TogglePlayPauseCommand?.Execute(null));
+				long nowTick = Environment.TickCount64;
+				if (nowTick - _lastPlayPauseTick >= 150)
+				{
+					_lastPlayPauseTick = nowTick;
+					DispatcherQueue.TryEnqueue(() =>
+					{
+						ViewModel?.TogglePlayPauseCommand?.Execute(null);
+						SendDawPlaybackState();
+					});
+				}
 				break;
 			case "play":
-				DispatcherQueue.TryEnqueue(() => ViewModel?.PlayCommand?.Execute(null));
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					ViewModel?.PlayCommand?.Execute(null);
+					SendDawPlaybackState();
+				});
 				break;
 			case "pause":
-				DispatcherQueue.TryEnqueue(() => ViewModel?.PauseCommand?.Execute(null));
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					ViewModel?.PauseCommand?.Execute(null);
+					SendDawPlaybackState();
+				});
 				break;
 			case "previous":
 				DispatcherQueue.TryEnqueue(() => ViewModel?.PreviousCommand?.Execute(null));

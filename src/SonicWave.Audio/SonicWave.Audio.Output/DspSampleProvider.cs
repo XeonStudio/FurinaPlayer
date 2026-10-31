@@ -37,6 +37,8 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	public EchoDspChain DspChain => _dspChain;
 
+	public float OutputVolume { get; set; } = 1.0f;
+
 	public double LatestPeakDb { get; private set; } = -60.0;
 
 	public double LatestRmsDb { get; private set; } = -60.0;
@@ -44,12 +46,15 @@ public sealed class DspSampleProvider : ISampleProvider
 	public float[] LatestBands { get; private set; } = new float[64];
 	public float LatestStereoBalance { get; private set; } = 0f;
 	public float LatestPhaseCorrelation { get; private set; } = 1f;
+	public float[] LatestVectorPoints { get; private set; } = Array.Empty<float>();
 
-	private readonly float[] _fftRing = new float[1024];
+	private const int FftSize = 2048;
+	private readonly float[] _fftRing = new float[FftSize];
 	private int _fftRingPos;
-	private readonly float[] _fftRex = new float[1024];
-	private readonly float[] _fftImx = new float[1024];
-	private readonly float[] _fftWin = new float[1024];
+	private readonly float[] _fftRex = new float[FftSize];
+	private readonly float[] _fftImx = new float[FftSize];
+	private readonly float[] _fftWin = new float[FftSize];
+	private readonly float[] _fftMag = new float[FftSize / 2 + 1];
 
 	public DspSampleProvider(ISampleProvider source, int sampleRate, int channels)
 	{
@@ -60,10 +65,10 @@ public sealed class DspSampleProvider : ISampleProvider
 		_widener = new StereoWidener();
 		_spatial = new SpatialAudioEffect(sampleRate);
 		_dspChain = new EchoDspChain(sampleRate);
-		for (int i = 0; i < 1024; i++)
+		for (int i = 0; i < FftSize; i++)
 		{
 			double a0 = 0.35875, a1 = 0.48829, a2 = 0.14128, a3 = 0.01168;
-			double x = 2.0 * Math.PI * i / 1023.0;
+			double x = 2.0 * Math.PI * i / (FftSize - 1.0);
 			_fftWin[i] = (float)(a0 - a1 * Math.Cos(x) + a2 * Math.Cos(2.0 * x) - a3 * Math.Cos(3.0 * x));
 		}
 	}
@@ -152,7 +157,7 @@ public sealed class DspSampleProvider : ISampleProvider
 		{
 			ApplyVst3(scratch);
 		}
-		// Real-time meters & FFT spectrum for mastering analyzers
+		// Real-time meters & FFT spectrum for mastering analyzers (Pre-Fader true signal level)
 		float maxVal = 0f;
 		double sumSq = 0.0;
 		double sumSqL = 0.0;
@@ -172,10 +177,16 @@ public sealed class DspSampleProvider : ISampleProvider
 			sumSqR += r * r;
 			sumDotLR += l * r;
 			sumSq += 0.5 * (l * l + r * r);
+		}
 
-			// Downmix to mono into FFT ring buffer
-			_fftRing[_fftRingPos] = 0.5f * (l + r);
-			_fftRingPos = (_fftRingPos + 1) & 1023;
+		// Feed FFT ring buffer with adaptive reference normalization so quiet & loud tracks both display full spectral contour
+		float fftNormGain = maxVal > 0.0001f ? Math.Clamp(0.85f / Math.Max(0.18f, maxVal), 1.0f, 16.0f) : 1.0f;
+		for (int i = 0; i < num; i += channels)
+		{
+			float l = scratch[i];
+			float r = (channels > 1 && i + 1 < num) ? scratch[i + 1] : l;
+			_fftRing[_fftRingPos] = 0.5f * (l + r) * fftNormGain;
+			_fftRingPos = (_fftRingPos + 1) & (FftSize - 1);
 		}
 
 		int frameCount = Math.Max(1, num / channels);
@@ -186,18 +197,62 @@ public sealed class DspSampleProvider : ISampleProvider
 		double denom = Math.Sqrt(sumSqL * sumSqR);
 		float instCorr = (float)Math.Clamp(denom > 1e-9 ? (sumDotLR / denom) : 1.0, -1.0, 1.0);
 		float instBal = (float)Math.Clamp((sumSqL + sumSqR) > 1e-9 ? ((sumSqR - sumSqL) / (sumSqL + sumSqR)) : 0.0, -1.0, 1.0);
-		LatestPhaseCorrelation = LatestPhaseCorrelation * 0.7f + instCorr * 0.3f;
-		LatestStereoBalance = LatestStereoBalance * 0.7f + instBal * 0.3f;
+		LatestPhaseCorrelation = LatestPhaseCorrelation * 0.65f + instCorr * 0.35f;
+		LatestStereoBalance = LatestStereoBalance * 0.65f + instBal * 0.35f;
 
-		// Compute true 64-band perceptual log FFT spectrum (iZotope Insight 2 style, 20Hz ~ 20kHz)
-		const int fftN = 1024;
-		int readPos = _fftRingPos;
-		for (int i = 0; i < fftN; i++)
+		// Extract 64 local-envelope stereo sample pairs [L0, R0, L1, R1, ...] for iZotope Insight 2 Sound Field goniometer
+		const int vecPairs = 64;
+		float[] vec = new float[vecPairs * 2];
+		float normGain = maxVal > 0.00005f ? (0.94f / maxVal) : 0.0f;
+		for (int p = 0; p < vecPairs; p++)
 		{
-			_fftRex[i] = _fftRing[(readPos + i) & 1023] * _fftWin[i];
+			int fStart = (int)((long)p * frameCount / vecPairs);
+			int fEnd = Math.Max(fStart + 1, (int)((long)(p + 1) * frameCount / vecPairs));
+			float bestL = 0f;
+			float bestR = 0f;
+			float bestEnergy = -1f;
+			for (int f = fStart; f < fEnd && f < frameCount; f++)
+			{
+				int idx = f * channels;
+				float curL = scratch[idx];
+				float curR = (channels > 1 && idx + 1 < num) ? scratch[idx + 1] : curL;
+				// Include subtle high-frequency pre-emphasis so stereo high/mid instruments are represented alongside bass
+				if (f > 0)
+				{
+					int prevIdx = (f - 1) * channels;
+					float dL = curL - scratch[prevIdx];
+					float dR = curR - ((channels > 1 && prevIdx + 1 < num) ? scratch[prevIdx + 1] : scratch[prevIdx]);
+					curL += dL * 1.15f;
+					curR += dR * 1.15f;
+				}
+				float e = curL * curL + curR * curR;
+				if (e > bestEnergy)
+				{
+					bestEnergy = e;
+					bestL = curL;
+					bestR = curR;
+				}
+			}
+			vec[p * 2] = Math.Clamp(bestL * normGain, -1.0f, 1.0f);
+			vec[p * 2 + 1] = Math.Clamp(bestR * normGain, -1.0f, 1.0f);
+		}
+		LatestVectorPoints = vec;
+
+		// Compute true 64-band perceptual log FFT spectrum (iZotope Insight 2 style, 25Hz ~ 20kHz with 4.5 dB/oct tilt)
+		int readPos = _fftRingPos;
+		for (int i = 0; i < FftSize; i++)
+		{
+			_fftRex[i] = _fftRing[(readPos + i) & (FftSize - 1)] * _fftWin[i];
 			_fftImx[i] = 0f;
 		}
-		RunFft1024(_fftRex, _fftImx);
+		RunFft(_fftRex, _fftImx, FftSize);
+
+		int halfBins = FftSize / 2;
+		float invWindowGain = 1.0f / (FftSize * 0.179375f);
+		for (int k = 0; k <= halfBins; k++)
+		{
+			_fftMag[k] = MathF.Sqrt(_fftRex[k] * _fftRex[k] + _fftImx[k] * _fftImx[k]) * invWindowGain;
+		}
 
 		int sr = Math.Max(8000, WaveFormat.SampleRate);
 		const int bandsCount = 64;
@@ -211,28 +266,60 @@ public sealed class DspSampleProvider : ISampleProvider
 		{
 			double f0 = Math.Pow(10.0, logMin + (b / (double)bandsCount) * (logMax - logMin));
 			double f1 = Math.Pow(10.0, logMin + ((b + 1) / (double)bandsCount) * (logMax - logMin));
-			int k0 = Math.Clamp((int)Math.Floor(f0 * fftN / sr), 1, 511);
-			int k1 = Math.Clamp((int)Math.Ceiling(f1 * fftN / sr), k0 + 1, 512);
+			double fCenter = Math.Sqrt(f0 * f1);
 
-			float maxMag = 0f;
-			for (int k = k0; k < k1; k++)
+			double bin0 = f0 * FftSize / sr;
+			double bin1 = f1 * FftSize / sr;
+			float bandMag;
+			if (bin1 - bin0 < 1.5)
 			{
-				float mag = MathF.Sqrt(_fftRex[k] * _fftRex[k] + _fftImx[k] * _fftImx[k]) / (fftN * 0.179375f);
-				if (mag > maxMag) maxMag = mag;
+				// Fractional bin interpolation for smooth low-frequency contour
+				double binMid = Math.Clamp(fCenter * FftSize / sr, 1.0, halfBins - 1.001);
+				int bi = (int)Math.Floor(binMid);
+				float frac = (float)(binMid - bi);
+				bandMag = _fftMag[bi] * (1.0f - frac) + _fftMag[bi + 1] * frac;
 			}
-			// Map [-66 dBFS .. 0 dBFS] to [0.0 .. 1.0]
-			double db = 20.0 * Math.Log10(Math.Max(1e-5, maxMag));
-			bands[b] = (float)Math.Clamp((db + 66.0) / 60.0, 0.0, 1.0);
+			else
+			{
+				int k0 = Math.Clamp((int)Math.Floor(bin0), 1, halfBins - 1);
+				int k1 = Math.Clamp((int)Math.Ceiling(bin1), k0 + 1, halfBins);
+				float maxMag = 0f;
+				double sumMagSq = 0.0;
+				for (int k = k0; k < k1; k++)
+				{
+					float mag = _fftMag[k];
+					if (mag > maxMag) maxMag = mag;
+					sumMagSq += mag * mag;
+				}
+				float powerSum = (float)Math.Sqrt(sumMagSq);
+				bandMag = maxMag * 0.65f + powerSum * 0.35f;
+			}
+
+			// iZotope Insight 2 Pink-Noise (+4.5 dB/oct) perceptual tilt + [-54 dBFS .. -2 dBFS] display range
+			double rawDb = 20.0 * Math.Log10(Math.Max(1e-6, bandMag));
+			double tiltDb = 4.5 * Math.Log2(Math.Max(35.0, fCenter) / 140.0);
+			double displayDb = rawDb + tiltDb;
+			bands[b] = (float)Math.Clamp((displayDb + 54.0) / 52.0, 0.0, 1.0);
 		}
 		LatestBands = bands;
 
-		scratch.CopyTo(destination);
+		float outVol = Math.Clamp(OutputVolume, 0f, 1f);
+		if (outVol < 0.999f)
+		{
+			for (int i = 0; i < num; i++)
+			{
+				destination[i] = scratch[i] * outVol;
+			}
+		}
+		else
+		{
+			scratch.CopyTo(destination);
+		}
 		return num;
 	}
 
-	private static void RunFft1024(float[] rex, float[] imx)
+	private static void RunFft(float[] rex, float[] imx, int n)
 	{
-		const int n = 1024;
 		int j = 0;
 		for (int i = 0; i < n; i++)
 		{

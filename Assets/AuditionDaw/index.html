@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Adobe Audition DAW</title>
-  <link rel="stylesheet" href="app.css?v=1.3.2">
+  <link rel="stylesheet" href="app.css?v=2.0.0">
   <script>
     (function() {
       if (window.chrome && window.chrome.webview) {
@@ -13,16 +13,16 @@
           if (typeof data === 'string') {
             try { data = JSON.parse(data); } catch(e) {}
           }
-          window.dispatchEvent(new MessageEvent('message', { data: data, source: window.parent || window }));
+          window.dispatchEvent(new MessageEvent('message', { data: data, source: window }));
         });
-        var forward = function(data, targetOrigin) {
+        var forward = function(data) {
           try {
             window.chrome.webview.postMessage(typeof data === 'object' ? JSON.stringify(data) : data);
           } catch(e) {
             window.chrome.webview.postMessage(data);
           }
         };
-        if (window.parent) {
+        if (window.parent && window.parent !== window) {
           window.parent.postMessage = forward;
         }
         window.postToHost = forward;
@@ -429,6 +429,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=1.3.4"></script>
+  <script src="app.js?v=2.0.0"></script>
 </body>
 </html>

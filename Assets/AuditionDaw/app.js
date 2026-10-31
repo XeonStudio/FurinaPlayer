@@ -2025,13 +2025,16 @@
   const PROTOCOL = 1;
   const post = (message) => {
     const payload = { protocolVersion: PROTOCOL, ...message };
-    try {
-      if (window.chrome && window.chrome.webview) {
+    if (window.chrome && window.chrome.webview) {
+      try {
         window.chrome.webview.postMessage(JSON.stringify(payload));
-      }
-    } catch (_) {}
+      } catch (_) {}
+      return;
+    }
     try {
-      parent.postMessage(payload, "*");
+      if (parent && parent !== window) {
+        parent.postMessage(payload, "*");
+      }
     } catch (_) {}
   };
   let requestSeq = 0;
@@ -2077,9 +2080,23 @@
 
   async function sendPlaybackCommand(name, payload = {}, timeoutMs = 2500) {
     if (name === "playPause") {
+      const now = performance.now();
+      if (state.lastPlayPauseClickAt && now - state.lastPlayPauseClickAt < 160) {
+        return true;
+      }
+      state.lastPlayPauseClickAt = now;
       const isPlay = state.playback.state === "playing";
-      state.playback.state = isPlay ? "paused" : "playing";
+      const nextState = isPlay ? "paused" : "playing";
+      state.playback.state = nextState;
+      if (state.clock) {
+        const curPos = positionSeconds();
+        state.clock.positionSeconds = curPos;
+        state.clock.smoothPositionSeconds = curPos;
+        state.clock.localSampledAtMs = now;
+        state.clock.state = nextState;
+      }
       applyPlayback();
+      updateStatusLine();
     }
     const result = await command(name, payload, timeoutMs);
     if (result && result.ok === false) {
@@ -2395,7 +2412,10 @@
           }
         }
       }
-      if (prefs?.value?.volume !== undefined) state.volume = clamp(num(prefs.value.volume, 1) || 1, 0, 1);
+      if (prefs?.value?.volume !== undefined) {
+        const loadedVol = clamp(num(prefs.value.volume, 0.85) || 0.85, 0, 1);
+        state.volume = loadedVol <= 0.05 ? 0.85 : loadedVol;
+      }
       if (prefs?.value?.autoScan === false) state.prefs.autoScan = false;
       if (typeof prefs?.value?.preRender === "boolean") state.prefs.preRender = prefs.value.preRender;
       if (SCAN_QUALITY[prefs?.value?.scanQuality]) state.prefs.scanQuality = prefs.value.scanQuality;
@@ -2474,16 +2494,22 @@
     num(state.track?.durationSeconds, 0) || 0;
 
   const positionSeconds = () => {
+    if (state.seeking && Number.isFinite(state.previewPosition)) {
+      return state.previewPosition;
+    }
     const clock = state.clock;
     const activeTrackId = state.playback?.currentTrackId || state.track?.id;
     if (!clock || (clock.currentTrackId && activeTrackId && clock.currentTrackId !== activeTrackId)) {
       return num(state.playback.positionSeconds, 0) || 0;
     }
-    const now = Date.now();
-    const elapsed = clamp(now - num(clock.sampledAtMs, now), 0, 1000);
-    const extra = clock.state === "playing" ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
+    const now = performance.now();
+    const refTime = num(clock.localSampledAtMs, now);
+    const elapsed = clamp(now - refTime, 0, 1500);
+    const isPlaying = state.playback.state === "playing" || clock.state === "playing";
+    const extra = isPlaying ? (elapsed * num(clock.playbackRate, 1)) / 1000 : 0;
     const limit = num(clock.durationSeconds, 0) || Infinity;
-    return clamp((num(clock.positionSeconds, 0) || 0) + extra, 0, limit);
+    const basePos = num(clock.smoothPositionSeconds ?? clock.positionSeconds, 0) || 0;
+    return clamp(basePos + extra, 0, limit);
   };
 
   function normalizeBands(bands, count) {
@@ -2673,91 +2699,29 @@
     }
   }
 
-  async function scanWaveform({ silent = true, points = 0, frameMs = 80 } = {}) {
-    if (state.scan.active) {
-      state.scan.cancel = true;
-      return;
-    }
-    const duration = currentDuration();
+  async function scanWaveform() {
     const trackId = state.playback.currentTrackId || state.track?.id;
-    if (!trackId || duration <= 0) {
+    if (!trackId) {
       state.scan.message = t("scan.noTrack");
       updateScanUi();
       return;
     }
-    if (!isPlayingState()) {
-      state.scan.message = t("scan.needPlaying");
-      updateScanUi();
-      return;
-    }
-    // Adaptive sampling per the selected precision preset (极速 / 标准 / 精细).
-    const effectivePoints = points > 0 ? points : scanPoints(duration, state.prefs.scanQuality);
-    const series = envelopeFor(trackId);
-    const startPos = positionSeconds();
-    const savedVolume = state.volume;
-    const scanStartedAt = performance.now();
-    state.scan.active = true;
-    state.scan.cancel = false;
-    state.scan.progress = 0;
-    state.scan.message = "";
-    state.scan.points = effectivePoints;
-    state.scan.perPointMs = frameMs + 30;
+    state.scan.active = false;
+    state.scan.progress = 1;
+    state.scan.message = t("scan.completed");
+    post({ type: "echo:audition:getEnvelope", trackId });
     updateScanUi();
-    if (silent) commandNoWait("setVolume", { volume: 0 });
-    try {
-      for (let i = 0; i < effectivePoints; i++) {
-        if (state.scan.cancel) break;
-        const pointStartedAt = performance.now();
-        const target = ((i + 0.5) / effectivePoints) * duration;
-        // Pipelined scan: fire the seek without awaiting its acknowledgement, then
-        // wait only as long as the host needs to publish a fresh level sample
-        // (~10 Hz upstream). This removes a full round-trip per sample.
-        commandNoWait("seek", { positionSeconds: target });
-        await sleep(frameMs);
-        const b0 = Math.floor((i / effectivePoints) * ENV_BUCKETS);
-        const b1 = Math.min(ENV_BUCKETS, Math.floor(((i + 1) / effectivePoints) * ENV_BUCKETS));
-        const peak = num(state.levels.peakDb, null);
-        const rms = num(state.levels.rmsDb, null);
-        const energy = num(state.spectrum.energy, 0) || 0;
-        const isLinear = state.prefs.waveScale !== "db";
-        const pv = peak === null ? energy : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
-        const rv = rms === null ? (isLinear ? pv * 0.7 : pv * 0.85) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
-        const count = Math.max(1, b1 - b0);
-        for (let b = b0; b < b0 + count && b < ENV_BUCKETS; b++) {
-          series.p[b] = pv;
-          series.r[b] = rv;
-        }
-        state.scan.perPointMs = performance.now() - pointStartedAt;
-        state.scan.progress = (i + 1) / effectivePoints;
-      }
-    } finally {
-      commandNoWait("seek", { positionSeconds: startPos });
-      if (silent) commandNoWait("setVolume", { volume: savedVolume });
-      interpolateEnvelope(series);
-      state.envRev += 1;
-      // Pre-scan samples (silence + jumps) must not pollute the loudness stats.
-      state.rmsHistory = [];
-      state.peakHoldDb = -Infinity;
-      state.scan.active = false;
-      state.scan.lastCostMs = performance.now() - scanStartedAt;
-      state.scan.message = state.scan.cancel ? t("scan.cancelled") : t("scan.completed");
-      updateScanUi();
-      scheduleSave();
-    }
   }
 
   function maybeAutoScan() {
-    if (!state.prefs.preRender || !state.prefs.autoScan || state.scan.active || !isPlayingState()) return;
     const trackId = state.playback.currentTrackId || state.track?.id;
     if (!trackId) return;
-    const series = state.envelopes.get(trackId);
-    if (series && envelopeCoverage(series) >= 0.55) return;
+    const series = state.envelopes.get(trackId) || state.envelopes.get(String(trackId));
+    if (series && (series.isTruePcm || envelopeCoverage(series) >= 0.55)) return;
     const now = performance.now();
-    if (now - state.scan.lastAutoAt < 8000) return;
+    if (now - state.scan.lastAutoAt < 5000) return;
     state.scan.lastAutoAt = now;
-    window.setTimeout(() => {
-      if (!state.scan.active && state.prefs.autoScan) void scanWaveform();
-    }, 1500);
+    post({ type: "echo:audition:getEnvelope", trackId });
   }
 
   // Sanitize measured samples and clamp to [0, 1].
@@ -3297,12 +3261,12 @@
 
     ctx.drawImage(entry.layer, 0, 0, w, h);
 
-    // Draw synchronized playhead line across spectrogram
+    // Draw synchronized smooth playhead line across spectrogram
     const pos = positionSeconds();
     if (duration > 0) {
       const ratio = (pos - vr.start) / Math.max(0.001, vr.end - vr.start);
       if (ratio >= 0 && ratio <= 1) {
-        const px = Math.round(ratio * w) + 0.5;
+        const px = ratio * w;
         ctx.save();
         ctx.strokeStyle = "#ff3344";
         ctx.lineWidth = 1.5;
@@ -3714,6 +3678,9 @@
         const PTS = 240;
         const t = performance.now() * 0.0032;
         const lissPoints = new Float32Array(PTS * 2);
+        const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
+        const hasVec = vecPts.length >= 32;
+        const vecPairs = hasVec ? Math.floor(vecPts.length / 2) : 0;
 
         for (let i = 0; i < PTS; i++) {
           const theta = (i / PTS) * Math.PI * 4; // Dual-cycle closed loop
@@ -3734,9 +3701,22 @@
           const m4 = Math.sin(theta * 5.0 + t * 5.2) * (bAir * 0.4 + transient * 0.45);
           const s4 = Math.cos(theta * 5.0 + t * 5.2 + 2.9) * (bAir * 0.65 + transient * 0.6) * stereoWidth;
 
-          // Sum rotated Mid & Side components with balance tilt
-          const midTot = (m1 + m2 + m3 + m4);
-          const sideTot = (s1 + s2 + s3 + s4);
+          let midTot = (m1 + m2 + m3 + m4);
+          let sideTot = (s1 + s2 + s3 + s4);
+
+          if (hasVec) {
+            const vf = (i / PTS) * vecPairs;
+            const vi0 = Math.floor(vf) % vecPairs;
+            const vi1 = (vi0 + 1) % vecPairs;
+            const vFrac = vf - Math.floor(vf);
+            const vl = (Number(vecPts[vi0 * 2]) || 0) * (1 - vFrac) + (Number(vecPts[vi1 * 2]) || 0) * vFrac;
+            const vr = (Number(vecPts[vi0 * 2 + 1]) || 0) * (1 - vFrac) + (Number(vecPts[vi1 * 2 + 1]) || 0) * vFrac;
+            const vMid = (vl + vr) * 0.70710678;
+            const vSide = (vr - vl) * 0.70710678;
+            midTot = midTot * 0.55 + vMid * 0.45;
+            sideTot = sideTot * 0.55 + vSide * 0.45;
+          }
+
           const tiltAngle = balance * 0.32;
 
           const rotSide = sideTot * Math.cos(tiltAngle) + midTot * Math.sin(tiltAngle);
@@ -3851,32 +3831,61 @@
     ctx.fillText("R", Math.min(w - 7, cx + (R - 2) * spokeCos + 6), Math.max(7, cy - (R - 2) * spokeSin - 6));
 
     if (mode === "polar-sample") {
-      // Polar Sample: cloud of sample vectors radiating from origin
+      // Polar Sample: cloud of real stereo sample vectors (L, R) radiating from origin (iZotope Insight 2 standard)
       if (!entry.particles) entry.particles = [];
+      const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
 
       if (isPlaying) {
-        let bandEnergy = 0;
-        for (let i = 0; i < bars; i++) bandEnergy += bands[i];
-        const avgEnergy = bandEnergy / bars;
-        const emitCount = Math.min(26, Math.max(10, Math.floor((avgEnergy * 1.5 + energy * 0.6) * 32)));
-        const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.05, 1.0);
+        if (vecPts.length >= 16) {
+          const pairCount = Math.floor(vecPts.length / 2);
+          const step = Math.max(1, Math.floor(pairCount / 36));
+          for (let p = 0; p < pairCount; p += step) {
+            const l = Number(vecPts[p * 2]) || 0;
+            const r = Number(vecPts[p * 2 + 1]) || 0;
+            const mag = Math.sqrt(0.5 * (l * l + r * r));
+            if (mag < 0.004) continue;
+            const mid = (l + r) * 0.70710678;
+            const side = (r - l) * 0.70710678;
+            const signedSide = mid >= 0 ? side : -side;
+            const phi = Math.atan2(signedSide, Math.abs(mid) + 1e-5); // [-pi/2 .. +pi/2]
+            const jitterAngle = (Math.sin(p * 12.9898 + performance.now() * 0.01) * 0.035);
+            const angle = clamp(-Math.PI / 2 + phi + jitterAngle, -Math.PI + 0.04, -0.04);
+            const radialNorm = clamp(0.16 + 0.82 * Math.pow(clamp(mag, 0, 1), 0.45), 0.14, 0.97);
+            const dist = R * radialNorm * (0.86 + 0.14 * Math.sin(p * 7.13));
 
-        for (let k = 0; k < emitCount; k++) {
-          const bandIdx = Math.floor(Math.random() * bars);
-          const bVal = bands[bandIdx] || 0.05;
-          const panJitter = (Math.random() - 0.5) * 1.5 * stereoSpread;
-          const pan = clamp(balance * 0.85 + panJitter, -1.0, 1.0);
-          const angle = -Math.PI / 2 + pan * (Math.PI / 4);
-          const dist = R * clamp(bVal * (0.6 + Math.random() * 0.5) * 1.1, 0.08, 0.98);
+            entry.particles.push({
+              x: cx + Math.cos(angle) * dist,
+              y: cy + Math.sin(angle) * dist,
+              alpha: 1.0,
+              decay: 0.038 + (p % 3) * 0.01,
+              size: mag > 0.40 ? (isLight ? 2.2 : 1.9) : (isLight ? 1.6 : 1.35),
+              bright: mag > 0.30,
+            });
+          }
+        } else {
+          let bandEnergy = 0;
+          for (let i = 0; i < bars; i++) bandEnergy += bands[i];
+          const avgEnergy = bandEnergy / bars;
+          const emitCount = Math.min(26, Math.max(10, Math.floor((avgEnergy * 1.5 + energy * 0.6) * 32)));
+          const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.08, 1.0);
 
-          entry.particles.push({
-            x: cx + Math.cos(angle) * dist,
-            y: cy + Math.sin(angle) * dist,
-            alpha: 1.0,
-            decay: 0.038 + Math.random() * 0.03,
-            size: Math.random() > 0.8 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.5 : 1.2),
-            bright: Math.random() > 0.35,
-          });
+          for (let k = 0; k < emitCount; k++) {
+            const bandIdx = Math.floor(Math.random() * bars);
+            const bVal = bands[bandIdx] || 0.05;
+            const panJitter = (Math.random() - 0.5) * 1.5 * stereoSpread;
+            const pan = clamp(balance * 0.85 + panJitter, -1.0, 1.0);
+            const angle = -Math.PI / 2 + pan * (Math.PI / 4);
+            const dist = R * clamp(bVal * (0.6 + Math.random() * 0.5) * 1.1, 0.08, 0.98);
+
+            entry.particles.push({
+              x: cx + Math.cos(angle) * dist,
+              y: cy + Math.sin(angle) * dist,
+              alpha: 1.0,
+              decay: 0.038 + Math.random() * 0.03,
+              size: Math.random() > 0.8 ? (isLight ? 2.2 : 1.8) : (isLight ? 1.5 : 1.2),
+              bright: Math.random() > 0.35,
+            });
+          }
         }
       }
 
@@ -3891,22 +3900,46 @@
               : `rgba(16, 149, 106, ${clamp(p.alpha * 0.85, 0, 1)})`;
           } else {
             ctx.fillStyle = p.bright
-              ? `rgba(255, 255, 255, ${p.alpha * 0.9})`
-              : `rgba(38, 194, 129, ${p.alpha * 0.78})`;
+              ? `rgba(230, 255, 248, ${p.alpha * 0.92})`
+              : `rgba(38, 194, 129, ${p.alpha * 0.82})`;
           }
           ctx.beginPath();
           ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-      entry.particles = alive.slice(-280);
+      entry.particles = alive.slice(-340);
 
     } else if (mode === "polar-level") {
-      // Polar Level: radial rays / smooth filled envelope
+      // Polar Level: radial rays / smooth filled envelope driven by real stereo vector bins
       const RAY_COUNT = 48;
       if (!entry.rays || entry.rays.length !== RAY_COUNT) entry.rays = new Float32Array(RAY_COUNT);
+      const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
+      const sectorPeaks = new Float32Array(RAY_COUNT);
 
-      const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.12, 1.0);
+      if (isPlaying && vecPts.length >= 16) {
+        const pairCount = Math.floor(vecPts.length / 2);
+        for (let p = 0; p < pairCount; p++) {
+          const l = Number(vecPts[p * 2]) || 0;
+          const r = Number(vecPts[p * 2 + 1]) || 0;
+          const mag = clamp(Math.pow(Math.sqrt(0.5 * (l * l + r * r)), 0.62), 0, 1);
+          const mid = (l + r) * 0.70710678;
+          const side = (r - l) * 0.70710678;
+          const signedSide = mid >= 0 ? side : -side;
+          const phi = Math.atan2(signedSide, Math.abs(mid) + 1e-5); // [-pi/2 .. +pi/2]
+          const normAngle = clamp((phi + Math.PI / 2) / Math.PI, 0, 1);
+          const sIdx = clamp(Math.round(normAngle * (RAY_COUNT - 1)), 0, RAY_COUNT - 1);
+          for (let d = -2; d <= 2; d++) {
+            const ni = sIdx + d;
+            if (ni >= 0 && ni < RAY_COUNT) {
+              const wgt = d === 0 ? 1.0 : (Math.abs(d) === 1 ? 0.72 : 0.4);
+              sectorPeaks[ni] = Math.max(sectorPeaks[ni], mag * wgt);
+            }
+          }
+        }
+      }
+
+      const stereoSpread = clamp(Math.sqrt(Math.max(0, 1.0 - correlation)), 0.14, 1.0);
       const centerRay = (balance * 0.5 + 0.5) * (RAY_COUNT - 1);
 
       for (let i = 0; i < RAY_COUNT; i++) {
@@ -3914,11 +3947,14 @@
         const gaussWeight = Math.exp(-Math.pow(distFromCenter / Math.max(0.18, stereoSpread), 2) * 1.8);
         const bandIdx = Math.floor((i / (RAY_COUNT - 1)) * (bars - 1));
         const bVal = bands[bandIdx] || 0.05;
-        const target = isPlaying ? clamp((bVal * 0.75 + energy * 0.25) * gaussWeight * 1.15, 0.04, 0.96) : 0;
+        const modelTarget = clamp((bVal * 0.75 + energy * 0.25) * gaussWeight * 1.15, 0.04, 0.96);
+        const target = isPlaying
+          ? clamp(Math.max(sectorPeaks[i] * 0.95, modelTarget * 0.65), 0.04, 0.96)
+          : 0;
         if (target > entry.rays[i]) {
-          entry.rays[i] = entry.rays[i] * 0.4 + target * 0.6;
+          entry.rays[i] = entry.rays[i] * 0.35 + target * 0.65;
         } else {
-          entry.rays[i] = Math.max(target, entry.rays[i] - 0.03);
+          entry.rays[i] = Math.max(target, entry.rays[i] - 0.028);
         }
       }
 
@@ -4348,11 +4384,10 @@
     renderQueueList();
 
     const targetQueueId = item.queueId || state.liveQueue.find((q) => q.id === item.id)?.queueId;
-    parent.postMessage({
-      type: "echo:audition:playTrack",
+    void sendPlaybackCommand("queue:playTrack", {
       trackId: item.id,
       queueId: targetQueueId,
-    }, "*");
+    });
   }
 
   let lastRenderedQueueKey = "";
@@ -4927,7 +4962,14 @@
   // ── interaction ───────────────────────────────────────────────────────────
   function seekTo(seconds) {
     if (!Number.isFinite(seconds)) return;
-    void command("seek", { positionSeconds: Math.max(0, seconds) });
+    const target = clamp(seconds, 0, Math.max(0, currentDuration() || Infinity));
+    state.playback.positionSeconds = target;
+    if (state.clock) {
+      state.clock.positionSeconds = target;
+      state.clock.smoothPositionSeconds = target;
+      state.clock.localSampledAtMs = performance.now();
+    }
+    void command("seek", { positionSeconds: target });
   }
 
   function bindScrub(targetId, mapXtoSeconds) {
@@ -5172,7 +5214,7 @@
       state.queueTab = "tracks";
       tabTracks.classList.add("active");
       tabHistory?.classList.remove("active");
-      parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+      post({ type: "echo:audition:getQueue" });
       renderQueueList();
     });
     tabHistory?.addEventListener("click", () => {
@@ -5462,7 +5504,13 @@
       case "echo:workshop-ui:state": {
         state.connected = true;
         if (msg.playback) {
-          state.playback = { ...state.playback, ...msg.playback };
+          const nowPerf = performance.now();
+          const recentlyToggled = state.lastPlayPauseClickAt && (nowPerf - state.lastPlayPauseClickAt < 240);
+          const mergedPlayback = { ...state.playback, ...msg.playback };
+          if (recentlyToggled && msg.playback.state) {
+            mergedPlayback.state = state.playback.state;
+          }
+          state.playback = mergedPlayback;
           applyPlayback();
         }
         if (msg.currentTrack) applyTrack(msg.currentTrack);
@@ -5483,9 +5531,9 @@
           const tid = state.playback.currentTrackId || state.track?.id;
           if (tid && state.lyricsRequested !== tid) {
             state.lyricsRequested = tid;
-            if (tid.startsWith("streaming:")) {
+            if (String(tid).startsWith("streaming:")) {
               try {
-                parent.postMessage({ type: "echo:audition:getLyrics", trackId: tid }, "*");
+                post({ type: "echo:audition:getLyrics", trackId: tid });
               } catch {}
             } else {
               command("lyrics:get", { trackId: tid }).then((res) => {
@@ -5520,19 +5568,48 @@
         break;
       }
       case "echo:workshop-ui:clock": {
-        state.clock = msg.clock ?? null;
-        if (msg.motion) state.motion = { ...state.motion, ...msg.motion };
-        if (msg.clock?.state) {
-          state.playback.state = msg.clock.state;
-          if (msg.clock.state !== "playing" && msg.clock.state !== "loading") {
-            // Silence spectrum energy when paused/idle
+        const incoming = msg.clock ?? null;
+        if (incoming) {
+          const nowPerf = performance.now();
+          const prevClock = state.clock;
+          const curInterp = positionSeconds();
+          const rawPos = num(incoming.positionSeconds, 0) || 0;
+          const recentlyToggled = state.lastPlayPauseClickAt && (nowPerf - state.lastPlayPauseClickAt < 240);
+          const effectiveState = recentlyToggled ? state.playback.state : (incoming.state || state.playback.state);
+
+          let smoothPos = rawPos;
+          if (
+            prevClock &&
+            effectiveState === "playing" &&
+            prevClock.state === "playing" &&
+            prevClock.currentTrackId === incoming.currentTrackId
+          ) {
+            const drift = rawPos - curInterp;
+            if (Math.abs(drift) < 0.32) {
+              // Phase-locked loop (PLL) smooth follower: eliminates buffer step jitter
+              smoothPos = Math.max(0, curInterp + drift * 0.20);
+            }
+          }
+          state.clock = {
+            ...incoming,
+            state: effectiveState,
+            smoothPositionSeconds: smoothPos,
+            localSampledAtMs: nowPerf,
+          };
+          state.playback.positionSeconds = smoothPos;
+          state.playback.state = effectiveState;
+          if (effectiveState !== "playing" && effectiveState !== "loading") {
             state.spectrum.energy = 0;
             if (Array.isArray(state.spectrum.bands)) {
               state.spectrum.bands.fill(0);
             }
+            state.spectrum.vectorPoints = [];
           }
+          if (incoming.currentTrackId) state.playback.currentTrackId = incoming.currentTrackId;
+        } else {
+          state.clock = null;
         }
-        if (msg.clock?.currentTrackId) state.playback.currentTrackId = msg.clock.currentTrackId;
+        if (msg.motion) state.motion = { ...state.motion, ...msg.motion };
         applyPlayback();
         updateStatusLine();
         maybeAutoScan();
@@ -6196,7 +6273,7 @@
           get label() { return t("menu.trans.syncQueue"); },
           shortcut: "F5",
           action: () => {
-            parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+            post({ type: "echo:audition:getQueue" });
             toast(t("toast.syncQueue"), "ok", 1500);
           },
         },
@@ -6476,15 +6553,6 @@
     setConnectionState("ok", t("header.connecting"));
 
     window.addEventListener("message", onMessage);
-    if (window.chrome && window.chrome.webview) {
-      window.chrome.webview.addEventListener("message", (ev) => {
-        let d = ev.data;
-        if (typeof d === "string") {
-          try { d = JSON.parse(d); } catch (_) {}
-        }
-        onMessage({ data: d, source: window });
-      });
-    }
     try {
       post({ type: "echo:audition:getCover" });
       post({ type: "echo:audition:getLyrics" });
