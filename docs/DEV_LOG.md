@@ -413,3 +413,43 @@ Tests Completed: 24 | Passed: 24 | Failed: 0 (100% PASS)
 - **Release 资产**：
   已在桌面生成全量免安装绿色发行包：
   `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.0-win-x64.zip`（214 MB），包含所有依赖组件、DirectX/WebView2 运行库及最新的 DAW / PPT / DSP 模块。
+
+---
+
+## 10. v1.2.1 深度维护与发布更新 (Audition DAW 频谱曲线、Sound Field 测量口径、红线平滑移动与走带防抖)
+
+### 10.1 频谱贴底与推子前测量架构重构
+- **故障根因**：
+  1. `NAudioDecoder.cs` 中原有音量逻辑将 `_reader.Volume` 设为监听音量，导致进入 `DspSampleProvider.Read()` 的 PCM 浮点样本直接被衰减数十分贝，使电平表和 64 频段 FFT 频谱落入底噪区；
+  2. `Assets/AuditionDaw/app.js` 残留了旧版 `scanWaveform()` 逻辑，在歌曲播放 1.5 秒后自动调用 `setVolume(0)` 静音并高频循环 `seek`，硬性切断了实时音频输入流。
+- **重构方案**：
+  1. 重构为标准的 **Pre-Fader（推子前母带监测）架构**：解码器保持 `_reader.Volume = 1.0f` 全幅输出，在 `DspSampleProvider` 完成全部 DSP 处理、True-Peak / RMS / LUFS 响度分析、2048 点 Blackman-Harris 窗 64 频段对数 FFT（25Hz ~ 20kHz，带 +4.5 dB/oct 粉红噪声感知倾斜与子频带功率能量积分）以及立体声矢量采样后，再于末端输出阶段乘以监听音量 `OutputVolume`。
+  2. 废除前端跳秒预扫描逻辑，由 C# 后台非阻塞并行计算离线全曲真实双通道包络与 STFT 时频图（`echo:audition:getEnvelope`），彻底消除静音与音量劫持。
+- **实机效果**：
+  即使在 5% 或 10% 监听音量下，Insight 2 Pro 仪表的 Peak / RMS 依然准确显示真实的 `-0.5 ~ -16 dBFS` 母带电平，频谱曲线饱满、灵动活跃于视窗黄金高度（40% ~ 85%）。
+
+### 10.2 Sound Field 极坐标采样与李萨如示波器重构
+- **重构方案**：
+  在 `DspSampleProvider.cs` 中将音频块细分为 64 个子时间窗，提取各子窗内的瞬态能量峰值点与差分高频预加重立体声采样对 `(L, R)`，基于实时块峰值做动态归一化。
+  前端根据 iZotope Insight 2 标准极坐标分贝半径曲线实时驱动 **Polar Sample**（立体声散点云）、**Polar Level**（极坐标扇区包络）与 **Lissajous**（李萨如示波器），右侧相位相关性计实时精准联动。
+
+### 10.3 波形图与频谱瀑布时间指示红线平滑移动
+- **重构方案**：
+  在 `NowPlayingPage.cs` 的 `OnMeterTimerTick` 中直接读取底层硬件引擎微秒级实时时钟 `ViewModel.Engine.Position.TotalSeconds`。前端引入基于 `performance.now()` 的锁相环（PLL）平滑时钟跟随器与亚像素红线渲染，消除 500ms 定时器跳帧与插值抖动，实现高刷新率屏幕下的丝滑跟随时钟线。
+
+### 10.4 走带播放/暂停按钮点击双向冲突根治
+- **故障根因**：
+  `Assets/AuditionDaw/index.html` 覆写了顶层 `parent.postMessage`，而 `app.js` 的 `post()` 同时向 `chrome.webview` 与 `parent` 分发消息，导致每次点击播放/暂停按钮向 C# 发送两次 `playPause`，在同一毫秒内先暂停又立即恢复播放。
+- **修复方案**：
+  修复 WebView2 单通道代理逻辑，在 `NowPlayingPage.cs` 增加 `requestId` 幂等去重与 150ms 走带防抖保护，并在状态翻转后立即回推状态同步。
+
+### 10.5 界面视觉细节优化与残余 ECHO 菜单清理
+- 清理 Audition DAW 二级菜单中的残余 ECHO 字样。
+- 修复自由画布内模块堆叠与窗口控制按钮、白边等视觉问题。
+
+### 10.6 GitHub 源码推送与 Release 打包
+- **Git 仓库**：
+  代码已同步推送到 GitHub `origin` (`XeonStudio/Furina-Player`) 与 `upstream` (`XeonStudio/FurinaPlayer`) 的 `main` 分支，并创建并推送正式标签 `v1.2.1`。
+- **Release 资产**：
+  生成全量免安装便携版发行包：
+  `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.1-win-x64.zip`，内置完整的运行时依赖、WebView2 组件及最新的 DAW / PPT / DSP 产物。
