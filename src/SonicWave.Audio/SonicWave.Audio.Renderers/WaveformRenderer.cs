@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using NAudio.Wave;
+using SonicWave.Audio.Decoders;
 
 namespace SonicWave.Audio.Renderers;
 
@@ -337,6 +338,72 @@ public static class WaveformRenderer
 		return list;
 	}
 
+	public static (List<PeakPair> left, List<PeakPair> right, List<float> leftRms, List<float> rightRms) ComputeStereoPeaksAndRms(float[] samples, int channels, int targetWidth)
+	{
+		if (samples.Length == 0 || targetWidth <= 0)
+		{
+			return (new List<PeakPair>(), new List<PeakPair>(), new List<float>(), new List<float>());
+		}
+
+		int totalFrames = samples.Length / Math.Max(1, channels);
+		if (totalFrames <= 0)
+		{
+			return (new List<PeakPair>(), new List<PeakPair>(), new List<float>(), new List<float>());
+		}
+
+		int numBuckets = Math.Min(targetWidth, totalFrames);
+		var leftPeaks = new List<PeakPair>(numBuckets);
+		var rightPeaks = new List<PeakPair>(numBuckets);
+		var leftRms = new List<float>(numBuckets);
+		var rightRms = new List<float>(numBuckets);
+
+		for (int i = 0; i < numBuckets; i++)
+		{
+			int frameStart = (int)((long)i * totalFrames / numBuckets);
+			int frameEnd = (int)((long)(i + 1) * totalFrames / numBuckets);
+			if (frameEnd <= frameStart)
+			{
+				frameEnd = frameStart + 1;
+			}
+			frameEnd = Math.Min(frameEnd, totalFrames);
+
+			float minL = float.MaxValue, maxL = float.MinValue;
+			float minR = float.MaxValue, maxR = float.MinValue;
+			double sumSqL = 0.0, sumSqR = 0.0;
+			int count = 0;
+
+			for (int f = frameStart; f < frameEnd; f++)
+			{
+				int idxL = f * channels;
+				float sL = samples[idxL];
+				float sR = (channels > 1 && idxL + 1 < samples.Length) ? samples[idxL + 1] : sL;
+
+				if (sL < minL) minL = sL;
+				if (sL > maxL) maxL = sL;
+				sumSqL += sL * sL;
+
+				if (sR < minR) minR = sR;
+				if (sR > maxR) maxR = sR;
+				sumSqR += sR * sR;
+
+				count++;
+			}
+
+			if (count == 0)
+			{
+				minL = maxL = minR = maxR = 0f;
+				count = 1;
+			}
+
+			leftPeaks.Add(new PeakPair(minL, maxL));
+			rightPeaks.Add(new PeakPair(minR, maxR));
+			leftRms.Add((float)Math.Sqrt(sumSqL / count));
+			rightRms.Add((float)Math.Sqrt(sumSqR / count));
+		}
+
+		return (leftPeaks, rightPeaks, leftRms, rightRms);
+	}
+
 	public static List<PeakPair> ComputePeaksFromFile(string filePath, int targetWidth, IProgress<double>? progress = null)
 	{
 		List<PeakPair> list = new List<PeakPair>();
@@ -412,6 +479,17 @@ public static class WaveformRenderer
 		if (ext == ".aiff" || ext == ".aif")
 		{
 			return new AiffFileReader(filePath);
+		}
+		if (ext == ".flac")
+		{
+			try
+			{
+				return new MediaFoundationReader(filePath);
+			}
+			catch
+			{
+				return new StreamMediaFoundationReader(new FlacSanitizingStream(filePath));
+			}
 		}
 		return new MediaFoundationReader(filePath);
 	}

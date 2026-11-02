@@ -240,6 +240,39 @@ public sealed class AudioEngine : IDisposable
 	public void ClearEchoConvolution()
 		=> _session.ClearEchoConvolution();
 
+	public void SetEchoEqBand(int index, EchoFilterType type, double freqHz, double gainDb, double q, bool enabled)
+	{
+		var eq = DspChain?.Eq;
+		if (eq != null && index >= 0 && index < eq.UserBands.Count)
+		{
+			var band = eq.UserBands[index];
+			band.FilterType = type;
+			band.FrequencyHz = freqHz;
+			band.GainDb = gainDb;
+			band.Q = q;
+			band.Enabled = enabled;
+			band.UpdateCoefficients(48000.0);
+		}
+	}
+
+	public void SetEchoEqPreamp(double preampDb)
+	{
+		var eq = DspChain?.Eq;
+		if (eq != null)
+		{
+			eq.PreampDb = preampDb;
+		}
+	}
+
+	public void SetEchoEqEnabled(bool enabled)
+	{
+		var eq = DspChain?.Eq;
+		if (eq != null)
+		{
+			eq.Enabled = enabled;
+		}
+	}
+
 	public void Dispose()
 	{
 		_session.Dispose();

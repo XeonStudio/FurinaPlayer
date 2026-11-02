@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NAudio.Wave;
+using SonicWave.Audio.Decoders;
 using SonicWave.Audio.Dsp;
 using SonicWave.Audio.Vst3;
 using SonicWave.Core.Models;
@@ -84,7 +85,7 @@ public static class OfflineEffectRenderer
 
 	public static async Task RenderFileToWavAsync(string sourcePath, string wavPath, RenderSettings settings, IProgress<RenderProgress>? progress, CancellationToken ct)
 	{
-		using AudioFileReader audioFileReader = new AudioFileReader(sourcePath);
+		using SafeAudioFileReader audioFileReader = new SafeAudioFileReader(sourcePath);
 		int sampleRate = audioFileReader.WaveFormat.SampleRate;
 		int channels = audioFileReader.WaveFormat.Channels;
 		long num = Math.Max(1L, (long)Math.Ceiling(audioFileReader.TotalTime.TotalSeconds * (double)sampleRate));
@@ -147,7 +148,7 @@ public static class OfflineEffectRenderer
 
 	public static async Task<RenderResult> RenderFileToMemoryAsync(string sourcePath, RenderSettings settings, IProgress<RenderProgress>? progress, CancellationToken ct)
 	{
-		using AudioFileReader audioFileReader = new AudioFileReader(sourcePath);
+		using SafeAudioFileReader audioFileReader = new SafeAudioFileReader(sourcePath);
 		int sampleRate = audioFileReader.WaveFormat.SampleRate;
 		int channels = audioFileReader.WaveFormat.Channels;
 		long num = Math.Max(1L, (long)Math.Ceiling(audioFileReader.TotalTime.TotalSeconds * (double)sampleRate));

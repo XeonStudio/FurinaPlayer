@@ -94,6 +94,25 @@ public sealed class EchoEqProcessor
         }
     }
 
+    public double CalculateTotalResponseDb(double frequency)
+    {
+        if (!_enabled) return 0.0;
+        double total = _userPreampDb;
+        for (int i = 0; i < _userBands.Count; i++)
+        {
+            total += _userBands[i].CalculateResponseDb(frequency, _sampleRate);
+        }
+        if (_calibrationEnabled)
+        {
+            total += _calibrationPreampDb;
+            for (int j = 0; j < _calibrationBands.Count; j++)
+            {
+                total += _calibrationBands[j].CalculateResponseDb(frequency, _sampleRate);
+            }
+        }
+        return total;
+    }
+
     public void Prepare(double sampleRate)
     {
         _sampleRate = Math.Max(1.0, sampleRate);

@@ -66,6 +66,11 @@ public class EditorViewModel : ObservableObject
 	[ObservableProperty]
 	private ObservableCollection<WaveformRenderer.PeakPair> waveformPeaks = new ObservableCollection<WaveformRenderer.PeakPair>();
 
+	public IReadOnlyList<WaveformRenderer.PeakPair> LeftWaveformPeaks { get; private set; } = Array.Empty<WaveformRenderer.PeakPair>();
+	public IReadOnlyList<WaveformRenderer.PeakPair> RightWaveformPeaks { get; private set; } = Array.Empty<WaveformRenderer.PeakPair>();
+	public IReadOnlyList<float> LeftRms { get; private set; } = Array.Empty<float>();
+	public IReadOnlyList<float> RightRms { get; private set; } = Array.Empty<float>();
+
 	[ObservableProperty]
 	private ObservableCollection<SpectrumPoint> spectrumPoints = new ObservableCollection<SpectrumPoint>();
 
@@ -946,6 +951,10 @@ public class EditorViewModel : ObservableObject
 		if (_samples.Length == 0 || _channels <= 0)
 		{
 			WaveformPeaks = new ObservableCollection<WaveformRenderer.PeakPair>();
+			LeftWaveformPeaks = Array.Empty<WaveformRenderer.PeakPair>();
+			RightWaveformPeaks = Array.Empty<WaveformRenderer.PeakPair>();
+			LeftRms = Array.Empty<float>();
+			RightRms = Array.Empty<float>();
 			SpectrumPoints = new ObservableCollection<SpectrumPoint>();
 			PhasePoints = new ObservableCollection<PhaseAnalyzer.LissajousPoint>();
 			PhaseDifference = 0.0;
@@ -955,20 +964,33 @@ public class EditorViewModel : ObservableObject
 		float[] samples = _samples;
 		int channels = _channels;
 		int sampleRate = _sampleRate;
-		(List<WaveformRenderer.PeakPair>, List<SpectrumPoint>, List<PhaseAnalyzer.LissajousPoint>, double, double) tuple = await Task.Run(() =>
+		(List<WaveformRenderer.PeakPair> peaks,
+		 List<WaveformRenderer.PeakPair> leftPeaks,
+		 List<WaveformRenderer.PeakPair> rightPeaks,
+		 List<float> leftRms,
+		 List<float> rightRms,
+		 List<SpectrumPoint> spectrum,
+		 List<PhaseAnalyzer.LissajousPoint> phase,
+		 double phaseDiff,
+		 double correlation) tuple = await Task.Run(() =>
 		{
-			List<WaveformRenderer.PeakPair> item = WaveformRenderer.ComputePeaks(samples, channels, 1200);
+			var (leftP, rightP, leftR, rightR) = WaveformRenderer.ComputeStereoPeaksAndRms(samples, channels, 1200);
+			List<WaveformRenderer.PeakPair> item = leftP;
 			List<SpectrumPoint> item2 = Fft.Compute(samples, sampleRate, logarithmic: true, 96);
 			float[] left = ExtractChannel(samples, channels, 0);
 			float[] right = ExtractChannel(samples, channels, Math.Min(1, channels - 1));
 			List<PhaseAnalyzer.LissajousPoint> item3 = PhaseAnalyzer.ComputeLissajous(left, right, 1500);
-			return (peaks: item, spectrum: item2, phase: item3, PhaseAnalyzer.PhaseDifferenceDegrees(left, right), PhaseAnalyzer.StereoCorrelation(left, right));
+			return (peaks: item, leftPeaks: leftP, rightPeaks: rightP, leftRms: leftR, rightRms: rightR, spectrum: item2, phase: item3, phaseDiff: PhaseAnalyzer.PhaseDifferenceDegrees(left, right), correlation: PhaseAnalyzer.StereoCorrelation(left, right));
 		});
-		WaveformPeaks = new ObservableCollection<WaveformRenderer.PeakPair>(tuple.Item1);
-		SpectrumPoints = new ObservableCollection<SpectrumPoint>(tuple.Item2);
-		PhasePoints = new ObservableCollection<PhaseAnalyzer.LissajousPoint>(tuple.Item3);
-		PhaseDifference = tuple.Item4;
-		StereoCorrelation = tuple.Item5;
+		WaveformPeaks = new ObservableCollection<WaveformRenderer.PeakPair>(tuple.peaks);
+		LeftWaveformPeaks = tuple.leftPeaks;
+		RightWaveformPeaks = tuple.rightPeaks;
+		LeftRms = tuple.leftRms;
+		RightRms = tuple.rightRms;
+		SpectrumPoints = new ObservableCollection<SpectrumPoint>(tuple.spectrum);
+		PhasePoints = new ObservableCollection<PhaseAnalyzer.LissajousPoint>(tuple.phase);
+		PhaseDifference = tuple.phaseDiff;
+		StereoCorrelation = tuple.correlation;
 	}
 
 	public void SetSelection(double startSeconds, double endSeconds)

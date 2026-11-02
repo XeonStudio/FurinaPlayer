@@ -384,9 +384,17 @@ public sealed class EditorPage : Page, IComponentConnector
 
 	private void RefreshVisuals()
 	{
-		Waveform.SetPeaks(ViewModel.WaveformPeaks, ViewModel.SelectionStartSeconds / Math.Max(0.001, ViewModel.DurationSeconds), ViewModel.SelectionEndSeconds / Math.Max(0.001, ViewModel.DurationSeconds), 0.0, "#4CC2FF");
-		Spectrum.SetPoints(ViewModel.SpectrumPoints, "#4CC2FF");
-		Phase.SetPoints(ViewModel.PhasePoints, "#4CC2FF");
+		Waveform.SetAuditionData(
+			ViewModel.LeftWaveformPeaks,
+			ViewModel.RightWaveformPeaks,
+			ViewModel.LeftRms,
+			ViewModel.RightRms,
+			ViewModel.SelectionStartSeconds / Math.Max(0.001, ViewModel.DurationSeconds),
+			ViewModel.SelectionEndSeconds / Math.Max(0.001, ViewModel.DurationSeconds),
+			0.0,
+			"#00e5ff");
+		Spectrum.SetPoints(ViewModel.SpectrumPoints, "#3ac5ec");
+		Phase.SetPhaseData(ViewModel.PhasePoints, ViewModel.PhaseDifference, ViewModel.StereoCorrelation, "#3ac5ec");
 		SelStartSlider.Value = ((ViewModel.DurationSeconds > 0.0) ? (ViewModel.SelectionStartSeconds / ViewModel.DurationSeconds * 100.0) : 0.0);
 		SelEndSlider.Value = ((ViewModel.DurationSeconds > 0.0) ? (ViewModel.SelectionEndSeconds / ViewModel.DurationSeconds * 100.0) : 100.0);
 		UpdateSelectionTexts();
@@ -578,8 +586,8 @@ public sealed class EditorPage : Page, IComponentConnector
 			if (t.IsCompletedSuccessfully && ViewModel != null && ViewModel.Preview.IsPlaying)
 			{
 				EditorViewModel.PreviewAnalysisResult result = t.Result;
-				Spectrum.SetPoints(result.Spectrum, "#4CC2FF");
-				Phase.SetPoints(result.Phase, "#4CC2FF");
+				Spectrum.SetPoints(result.Spectrum, "#3ac5ec");
+				Phase.SetPhaseData(result.Phase, result.PhaseDifference, result.StereoCorrelation, "#3ac5ec");
 				ViewModel.UpdateAnalysisScalars(result.PhaseDifference, result.StereoCorrelation);
 			}
 		}, TaskScheduler.FromCurrentSynchronizationContext());

@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NAudio.Wave;
+using SonicWave.Audio.Decoders;
 
 namespace SonicWave.Audio;
 
@@ -128,24 +130,29 @@ public static class AudioEditService
 
 	public static (float[] Samples, WaveFormat Format) LoadWav(string filePath)
 	{
-		using AudioFileReader audioFileReader = new AudioFileReader(filePath);
+		using SafeAudioFileReader audioFileReader = new SafeAudioFileReader(filePath);
 		WaveFormat waveFormat = audioFileReader.WaveFormat;
-		float[] array = new float[audioFileReader.Length / 4];
-		int i;
-		int num;
-		for (i = 0; i < array.Length; i += num)
+		int estimatedSamples = 0;
+		if (audioFileReader.Length > 0 && waveFormat.BitsPerSample > 0)
 		{
-			num = audioFileReader.Read(array, i, array.Length - i);
-			if (num <= 0)
+			estimatedSamples = (int)(audioFileReader.Length / (waveFormat.BitsPerSample / 8));
+		}
+		else if (audioFileReader.TotalTime.TotalSeconds > 0)
+		{
+			estimatedSamples = (int)(audioFileReader.TotalTime.TotalSeconds * waveFormat.SampleRate * waveFormat.Channels);
+		}
+
+		var samples = new List<float>(estimatedSamples > 0 ? estimatedSamples : 44100 * 2 * 60);
+		float[] buffer = new float[16384];
+		int read;
+		while ((read = audioFileReader.Read(buffer, 0, buffer.Length)) > 0)
+		{
+			for (int k = 0; k < read; k++)
 			{
-				break;
+				samples.Add(buffer[k]);
 			}
 		}
-		if (i < array.Length)
-		{
-			Array.Resize(ref array, i);
-		}
-		return (Samples: array, Format: waveFormat);
+		return (Samples: samples.ToArray(), Format: waveFormat);
 	}
 
 	private static double FadeCurve(double t, string curve)

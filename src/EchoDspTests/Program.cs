@@ -48,6 +48,8 @@ class Program
 		TestReplayGainScannerService();
 		TestPolySincResampler();
 
+		NewFeatureTests.RunAll();
+
 		Console.WriteLine("=================================================");
 		Console.WriteLine($"Tests Completed: {s_passCount + s_failCount} | Passed: {s_passCount} | Failed: {s_failCount}");
 		Console.WriteLine("=================================================");

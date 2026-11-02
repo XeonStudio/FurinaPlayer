@@ -14,82 +14,148 @@ public sealed class PreviewPlayer : IDisposable
 	private sealed class FloatSampleProvider : ISampleProvider
 	{
 		private readonly float[] _samples;
-
 		private readonly int _channels;
-
 		private readonly int _sampleRate;
-
 		private readonly object _sync;
-
 		private long _positionFrames;
 
 		public WaveFormat WaveFormat { get; }
+
+		public float Volume { get; set; } = 1.0f;
 
 		public long PositionFrames
 		{
 			get
 			{
-				return _positionFrames;
+				lock (_sync)
+				{
+					return _positionFrames;
+				}
 			}
 			set
 			{
-				_positionFrames = value;
+				lock (_sync)
+				{
+					_positionFrames = value;
+				}
 			}
 		}
 
-		public FloatSampleProvider(float[] samples, int channels, int sampleRate, object sync)
+		public FloatSampleProvider(float[] samples, int channels, int sampleRate, float volume, object sync)
 		{
-			_samples = samples;
-			_channels = channels;
-			_sampleRate = sampleRate;
+			_samples = samples ?? Array.Empty<float>();
+			_channels = ((channels <= 0) ? 1 : channels);
+			_sampleRate = ((sampleRate > 0) ? sampleRate : 44100);
+			Volume = volume;
 			_sync = sync;
-			WaveFormat = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
+			WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(_sampleRate, _channels);
 		}
 
 		public int Read(float[] buffer, int offset, int count)
 		{
 			lock (_sync)
 			{
-				long num = _samples.Length / _channels;
-				if (_positionFrames >= num)
+				long totalFrames = _samples.Length / _channels;
+				if (_positionFrames >= totalFrames)
 				{
 					return 0;
 				}
-				long num2 = Math.Min(count / _channels, num - _positionFrames);
-				Array.Copy(_samples, _positionFrames * _channels, buffer, offset, num2 * _channels);
-				_positionFrames += num2;
-				return (int)(num2 * _channels);
+				long framesToRead = Math.Min(count / _channels, totalFrames - _positionFrames);
+				int samplesToCopy = (int)(framesToRead * _channels);
+				int srcIdx = (int)(_positionFrames * _channels);
+
+				float vol = Volume;
+				for (int i = 0; i < samplesToCopy; i++)
+				{
+					float sample = _samples[srcIdx + i] * vol;
+					// Transparent soft limiter to avoid harsh digital clipping / wrapping
+					if (sample > 1.0f)
+					{
+						sample = 1.0f + (sample - 1.0f) * 0.1f;
+					}
+					else if (sample < -1.0f)
+					{
+						sample = -1.0f + (sample + 1.0f) * 0.1f;
+					}
+					buffer[offset + i] = Math.Clamp(sample, -1.05f, 1.05f);
+				}
+
+				_positionFrames += framesToRead;
+				return samplesToCopy;
 			}
 		}
 	}
 
+	private sealed class SafeClampedWaveProvider16 : IWaveProvider
+	{
+		private readonly ISampleProvider _source;
+		private float[] _floatBuffer = new float[4096];
+
+		public WaveFormat WaveFormat { get; }
+
+		public SafeClampedWaveProvider16(ISampleProvider source)
+		{
+			_source = source;
+			WaveFormat = new WaveFormat(source.WaveFormat.SampleRate, 16, source.WaveFormat.Channels);
+		}
+
+		public int Read(byte[] buffer, int offset, int count)
+		{
+			int samplesRequired = count / 2;
+			if (_floatBuffer.Length < samplesRequired)
+			{
+				Array.Resize(ref _floatBuffer, samplesRequired);
+			}
+			int samplesRead = _source.Read(_floatBuffer, 0, samplesRequired);
+			int outIdx = offset;
+			for (int i = 0; i < samplesRead; i++)
+			{
+				float s = Math.Clamp(_floatBuffer[i], -1.0f, 1.0f);
+				short val = (short)Math.Clamp((int)(s * 32767f), -32768, 32767);
+				buffer[outIdx++] = (byte)(val & 0xFF);
+				buffer[outIdx++] = (byte)((val >> 8) & 0xFF);
+			}
+			return samplesRead * 2;
+		}
+	}
+
 	private readonly object _lock = new object();
-
-	private WaveOutEvent? _output;
-
+	private IWavePlayer? _output;
 	private FloatSampleProvider? _source;
-
 	private float[] _samples = Array.Empty<float>();
-
 	private int _channels = 1;
-
 	private int _sampleRate = 44100;
-
+	private float _volume = 1.0f;
 	private bool _playing;
-
 	private bool _paused;
-
 	private RenderSettings _renderSettings = RenderSettings.Flat;
-
 	private CancellationTokenSource? _renderCts;
-
 	private bool _rendering;
-
 	private Timer? _restartTimer;
-
 	private bool _restartScheduled;
-
 	private TimeSpan _resumePosition;
+
+	public float Volume
+	{
+		get
+		{
+			lock (_lock)
+			{
+				return _volume;
+			}
+		}
+		set
+		{
+			lock (_lock)
+			{
+				_volume = Math.Clamp(value, 0f, 1f);
+				if (_source != null)
+				{
+					_source.Volume = _volume;
+				}
+			}
+		}
+	}
 
 	public bool IsPlaying
 	{
@@ -148,9 +214,7 @@ public sealed class PreviewPlayer : IDisposable
 	}
 
 	public event Action<bool>? RenderingChanged;
-
 	public event Action<RenderProgress>? RenderProgress;
-
 	public event Action? PlaybackStopped;
 
 	public void Load(float[] samples, int sampleRate, int channels)
@@ -163,7 +227,7 @@ public sealed class PreviewPlayer : IDisposable
 			_samples = samples ?? Array.Empty<float>();
 			_channels = ((channels <= 0) ? 1 : channels);
 			_sampleRate = ((sampleRate > 0) ? sampleRate : 44100);
-			_source = new FloatSampleProvider(_samples, _channels, _sampleRate, _lock);
+			_source = new FloatSampleProvider(_samples, _channels, _sampleRate, _volume, _lock);
 		}
 	}
 
@@ -357,10 +421,10 @@ public sealed class PreviewPlayer : IDisposable
 				}
 				_renderCts = null;
 				_rendering = false;
-				if (!_playing && _output == null)
+				if (!_playing)
 				{
 					StartOutputLocked(renderResult.Samples);
-					if (_resumePosition > TimeSpan.Zero)
+					if (_resumePosition > TimeSpan.Zero && _source != null)
 					{
 						_source.PositionFrames = Math.Clamp((long)(_resumePosition.TotalSeconds * (double)_sampleRate), 0L, Math.Max(0, _samples.Length / _channels - 1));
 						_resumePosition = TimeSpan.Zero;
@@ -381,7 +445,7 @@ public sealed class PreviewPlayer : IDisposable
 			{
 				_rendering = false;
 				_renderCts = null;
-				if (!_playing && _output == null)
+				if (!_playing)
 				{
 					StartOutputLocked(_samples);
 				}
@@ -395,16 +459,36 @@ public sealed class PreviewPlayer : IDisposable
 
 	private void StartOutputLocked(float[] samples)
 	{
-		_source = new FloatSampleProvider(samples, _channels, _sampleRate, _lock);
-		if (_output == null)
+		// Clean up previous output session
+		if (_output != null)
 		{
-			_output = new WaveOutEvent
-			{
-				DesiredLatency = 200
-			};
-			_output.PlaybackStopped += OnPlaybackStopped;
-			_output.Init(new SampleToWaveProvider16(_source));
+			_output.PlaybackStopped -= OnPlaybackStopped;
+			try { _output.Stop(); } catch { }
+			try { _output.Dispose(); } catch { }
+			_output = null;
 		}
+
+		_source = new FloatSampleProvider(samples, _channels, _sampleRate, _volume, _lock);
+
+		// Use modern low-latency WASAPI with IEEE float 32-bit output; fallback safely to clamped WaveOutEvent
+		try
+		{
+			var wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
+			wasapi.PlaybackStopped += OnPlaybackStopped;
+			wasapi.Init(_source.ToWaveProvider());
+			_output = wasapi;
+		}
+		catch
+		{
+			var waveOut = new WaveOutEvent
+			{
+				DesiredLatency = 150
+			};
+			waveOut.PlaybackStopped += OnPlaybackStopped;
+			waveOut.Init(new SafeClampedWaveProvider16(_source));
+			_output = waveOut;
+		}
+
 		if (_paused)
 		{
 			_paused = false;
@@ -437,8 +521,8 @@ public sealed class PreviewPlayer : IDisposable
 		if (_output != null)
 		{
 			_output.PlaybackStopped -= OnPlaybackStopped;
-			_output.Stop();
-			_output.Dispose();
+			try { _output.Stop(); } catch { }
+			try { _output.Dispose(); } catch { }
 			_output = null;
 		}
 		if (_source != null)

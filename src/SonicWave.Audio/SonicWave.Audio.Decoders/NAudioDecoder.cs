@@ -13,7 +13,7 @@ public sealed class NAudioDecoder : IDisposable
 {
 	private IWavePlayer? _player;
 
-	private AudioFileReader? _reader;
+	private SafeAudioFileReader? _reader;
 
 	private DspSampleProvider? _dsp;
 
@@ -90,7 +90,7 @@ public sealed class NAudioDecoder : IDisposable
 			Close();
 			try
 			{
-				_reader = new AudioFileReader(filePath);
+				_reader = new SafeAudioFileReader(filePath);
 				_dsp = new DspSampleProvider(_reader, _reader.WaveFormat.SampleRate, _reader.WaveFormat.Channels);
 				SampleToWaveProvider waveProvider = new SampleToWaveProvider(_dsp);
 				if (asioDriver != null)
@@ -140,7 +140,7 @@ public sealed class NAudioDecoder : IDisposable
 			Close();
 			try
 			{
-				_reader = new AudioFileReader(filePath);
+				_reader = new SafeAudioFileReader(filePath);
 				_dsp = new DspSampleProvider(_reader, _reader.WaveFormat.SampleRate, _reader.WaveFormat.Channels);
 				return true;
 			}

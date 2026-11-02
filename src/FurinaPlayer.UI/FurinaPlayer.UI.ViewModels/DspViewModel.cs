@@ -24,6 +24,8 @@ public class DspViewModel : ObservableObject
 {
 	private readonly AudioEngine _engine;
 
+	public AudioEngine AudioEngine => _engine;
+
 	private readonly SettingsService _settingsService;
 
 	private readonly DispatcherQueue? _uiDispatcher;
@@ -639,6 +641,7 @@ public class DspViewModel : ObservableObject
 		EchoSdmEnabled = appSettings.EchoSdmEnabled;
 		EchoSdmOrder = appSettings.EchoSdmOrder;
 		EchoSdmRate = appSettings.EchoSdmRate;
+		InitializeEchoEqBands();
 	}
 
 	public void SavePanelLayouts(Dictionary<string, double[]> layouts)
@@ -990,6 +993,31 @@ public class DspViewModel : ObservableObject
 	// ==========================================
 	// ECHO Audio Core DSP Suite Controls
 	// ==========================================
+	public bool EchoEqEnabled { get; set; } = true;
+	public double EchoEqPreampDb { get; set; } = 0.0;
+	public List<EchoBiquadFilter> EchoEqBands { get; } = new();
+
+	public void InitializeEchoEqBands()
+	{
+		if (EchoEqBands.Count == 0)
+		{
+			double[] freqs = { 31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0 };
+			for (int i = 0; i < freqs.Length; i++)
+			{
+				var filter = new EchoBiquadFilter
+				{
+					FilterType = (i == 0) ? EchoFilterType.LowShelf : ((i == freqs.Length - 1) ? EchoFilterType.HighShelf : EchoFilterType.Peaking),
+					FrequencyHz = freqs[i],
+					GainDb = 0.0,
+					Q = 1.414,
+					Enabled = true
+				};
+				filter.UpdateCoefficients(48000.0);
+				EchoEqBands.Add(filter);
+			}
+		}
+	}
+
 	public double EchoHeadroomDb { get; set; } = 0.0;
 	public bool EchoCompressorEnabled { get; set; } = false;
 	public double EchoCompressorThresholdDb { get; set; } = -18.0;
@@ -1009,9 +1037,32 @@ public class DspViewModel : ObservableObject
 	public double EchoStereoSideGainDb { get; set; } = 0.0;
 
 	public int EchoChannelMatrixPreset { get; set; } = 0;
-	public int EchoReplayGainMode { get; set; } = 1;
+	public bool EchoReplayGainEnabled { get; set; } = false;
+	public double EchoReplayGainTargetLufs { get; set; } = -14.0;
+	public int EchoReplayGainMode { get; set; } = 1; // 0: Auto, 1: Track, 2: Album
 	public double EchoReplayGainPreampDb { get; set; } = 0.0;
+	public double EchoReplayGainUnknownDb { get; set; } = -5.0;
 	public bool EchoReplayGainPreventClipping { get; set; } = true;
+	public bool EchoReplayGainTruePeak { get; set; } = true;
+	public double? EchoReplayGainCurrentAppliedDb { get; set; } = null;
+	public double? EchoReplayGainIntegratedLufs { get; set; } = null;
+	public bool EchoReplayGainIsScanning { get; set; } = false;
+	public double EchoReplayGainScanProgress { get; set; } = 0.0;
+	public string EchoReplayGainScanText { get; set; } = "就绪";
+
+	public void ApplyReplayGainSettings()
+	{
+		if (Engine != null)
+		{
+			var mode = !EchoReplayGainEnabled ? ReplayGainMode.Off : (EchoReplayGainMode switch
+			{
+				0 => ReplayGainMode.Track,
+				2 => ReplayGainMode.Album,
+				_ => ReplayGainMode.Track
+			});
+			Engine.SetEchoReplayGain(mode, (float)EchoReplayGainPreampDb, EchoReplayGainPreventClipping);
+		}
+	}
 
 	public bool EchoConvolutionEnabled { get; set; } = false;
 	public string? EchoConvolutionFilePath { get; set; }

@@ -152,6 +152,29 @@ public sealed class EchoBiquadFilter
 		return (float)_y1[channel];
 	}
 
+	public double CalculateResponseDb(double frequency, double sampleRate)
+	{
+		if (!Enabled || sampleRate <= 0.0) return 0.0;
+		double omega = 2.0 * Math.PI * frequency / sampleRate;
+		double cos1 = Math.Cos(omega);
+		double sin1 = Math.Sin(omega);
+		double cos2 = Math.Cos(2.0 * omega);
+		double sin2 = Math.Sin(2.0 * omega);
+
+		double numRe = _b0 + _b1 * cos1 + _b2 * cos2;
+		double numIm = -_b1 * sin1 - _b2 * sin2;
+		double denRe = 1.0 + _a1 * cos1 + _a2 * cos2;
+		double denIm = -_a1 * sin1 - _a2 * sin2;
+
+		double numMagSq = numRe * numRe + numIm * numIm;
+		double denMagSq = denRe * denRe + denIm * denIm;
+
+		if (denMagSq < 1e-12) return 0.0;
+		double magSq = numMagSq / denMagSq;
+		if (magSq < 1e-12) return -120.0;
+		return 10.0 * Math.Log10(magSq);
+	}
+
 	public void Reset()
 	{
 		Array.Clear(_x1, 0, _x1.Length);

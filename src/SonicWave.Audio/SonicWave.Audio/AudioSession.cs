@@ -479,6 +479,26 @@ internal sealed class AudioSession : IDisposable
 		else
 		{
 			flag = OpenWithNaudio(track.FilePath);
+			if (!flag && IsVlcAvailable)
+			{
+				Trace("NAudio failed to open file, falling back to VLC: " + track.FilePath);
+				flag = _vlcBackend.Open(track.FilePath, startPaused: false);
+				if (flag)
+				{
+					flag = _vlcBackend.WaitUntilReady(2000);
+					if (flag)
+					{
+						_useVlc = true;
+						_vlcBackend.Speed = _speed;
+						_vlcBackend.Seek(position);
+						_vlcBackend.Pause();
+					}
+					else
+					{
+						_vlcBackend.Stop();
+					}
+				}
+			}
 		}
 		SafeRaise(() =>
 		{
@@ -1460,6 +1480,21 @@ internal sealed class AudioSession : IDisposable
 		else
 		{
 			flag = OpenWithNaudio(filePath, _renderedWavPath == null);
+			if (!flag && IsVlcAvailable)
+			{
+				Trace("NAudio failed to open file in OpenCurrent, falling back to VLC: " + filePath);
+				flag = _vlcBackend.Open(filePath, startPaused: false);
+				if (flag)
+				{
+					_useVlc = true;
+					_vlcBackend.Speed = _speed;
+					_vlcBackend.Volume = _volume;
+				}
+				else
+				{
+					_vlcBackend.Stop();
+				}
+			}
 		}
 		SafeRaise(() =>
 		{

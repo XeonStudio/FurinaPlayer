@@ -89,6 +89,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		StopMeterTimer();
 		if (_dawContainer != null) _dawContainer.Visibility = Visibility.Collapsed;
 		if (_modeSwitchBtn != null) _modeSwitchBtn.Visibility = Visibility.Collapsed;
+		GC.Collect(1, GCCollectionMode.Optimized);
 	}
 
 	private bool _layoutAdjusted;
@@ -1518,11 +1519,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		var queue = ViewModel.Engine.Queue;
 		if (queue == null) return;
 
-		string curCover = GetCoverDataUrl(ViewModel.CoverPath);
-
 		var items = queue.Select((t, i) =>
 		{
-			string itemCover = (t.Id == (ViewModel.CurrentTrack?.Id ?? 0L)) ? curCover : (File.Exists(t.CoverPath) ? GetCoverDataUrl(t.CoverPath) : curCover);
 			return new
 			{
 				queueId = $"q_{t.Id}_{i}",
@@ -1532,9 +1530,9 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				artist = t.Artist ?? "—",
 				album = t.Album ?? "—",
 				durationSeconds = t.DurationMilliseconds > 0 ? t.DurationMilliseconds / 1000.0 : 0.0,
-				coverUrl = itemCover,
-				coverThumb = itemCover,
-				rawCoverUrl = itemCover
+				coverUrl = string.Empty,
+				coverThumb = string.Empty,
+				rawCoverUrl = string.Empty
 			};
 		}).ToList();
 
@@ -1573,13 +1571,28 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		"<path d='M235 210 v80 l60 -40 Z' fill='#ffffff' opacity='0.9'/>" +
 		"</svg>"));
 
+	private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> s_coverDataUrlCache = new();
+
 	private static string GetCoverDataUrl(string? coverPath)
 	{
-		if (!string.IsNullOrEmpty(coverPath) && File.Exists(coverPath))
+		if (string.IsNullOrEmpty(coverPath) || !File.Exists(coverPath))
 		{
-			try
+			return s_defaultCoverDataUrl;
+		}
+
+		try
+		{
+			var fi = new FileInfo(coverPath);
+			string cacheKey = $"{coverPath}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}";
+			if (s_coverDataUrlCache.TryGetValue(cacheKey, out var cached))
 			{
-				byte[] bytes = File.ReadAllBytes(coverPath);
+				return cached;
+			}
+
+			// If file is already small (<= 96KB), direct encode
+			if (fi.Length <= 96 * 1024)
+			{
+				byte[] raw = File.ReadAllBytes(coverPath);
 				string ext = Path.GetExtension(coverPath).ToLowerInvariant();
 				string mime = ext switch
 				{
@@ -1588,13 +1601,60 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					".bmp" => "image/bmp",
 					_ => "image/jpeg"
 				};
-				return $"data:{mime};base64,{Convert.ToBase64String(bytes)}";
+				string directUrl = $"data:{mime};base64,{Convert.ToBase64String(raw)}";
+				s_coverDataUrlCache[cacheKey] = directUrl;
+				return directUrl;
 			}
-			catch
+
+			// Downsample large images using SkiaSharp to max 512x512 JPEG (compressed to ~60-80KB)
+			using var codec = SkiaSharp.SKCodec.Create(coverPath);
+			if (codec != null)
 			{
+				const int maxDim = 512;
+				int origW = codec.Info.Width;
+				int origH = codec.Info.Height;
+				int targetW = origW;
+				int targetH = origH;
+
+				if (origW > maxDim || origH > maxDim)
+				{
+					if (origW >= origH)
+					{
+						targetW = maxDim;
+						targetH = Math.Max(1, (int)Math.Round((double)origH * maxDim / origW));
+					}
+					else
+					{
+						targetH = maxDim;
+						targetW = Math.Max(1, (int)Math.Round((double)origW * maxDim / origH));
+					}
+				}
+
+				using var originalBmp = SkiaSharp.SKBitmap.Decode(codec);
+				if (originalBmp != null)
+				{
+					using var scaledBmp = originalBmp.Resize(new SkiaSharp.SKImageInfo(targetW, targetH, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul), SkiaSharp.SKFilterQuality.Medium);
+					using var image = SkiaSharp.SKImage.FromBitmap(scaledBmp ?? originalBmp);
+					using var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Jpeg, 82);
+					if (data != null)
+					{
+						string compactUrl = "data:image/jpeg;base64," + Convert.ToBase64String(data.ToArray());
+						s_coverDataUrlCache[cacheKey] = compactUrl;
+						return compactUrl;
+					}
+				}
 			}
+
+			// Fallback to raw bytes if Skia decode failed
+			byte[] fallbackBytes = File.ReadAllBytes(coverPath);
+			string fallbackUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(fallbackBytes)}";
+			s_coverDataUrlCache[cacheKey] = fallbackUrl;
+			return fallbackUrl;
 		}
-		return s_defaultCoverDataUrl;
+		catch
+		{
+			return s_defaultCoverDataUrl;
+		}
 	}
 
 	private void OnPlayClick(object sender, RoutedEventArgs e)
