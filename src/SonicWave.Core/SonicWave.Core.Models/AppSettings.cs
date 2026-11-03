@@ -75,7 +75,9 @@ public sealed class AppSettings
 	public double TimbreTreble { get; set; }
 
 	// ECHO Audio DSP Core Settings
-	public double EchoHeadroomDb { get; set; } = 0.0;
+	public bool EchoHeadroomEnabled { get; set; } = true;
+	public double EchoHeadroomDb { get; set; } = -3.0;
+	public bool EchoDynamicLoudnessCompensation { get; set; } = false;
 	public bool EchoCompressorEnabled { get; set; } = false;
 	public double EchoCompressorThresholdDb { get; set; } = -18.0;
 	public double EchoCompressorRatio { get; set; } = 4.0;

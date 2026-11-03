@@ -218,6 +218,7 @@ public sealed class AudioEngine : IDisposable
 	public EchoDspChain? DspChain => _session.DspChain;
 
 	public void SetEchoHeadroom(double headroomDb) => _session.SetEchoHeadroom(headroomDb);
+	public void SetEchoHeadroom(bool enabled, double headroomDb) => _session.SetEchoHeadroom(enabled, headroomDb);
 
 	public void SetEchoCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix)
 		=> _session.SetEchoCompressor(enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb, mix);

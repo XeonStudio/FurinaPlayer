@@ -429,6 +429,15 @@ public sealed class DspPage : Page, IComponentConnector
 	private readonly List<Button> _rgTargetPresetButtons = new();
 	private readonly List<Button> _rgModeButtons = new();
 	private TextBox? _rgCustomTargetTb;
+	private Border? _headroomWorkbench;
+	private TextBlock? _headroomNavSubTb;
+	private ToggleSwitch? _headroomPowerSwitch;
+	private TextBlock? _headroomGainBigTb;
+	private TextBlock? _headroomAmpRatioTb;
+	private Slider? _headroomGainSlider;
+	private CheckBox? _headroomDynamicLoudnessCb;
+	private Button? _headroomAuditionBtn;
+	private readonly List<Button> _headroomPresetButtons = new();
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private IDspPage_Bindings Bindings;
@@ -1375,12 +1384,12 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "DSP",
 			FontSize = 10,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 200, 220, 240))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 205, 235))
 		});
 		headerStack.Children.Add(new TextBlock
 		{
-			Text = "ECHO",
-			FontSize = 26,
+			Text = "FurinaPlayer",
+			FontSize = 20,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
 			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255))
 		});
@@ -1388,7 +1397,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "信号控制",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 170, 190, 210))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 205, 230))
 		});
 		Grid.SetRow(headerStack, 0);
 		sidebarGrid.Children.Add(headerStack);
@@ -1409,8 +1418,8 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Text = title,
 				FontSize = 11,
-				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 200, 210, 230)),
+				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 195, 245)),
 				Margin = new Thickness(8, 12, 0, 4)
 			});
 		}
@@ -1438,7 +1447,7 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Glyph = iconGlyph,
 				FontSize = 16,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 220, 235, 250)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 215, 255)),
 				VerticalAlignment = VerticalAlignment.Center
 			};
 			Grid.SetColumn(icon, 0);
@@ -1449,15 +1458,22 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Text = title,
 				FontSize = 13,
-				FontWeight = Microsoft.UI.Text.FontWeights.Medium,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(240, 255, 255, 255))
+				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255))
 			};
 			var subTb = new TextBlock
 			{
 				Text = subtitle,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(130, 180, 195, 215))
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 200, 225))
 			};
+			if (key == "headroom")
+			{
+				_headroomNavSubTb = subTb;
+				double initialDb = ViewModel?.EchoHeadroomDb ?? -3.0;
+				bool enabled = ViewModel?.EchoHeadroomEnabled ?? true;
+				subTb.Text = !enabled ? "已旁路" : $"{initialDb:+0.0;-0.0;0.0} dB";
+			}
 			textSp.Children.Add(titleTb);
 			textSp.Children.Add(subTb);
 			Grid.SetColumn(textSp, 1);
@@ -2397,6 +2413,832 @@ public sealed class DspPage : Page, IComponentConnector
 		}.ShowAsync();
 	}
 
+	private FrameworkElement CreateHeadroomWorkbench()
+	{
+		var sv = new ScrollViewer
+		{
+			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+		};
+
+		var root = new Grid
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 24, 28, 36)),
+			Padding = new Thickness(24, 20, 24, 20),
+			RowSpacing = 16
+		};
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Header
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Gain & Peak Safety Card
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 2: Dynamic Loudness Compensation Card
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 3: Main Dual Column Area
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 4: Headroom Budget & Realtime Status Card
+
+		// --- 0. Top Header ---
+		var headerGrid = new Grid();
+		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
+		var iconBorder = new Border
+		{
+			Width = 36,
+			Height = 36,
+			CornerRadius = new CornerRadius(18),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 40, 52)),
+			Child = new FontIcon { Glyph = "\uE916", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 160, 255)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+		};
+		titleSp.Children.Add(iconBorder);
+		titleSp.Children.Add(new TextBlock
+		{
+			Text = "Headroom",
+			FontSize = 22,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Colors.White),
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		Grid.SetColumn(titleSp, 0);
+		headerGrid.Children.Add(titleSp);
+
+		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+		var modulePill = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 40, 48, 70)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 70, 90, 140)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(14),
+			Padding = new Thickness(10, 4, 10, 4),
+			Child = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Spacing = 5,
+				Children =
+				{
+					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 130, 160, 255)) },
+					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 190, 255)) }
+				}
+			}
+		};
+		var readyPill = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 28, 44, 38)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 45, 90, 65)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(14),
+			Padding = new Thickness(10, 4, 10, 4),
+			Child = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Spacing = 5,
+				Children =
+				{
+					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 220, 130)) },
+					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 90, 230, 150)) }
+				}
+			}
+		};
+		var btnRefreshTop = new Button
+		{
+			Content = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Spacing = 6,
+				Children =
+				{
+					new FontIcon { Glyph = "\uE72C", FontSize = 12 },
+					new TextBlock { Text = "刷新状态", FontSize = 12 }
+				}
+			},
+			Padding = new Thickness(10, 5, 10, 5),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54))
+		};
+		topActionsSp.Children.Add(modulePill);
+		topActionsSp.Children.Add(readyPill);
+		topActionsSp.Children.Add(btnRefreshTop);
+		Grid.SetColumn(topActionsSp, 1);
+		headerGrid.Children.Add(topActionsSp);
+		Grid.SetRow(headerGrid, 0);
+		root.Children.Add(headerGrid);
+
+		// --- 1. 增益与峰值安全 卡片 ---
+		var safetyCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(18, 14, 18, 14)
+		};
+		var safetyStack = new StackPanel { Spacing = 10 };
+
+		var safetyTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 180, 215)), VerticalAlignment = VerticalAlignment.Center });
+		safetyStack.Children.Add(safetyTitleSp);
+
+		var indGrid3 = new Grid { ColumnSpacing = 16 };
+		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
+		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
+		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
+		Grid.SetColumn(ind1, 0); indGrid3.Children.Add(ind1);
+		Grid.SetColumn(ind2, 1); indGrid3.Children.Add(ind2);
+		Grid.SetColumn(ind3, 2); indGrid3.Children.Add(ind3);
+		safetyStack.Children.Add(indGrid3);
+
+		var metricsGrid = new Grid { ColumnSpacing = 16, Margin = new Thickness(0, 4, 0, 4) };
+		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+		StackPanel MakeMetricBox(string label, string val)
+		{
+			var box = new StackPanel { Spacing = 2 };
+			box.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
+			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+			return box;
+		}
+		var m1 = MakeMetricBox("限幅前", "未知");
+		var m2 = MakeMetricBox("DSP 后", "未知");
+		var m3 = MakeMetricBox("Limiter 衰减", "未知");
+		var m4 = MakeMetricBox("历史输出超限次数", "未知");
+		Grid.SetColumn(m1, 0); metricsGrid.Children.Add(m1);
+		Grid.SetColumn(m2, 1); metricsGrid.Children.Add(m2);
+		Grid.SetColumn(m3, 2); metricsGrid.Children.Add(m3);
+		Grid.SetColumn(m4, 3); metricsGrid.Children.Add(m4);
+		safetyStack.Children.Add(metricsGrid);
+
+		safetyStack.Children.Add(new TextBlock
+		{
+			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只需覆盖所报告的阶段。",
+			FontSize = 11,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 175, 205)),
+			TextWrapping = TextWrapping.Wrap
+		});
+
+		var foldBtn = new Button
+		{
+			Content = "▶ 处理位置与可见边界",
+			Background = new SolidColorBrush(Colors.Transparent),
+			BorderThickness = new Thickness(0),
+			Padding = new Thickness(0, 4, 0, 4),
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 175, 240))
+		};
+		var foldContent = new Border
+		{
+			Visibility = Visibility.Collapsed,
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 20, 24, 34)),
+			CornerRadius = new CornerRadius(8),
+			Padding = new Thickness(12, 10, 12, 10),
+			Child = new TextBlock
+			{
+				Text = "在 32 位浮点架构下，DSP 信号链内部可保留大于 0 dBFS 的电平余量，不会发生数字硬削波截断。Headroom 控制位于主输出级，可在进入声卡 DAC 之前预留安全的采样间真实峰值 (True Peak) 余量，结合限幅器确保无失真高保真还原。",
+				FontSize = 11,
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 210, 235)),
+				TextWrapping = TextWrapping.Wrap
+			}
+		};
+		foldBtn.Click += (s, e) =>
+		{
+			if (foldContent.Visibility == Visibility.Visible)
+			{
+				foldContent.Visibility = Visibility.Collapsed;
+				foldBtn.Content = "▶ 处理位置与可见边界";
+			}
+			else
+			{
+				foldContent.Visibility = Visibility.Visible;
+				foldBtn.Content = "▼ 处理位置与可见边界";
+			}
+		};
+		safetyStack.Children.Add(foldBtn);
+		safetyStack.Children.Add(foldContent);
+
+		safetyCard.Child = safetyStack;
+		Grid.SetRow(safetyCard, 1);
+		root.Children.Add(safetyCard);
+
+		// --- 2. 动态等响补偿 ---
+		var dynLoudCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(18, 12, 18, 12)
+		};
+		var dynLoudGrid = new Grid();
+		dynLoudGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		dynLoudGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var dynLoudTitleTb = new TextBlock
+		{
+			Text = "动态等响补偿",
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Foreground = new SolidColorBrush(Colors.White),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		Grid.SetColumn(dynLoudTitleTb, 0);
+		dynLoudGrid.Children.Add(dynLoudTitleTb);
+
+		_headroomDynamicLoudnessCb = new CheckBox
+		{
+			IsChecked = ViewModel?.EchoDynamicLoudnessCompensation ?? false,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_headroomDynamicLoudnessCb.Checked += (s, e) =>
+		{
+			if (ViewModel != null)
+			{
+				ViewModel.EchoDynamicLoudnessCompensation = true;
+				ViewModel.SaveEchoSettings();
+			}
+		};
+		_headroomDynamicLoudnessCb.Unchecked += (s, e) =>
+		{
+			if (ViewModel != null)
+			{
+				ViewModel.EchoDynamicLoudnessCompensation = false;
+				ViewModel.SaveEchoSettings();
+			}
+		};
+		Grid.SetColumn(_headroomDynamicLoudnessCb, 1);
+		dynLoudGrid.Children.Add(_headroomDynamicLoudnessCb);
+		dynLoudCard.Child = dynLoudGrid;
+
+		Grid.SetRow(dynLoudCard, 2);
+		root.Children.Add(dynLoudCard);
+
+		// --- 3. 主控制区双列布局 ---
+		var dualColGrid = new Grid { ColumnSpacing = 16 };
+		dualColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		dualColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(340, GridUnitType.Pixel) });
+
+		// 左列：主增益卡片
+		var gainCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(22, 18, 22, 18)
+		};
+		var gainStack = new StackPanel { Spacing = 12 };
+
+		var gainTopRow = new Grid();
+		gainTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		gainTopRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		gainTopRow.Children.Add(new TextBlock
+		{
+			Text = "增益",
+			FontSize = 15,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Colors.White),
+			VerticalAlignment = VerticalAlignment.Center
+		});
+
+		_headroomPowerSwitch = new ToggleSwitch
+		{
+			IsOn = ViewModel?.EchoHeadroomEnabled ?? true,
+			OnContent = "已启用",
+			OffContent = "已旁路",
+			VerticalAlignment = VerticalAlignment.Center
+		};
+
+		Grid.SetColumn(_headroomPowerSwitch, 1);
+		gainTopRow.Children.Add(_headroomPowerSwitch);
+		gainStack.Children.Add(gainTopRow);
+
+		var numSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 4, 0, 0) };
+		_headroomGainBigTb = new TextBlock
+		{
+			Text = $"{ViewModel?.EchoHeadroomDb ?? -3.0:0.#}",
+			FontSize = 54,
+			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
+			Foreground = new SolidColorBrush(Colors.White),
+			VerticalAlignment = VerticalAlignment.Bottom
+		};
+		var unitTb = new TextBlock
+		{
+			Text = "dB",
+			FontSize = 26,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 195, 220)),
+			VerticalAlignment = VerticalAlignment.Bottom,
+			Margin = new Thickness(0, 0, 0, 8)
+		};
+		numSp.Children.Add(_headroomGainBigTb);
+		numSp.Children.Add(unitTb);
+		gainStack.Children.Add(numSp);
+
+		double initDb = ViewModel?.EchoHeadroomDb ?? -3.0;
+		double initRatio = Math.Pow(10.0, initDb / 20.0);
+		_headroomAmpRatioTb = new TextBlock
+		{
+			Text = $"×{initRatio:F3}  {initRatio * 100.0:F1}% amplitude",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)),
+			Margin = new Thickness(2, 0, 0, 10)
+		};
+		gainStack.Children.Add(_headroomAmpRatioTb);
+
+		var sliderRow = new Grid { ColumnSpacing = 12 };
+		sliderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // [-]
+		sliderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Slider + scale
+		sliderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // [+]
+
+		var btnMinus = new Button
+		{
+			Content = "－",
+			FontSize = 16,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Width = 38,
+			Height = 38,
+			CornerRadius = new CornerRadius(19),
+			Padding = new Thickness(0),
+			HorizontalContentAlignment = HorizontalAlignment.Center,
+			VerticalContentAlignment = VerticalAlignment.Center,
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 42, 50, 68))
+		};
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnMinus, "减少 Headroom 增益 0.5 dB");
+		ToolTipService.SetToolTip(btnMinus, "步进减少 0.5 dB (下限 -12 dB)");
+		Grid.SetColumn(btnMinus, 0);
+		sliderRow.Children.Add(btnMinus);
+
+		var sliderColSp = new StackPanel { Spacing = 2 };
+		_headroomGainSlider = new Slider
+		{
+			Minimum = -12.0,
+			Maximum = 12.0,
+			StepFrequency = 0.5,
+			Value = ViewModel?.EchoHeadroomDb ?? -3.0,
+			HorizontalAlignment = HorizontalAlignment.Stretch
+		};
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomGainSlider, "Headroom 增益控制滑块");
+		ToolTipService.SetToolTip(_headroomGainSlider, "调节输出 Headroom 增益 (-12 dB ~ +12 dB)");
+		sliderColSp.Children.Add(_headroomGainSlider);
+
+		var scaleGrid = new Grid();
+		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+		scaleGrid.Children.Add(new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Left });
+		var sc2 = new TextBlock { Text = "-6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(sc2, 1); scaleGrid.Children.Add(sc2);
+		var sc3 = new TextBlock { Text = "0 dB", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(sc3, 2); scaleGrid.Children.Add(sc3);
+		var sc4 = new TextBlock { Text = "+6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(sc4, 3); scaleGrid.Children.Add(sc4);
+		var sc5 = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Right };
+		Grid.SetColumn(sc5, 4); scaleGrid.Children.Add(sc5);
+		sliderColSp.Children.Add(scaleGrid);
+
+		Grid.SetColumn(sliderColSp, 1);
+		sliderRow.Children.Add(sliderColSp);
+
+		var btnPlus = new Button
+		{
+			Content = "＋",
+			FontSize = 16,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Width = 38,
+			Height = 38,
+			CornerRadius = new CornerRadius(19),
+			Padding = new Thickness(0),
+			HorizontalContentAlignment = HorizontalAlignment.Center,
+			VerticalContentAlignment = VerticalAlignment.Center,
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 42, 50, 68))
+		};
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnPlus, "增加 Headroom 增益 0.5 dB");
+		ToolTipService.SetToolTip(btnPlus, "步进增加 0.5 dB (上限 +12 dB)");
+		Grid.SetColumn(btnPlus, 2);
+		sliderRow.Children.Add(btnPlus);
+
+		gainStack.Children.Add(sliderRow);
+
+		// Presets Row + Audition Button
+		var presetsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 10, 0, 0) };
+		_headroomPresetButtons.Clear();
+
+		Button CreatePresetPill(string label, double targetDb)
+		{
+			var pillBtn = new Button
+			{
+				Tag = targetDb,
+				Padding = new Thickness(14, 6, 14, 6),
+				CornerRadius = new CornerRadius(8),
+				BorderThickness = new Thickness(1),
+				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 32, 38, 52)),
+				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255))
+			};
+			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pillBtn, $"快速应用 {label} {targetDb:+0;-0;0} dB");
+			ToolTipService.SetToolTip(pillBtn, $"快速切换至 {label} {targetDb:+0;-0;0} dB");
+			var contentSp = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
+			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center });
+			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center });
+			pillBtn.Content = contentSp;
+			pillBtn.Click += (s, e) =>
+			{
+				if (_headroomGainSlider != null) _headroomGainSlider.Value = targetDb;
+			};
+			_headroomPresetButtons.Add(pillBtn);
+			return pillBtn;
+		}
+
+		presetsSp.Children.Add(CreatePresetPill("增益", 6.0));
+		presetsSp.Children.Add(CreatePresetPill("直通", 0.0));
+		presetsSp.Children.Add(CreatePresetPill("日常", -3.0));
+		presetsSp.Children.Add(CreatePresetPill("DSP", -6.0));
+
+		_headroomAuditionBtn = new Button
+		{
+			Content = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Spacing = 6,
+				Children =
+				{
+					new FontIcon { Glyph = "\uE7F6", FontSize = 13 },
+					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium }
+				}
+			},
+			Padding = new Thickness(14, 8, 14, 8),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 44, 60)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 255, 255, 255)),
+			BorderThickness = new Thickness(1)
+		};
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomAuditionBtn, "按住临时直通试听");
+		ToolTipService.SetToolTip(_headroomAuditionBtn, "按住此按钮可临时旁路 Headroom 增益进行原声 A/B 试听，松开恢复预设");
+		_headroomAuditionBtn.PointerPressed += (s, e) =>
+		{
+			if (ViewModel != null)
+			{
+				ViewModel.EchoHeadroomDirectBypassActive = true;
+				ViewModel.ApplyHeadroomSettings();
+				if (_headroomGainBigTb != null) _headroomGainBigTb.Text = "0";
+				if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = "×1.000  100.0% amplitude (直通试听中)";
+			}
+		};
+		void ReleaseAudition()
+		{
+			if (ViewModel != null && ViewModel.EchoHeadroomDirectBypassActive)
+			{
+				ViewModel.EchoHeadroomDirectBypassActive = false;
+				ViewModel.ApplyHeadroomSettings();
+				if (ViewModel != null)
+				{
+					if (_headroomGainBigTb != null) _headroomGainBigTb.Text = $"{ViewModel.EchoHeadroomDb:+0.0;-0.0;0.0}".TrimEnd('0').TrimEnd('.');
+					double amp = Math.Pow(10.0, ViewModel.EchoHeadroomDb / 20.0);
+					if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = $"×{amp:F3}  {amp * 100.0:F1}% amplitude";
+				}
+			}
+		}
+		_headroomAuditionBtn.PointerReleased += (s, e) => ReleaseAudition();
+		_headroomAuditionBtn.PointerCaptureLost += (s, e) => ReleaseAudition();
+		_headroomAuditionBtn.PointerCanceled += (s, e) => ReleaseAudition();
+		_headroomAuditionBtn.PointerExited += (s, e) => ReleaseAudition();
+		presetsSp.Children.Add(_headroomAuditionBtn);
+
+		gainStack.Children.Add(presetsSp);
+
+		gainStack.Children.Add(new TextBlock
+		{
+			Text = "向右提高增益会直接加大音量。还没有峰值读数，安全范围先按不超过 0 dB。",
+			FontSize = 11,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 175, 205)),
+			Margin = new Thickness(0, 10, 0, 0)
+		});
+
+		gainCard.Child = gainStack;
+		Grid.SetColumn(gainCard, 0);
+		dualColGrid.Children.Add(gainCard);
+
+		// 右列：340px 实时余量卡片
+		var rightCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(20, 18, 20, 18)
+		};
+		var rightStack = new StackPanel { Spacing = 12 };
+
+		rightStack.Children.Add(new TextBlock
+		{
+			Text = "实时余量",
+			FontSize = 15,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Colors.White)
+		});
+
+		rightStack.Children.Add(new TextBlock
+		{
+			Text = "-- --",
+			FontSize = 38,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)),
+			Margin = new Thickness(0, 4, 0, 2)
+		});
+
+		var lampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 50, 215, 75)) };
+		lampSp.Children.Add(lampDot);
+		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
+		rightStack.Children.Add(lampSp);
+
+		var recoCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 36, 44, 60)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(16, 14, 16, 14),
+			Margin = new Thickness(0, 10, 0, 0)
+		};
+		var recoStack = new StackPanel { Spacing = 8 };
+
+		var recoHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 190, 240)) });
+		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 195, 230)) });
+		recoStack.Children.Add(recoHeadSp);
+
+		recoStack.Children.Add(new TextBlock
+		{
+			Text = "保持待命",
+			FontSize = 18,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Colors.White)
+		});
+		recoStack.Children.Add(new TextBlock
+		{
+			Text = "有 DSP 模块开启，但暂未检测到风险。",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 200, 225)),
+			TextWrapping = TextWrapping.Wrap
+		});
+
+		var recoBtnsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
+		var btnApplyNeg3 = new Button
+		{
+			Content = "应用 -3 dB",
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),
+			Foreground = new SolidColorBrush(Colors.White),
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Padding = new Thickness(12, 6, 12, 6),
+			CornerRadius = new CornerRadius(8)
+		};
+		btnApplyNeg3.Click += (s, e) =>
+		{
+			if (_headroomGainSlider != null) _headroomGainSlider.Value = -3.0;
+		};
+		var btnSetNeg6 = new Button
+		{
+			Content = "设为 -6 dB",
+			Background = new SolidColorBrush(Colors.Transparent),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Colors.White),
+			Padding = new Thickness(12, 6, 12, 6),
+			CornerRadius = new CornerRadius(8)
+		};
+		btnSetNeg6.Click += (s, e) =>
+		{
+			if (_headroomGainSlider != null) _headroomGainSlider.Value = -6.0;
+		};
+		recoBtnsSp.Children.Add(btnApplyNeg3);
+		recoBtnsSp.Children.Add(btnSetNeg6);
+		recoStack.Children.Add(recoBtnsSp);
+
+		recoCard.Child = recoStack;
+		rightStack.Children.Add(recoCard);
+
+		rightCard.Child = rightStack;
+		Grid.SetColumn(rightCard, 1);
+		dualColGrid.Children.Add(rightCard);
+
+		Grid.SetRow(dualColGrid, 3);
+		root.Children.Add(dualColGrid);
+
+		// --- 4. 底部 Headroom 预算卡片 ---
+		var budgetCard = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(20, 16, 20, 16)
+		};
+		var budgetStack = new StackPanel { Spacing = 12 };
+
+		var budgetHeadGrid = new Grid();
+		budgetHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		budgetHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var budgetHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Colors.White) });
+		budgetHeadSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 180, 215)), VerticalAlignment = VerticalAlignment.Center });
+		Grid.SetColumn(budgetHeadSp, 0);
+		budgetHeadGrid.Children.Add(budgetHeadSp);
+
+		var btnRefreshBudget = new Button
+		{
+			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "刷新状态", FontSize = 12 } } },
+			Padding = new Thickness(10, 4, 10, 4),
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54))
+		};
+		Grid.SetColumn(btnRefreshBudget, 1);
+		budgetHeadGrid.Children.Add(btnRefreshBudget);
+		budgetStack.Children.Add(budgetHeadGrid);
+
+		var meterScaleGrid = new Grid { Margin = new Thickness(80, 0, 50, 0) };
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		meterScaleGrid.Children.Add(new TextBlock { Text = "-24", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Left });
+		var ms1 = new TextBlock { Text = "-18", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(ms1, 1); meterScaleGrid.Children.Add(ms1);
+		var ms2 = new TextBlock { Text = "-12", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(ms2, 2); meterScaleGrid.Children.Add(ms2);
+		var ms3 = new TextBlock { Text = "-6", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(ms3, 3); meterScaleGrid.Children.Add(ms3);
+		var ms4 = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		Grid.SetColumn(ms4, 4); meterScaleGrid.Children.Add(ms4);
+		var msUnit = new TextBlock { Text = "dBFS", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), Margin = new Thickness(8, 0, 0, 0) };
+		Grid.SetColumn(msUnit, 5); meterScaleGrid.Children.Add(msUnit);
+		budgetStack.Children.Add(meterScaleGrid);
+
+		Grid CreateLedMeterRow(string label)
+		{
+			var row = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 2, 0, 2) };
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80, GridUnitType.Pixel) });
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Pixel) });
+
+			var lblTb = new TextBlock { Text = label, FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)), VerticalAlignment = VerticalAlignment.Center };
+			Grid.SetColumn(lblTb, 0); row.Children.Add(lblTb);
+
+			var segSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+			for (int i = 0; i < 36; i++)
+			{
+				var seg = new Border
+				{
+					Width = 8,
+					Height = 14,
+					CornerRadius = new CornerRadius(1),
+					Background = (i == 0)
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 50, 150, 255))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255))
+				};
+				segSp.Children.Add(seg);
+			}
+			Grid.SetColumn(segSp, 1); row.Children.Add(segSp);
+
+			var valTb = new TextBlock { Text = "--", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 190, 255)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+			Grid.SetColumn(valTb, 2); row.Children.Add(valTb);
+			return row;
+		}
+
+		budgetStack.Children.Add(CreateLedMeterRow("输入峰值"));
+		budgetStack.Children.Add(CreateLedMeterRow("输出估算"));
+		budgetStack.Children.Add(CreateLedMeterRow("True Peak"));
+
+		var statusFoldBtn = new Button
+		{
+			Content = "▼ 实时状态",
+			Background = new SolidColorBrush(Colors.Transparent),
+			BorderThickness = new Thickness(0),
+			Padding = new Thickness(0, 6, 0, 2),
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 175, 240))
+		};
+		var statusFoldContent = new Grid { Margin = new Thickness(0, 4, 0, 0), ColumnSpacing = 16 };
+		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+		StackPanel MakeStatusStat(string statTitle, string statVal, Windows.UI.Color? col = null)
+		{
+			var sp = new StackPanel { Spacing = 2 };
+			sp.Children.Add(new TextBlock { Text = statTitle, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
+			sp.Children.Add(new TextBlock { Text = statVal, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(col ?? Colors.White) });
+			return sp;
+		}
+		var st1 = MakeStatusStat("保护状态", "待命", Windows.UI.Color.FromArgb(255, 50, 215, 75));
+		var st2 = MakeStatusStat("削波次数", "0 次", Windows.UI.Color.FromArgb(255, 50, 215, 75));
+		var st3 = MakeStatusStat("最近削波", "无记录");
+		var st4 = MakeStatusStat("True Peak", "--");
+		var st5 = MakeStatusStat("实时余量", "--");
+		Grid.SetColumn(st1, 0); statusFoldContent.Children.Add(st1);
+		Grid.SetColumn(st2, 1); statusFoldContent.Children.Add(st2);
+		Grid.SetColumn(st3, 2); statusFoldContent.Children.Add(st3);
+		Grid.SetColumn(st4, 3); statusFoldContent.Children.Add(st4);
+		Grid.SetColumn(st5, 4); statusFoldContent.Children.Add(st5);
+
+		statusFoldBtn.Click += (s, e) =>
+		{
+			if (statusFoldContent.Visibility == Visibility.Visible)
+			{
+				statusFoldContent.Visibility = Visibility.Collapsed;
+				statusFoldBtn.Content = "▶ 实时状态";
+			}
+			else
+			{
+				statusFoldContent.Visibility = Visibility.Visible;
+				statusFoldBtn.Content = "▼ 实时状态";
+			}
+		};
+		budgetStack.Children.Add(statusFoldBtn);
+		budgetStack.Children.Add(statusFoldContent);
+
+		budgetCard.Child = budgetStack;
+		Grid.SetRow(budgetCard, 4);
+		root.Children.Add(budgetCard);
+
+		// --- 联动更新 ---
+		void UpdateHeadroomDisplay(double db)
+		{
+			if (_headroomGainBigTb != null) _headroomGainBigTb.Text = $"{db:+0.0;-0.0;0.0}".TrimEnd('0').TrimEnd('.');
+			double amp = Math.Pow(10.0, db / 20.0);
+			if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = $"×{amp:F3}  {amp * 100.0:F1}% amplitude";
+			if (_headroomNavSubTb != null)
+			{
+				bool enabled = ViewModel?.EchoHeadroomEnabled ?? true;
+				_headroomNavSubTb.Text = !enabled ? "已旁路" : $"{db:+0.0;-0.0;0.0} dB";
+			}
+			foreach (var btn in _headroomPresetButtons)
+			{
+				if (btn.Tag is double targetDb)
+				{
+					bool isMatch = Math.Abs(targetDb - db) < 0.1;
+					btn.Background = isMatch
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(180, 99, 102, 241))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 32, 38, 52));
+					btn.BorderBrush = isMatch
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 160, 255))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255));
+				}
+			}
+		}
+
+		_headroomGainSlider.ValueChanged += (s, e) =>
+		{
+			if (ViewModel != null)
+			{
+				ViewModel.EchoHeadroomDb = e.NewValue;
+				ViewModel.ApplyHeadroomSettings();
+				UpdateHeadroomDisplay(e.NewValue);
+			}
+		};
+		_headroomPowerSwitch.Toggled += (s, e) =>
+		{
+			if (ViewModel != null)
+			{
+				ViewModel.EchoHeadroomEnabled = _headroomPowerSwitch.IsOn;
+				ViewModel.ApplyHeadroomSettings();
+				UpdateHeadroomDisplay(ViewModel.EchoHeadroomDb);
+			}
+		};
+		btnMinus.Click += (s, e) =>
+		{
+			if (_headroomGainSlider != null && _headroomGainSlider.Value > _headroomGainSlider.Minimum)
+			{
+				_headroomGainSlider.Value = Math.Max(_headroomGainSlider.Minimum, _headroomGainSlider.Value - 0.5);
+			}
+		};
+		btnPlus.Click += (s, e) =>
+		{
+			if (_headroomGainSlider != null && _headroomGainSlider.Value < _headroomGainSlider.Maximum)
+			{
+				_headroomGainSlider.Value = Math.Min(_headroomGainSlider.Maximum, _headroomGainSlider.Value + 0.5);
+			}
+		};
+
+		UpdateHeadroomDisplay(initDb);
+
+		sv.Content = root;
+		_headroomWorkbench = new Border { Child = sv };
+		return _headroomWorkbench;
+	}
+
 	private FrameworkElement CreateParametricEqWorkbench()
 	{
 		var root = new Grid
@@ -2527,7 +3369,7 @@ public sealed class DspPage : Page, IComponentConnector
 		// Scale Controls: + ±12 dB - | 自动
 		var scaleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
 		var btnZoomIn = new Button { Content = "+", Padding = new Thickness(6, 2, 6, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
-		var tbScale = new TextBlock { Text = "±12 dB", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0), Foreground = new SolidColorBrush(Colors.LightGray) };
+		var tbScale = new TextBlock { Text = "±12 dB", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 230, 240, 255)) };
 		var btnZoomOut = new Button { Content = "-", Padding = new Thickness(6, 2, 6, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
 		var btnAuto = new Button { Content = "自动", Padding = new Thickness(8, 2, 8, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
 		btnZoomIn.Click += (s, e) =>
@@ -2598,8 +3440,8 @@ public sealed class DspPage : Page, IComponentConnector
 
 		var statusLeftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
 		statusLeftSp.Children.Add(new TextBlock { Text = "● 待确认 余量 -0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 220, 140)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-		statusLeftSp.Children.Add(new TextBlock { Text = "待改前", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 200, 210, 230)) });
-		statusLeftSp.Children.Add(new TextBlock { Text = "待改后", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 200, 210, 230)) });
+		statusLeftSp.Children.Add(new TextBlock { Text = "待改前", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)) });
+		statusLeftSp.Children.Add(new TextBlock { Text = "待改后", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)) });
 		Grid.SetColumn(statusLeftSp, 0);
 		statusRow.Children.Add(statusLeftSp);
 
@@ -2738,7 +3580,7 @@ public sealed class DspPage : Page, IComponentConnector
 		var freqHead = new Grid();
 		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		freqHead.Children.Add(new TextBlock { Text = "频率 Frequency", FontSize = 12, Opacity = 0.8 });
+		freqHead.Children.Add(new TextBlock { Text = "频率 Frequency", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
 		_freqValueTb = new TextBlock { Text = "1000 Hz", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 200, 255)) };
 		Grid.SetColumn(_freqValueTb, 1);
 		freqHead.Children.Add(_freqValueTb);
@@ -2755,7 +3597,7 @@ public sealed class DspPage : Page, IComponentConnector
 		var gainHead = new Grid();
 		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		gainHead.Children.Add(new TextBlock { Text = "增益 Gain", FontSize = 12, Opacity = 0.8 });
+		gainHead.Children.Add(new TextBlock { Text = "增益 Gain", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
 		_gainValueTb = new TextBlock { Text = "0.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 120, 80)) };
 		Grid.SetColumn(_gainValueTb, 1);
 		gainHead.Children.Add(_gainValueTb);
@@ -2772,7 +3614,7 @@ public sealed class DspPage : Page, IComponentConnector
 		var qHead = new Grid();
 		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		qHead.Children.Add(new TextBlock { Text = "品质因数 Q", FontSize = 12, Opacity = 0.8 });
+		qHead.Children.Add(new TextBlock { Text = "品质因数 Q", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
 		_qValueTb = new TextBlock { Text = "1.41", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 130, 255)) };
 		Grid.SetColumn(_qValueTb, 1);
 		qHead.Children.Add(_qValueTb);
@@ -2804,12 +3646,12 @@ public sealed class DspPage : Page, IComponentConnector
 		row3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Preamp slider
 
 		var scopeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var cbSnap = new CheckBox { Content = "吸附到标准频点", FontSize = 12 };
+		var cbSnap = new CheckBox { Content = "吸附到标准频点", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) };
 		scopeSp.Children.Add(cbSnap);
 
 		var scopeBorder = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54)), CornerRadius = new CornerRadius(8), Padding = new Thickness(4, 2, 4, 2) };
 		var scopeInnerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		scopeInnerSp.Children.Add(new TextBlock { Text = "作用域:", FontSize = 11, Opacity = 0.7, VerticalAlignment = VerticalAlignment.Center });
+		scopeInnerSp.Children.Add(new TextBlock { Text = "作用域:", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 245)), VerticalAlignment = VerticalAlignment.Center });
 		scopeInnerSp.Children.Add(new Button { Content = "立体声", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 0, 180, 255)), Foreground = new SolidColorBrush(Colors.Black), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
 		scopeInnerSp.Children.Add(new Button { Content = "左", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
 		scopeInnerSp.Children.Add(new Button { Content = "右", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
@@ -2823,7 +3665,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 		// Preamp controls
 		var preampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-		preampSp.Children.Add(new TextBlock { Text = "EQ 前级增益:", FontSize = 12, Opacity = 0.8, VerticalAlignment = VerticalAlignment.Center });
+		preampSp.Children.Add(new TextBlock { Text = "EQ 前级增益:", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)), VerticalAlignment = VerticalAlignment.Center });
 		_preampSlider = new Slider { Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = ViewModel?.EchoEqPreampDb ?? 0.0, Width = 140, VerticalAlignment = VerticalAlignment.Center };
 		_preampSlider.ValueChanged += (s, e) =>
 		{
@@ -2836,9 +3678,9 @@ public sealed class DspPage : Page, IComponentConnector
 			}
 		};
 		preampSp.Children.Add(_preampSlider);
-		_preampValueTb = new TextBlock { Text = $"{_preampSlider.Value:+0.0;-0.0;0.0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Width = 55, VerticalAlignment = VerticalAlignment.Center };
+		_preampValueTb = new TextBlock { Text = $"{_preampSlider.Value:+0.0;-0.0;0.0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Width = 55, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center };
 		preampSp.Children.Add(_preampValueTb);
-		preampSp.Children.Add(new TextBlock { Text = "合成响应 -0.0 dB (自动补偿提升)", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 180, 200, 220)), VerticalAlignment = VerticalAlignment.Center });
+		preampSp.Children.Add(new TextBlock { Text = "合成响应 -0.0 dB (自动补偿提升)", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 185, 210, 235)), VerticalAlignment = VerticalAlignment.Center });
 
 		Grid.SetColumn(preampSp, 1);
 		row3.Children.Add(preampSp);
@@ -3270,7 +4112,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			"param_eq" => _parametricEqWorkbench ?? CreateParametricEqWorkbench(),
 			"level_gain" => _volumeEqualizationWorkbench ?? CreateVolumeEqualizationWorkbench(),
-			"headroom" => CreateWrappedCard("电平、响度与 Headroom", "\uE916", _replayGainHeadroomPanel ?? CreateReplayGainHeadroomPanel()),
+			"headroom" => _headroomWorkbench ?? CreateHeadroomWorkbench(),
 			"crossfeed" or "spatial" => CreateWrappedCard("交叉馈送与空间声场", "\uE895", _spatialCrossfeedPanel ?? CreateSpatialCrossfeedPanel()),
 			"compressor" or "dynamics" => CreateWrappedCard("母带动态压缩器", "\uE9D9", _compressorPanel ?? CreateCompressorPanel()),
 			"room" or "convolution" => CreateWrappedCard("房间校正与 IR 卷积", "\uE7BE", _convolutionPanel ?? CreateConvolutionPanel()),

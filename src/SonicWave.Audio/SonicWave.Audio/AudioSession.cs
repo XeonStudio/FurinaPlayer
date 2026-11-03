@@ -894,11 +894,14 @@ internal sealed class AudioSession : IDisposable
 
 	public EchoDspChain? DspChain => (_naudioBackend as NaudioAudioBackend)?.Decoder.Dsp?.DspChain;
 
-	public void SetEchoHeadroom(double headroomDb)
+	public void SetEchoHeadroom(double headroomDb) => SetEchoHeadroom(true, headroomDb);
+
+	public void SetEchoHeadroom(bool enabled, double headroomDb)
 	{
 		var chain = DspChain;
 		if (chain != null)
 		{
+			chain.Headroom.Enabled = enabled;
 			chain.Headroom.HeadroomDb = headroomDb;
 		}
 	}

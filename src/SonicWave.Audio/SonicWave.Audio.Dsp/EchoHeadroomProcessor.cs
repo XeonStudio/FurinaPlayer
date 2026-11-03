@@ -5,7 +5,7 @@ namespace SonicWave.Audio.Dsp;
 public sealed class EchoHeadroomProcessor
 {
 	private const double MinDb = -12.0;
-	private const double MaxDb = 0.0;
+	private const double MaxDb = 12.0;
 
 	private double _sampleRate = 44100.0;
 	private double _targetHeadroomDb = 0.0;

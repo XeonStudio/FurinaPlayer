@@ -19,6 +19,7 @@ public static class NewFeatureTests
 		TestPreviewPlayerSafety();
 		TestSafeAudioFileReader();
 		TestVolumeEqualizationEngine();
+		TestHeadroomEngine();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine("  All New Feature Tests Passed Successfully!     ");
@@ -173,5 +174,53 @@ public static class NewFeatureTests
 			throw new Exception($"Anti-clipping failed: sample exceeded 1.0: {lastSample}");
 
 		Console.WriteLine($"[PASS] Anti-clipping protected audio: peak limited to {lastSample:F4} <= 1.0");
+	}
+
+	private static void TestHeadroomEngine()
+	{
+		Console.WriteLine("--- Testing ECHO Headroom Processor & Amplitude Ratio ---");
+		var headroom = new EchoHeadroomProcessor();
+		headroom.Prepare(48000.0);
+
+		// 1. Test Default / -3.0 dB
+		headroom.HeadroomDb = -3.0;
+		headroom.Enabled = true;
+		headroom.Reset();
+
+		float[] samples = new float[512 * 2];
+		for (int i = 0; i < samples.Length; i++) samples[i] = 1.0f;
+		headroom.ProcessInterleaved(samples, 0, samples.Length, 2);
+
+		double expectedRatioNeg3 = Math.Pow(10.0, -3.0 / 20.0); // ~0.707945
+		double actualRatio = samples[samples.Length - 1];
+		if (Math.Abs(actualRatio - expectedRatioNeg3) > 0.01)
+			throw new Exception($"Expected headroom output ~{expectedRatioNeg3:F4}, got {actualRatio:F4}");
+
+		Console.WriteLine($"[PASS] Headroom -3 dB correctly scales amplitude to {actualRatio:F4} (expected {expectedRatioNeg3:F4}, ~70.8%)");
+
+		// 2. Test +6.0 dB Boost
+		headroom.HeadroomDb = 6.0;
+		headroom.Reset();
+		for (int i = 0; i < samples.Length; i++) samples[i] = 1.0f;
+		headroom.ProcessInterleaved(samples, 0, samples.Length, 2);
+
+		double expectedRatioPlus6 = Math.Pow(10.0, 6.0 / 20.0); // ~1.995
+		actualRatio = samples[samples.Length - 1];
+		if (Math.Abs(actualRatio - expectedRatioPlus6) > 0.05)
+			throw new Exception($"Expected headroom +6dB output ~{expectedRatioPlus6:F4}, got {actualRatio:F4}");
+
+		Console.WriteLine($"[PASS] Headroom +6 dB correctly scales amplitude to {actualRatio:F4} (expected {expectedRatioPlus6:F4}, ~199.5%)");
+
+		// 3. Test Bypass / Direct 0dB
+		headroom.Enabled = false;
+		headroom.Reset();
+		for (int i = 0; i < samples.Length; i++) samples[i] = 1.0f;
+		headroom.ProcessInterleaved(samples, 0, samples.Length, 2);
+
+		actualRatio = samples[samples.Length - 1];
+		if (Math.Abs(actualRatio - 1.0) > 0.001)
+			throw new Exception($"Expected bypass output 1.0, got {actualRatio:F4}");
+
+		Console.WriteLine($"[PASS] Headroom bypass mode correctly preserves 1.0 unity gain (0 dB direct pass-through)");
 	}
 }

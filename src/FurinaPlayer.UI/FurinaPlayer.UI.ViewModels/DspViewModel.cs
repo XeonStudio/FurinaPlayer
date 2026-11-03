@@ -614,7 +614,9 @@ public class DspViewModel : ObservableObject
 		_engine.SetVst3(Vst3Plugins.ToList());
 
 		// Load ECHO Audio DSP settings
+		EchoHeadroomEnabled = appSettings.EchoHeadroomEnabled;
 		EchoHeadroomDb = appSettings.EchoHeadroomDb;
+		EchoDynamicLoudnessCompensation = appSettings.EchoDynamicLoudnessCompensation;
 		EchoCompressorEnabled = appSettings.EchoCompressorEnabled;
 		EchoCompressorThresholdDb = appSettings.EchoCompressorThresholdDb;
 		EchoCompressorRatio = appSettings.EchoCompressorRatio;
@@ -1018,7 +1020,21 @@ public class DspViewModel : ObservableObject
 		}
 	}
 
-	public double EchoHeadroomDb { get; set; } = 0.0;
+	public bool EchoHeadroomEnabled { get; set; } = true;
+	public double EchoHeadroomDb { get; set; } = -3.0;
+	public bool EchoDynamicLoudnessCompensation { get; set; } = false;
+	public bool EchoHeadroomDirectBypassActive { get; set; } = false;
+
+	public void ApplyHeadroomSettings()
+	{
+		if (Engine != null)
+		{
+			bool effectiveEnabled = EchoHeadroomEnabled && !EchoHeadroomDirectBypassActive;
+			double effectiveDb = EchoHeadroomDirectBypassActive ? 0.0 : EchoHeadroomDb;
+			Engine.SetEchoHeadroom(effectiveEnabled, effectiveDb);
+		}
+		SaveEchoSettings();
+	}
 	public bool EchoCompressorEnabled { get; set; } = false;
 	public double EchoCompressorThresholdDb { get; set; } = -18.0;
 	public double EchoCompressorRatio { get; set; } = 4.0;
@@ -1077,7 +1093,7 @@ public class DspViewModel : ObservableObject
 
 	public void ApplyEchoDsp()
 	{
-		_engine.SetEchoHeadroom(EchoHeadroomDb);
+		_engine.SetEchoHeadroom(EchoHeadroomEnabled, EchoHeadroomDb);
 		_engine.SetEchoCompressor(EchoCompressorEnabled, (float)EchoCompressorThresholdDb, (float)EchoCompressorRatio, (float)EchoCompressorAttackMs, (float)EchoCompressorReleaseMs, (float)EchoCompressorKneeDb, (float)EchoCompressorMakeupDb, 1.0f);
 		_engine.SetEchoCrossfeed(EchoCrossfeedEnabled, (float)EchoCrossfeedAmount, (float)EchoCrossfeedCutoffHz);
 		_engine.SetEchoStereoField(EchoStereoFieldEnabled, (float)EchoStereoWidth, (float)EchoStereoCenterGainDb, (float)EchoStereoSideGainDb);
@@ -1094,7 +1110,9 @@ public class DspViewModel : ObservableObject
 	{
 		_settingsService.Update((AppSettings s) =>
 		{
+			s.EchoHeadroomEnabled = EchoHeadroomEnabled;
 			s.EchoHeadroomDb = EchoHeadroomDb;
+			s.EchoDynamicLoudnessCompensation = EchoDynamicLoudnessCompensation;
 			s.EchoCompressorEnabled = EchoCompressorEnabled;
 			s.EchoCompressorThresholdDb = EchoCompressorThresholdDb;
 			s.EchoCompressorRatio = EchoCompressorRatio;
