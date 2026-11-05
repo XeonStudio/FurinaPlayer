@@ -13,7 +13,8 @@ public sealed class EchoDspChain
 	public EchoEqProcessor Eq { get; }
 	public EchoConvolutionProcessor Convolution { get; }
 	public FurinaPlayerReplayGainProcessor ReplayGain { get; }
-	public EchoCompressorProcessor Compressor { get; }
+	public FurinaPlayerCompressorProcessor Compressor { get; }
+	public FurinaPlayerMultibandProcessor Multiband { get; }
 	public EchoSpatialProcessor Spatial { get; }
 	public EchoHeadroomProcessor Headroom { get; }
 	public EchoPcmResampler Resampler { get; }
@@ -33,7 +34,8 @@ public sealed class EchoDspChain
 		Eq = new EchoEqProcessor(sampleRate);
 		Convolution = new EchoConvolutionProcessor();
 		ReplayGain = new FurinaPlayerReplayGainProcessor();
-		Compressor = new EchoCompressorProcessor();
+		Compressor = new FurinaPlayerCompressorProcessor();
+		Multiband = new FurinaPlayerMultibandProcessor(sampleRate);
 		Spatial = new EchoSpatialProcessor();
 		Headroom = new EchoHeadroomProcessor();
 		Resampler = new EchoPcmResampler();
@@ -50,6 +52,7 @@ public sealed class EchoDspChain
 		Convolution.Prepare(_sampleRate);
 		ReplayGain.Prepare(_sampleRate);
 		Compressor.Prepare(_sampleRate);
+		Multiband.Prepare(_sampleRate);
 		Spatial.Prepare(_sampleRate);
 		Headroom.Prepare(_sampleRate);
 		Resampler.Prepare((int)_sampleRate);
@@ -62,6 +65,7 @@ public sealed class EchoDspChain
 		Convolution.Reset();
 		ReplayGain.Reset();
 		Compressor.Reset();
+		Multiband.Reset();
 		Spatial.Reset();
 		Headroom.Reset();
 		Resampler.Reset();
@@ -92,6 +96,9 @@ public sealed class EchoDspChain
 				case DspRackModuleId.Compressor:
 					Compressor.ProcessInterleaved(buffer, offset, count, channels);
 					break;
+				case DspRackModuleId.MultibandCompressor:
+					Multiband.ProcessInterleaved(buffer, offset, count, channels);
+					break;
 				case DspRackModuleId.Crossfeed:
 					Spatial.ProcessCrossfeed(buffer, offset, count, channels);
 					break;
@@ -100,6 +107,7 @@ public sealed class EchoDspChain
 					break;
 				case DspRackModuleId.ChannelMatrix:
 					Spatial.ProcessChannelMatrix(buffer, offset, count, channels);
+					Spatial.ProcessChannelTool(buffer, offset, count, channels);
 					break;
 				case DspRackModuleId.Headroom:
 					Headroom.ProcessInterleaved(buffer, offset, count, channels);

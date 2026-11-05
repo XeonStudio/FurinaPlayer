@@ -85,6 +85,47 @@ public sealed class AppSettings
 	public double EchoCompressorReleaseMs { get; set; } = 120.0;
 	public double EchoCompressorKneeDb { get; set; } = 6.0;
 	public double EchoCompressorMakeupDb { get; set; } = 0.0;
+	public double EchoCompressorMix { get; set; } = 1.0;
+	public string EchoCompressorDetectorMode { get; set; } = "Peak";
+	public bool EchoCompressorSidechainHighpassEnabled { get; set; } = false;
+	public double EchoCompressorSidechainHighpassHz { get; set; } = 80.0;
+	public bool EchoCompressorAutoRelease { get; set; } = false;
+	public double EchoCompressorRangeDb { get; set; } = 60.0;
+	public double EchoCompressorStereoLink { get; set; } = 1.0;
+
+	// FurinaPlayer Multiband Compressor Settings
+	public bool FurinaMultibandEnabled { get; set; } = false;
+	public double FurinaMultibandLowCrossoverHz { get; set; } = 150.0;
+	public double FurinaMultibandHighCrossoverHz { get; set; } = 2500.0;
+	public double FurinaMultibandMix { get; set; } = 1.0;
+	public double FurinaMultibandStereoLink { get; set; } = 1.0;
+
+	// Band 0: Low
+	public bool FurinaMultibandLowEnabled { get; set; } = true;
+	public double FurinaMultibandLowThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandLowRatio { get; set; } = 2.0;
+	public double FurinaMultibandLowAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandLowReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandLowKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandLowMakeupDb { get; set; } = 0.0;
+
+	// Band 1: Mid
+	public bool FurinaMultibandMidEnabled { get; set; } = true;
+	public double FurinaMultibandMidThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandMidRatio { get; set; } = 2.0;
+	public double FurinaMultibandMidAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandMidReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandMidKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandMidMakeupDb { get; set; } = 0.0;
+
+	// Band 2: High
+	public bool FurinaMultibandHighEnabled { get; set; } = true;
+	public double FurinaMultibandHighThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandHighRatio { get; set; } = 2.0;
+	public double FurinaMultibandHighAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandHighReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandHighKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandHighMakeupDb { get; set; } = 0.0;
 	public bool EchoCrossfeedEnabled { get; set; } = false;
 	public double EchoCrossfeedAmount { get; set; } = 0.35;
 	public double EchoCrossfeedCutoffHz { get; set; } = 700.0;
@@ -93,6 +134,35 @@ public sealed class AppSettings
 	public double EchoStereoCenterGainDb { get; set; } = 0.0;
 	public double EchoStereoSideGainDb { get; set; } = 0.0;
 	public int EchoChannelMatrixPreset { get; set; } = 0;
+
+	// FurinaPlayer Channel Tool Settings (声道工具 / 偏音补偿 / 声像平衡)
+	public bool FurinaChannelToolEnabled { get; set; } = false;
+	public double FurinaChannelBalance { get; set; } = 0.0;
+	public double FurinaChannelLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelTrimStepDb { get; set; } = 0.25;
+	public bool FurinaChannelConstantPower { get; set; } = false;
+	public double FurinaChannelLeftDelayMs { get; set; } = 0.0;
+	public double FurinaChannelRightDelayMs { get; set; } = 0.0;
+	public double FurinaChannelLowLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelLowRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelMidLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelMidRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelHighLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelHighRightGainDb { get; set; } = 0.0;
+	public string FurinaChannelMonoMode { get; set; } = "off";
+	public bool FurinaChannelSwapLeftRight { get; set; } = false;
+	public bool FurinaChannelInvertLeft { get; set; } = false;
+	public bool FurinaChannelInvertRight { get; set; } = false;
+	public string FurinaChannelProMode { get; set; } = "simple";
+	public string? FurinaChannelPresetsJson { get; set; }
+
+	// ECHO 向前兼容属性映射
+	public bool EchoChannelToolEnabled { get => FurinaChannelToolEnabled; set => FurinaChannelToolEnabled = value; }
+	public double EchoChannelBalance { get => FurinaChannelBalance; set => FurinaChannelBalance = value; }
+	public double EchoChannelLeftGainDb { get => FurinaChannelLeftGainDb; set => FurinaChannelLeftGainDb = value; }
+	public double EchoChannelRightGainDb { get => FurinaChannelRightGainDb; set => FurinaChannelRightGainDb = value; }
+
 	public bool FurinaReplayGainEnabled { get; set; } = false;
 	public double FurinaReplayGainTargetLufs { get; set; } = -14.0;
 	public int FurinaReplayGainMode { get; set; } = 1;

@@ -223,6 +223,15 @@ public sealed class AudioEngine : IDisposable
 	public void SetEchoCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix)
 		=> _session.SetEchoCompressor(enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb, mix);
 
+	public void SetFurinaMultiband(bool enabled, float lowCrossoverHz, float highCrossoverHz, float mix, float stereoLink)
+		=> _session.SetFurinaMultiband(enabled, lowCrossoverHz, highCrossoverHz, mix, stereoLink);
+
+	public void SetFurinaMultibandBand(int bandIndex, bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb)
+		=> _session.SetFurinaMultibandBand(bandIndex, enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb);
+
+	public void SetCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix, CompressorDetectorMode detectorMode = CompressorDetectorMode.Peak, bool sidechainHp = false, float sidechainHpHz = 80f, bool autoRelease = false, float rangeDb = 60f, float stereoLink = 1f)
+		=> _session.SetCompressor(enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb, mix, detectorMode, sidechainHp, sidechainHpHz, autoRelease, rangeDb, stereoLink);
+
 	public void SetEchoCrossfeed(bool enabled, float amount, float cutoffHz)
 		=> _session.SetEchoCrossfeed(enabled, amount, cutoffHz);
 
@@ -231,6 +240,31 @@ public sealed class AudioEngine : IDisposable
 
 	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
 		=> _session.SetEchoChannelMatrix(preset);
+
+	public void SetFurinaChannelTool(
+		bool enabled,
+		double balance,
+		double leftGainDb,
+		double rightGainDb,
+		bool constantPower = false,
+		double leftDelayMs = 0.0,
+		double rightDelayMs = 0.0,
+		double lowLeftGainDb = 0.0,
+		double lowRightGainDb = 0.0,
+		double midLeftGainDb = 0.0,
+		double midRightGainDb = 0.0,
+		double highLeftGainDb = 0.0,
+		double highRightGainDb = 0.0,
+		ChannelMonoMode monoMode = ChannelMonoMode.Off,
+		bool swapLeftRight = false,
+		bool invertLeft = false,
+		bool invertRight = false,
+		bool compareBypassed = false)
+		=> _session.SetFurinaChannelTool(
+			enabled, balance, leftGainDb, rightGainDb, constantPower,
+			leftDelayMs, rightDelayMs, lowLeftGainDb, lowRightGainDb,
+			midLeftGainDb, midRightGainDb, highLeftGainDb, highRightGainDb,
+			monoMode, swapLeftRight, invertLeft, invertRight, compareBypassed);
 
 	public void SetFurinaReplayGain(ReplayGainMode mode, float targetLufs, float preampDb, float unknownDb, bool preventClipping)
 		=> _session.SetFurinaReplayGain(mode, targetLufs, preampDb, unknownDb, preventClipping);
@@ -241,8 +275,14 @@ public sealed class AudioEngine : IDisposable
 	public bool LoadEchoConvolution(string filePath, float trimDb)
 		=> _session.LoadEchoConvolution(filePath, trimDb);
 
+	public bool LoadFurinaPlayerConvolution(string filePath, float trimDb)
+		=> _session.LoadFurinaPlayerConvolution(filePath, trimDb);
+
 	public void ClearEchoConvolution()
 		=> _session.ClearEchoConvolution();
+
+	public void ClearFurinaPlayerConvolution()
+		=> _session.ClearFurinaPlayerConvolution();
 
 	public void SetEchoEqBand(int index, EchoFilterType type, double freqHz, double gainDb, double q, bool enabled)
 	{

@@ -908,6 +908,11 @@ internal sealed class AudioSession : IDisposable
 
 	public void SetEchoCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix)
 	{
+		SetCompressor(enabled, thresholdDb, ratio, attackMs, releaseMs, kneeDb, makeupDb, mix);
+	}
+
+	public void SetCompressor(bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb, float mix, CompressorDetectorMode detectorMode = CompressorDetectorMode.Peak, bool sidechainHp = false, float sidechainHpHz = 80f, bool autoRelease = false, float rangeDb = 60f, float stereoLink = 1f)
+	{
 		var chain = DspChain;
 		if (chain != null)
 		{
@@ -919,6 +924,41 @@ internal sealed class AudioSession : IDisposable
 			chain.Compressor.KneeDb = kneeDb;
 			chain.Compressor.MakeupDb = makeupDb;
 			chain.Compressor.Mix = mix;
+			chain.Compressor.DetectorMode = detectorMode;
+			chain.Compressor.SidechainHighpassEnabled = sidechainHp;
+			chain.Compressor.SidechainHighpassHz = sidechainHpHz;
+			chain.Compressor.AutoRelease = autoRelease;
+			chain.Compressor.RangeDb = rangeDb;
+			chain.Compressor.StereoLink = stereoLink;
+		}
+	}
+
+	public void SetFurinaMultiband(bool enabled, float lowCrossoverHz, float highCrossoverHz, float mix, float stereoLink)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Multiband.Enabled = enabled;
+			chain.Multiband.LowCrossoverHz = lowCrossoverHz;
+			chain.Multiband.HighCrossoverHz = highCrossoverHz;
+			chain.Multiband.Mix = mix;
+			chain.Multiband.StereoLink = stereoLink;
+		}
+	}
+
+	public void SetFurinaMultibandBand(int bandIndex, bool enabled, float thresholdDb, float ratio, float attackMs, float releaseMs, float kneeDb, float makeupDb)
+	{
+		var chain = DspChain;
+		if (chain != null && bandIndex >= 0 && bandIndex < chain.Multiband.Bands.Length)
+		{
+			var band = chain.Multiband.Bands[bandIndex];
+			band.Enabled = enabled;
+			band.ThresholdDb = thresholdDb;
+			band.Ratio = ratio;
+			band.AttackMs = attackMs;
+			band.ReleaseMs = releaseMs;
+			band.KneeDb = kneeDb;
+			band.MakeupDb = makeupDb;
 		}
 	}
 
@@ -954,6 +994,50 @@ internal sealed class AudioSession : IDisposable
 		}
 	}
 
+	public void SetFurinaChannelTool(
+		bool enabled,
+		double balance,
+		double leftGainDb,
+		double rightGainDb,
+		bool constantPower,
+		double leftDelayMs,
+		double rightDelayMs,
+		double lowLeftGainDb,
+		double lowRightGainDb,
+		double midLeftGainDb,
+		double midRightGainDb,
+		double highLeftGainDb,
+		double highRightGainDb,
+		ChannelMonoMode monoMode,
+		bool swapLeftRight,
+		bool invertLeft,
+		bool invertRight,
+		bool compareBypassed = false)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.ChannelToolEnabled = enabled;
+			chain.Spatial.Balance = balance;
+			chain.Spatial.LeftGainDb = leftGainDb;
+			chain.Spatial.RightGainDb = rightGainDb;
+			chain.Spatial.ConstantPower = constantPower;
+			chain.Spatial.LeftDelayMs = leftDelayMs;
+			chain.Spatial.RightDelayMs = rightDelayMs;
+			chain.Spatial.LowLeftGainDb = lowLeftGainDb;
+			chain.Spatial.LowRightGainDb = lowRightGainDb;
+			chain.Spatial.MidLeftGainDb = midLeftGainDb;
+			chain.Spatial.MidRightGainDb = midRightGainDb;
+			chain.Spatial.HighLeftGainDb = highLeftGainDb;
+			chain.Spatial.HighRightGainDb = highRightGainDb;
+			chain.Spatial.MonoMode = monoMode;
+			chain.Spatial.SwapLeftRight = swapLeftRight;
+			chain.Spatial.InvertPhaseLeft = invertLeft;
+			chain.Spatial.InvertPhaseRight = invertRight;
+			chain.Spatial.CompareBypassed = compareBypassed;
+		}
+	}
+
 	public void SetFurinaReplayGain(ReplayGainMode mode, float targetLufs, float preampDb, float unknownDb, bool preventClipping)
 	{
 		var chain = DspChain;
@@ -978,12 +1062,14 @@ internal sealed class AudioSession : IDisposable
 		if (chain != null)
 		{
 			chain.Convolution.TrimDb = trimDb;
-			bool ok = chain.Convolution.LoadWavFile(filePath);
+			bool ok = chain.Convolution.LoadFile(filePath);
 			chain.Convolution.Enabled = ok;
 			return ok;
 		}
 		return false;
 	}
+
+	public bool LoadFurinaPlayerConvolution(string filePath, float trimDb) => LoadEchoConvolution(filePath, trimDb);
 
 	public void ClearEchoConvolution()
 	{
@@ -994,6 +1080,8 @@ internal sealed class AudioSession : IDisposable
 			chain.Convolution.Enabled = false;
 		}
 	}
+
+	public void ClearFurinaPlayerConvolution() => ClearEchoConvolution();
 
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{

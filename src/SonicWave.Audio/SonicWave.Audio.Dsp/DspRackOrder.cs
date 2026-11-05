@@ -15,7 +15,8 @@ public enum DspRackModuleId
 	ChannelMatrix = 6,
 	Headroom = 7,
 	Resampler = 8,
-	SdmModulator = 9
+	SdmModulator = 9,
+	MultibandCompressor = 10
 }
 
 public sealed class DspRackOrder
@@ -26,6 +27,7 @@ public sealed class DspRackOrder
 		DspRackModuleId.Equalizer,
 		DspRackModuleId.Convolution,
 		DspRackModuleId.Compressor,
+		DspRackModuleId.MultibandCompressor,
 		DspRackModuleId.Crossfeed,
 		DspRackModuleId.StereoField,
 		DspRackModuleId.ChannelMatrix,
@@ -111,6 +113,7 @@ public sealed class DspRackOrder
 		DspRackModuleId.Headroom => "Headroom 余量衰减",
 		DspRackModuleId.Resampler => "升频采样转换 (最高 384kHz)",
 		DspRackModuleId.SdmModulator => "PCM 转 DSD 调制器 (SDM)",
+		DspRackModuleId.MultibandCompressor => "三频段动态压缩器 (FurinaPlayer Multiband)",
 		_ => module.ToString()
 	};
 }

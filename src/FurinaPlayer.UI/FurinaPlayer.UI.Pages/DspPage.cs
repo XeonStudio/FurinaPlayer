@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -1498,6 +1498,23 @@ public sealed partial class DspPage : Page, IComponentConnector
 				double initialDb = ViewModel?.EchoHeadroomDb ?? -3.0;
 				bool enabled = ViewModel?.EchoHeadroomEnabled ?? true;
 				subTb.Text = !enabled ? "已旁路" : $"{initialDb:+0.0;-0.0;0.0} dB";
+			}
+			else if (key == "headphone")
+			{
+				_headphoneNavSubTb = subTb;
+			}
+			else if (key == "room")
+			{
+				_roomNavSubTb = subTb;
+				bool enabled = ViewModel?.EchoConvolutionEnabled ?? false;
+				string? irPath = ViewModel?.EchoConvolutionFilePath;
+				subTb.Text = string.IsNullOrEmpty(irPath) ? "无 IR" : (enabled ? "已启用" : "已载入");
+			}
+			else if (key == "channel")
+			{
+				_channelNavSubTb = subTb;
+				bool enabled = ViewModel?.FurinaChannelToolEnabled ?? false;
+				subTb.Text = !enabled ? "立体声直通" : "已启用";
 			}
 			textSp.Children.Add(titleTb);
 			textSp.Children.Add(subTb);
@@ -3562,11 +3579,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 		FrameworkElement activeView = category switch
 		{
 			"param_eq" => _parametricEqWorkbench ?? CreateParametricEqWorkbench(),
+			"headphone" => _headphoneCorrectionWorkbench ?? CreateHeadphoneCorrectionWorkbench(),
 			"level_gain" => _volumeEqualizationWorkbench ?? CreateVolumeEqualizationWorkbench(),
 			"headroom" => _headroomWorkbench ?? CreateHeadroomWorkbench(),
+			"channel" => _channelToolWorkbench ?? CreateChannelToolWorkbench(),
+			"room" or "convolution" => _roomCorrectionWorkbench ?? CreateRoomCorrectionWorkbench(),
 			"crossfeed" or "spatial" => CreateWrappedCard("交叉馈送与空间声场", "\uE895", _spatialCrossfeedPanel ?? CreateSpatialCrossfeedPanel()),
-			"compressor" or "dynamics" => CreateWrappedCard("母带动态压缩器", "\uE9D9", _compressorPanel ?? CreateCompressorPanel()),
-			"room" or "convolution" => CreateWrappedCard("房间校正与 IR 卷积", "\uE7BE", _convolutionPanel ?? CreateConvolutionPanel()),
+			"compressor" or "dynamics" => _compressorWorkbench ?? CreateCompressorWorkbench(),
+			"multiband" => _multibandCompressorWorkbench ?? CreateMultibandCompressorWorkbench(),
 			"resampler" or "src" => _srcUpsamplingWorkbench ?? CreateSrcUpsamplingWorkbench(),
 			"dsd" or "sdm" => _sdmDsdWorkbench ?? CreateSdmDsdWorkbench(),
 			"vst3" => CreateWrappedCard("VST3 扩展机架", "\uE8B8", Vst3Panel),

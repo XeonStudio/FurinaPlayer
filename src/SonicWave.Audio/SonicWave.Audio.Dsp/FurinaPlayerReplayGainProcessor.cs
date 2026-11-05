@@ -41,6 +41,8 @@ public class FurinaPlayerReplayGainProcessor
 		set { _mode = value; UpdateTargetGain(); }
 	}
 
+	public bool Enabled => _mode != ReplayGainMode.Off;
+
 	public float TargetLufs
 	{
 		get => _targetLufs;

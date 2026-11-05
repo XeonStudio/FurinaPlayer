@@ -1461,22 +1461,22 @@ public sealed partial class DspPage
 		var monoFont = new FontFamily("Consolas, Segoe UI");
 
 		// Y-axis labels
-		AddCanvasText(_srcFilterCurveCanvas, "0", 38, 47, labelBrush, monoFont, 10);
-		AddCanvasText(_srcFilterCurveCanvas, "-24", 26, 81, labelBrush, monoFont, 10);
-		AddCanvasText(_srcFilterCurveCanvas, "-48", 26, 115, labelBrush, monoFont, 10);
-		AddCanvasText(_srcFilterCurveCanvas, "-72", 26, 149, labelBrush, monoFont, 10);
-		AddCanvasText(_srcFilterCurveCanvas, "-96", 26, 181, labelBrush, monoFont, 10);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "0", 38, 47, labelBrush, monoFont, 10);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "-24", 26, 81, labelBrush, monoFont, 10);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "-48", 26, 115, labelBrush, monoFont, 10);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "-72", 26, 149, labelBrush, monoFont, 10);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "-96", 26, 181, labelBrush, monoFont, 10);
 
 		// X-axis labels
-		AddCanvasText(_srcFilterCurveCanvas, "20 Hz", 52, 196, labelBrush, monoFont, 10.5);
-		AddCanvasText(_srcFilterCurveCanvas, "10 kHz", 346, 196, labelBrush, monoFont, 10.5);
-		AddCanvasText(_srcFilterCurveCanvas, "Nyquist", 640, 196, labelBrush, monoFont, 10.5);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "20 Hz", 52, 196, labelBrush, monoFont, 10.5);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "10 kHz", 346, 196, labelBrush, monoFont, 10.5);
+		AddSrcCanvasText(_srcFilterCurveCanvas, "Nyquist", 640, 196, labelBrush, monoFont, 10.5);
 
 		// Inner Chart Phase Text
-		AddCanvasText(_srcFilterCurveCanvas, phaseStr, 590, 40, new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), monoFont, 11);
+		AddSrcCanvasText(_srcFilterCurveCanvas, phaseStr, 590, 40, new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), monoFont, 11);
 	}
 
-	private static void AddCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
+	private static void AddSrcCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
 	{
 		var tb = new TextBlock
 		{

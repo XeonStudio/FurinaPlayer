@@ -22,13 +22,13 @@
           "SQLitePCLRaw.batteries_v2": "2.1.6.2060",
           "SQLitePCLRaw.core": "2.1.6.2060",
           "SQLitePCLRaw.provider.e_sqlite3": "2.1.6.2060",
-          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.22621.57"
+          "runtimepack.Microsoft.Windows.SDK.NET.Ref": "10.0.22621.56"
         },
         "runtime": {
           "FurinaPlayer.dll": {}
         }
       },
-      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.22621.57": {
+      "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.22621.56": {
         "runtime": {
           "Microsoft.Windows.SDK.NET.dll": {
             "assemblyVersion": "10.0.22621.38",
@@ -47,7 +47,7 @@
         },
         "runtime": {
           "FurinaPlayer.UI.dll": {
-            "assemblyVersion": "1.0.0.0",
+            "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -58,7 +58,7 @@
         },
         "runtime": {
           "SonicWave.Audio.dll": {
-            "assemblyVersion": "1.0.0.0",
+            "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -66,7 +66,7 @@
       "SonicWave.Core/1.0.0": {
         "runtime": {
           "SonicWave.Core.dll": {
-            "assemblyVersion": "1.0.0.0",
+            "assemblyVersion": "1.0.0",
             "fileVersion": "1.0.0.0"
           }
         }
@@ -431,7 +431,7 @@
       "serviceable": false,
       "sha512": ""
     },
-    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.22621.57": {
+    "runtimepack.Microsoft.Windows.SDK.NET.Ref/10.0.22621.56": {
       "type": "runtimepack",
       "serviceable": false,
       "sha512": ""

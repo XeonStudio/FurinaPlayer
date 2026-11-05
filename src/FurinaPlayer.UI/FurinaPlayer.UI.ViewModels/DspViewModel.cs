@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
@@ -624,6 +625,42 @@ public class DspViewModel : ObservableObject
 		EchoCompressorReleaseMs = appSettings.EchoCompressorReleaseMs;
 		EchoCompressorKneeDb = appSettings.EchoCompressorKneeDb;
 		EchoCompressorMakeupDb = appSettings.EchoCompressorMakeupDb;
+		EchoCompressorMix = appSettings.EchoCompressorMix;
+		EchoCompressorDetectorMode = appSettings.EchoCompressorDetectorMode ?? "Peak";
+		EchoCompressorSidechainHighpassEnabled = appSettings.EchoCompressorSidechainHighpassEnabled;
+		EchoCompressorSidechainHighpassHz = appSettings.EchoCompressorSidechainHighpassHz;
+		EchoCompressorAutoRelease = appSettings.EchoCompressorAutoRelease;
+		EchoCompressorRangeDb = appSettings.EchoCompressorRangeDb;
+		EchoCompressorStereoLink = appSettings.EchoCompressorStereoLink;
+		FurinaMultibandEnabled = appSettings.FurinaMultibandEnabled;
+		FurinaMultibandLowCrossoverHz = appSettings.FurinaMultibandLowCrossoverHz;
+		FurinaMultibandHighCrossoverHz = appSettings.FurinaMultibandHighCrossoverHz;
+		FurinaMultibandMix = appSettings.FurinaMultibandMix;
+		FurinaMultibandStereoLink = appSettings.FurinaMultibandStereoLink;
+
+		FurinaMultibandLowEnabled = appSettings.FurinaMultibandLowEnabled;
+		FurinaMultibandLowThresholdDb = appSettings.FurinaMultibandLowThresholdDb;
+		FurinaMultibandLowRatio = appSettings.FurinaMultibandLowRatio;
+		FurinaMultibandLowAttackMs = appSettings.FurinaMultibandLowAttackMs;
+		FurinaMultibandLowReleaseMs = appSettings.FurinaMultibandLowReleaseMs;
+		FurinaMultibandLowKneeDb = appSettings.FurinaMultibandLowKneeDb;
+		FurinaMultibandLowMakeupDb = appSettings.FurinaMultibandLowMakeupDb;
+
+		FurinaMultibandMidEnabled = appSettings.FurinaMultibandMidEnabled;
+		FurinaMultibandMidThresholdDb = appSettings.FurinaMultibandMidThresholdDb;
+		FurinaMultibandMidRatio = appSettings.FurinaMultibandMidRatio;
+		FurinaMultibandMidAttackMs = appSettings.FurinaMultibandMidAttackMs;
+		FurinaMultibandMidReleaseMs = appSettings.FurinaMultibandMidReleaseMs;
+		FurinaMultibandMidKneeDb = appSettings.FurinaMultibandMidKneeDb;
+		FurinaMultibandMidMakeupDb = appSettings.FurinaMultibandMidMakeupDb;
+
+		FurinaMultibandHighEnabled = appSettings.FurinaMultibandHighEnabled;
+		FurinaMultibandHighThresholdDb = appSettings.FurinaMultibandHighThresholdDb;
+		FurinaMultibandHighRatio = appSettings.FurinaMultibandHighRatio;
+		FurinaMultibandHighAttackMs = appSettings.FurinaMultibandHighAttackMs;
+		FurinaMultibandHighReleaseMs = appSettings.FurinaMultibandHighReleaseMs;
+		FurinaMultibandHighKneeDb = appSettings.FurinaMultibandHighKneeDb;
+		FurinaMultibandHighMakeupDb = appSettings.FurinaMultibandHighMakeupDb;
 		EchoCrossfeedEnabled = appSettings.EchoCrossfeedEnabled;
 		EchoCrossfeedAmount = appSettings.EchoCrossfeedAmount;
 		EchoCrossfeedCutoffHz = appSettings.EchoCrossfeedCutoffHz;
@@ -656,6 +693,30 @@ public class DspViewModel : ObservableObject
 		EchoSdmEnabled = appSettings.EchoSdmEnabled;
 		EchoSdmOrder = appSettings.EchoSdmOrder;
 		EchoSdmRate = appSettings.EchoSdmRate;
+
+		// Load FurinaPlayer Channel Tool Settings
+		FurinaChannelToolEnabled = appSettings.FurinaChannelToolEnabled;
+		FurinaChannelBalance = appSettings.FurinaChannelBalance;
+		FurinaChannelLeftGainDb = appSettings.FurinaChannelLeftGainDb;
+		FurinaChannelRightGainDb = appSettings.FurinaChannelRightGainDb;
+		FurinaChannelTrimStepDb = appSettings.FurinaChannelTrimStepDb > 0 ? appSettings.FurinaChannelTrimStepDb : 0.25;
+		FurinaChannelConstantPower = appSettings.FurinaChannelConstantPower;
+		FurinaChannelLeftDelayMs = appSettings.FurinaChannelLeftDelayMs;
+		FurinaChannelRightDelayMs = appSettings.FurinaChannelRightDelayMs;
+		FurinaChannelLowLeftGainDb = appSettings.FurinaChannelLowLeftGainDb;
+		FurinaChannelLowRightGainDb = appSettings.FurinaChannelLowRightGainDb;
+		FurinaChannelMidLeftGainDb = appSettings.FurinaChannelMidLeftGainDb;
+		FurinaChannelMidRightGainDb = appSettings.FurinaChannelMidRightGainDb;
+		FurinaChannelHighLeftGainDb = appSettings.FurinaChannelHighLeftGainDb;
+		FurinaChannelHighRightGainDb = appSettings.FurinaChannelHighRightGainDb;
+		FurinaChannelMonoMode = appSettings.FurinaChannelMonoMode ?? "off";
+		FurinaChannelSwapLeftRight = appSettings.FurinaChannelSwapLeftRight;
+		FurinaChannelInvertLeft = appSettings.FurinaChannelInvertLeft;
+		FurinaChannelInvertRight = appSettings.FurinaChannelInvertRight;
+		FurinaChannelProMode = appSettings.FurinaChannelProMode ?? "simple";
+		LoadChannelPresets(appSettings.FurinaChannelPresetsJson);
+		ApplyChannelToolSettings(false);
+
 		InitializeEchoEqBands();
 	}
 
@@ -1055,6 +1116,43 @@ public class DspViewModel : ObservableObject
 	public double EchoCompressorReleaseMs { get; set; } = 120.0;
 	public double EchoCompressorKneeDb { get; set; } = 6.0;
 	public double EchoCompressorMakeupDb { get; set; } = 0.0;
+	public double EchoCompressorMix { get; set; } = 1.0;
+	public string EchoCompressorDetectorMode { get; set; } = "Peak";
+	public bool EchoCompressorSidechainHighpassEnabled { get; set; } = false;
+	public double EchoCompressorSidechainHighpassHz { get; set; } = 80.0;
+	public bool EchoCompressorAutoRelease { get; set; } = false;
+	public double EchoCompressorRangeDb { get; set; } = 60.0;
+	public double EchoCompressorStereoLink { get; set; } = 1.0;
+
+	public bool FurinaMultibandEnabled { get; set; } = false;
+	public double FurinaMultibandLowCrossoverHz { get; set; } = 150.0;
+	public double FurinaMultibandHighCrossoverHz { get; set; } = 2500.0;
+	public double FurinaMultibandMix { get; set; } = 1.0;
+	public double FurinaMultibandStereoLink { get; set; } = 1.0;
+
+	public bool FurinaMultibandLowEnabled { get; set; } = true;
+	public double FurinaMultibandLowThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandLowRatio { get; set; } = 2.0;
+	public double FurinaMultibandLowAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandLowReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandLowKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandLowMakeupDb { get; set; } = 0.0;
+
+	public bool FurinaMultibandMidEnabled { get; set; } = true;
+	public double FurinaMultibandMidThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandMidRatio { get; set; } = 2.0;
+	public double FurinaMultibandMidAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandMidReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandMidKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandMidMakeupDb { get; set; } = 0.0;
+
+	public bool FurinaMultibandHighEnabled { get; set; } = true;
+	public double FurinaMultibandHighThresholdDb { get; set; } = -18.0;
+	public double FurinaMultibandHighRatio { get; set; } = 2.0;
+	public double FurinaMultibandHighAttackMs { get; set; } = 10.0;
+	public double FurinaMultibandHighReleaseMs { get; set; } = 120.0;
+	public double FurinaMultibandHighKneeDb { get; set; } = 6.0;
+	public double FurinaMultibandHighMakeupDb { get; set; } = 0.0;
 
 	public bool EchoCrossfeedEnabled { get; set; } = false;
 	public double EchoCrossfeedAmount { get; set; } = 0.35;
@@ -1143,7 +1241,27 @@ public class DspViewModel : ObservableObject
 	public void ApplyEchoDsp()
 	{
 		_engine.SetEchoHeadroom(EchoHeadroomEnabled, EchoHeadroomDb);
-		_engine.SetEchoCompressor(EchoCompressorEnabled, (float)EchoCompressorThresholdDb, (float)EchoCompressorRatio, (float)EchoCompressorAttackMs, (float)EchoCompressorReleaseMs, (float)EchoCompressorKneeDb, (float)EchoCompressorMakeupDb, 1.0f);
+		var compDetMode = string.Equals(EchoCompressorDetectorMode, "RMS", StringComparison.OrdinalIgnoreCase)
+			? CompressorDetectorMode.Rms : CompressorDetectorMode.Peak;
+		_engine.SetCompressor(
+			EchoCompressorEnabled,
+			(float)EchoCompressorThresholdDb,
+			(float)EchoCompressorRatio,
+			(float)EchoCompressorAttackMs,
+			(float)EchoCompressorReleaseMs,
+			(float)EchoCompressorKneeDb,
+			(float)EchoCompressorMakeupDb,
+			(float)EchoCompressorMix,
+			compDetMode,
+			EchoCompressorSidechainHighpassEnabled,
+			(float)EchoCompressorSidechainHighpassHz,
+			EchoCompressorAutoRelease,
+			(float)EchoCompressorRangeDb,
+			(float)EchoCompressorStereoLink);
+		_engine.SetFurinaMultiband(FurinaMultibandEnabled, (float)FurinaMultibandLowCrossoverHz, (float)FurinaMultibandHighCrossoverHz, (float)FurinaMultibandMix, (float)FurinaMultibandStereoLink);
+		_engine.SetFurinaMultibandBand(0, FurinaMultibandLowEnabled, (float)FurinaMultibandLowThresholdDb, (float)FurinaMultibandLowRatio, (float)FurinaMultibandLowAttackMs, (float)FurinaMultibandLowReleaseMs, (float)FurinaMultibandLowKneeDb, (float)FurinaMultibandLowMakeupDb);
+		_engine.SetFurinaMultibandBand(1, FurinaMultibandMidEnabled, (float)FurinaMultibandMidThresholdDb, (float)FurinaMultibandMidRatio, (float)FurinaMultibandMidAttackMs, (float)FurinaMultibandMidReleaseMs, (float)FurinaMultibandMidKneeDb, (float)FurinaMultibandMidMakeupDb);
+		_engine.SetFurinaMultibandBand(2, FurinaMultibandHighEnabled, (float)FurinaMultibandHighThresholdDb, (float)FurinaMultibandHighRatio, (float)FurinaMultibandHighAttackMs, (float)FurinaMultibandHighReleaseMs, (float)FurinaMultibandHighKneeDb, (float)FurinaMultibandHighMakeupDb);
 		_engine.SetEchoCrossfeed(EchoCrossfeedEnabled, (float)EchoCrossfeedAmount, (float)EchoCrossfeedCutoffHz);
 		_engine.SetEchoStereoField(EchoStereoFieldEnabled, (float)EchoStereoWidth, (float)EchoStereoCenterGainDb, (float)EchoStereoSideGainDb);
 		_engine.SetEchoChannelMatrix((SonicWave.Audio.Dsp.ChannelMatrixPreset)EchoChannelMatrixPreset);
@@ -1169,6 +1287,42 @@ public class DspViewModel : ObservableObject
 			s.EchoCompressorReleaseMs = EchoCompressorReleaseMs;
 			s.EchoCompressorKneeDb = EchoCompressorKneeDb;
 			s.EchoCompressorMakeupDb = EchoCompressorMakeupDb;
+			s.EchoCompressorMix = EchoCompressorMix;
+			s.EchoCompressorDetectorMode = EchoCompressorDetectorMode;
+			s.EchoCompressorSidechainHighpassEnabled = EchoCompressorSidechainHighpassEnabled;
+			s.EchoCompressorSidechainHighpassHz = EchoCompressorSidechainHighpassHz;
+			s.EchoCompressorAutoRelease = EchoCompressorAutoRelease;
+			s.EchoCompressorRangeDb = EchoCompressorRangeDb;
+			s.EchoCompressorStereoLink = EchoCompressorStereoLink;
+			s.FurinaMultibandEnabled = FurinaMultibandEnabled;
+			s.FurinaMultibandLowCrossoverHz = FurinaMultibandLowCrossoverHz;
+			s.FurinaMultibandHighCrossoverHz = FurinaMultibandHighCrossoverHz;
+			s.FurinaMultibandMix = FurinaMultibandMix;
+			s.FurinaMultibandStereoLink = FurinaMultibandStereoLink;
+
+			s.FurinaMultibandLowEnabled = FurinaMultibandLowEnabled;
+			s.FurinaMultibandLowThresholdDb = FurinaMultibandLowThresholdDb;
+			s.FurinaMultibandLowRatio = FurinaMultibandLowRatio;
+			s.FurinaMultibandLowAttackMs = FurinaMultibandLowAttackMs;
+			s.FurinaMultibandLowReleaseMs = FurinaMultibandLowReleaseMs;
+			s.FurinaMultibandLowKneeDb = FurinaMultibandLowKneeDb;
+			s.FurinaMultibandLowMakeupDb = FurinaMultibandLowMakeupDb;
+
+			s.FurinaMultibandMidEnabled = FurinaMultibandMidEnabled;
+			s.FurinaMultibandMidThresholdDb = FurinaMultibandMidThresholdDb;
+			s.FurinaMultibandMidRatio = FurinaMultibandMidRatio;
+			s.FurinaMultibandMidAttackMs = FurinaMultibandMidAttackMs;
+			s.FurinaMultibandMidReleaseMs = FurinaMultibandMidReleaseMs;
+			s.FurinaMultibandMidKneeDb = FurinaMultibandMidKneeDb;
+			s.FurinaMultibandMidMakeupDb = FurinaMultibandMidMakeupDb;
+
+			s.FurinaMultibandHighEnabled = FurinaMultibandHighEnabled;
+			s.FurinaMultibandHighThresholdDb = FurinaMultibandHighThresholdDb;
+			s.FurinaMultibandHighRatio = FurinaMultibandHighRatio;
+			s.FurinaMultibandHighAttackMs = FurinaMultibandHighAttackMs;
+			s.FurinaMultibandHighReleaseMs = FurinaMultibandHighReleaseMs;
+			s.FurinaMultibandHighKneeDb = FurinaMultibandHighKneeDb;
+			s.FurinaMultibandHighMakeupDb = FurinaMultibandHighMakeupDb;
 			s.EchoCrossfeedEnabled = EchoCrossfeedEnabled;
 			s.EchoCrossfeedAmount = EchoCrossfeedAmount;
 			s.EchoCrossfeedCutoffHz = EchoCrossfeedCutoffHz;
@@ -1201,6 +1355,32 @@ public class DspViewModel : ObservableObject
 			s.EchoSdmEnabled = EchoSdmEnabled;
 			s.EchoSdmOrder = EchoSdmOrder;
 			s.EchoSdmRate = EchoSdmRate;
+
+			// Save FurinaPlayer Channel Tool Settings
+			s.FurinaChannelToolEnabled = FurinaChannelToolEnabled;
+			s.FurinaChannelBalance = FurinaChannelBalance;
+			s.FurinaChannelLeftGainDb = FurinaChannelLeftGainDb;
+			s.FurinaChannelRightGainDb = FurinaChannelRightGainDb;
+			s.FurinaChannelTrimStepDb = FurinaChannelTrimStepDb;
+			s.FurinaChannelConstantPower = FurinaChannelConstantPower;
+			s.FurinaChannelLeftDelayMs = FurinaChannelLeftDelayMs;
+			s.FurinaChannelRightDelayMs = FurinaChannelRightDelayMs;
+			s.FurinaChannelLowLeftGainDb = FurinaChannelLowLeftGainDb;
+			s.FurinaChannelLowRightGainDb = FurinaChannelLowRightGainDb;
+			s.FurinaChannelMidLeftGainDb = FurinaChannelMidLeftGainDb;
+			s.FurinaChannelMidRightGainDb = FurinaChannelMidRightGainDb;
+			s.FurinaChannelHighLeftGainDb = FurinaChannelHighLeftGainDb;
+			s.FurinaChannelHighRightGainDb = FurinaChannelHighRightGainDb;
+			s.FurinaChannelMonoMode = FurinaChannelMonoMode;
+			s.FurinaChannelSwapLeftRight = FurinaChannelSwapLeftRight;
+			s.FurinaChannelInvertLeft = FurinaChannelInvertLeft;
+			s.FurinaChannelInvertRight = FurinaChannelInvertRight;
+			s.FurinaChannelProMode = FurinaChannelProMode;
+			try
+			{
+				s.FurinaChannelPresetsJson = JsonSerializer.Serialize(FurinaChannelPresets);
+			}
+			catch { }
 		});
 	}
 
@@ -1238,6 +1418,8 @@ public class DspViewModel : ObservableObject
 			{
 				StatusText = "已加载房间校正/耳机脉冲响应：" + Path.GetFileName(filePath);
 				SaveEchoSettings();
+				OnPropertyChanged(nameof(EchoConvolutionFilePath));
+				OnPropertyChanged(nameof(EchoConvolutionEnabled));
 				return true;
 			}
 			StatusText = "脉冲响应加载失败，请检查文件格式";
@@ -1247,6 +1429,43 @@ public class DspViewModel : ObservableObject
 			StatusText = "加载脉冲响应出错: " + ex.Message;
 		}
 		return false;
+	}
+
+	public void ClearConvolutionIr()
+	{
+		try
+		{
+			EchoConvolutionFilePath = null;
+			EchoConvolutionEnabled = false;
+			_engine.ClearEchoConvolution();
+			StatusText = "已清除脉冲响应";
+			SaveEchoSettings();
+			OnPropertyChanged(nameof(EchoConvolutionFilePath));
+			OnPropertyChanged(nameof(EchoConvolutionEnabled));
+		}
+		catch (Exception ex)
+		{
+			StatusText = "清除脉冲响应出错: " + ex.Message;
+		}
+	}
+
+	public void ApplyConvolutionSettings()
+	{
+		try
+		{
+			if (_engine.DspChain?.Convolution != null)
+			{
+				_engine.DspChain.Convolution.Enabled = EchoConvolutionEnabled;
+				_engine.DspChain.Convolution.TrimDb = (float)EchoConvolutionTrimDb;
+			}
+			SaveEchoSettings();
+			OnPropertyChanged(nameof(EchoConvolutionEnabled));
+			OnPropertyChanged(nameof(EchoConvolutionTrimDb));
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine("ApplyConvolutionSettings error: " + ex.Message);
+		}
 	}
 
 	public bool ImportAutoEqText(string text)
@@ -1283,4 +1502,163 @@ public class DspViewModel : ObservableObject
 		}
 		return false;
 	}
+
+	#region FurinaPlayer Channel Tool State & Presets
+
+	public bool FurinaChannelToolEnabled { get; set; } = false;
+	public double FurinaChannelBalance { get; set; } = 0.0;
+	public double FurinaChannelLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelTrimStepDb { get; set; } = 0.25;
+	public bool FurinaChannelConstantPower { get; set; } = false;
+	public double FurinaChannelLeftDelayMs { get; set; } = 0.0;
+	public double FurinaChannelRightDelayMs { get; set; } = 0.0;
+	public double FurinaChannelLowLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelLowRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelMidLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelMidRightGainDb { get; set; } = 0.0;
+	public double FurinaChannelHighLeftGainDb { get; set; } = 0.0;
+	public double FurinaChannelHighRightGainDb { get; set; } = 0.0;
+	public string FurinaChannelMonoMode { get; set; } = "off";
+	public bool FurinaChannelSwapLeftRight { get; set; } = false;
+	public bool FurinaChannelInvertLeft { get; set; } = false;
+	public bool FurinaChannelInvertRight { get; set; } = false;
+	public string FurinaChannelProMode { get; set; } = "simple";
+	public bool FurinaChannelCompareBypassed { get; set; } = false;
+
+	public ObservableCollection<ChannelToolPreset> FurinaChannelPresets { get; } = new();
+
+	public void ApplyChannelToolSettings(bool save = true)
+	{
+		var monoMode = FurinaChannelMonoMode switch
+		{
+			"sum" => ChannelMonoMode.Sum,
+			"left" => ChannelMonoMode.LeftOnly,
+			"right" => ChannelMonoMode.RightOnly,
+			_ => ChannelMonoMode.Off
+		};
+
+		_engine.SetFurinaChannelTool(
+			FurinaChannelToolEnabled,
+			FurinaChannelBalance,
+			FurinaChannelLeftGainDb,
+			FurinaChannelRightGainDb,
+			FurinaChannelConstantPower,
+			FurinaChannelLeftDelayMs,
+			FurinaChannelRightDelayMs,
+			FurinaChannelLowLeftGainDb,
+			FurinaChannelLowRightGainDb,
+			FurinaChannelMidLeftGainDb,
+			FurinaChannelMidRightGainDb,
+			FurinaChannelHighLeftGainDb,
+			FurinaChannelHighRightGainDb,
+			monoMode,
+			FurinaChannelSwapLeftRight,
+			FurinaChannelInvertLeft,
+			FurinaChannelInvertRight,
+			FurinaChannelCompareBypassed);
+
+		if (save)
+		{
+			SaveEchoSettings();
+		}
+	}
+
+	public void LoadChannelPresets(string? json)
+	{
+		FurinaChannelPresets.Clear();
+		if (!string.IsNullOrWhiteSpace(json))
+		{
+			try
+			{
+				var list = JsonSerializer.Deserialize<List<ChannelToolPreset>>(json);
+				if (list != null)
+				{
+					foreach (var p in list)
+					{
+						FurinaChannelPresets.Add(p);
+					}
+				}
+			}
+			catch { }
+		}
+	}
+
+	public ChannelToolPreset SaveChannelPreset(string name)
+	{
+		var preset = new ChannelToolPreset
+		{
+			Id = Guid.NewGuid().ToString("N"),
+			Name = string.IsNullOrWhiteSpace(name) ? "耳机偏音补偿" : name.Trim(),
+			Balance = FurinaChannelBalance,
+			LeftGainDb = FurinaChannelLeftGainDb,
+			RightGainDb = FurinaChannelRightGainDb,
+			TrimStepDb = FurinaChannelTrimStepDb,
+			ConstantPower = FurinaChannelConstantPower,
+			LeftDelayMs = FurinaChannelLeftDelayMs,
+			RightDelayMs = FurinaChannelRightDelayMs,
+			LowLeftGainDb = FurinaChannelLowLeftGainDb,
+			LowRightGainDb = FurinaChannelLowRightGainDb,
+			MidLeftGainDb = FurinaChannelMidLeftGainDb,
+			MidRightGainDb = FurinaChannelMidRightGainDb,
+			HighLeftGainDb = FurinaChannelHighLeftGainDb,
+			HighRightGainDb = FurinaChannelHighRightGainDb,
+			MonoMode = FurinaChannelMonoMode,
+			SwapLeftRight = FurinaChannelSwapLeftRight,
+			InvertLeft = FurinaChannelInvertLeft,
+			InvertRight = FurinaChannelInvertRight,
+			CreatedAt = DateTime.Now
+		};
+
+		FurinaChannelPresets.Insert(0, preset);
+		SaveEchoSettings();
+		return preset;
+	}
+
+	public void ApplyChannelPreset(ChannelToolPreset preset)
+	{
+		if (preset == null) return;
+		FurinaChannelBalance = preset.Balance;
+		FurinaChannelLeftGainDb = preset.LeftGainDb;
+		FurinaChannelRightGainDb = preset.RightGainDb;
+		FurinaChannelTrimStepDb = preset.TrimStepDb;
+		FurinaChannelConstantPower = preset.ConstantPower;
+		FurinaChannelLeftDelayMs = preset.LeftDelayMs;
+		FurinaChannelRightDelayMs = preset.RightDelayMs;
+		FurinaChannelLowLeftGainDb = preset.LowLeftGainDb;
+		FurinaChannelLowRightGainDb = preset.LowRightGainDb;
+		FurinaChannelMidLeftGainDb = preset.MidLeftGainDb;
+		FurinaChannelMidRightGainDb = preset.MidRightGainDb;
+		FurinaChannelHighLeftGainDb = preset.HighLeftGainDb;
+		FurinaChannelHighRightGainDb = preset.HighRightGainDb;
+		FurinaChannelMonoMode = preset.MonoMode;
+		FurinaChannelSwapLeftRight = preset.SwapLeftRight;
+		FurinaChannelInvertLeft = preset.InvertLeft;
+		FurinaChannelInvertRight = preset.InvertRight;
+		FurinaChannelToolEnabled = true;
+		FurinaChannelCompareBypassed = false;
+		ApplyChannelToolSettings(true);
+	}
+
+	public void DeleteChannelPreset(string id)
+	{
+		var found = FurinaChannelPresets.FirstOrDefault(p => p.Id == id);
+		if (found != null)
+		{
+			FurinaChannelPresets.Remove(found);
+			SaveEchoSettings();
+		}
+	}
+
+	public void RenameChannelPreset(string id, string newName)
+	{
+		var found = FurinaChannelPresets.FirstOrDefault(p => p.Id == id);
+		if (found != null && !string.IsNullOrWhiteSpace(newName))
+		{
+			found.Name = newName.Trim();
+			SaveEchoSettings();
+		}
+	}
+
+	#endregion
 }
