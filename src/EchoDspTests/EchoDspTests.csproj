@@ -5,10 +5,11 @@
     <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <PlatformTarget>x64</PlatformTarget>
     <Nullable>enable</Nullable>
-    <LangVersion>14.0</LangVersion>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SonicWave.Core\SonicWave.Core.csproj" />
     <ProjectReference Include="..\SonicWave.Audio\SonicWave.Audio.csproj" />
   </ItemGroup>
 </Project>
+

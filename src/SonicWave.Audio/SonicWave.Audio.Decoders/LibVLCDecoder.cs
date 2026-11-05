@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -17,7 +18,18 @@ public sealed class LibVLCDecoder : IDisposable
 
 	private double[]? _lastEqGains;
 
-	public bool IsAvailable => _player != null;
+	public bool IsAvailable
+	{
+		get
+		{
+			if (_player != null) return true;
+			if (ResolveLibVlcDirectory() != null)
+			{
+				return Initialize();
+			}
+			return false;
+		}
+	}
 
 	public TimeSpan Position => TimeSpan.FromMilliseconds(_player?.Time ?? 0);
 
@@ -104,14 +116,24 @@ public sealed class LibVLCDecoder : IDisposable
 	private static string? ResolveLibVlcDirectory()
 	{
 		string baseDirectory = AppContext.BaseDirectory;
-		string[] array = new string[4]
+		var candidates = new List<string>
 		{
 			Path.Combine(baseDirectory, "libvlc", "win-x64"),
 			Path.Combine(baseDirectory, "libvlc", "win-x86"),
 			Path.Combine(baseDirectory, "libvlc"),
 			baseDirectory
 		};
-		foreach (string text in array)
+
+		// Also check parent directories if running from bin/Release/net8.0/...
+		string? current = baseDirectory;
+		for (int i = 0; i < 4 && current != null; i++)
+		{
+			candidates.Add(Path.Combine(current, "libvlc", "win-x64"));
+			candidates.Add(Path.Combine(current, "libvlc"));
+			current = Directory.GetParent(current)?.FullName;
+		}
+
+		foreach (string text in candidates)
 		{
 			try
 			{

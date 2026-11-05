@@ -101,8 +101,8 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock x:ConnectionId='8' x:Name="PositionText" Grid.Column="0" Text="00:00" FontSize="11" Opacity="0.85"
-                               VerticalAlignment="Center" MinWidth="38" Width="Auto" TextAlignment="Right" />
+                    <TextBlock x:ConnectionId='8' x:Name="PositionText" Grid.Column="0" Text="00:00" FontSize="11" Opacity="0.75"
+                               VerticalAlignment="Center" Width="36" TextAlignment="Right" />
 
                     <Slider x:ConnectionId='7' Grid.Column="1" Minimum="0" Maximum="100"
                             Value="{Binding PositionPercent, Mode=OneWay}"
@@ -116,8 +116,8 @@
                         </Slider.Resources>
                     </Slider>
 
-                    <TextBlock x:ConnectionId='9' x:Name="DurationText" Grid.Column="2" Text="00:00" FontSize="11" Opacity="0.85"
-                               VerticalAlignment="Center" MinWidth="38" Width="Auto" TextAlignment="Left" />
+                    <TextBlock x:ConnectionId='9' x:Name="DurationText" Grid.Column="2" Text="00:00" FontSize="11" Opacity="0.75"
+                               VerticalAlignment="Center" Width="36" TextAlignment="Left" />
                 </Grid>
             </Grid>
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -4482,6 +4482,14 @@ public sealed class DspPage : Page, IComponentConnector
 	private FrameworkElement CreateWrappedCard(string title, string glyph, Border? innerCard)
 	{
 		if (innerCard == null) return new Grid();
+		if (innerCard.Parent is Border parentBorder)
+		{
+			parentBorder.Child = null;
+		}
+		else if (innerCard.Parent is Panel parentPanel)
+		{
+			parentPanel.Children.Remove(innerCard);
+		}
 		innerCard.HorizontalAlignment = HorizontalAlignment.Stretch;
 		innerCard.VerticalAlignment = VerticalAlignment.Stretch;
 		innerCard.Width = double.NaN;

@@ -8,7 +8,7 @@
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup>
-    <LangVersion>14.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
     <Nullable>enable</Nullable>
@@ -68,3 +68,4 @@
     </Reference>
   </ItemGroup>
 </Project>
+

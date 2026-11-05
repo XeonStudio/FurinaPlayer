@@ -105,10 +105,19 @@ public sealed class NAudioDecoder : IDisposable
 				}
 				else
 				{
-					_player = new WaveOutEvent
+					try
 					{
-						DesiredLatency = bufferMs
-					};
+						using MMDeviceEnumerator mMDeviceEnumerator = new MMDeviceEnumerator();
+						using MMDevice defaultDevice = mMDeviceEnumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+						_player = new WasapiOut(defaultDevice, AudioClientShareMode.Shared, useEventSync: false, bufferMs);
+					}
+					catch
+					{
+						_player = new WaveOutEvent
+						{
+							DesiredLatency = bufferMs
+						};
+					}
 				}
 				_player.Init(waveProvider);
 				int gen = Generation;
