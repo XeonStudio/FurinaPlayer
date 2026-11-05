@@ -596,3 +596,35 @@ Tests Completed: 24 | Passed: 24 | Failed: 0 (100% PASS)
   全量免安装便携版发行包：
   `C:\Users\Xeon\Desktop\FurinaPlayer-v1.2.4-win-x64.zip`。
 
+---
+
+## 14. v1.2.5 效果器与 DSP 设置页全域白色亚克力磨砂视觉重构、控件可读性规范化与双仓库完整统一
+
+### 14.1 白色亚克力磨砂材质（White Acrylic Effect）全域重构
+- **WinUI Fluent AcrylicBrush 体系**：
+  - 针对效果器与 DSP 设置页（`DspPage.cs`），放弃原纯黑背景或普通实心白底，全新引入基于 Windows 11 Fluent 视觉语言的白色亚克力磨砂材质。
+  - 构建底层与卡片双层亚克力工厂体系：`CreateWhiteAcrylicBrush`（透光率 0.65~0.75，发光度 0.85，透出底层微光）与 `CreateAcrylicCardBrush`（透光率 0.88，发光度 0.90，搭配半透明灰白边框 `rgba(226, 232, 240, 0.55)`），营造通透立体的高级玻璃感。
+  - 侧边栏（`CreateEchoSidebar`）、参数 EQ 主工作台（`CreateParametricEqWorkbench`）、音量均衡工作台（`CreateVolumeEqualizationWorkbench`）、Headroom 工作台（`CreateHeadroomWorkbench`）及所有嵌套卡片（`CreateWrappedCard`）全面应用白色亚克力。
+  - Skia 2D 图形引擎（`ParametricEqCurveControl.cs`）清屏背景升级为半透明白（`new SKColor(255, 255, 255, 225)`），实现图表与底层亚克力材质的无缝折射渗透。
+
+### 14.2 WCAG AAA 级可读性与控件交互规范化
+- 深度贯彻 `ui-ux-pro-max` 规范：
+  - 标题、大数值全面升级为炭墨黑 `#0F172A`（对比度 > 14:1）；正文与标签使用石板灰 `#1E293B` / `#334155`；辅助说明文字采用 `#64748B`；
+  - 参数调节滑块、输入框、下拉框、胶囊按钮等全部配备半透明微光白底（`rgba(255, 255, 255, 0.82)`）与微边框，确保在白色亚克力底色下轮廓清晰。
+
+### 14.3 GitHub 提交日志与仓库描述异形字符（乱码）根治
+- **故障定位**：
+  - Windows PowerShell 5.1 解析 UTF-8 无 BOM 的发布脚本时默认采用 ANSI/GBK 编码，导致提交信息传递给 `git.exe` 时被错误解析为 ANSI 双字节乱码（“閮ㄧ讲REA...”），进而被 Git 二次转译为 UTF-8 异形字符并在 GitHub 网页端显示为乱码（“闂 Ｉ讲REA...”）。
+- **根治措施**：
+  - 对历史提交 `8daa224` 进行无损修补，采用无 BOM UTF-8 文件规范转写正确的中文提交信息并重新打标强制同步，彻底消除历史异形字符；
+  - 规范后续所有构建与提交流程，强制以 UTF-8 字节流向 Git 传递 commit message 与 tag annotation，彻底杜绝字符集截断与转译异常。
+
+### 14.4 双仓库架构梳理与统一整合
+- **仓库对比**：
+  - 深度比对 `XeonStudio/Furina-Player` 与 `XeonStudio/FurinaPlayer`：主分支历史、核心架构、代码提交已实现 100% 同步对齐（0 diff）；
+  - 全量补齐缺失的历史版本 Tag，通过自动化双路部署保持两仓库在 Releases、Tags、代码分支上始终 100% 镜像一致。
+
+### 14.5 Release 发行包与 GitHub Release API 全自动发布
+- 编译并打包生成最新的免安装发行版：`FurinaPlayer-v1.2.5-win-x64.zip`；
+- 通过 GitHub REST API 与 OAuth Token，向 `XeonStudio/Furina-Player` 正式发布 GitHub Release `v1.2.5` 并上传二进制资源附件。
+

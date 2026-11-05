@@ -439,6 +439,42 @@ public sealed class DspPage : Page, IComponentConnector
 	private Button? _headroomAuditionBtn;
 	private readonly List<Button> _headroomPresetButtons = new();
 
+	public static Brush CreateWhiteAcrylicBrush(double tintOpacity = 0.75, byte fallbackAlpha = 210)
+	{
+		try
+		{
+			return new AcrylicBrush
+			{
+				TintColor = Windows.UI.Color.FromArgb(255, 255, 255, 255),
+				TintOpacity = tintOpacity,
+				TintLuminosityOpacity = 0.85,
+				FallbackColor = Windows.UI.Color.FromArgb(fallbackAlpha, 250, 252, 255)
+			};
+		}
+		catch
+		{
+			return new SolidColorBrush(Windows.UI.Color.FromArgb(fallbackAlpha, 250, 252, 255));
+		}
+	}
+
+	public static Brush CreateAcrylicCardBrush(double tintOpacity = 0.88, byte fallbackAlpha = 235)
+	{
+		try
+		{
+			return new AcrylicBrush
+			{
+				TintColor = Windows.UI.Color.FromArgb(255, 255, 255, 255),
+				TintOpacity = tintOpacity,
+				TintLuminosityOpacity = 0.90,
+				FallbackColor = Windows.UI.Color.FromArgb(fallbackAlpha, 255, 255, 255)
+			};
+		}
+		catch
+		{
+			return new SolidColorBrush(Windows.UI.Color.FromArgb(fallbackAlpha, 255, 255, 255));
+		}
+	}
+
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private IDspPage_Bindings Bindings;
 
@@ -447,6 +483,7 @@ public sealed class DspPage : Page, IComponentConnector
 	public DspPage()
 	{
 		InitializeComponent();
+		Background = CreateWhiteAcrylicBrush(0.65, 185);
 		EqCurveCanvas.Height = 70.0;
 		if (PanelCanvas != null)
 		{
@@ -1335,6 +1372,7 @@ public sealed class DspPage : Page, IComponentConnector
 			rootGrid.RowDefinitions.Clear();
 			rootGrid.ColumnDefinitions.Clear();
 			rootGrid.Padding = new Thickness(0);
+			rootGrid.Background = CreateWhiteAcrylicBrush(0.70, 190);
 
 			// 2-column layout: Col 0 = Left Sidebar (240px), Col 1 = Main Workbench (*)
 			rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240, GridUnitType.Pixel) });
@@ -1346,7 +1384,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 			_workbenchHost = new Grid
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 26, 34))
+				Background = CreateWhiteAcrylicBrush(0.72, 195)
 			};
 			Grid.SetColumn(_workbenchHost, 1);
 			rootGrid.Children.Add(_workbenchHost);
@@ -1366,8 +1404,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var border = new Border
 		{
 			Width = 240,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 24, 30)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+			Background = CreateWhiteAcrylicBrush(0.82, 225),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 226, 232, 240)),
 			BorderThickness = new Thickness(0, 0, 1, 0),
 			Padding = new Thickness(12, 16, 12, 12)
 		};
@@ -1384,20 +1422,20 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "DSP",
 			FontSize = 10,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 205, 235))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
 		});
 		headerStack.Children.Add(new TextBlock
 		{
 			Text = "FurinaPlayer",
 			FontSize = 20,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		});
 		headerStack.Children.Add(new TextBlock
 		{
 			Text = "信号控制",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 205, 230))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
 		});
 		Grid.SetRow(headerStack, 0);
 		sidebarGrid.Children.Add(headerStack);
@@ -1419,7 +1457,7 @@ public sealed class DspPage : Page, IComponentConnector
 				Text = title,
 				FontSize = 11,
 				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 195, 245)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
 				Margin = new Thickness(8, 12, 0, 4)
 			});
 		}
@@ -1447,7 +1485,7 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Glyph = iconGlyph,
 				FontSize = 16,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 215, 255)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 				VerticalAlignment = VerticalAlignment.Center
 			};
 			Grid.SetColumn(icon, 0);
@@ -1459,13 +1497,13 @@ public sealed class DspPage : Page, IComponentConnector
 				Text = title,
 				FontSize = 13,
 				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255))
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
 			};
 			var subTb = new TextBlock
 			{
 				Text = subtitle,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 200, 225))
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
 			};
 			if (key == "headroom")
 			{
@@ -1485,7 +1523,7 @@ public sealed class DspPage : Page, IComponentConnector
 				{
 					Glyph = "\uE73E",
 					FontSize = 12,
-					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 220, 120)),
+					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)),
 					VerticalAlignment = VerticalAlignment.Center
 				};
 				Grid.SetColumn(checkIcon, 2);
@@ -1550,7 +1588,7 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		var root = new Grid
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 24, 28, 36)),
+			Background = CreateWhiteAcrylicBrush(0.72, 195),
 			Padding = new Thickness(24, 20, 24, 20),
 			RowSpacing = 16
 		};
@@ -1569,8 +1607,8 @@ public sealed class DspPage : Page, IComponentConnector
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 40, 52)),
-			Child = new FontIcon { Glyph = "\uE767", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 160, 255)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Child = new FontIcon { Glyph = "\uE767", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
 		};
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
@@ -1578,7 +1616,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "音量均衡",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -1587,8 +1625,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 		var modulePill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 40, 48, 70)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 70, 90, 140)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -1598,15 +1636,15 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 130, 160, 255)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 190, 255)) }
+					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
+					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
 		var readyPill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 28, 44, 38)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 45, 90, 65)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -1616,8 +1654,8 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 220, 130)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 90, 230, 150)) }
+					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
+					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -1629,13 +1667,15 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12 },
-					new TextBlock { Text = "刷新状态", FontSize = 12 }
+					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) },
+					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) }
 				}
 			},
 			Padding = new Thickness(10, 5, 10, 5),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1)
 		};
 		btnRefreshTop.Click += (s, e) => RefreshVolumeEqualizationStatus();
 
@@ -1650,8 +1690,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// --- 1. Library Loudness Notice Card ---
 		var bannerBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 26, 30, 40)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(16, 12, 16, 12)
@@ -1666,13 +1706,13 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "曲库响度",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		});
 		bannerLeftSp.Children.Add(new TextBlock
 		{
 			Text = "先补齐缺失的曲库响度，再按目标均衡。分析会等待暂停或停止播放。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
 		});
 		Grid.SetColumn(bannerLeftSp, 0);
 		bannerGrid.Children.Add(bannerLeftSp);
@@ -1684,7 +1724,8 @@ public sealed class DspPage : Page, IComponentConnector
 			FontSize = 12,
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 160, 255))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium
 		};
 		btnViewLoudness.Click += OnViewLoudnessDataClick;
 
@@ -1695,10 +1736,10 @@ public sealed class DspPage : Page, IComponentConnector
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
 			Padding = new Thickness(14, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 36, 44, 60)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
 		};
 		btnScanLoudness.Click += OnScanLoudnessClick;
 
@@ -1735,7 +1776,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "目标响度",
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		});
 
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
@@ -1750,7 +1791,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = (_rgPowerSwitch.IsOn) ? "已开启" : "未开启",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 160, 175, 195)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_rgPowerSwitch.Toggled += (s, e) =>
@@ -1777,7 +1818,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = $"{ViewModel?.EchoReplayGainTargetLufs ?? -14.0:F1}",
 			FontSize = 52,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		bigNumSp.Children.Add(_rgTargetLufsBigTb);
 		bigNumSp.Children.Add(new TextBlock
@@ -1785,7 +1826,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "LUFS",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 160, 175, 195)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(2, 0, 0, 10)
 		});
@@ -1795,7 +1836,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "让不同歌曲的音量更接近，减少切歌时的忽大忽小。不改写音乐文件。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			Margin = new Thickness(0, 0, 0, 8)
 		});
 
@@ -1837,8 +1878,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var r1 = new Grid();
 		r1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		r1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		r1.Children.Add(new TextBlock { Text = "综合响度", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195)) });
-		_rgAppliedLufsTb = new TextBlock { Text = "--", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 180, 200, 225)) };
+		r1.Children.Add(new TextBlock { Text = "综合响度", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		_rgAppliedLufsTb = new TextBlock { Text = "--", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) };
 		Grid.SetColumn(_rgAppliedLufsTb, 1);
 		r1.Children.Add(_rgAppliedLufsTb);
 		root.Children.Add(r1);
@@ -1847,9 +1888,9 @@ public sealed class DspPage : Page, IComponentConnector
 		var railContainer = new Grid { Height = 14, Margin = new Thickness(0, 2, 0, 2) };
 		var bgLine = new Border
 		{
-			Height = 3,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 40, 48, 62)),
-			CornerRadius = new CornerRadius(1.5),
+			Height = 4,
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			CornerRadius = new CornerRadius(2),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		railContainer.Children.Add(bgLine);
@@ -1859,7 +1900,7 @@ public sealed class DspPage : Page, IComponentConnector
 		_rgTargetRailFill = new Border
 		{
 			Height = 4,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 120, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),
 			CornerRadius = new CornerRadius(2),
 			HorizontalAlignment = HorizontalAlignment.Left,
 			Width = Math.Max(10, 480 * fillPct),
@@ -1875,7 +1916,7 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Width = 1,
 				Height = (i % 2 == 0) ? 8 : 5,
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 100, 120, 150))
+				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184))
 			};
 			tickCanvas.Children.Add(tick);
 		}
@@ -1894,7 +1935,7 @@ public sealed class DspPage : Page, IComponentConnector
 					{
 						Width = 1,
 						Height = (i % 2 == 0) ? 8 : 5,
-						Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 100, 120, 150))
+						Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184))
 					};
 					Canvas.SetLeft(tick, Math.Clamp(x - 0.5, 0, w - 1));
 					Canvas.SetTop(tick, (14 - tick.Height) / 2);
@@ -1913,7 +1954,7 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Text = $"{ticks[i]:F0}",
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 140, 155, 175)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 				HorizontalAlignment = (i == 0) ? HorizontalAlignment.Left : ((i == ticks.Length - 1) ? HorizontalAlignment.Right : HorizontalAlignment.Center)
 			};
 			Grid.SetColumn(tb, i);
@@ -1925,8 +1966,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var r3 = new Grid { Margin = new Thickness(0, 4, 0, 0) };
 		r3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		r3.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		r3.Children.Add(new TextBlock { Text = "目标响度", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195)) });
-		_rgTargetScaleValueTb = new TextBlock { Text = $"{targetLufs:F1} LUFS", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 160, 255)) };
+		r3.Children.Add(new TextBlock { Text = "目标响度", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		_rgTargetScaleValueTb = new TextBlock { Text = $"{targetLufs:F1} LUFS", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) };
 		Grid.SetColumn(_rgTargetScaleValueTb, 1);
 		r3.Children.Add(_rgTargetScaleValueTb);
 		root.Children.Add(r3);
@@ -1963,7 +2004,7 @@ public sealed class DspPage : Page, IComponentConnector
 				Text = title,
 				FontSize = 12,
 				FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
-				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(160, 160, 175, 195))
+				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 100, 116, 139))
 			};
 			stack.Children.Add(titleTb);
 
@@ -1973,13 +2014,13 @@ public sealed class DspPage : Page, IComponentConnector
 				Text = $"{lufs:F0}",
 				FontSize = 24,
 				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Colors.White)
+				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42))
 			});
 			numSp.Children.Add(new TextBlock
 			{
 				Text = "LUFS",
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 160, 175, 195)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 				VerticalAlignment = VerticalAlignment.Bottom,
 				Margin = new Thickness(0, 0, 0, 4)
 			});
@@ -1988,7 +2029,7 @@ public sealed class DspPage : Page, IComponentConnector
 			var indicator = new Border
 			{
 				Height = 2.5,
-				Background = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+				Background = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 				CornerRadius = new CornerRadius(1),
 				Margin = new Thickness(0, 4, 0, 0)
 			};
@@ -2006,7 +2047,7 @@ public sealed class DspPage : Page, IComponentConnector
 		grid.Children.Add(CreatePresetButton(-23.0, "EBU R128", 2));
 
 		var customSp = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		customSp.Children.Add(new TextBlock { Text = "自定义目标", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195)) });
+		customSp.Children.Add(new TextBlock { Text = "自定义目标", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
 		var inputSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		_rgCustomTargetTb = new TextBox
 		{
@@ -2014,8 +2055,9 @@ public sealed class DspPage : Page, IComponentConnector
 			Width = 65,
 			Height = 32,
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 32, 38, 50)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_rgCustomTargetTb.TextChanged += (s, e) =>
@@ -2026,7 +2068,7 @@ public sealed class DspPage : Page, IComponentConnector
 			}
 		};
 		inputSp.Children.Add(_rgCustomTargetTb);
-		inputSp.Children.Add(new TextBlock { Text = "LUFS", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195)), VerticalAlignment = VerticalAlignment.Center });
+		inputSp.Children.Add(new TextBlock { Text = "LUFS", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
 		customSp.Children.Add(inputSp);
 		Grid.SetColumn(customSp, 3);
 		grid.Children.Add(customSp);
@@ -2042,7 +2084,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "模式",
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		});
 
 		var grid = new Grid { ColumnSpacing = 16 };
@@ -2071,7 +2113,7 @@ public sealed class DspPage : Page, IComponentConnector
 				Text = title,
 				FontSize = 14,
 				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Colors.White)
+				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42))
 			};
 			stack.Children.Add(titleTb);
 
@@ -2081,14 +2123,14 @@ public sealed class DspPage : Page, IComponentConnector
 				FontSize = 11,
 				TextWrapping = TextWrapping.Wrap,
 				LineHeight = 16,
-				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(210, 200, 220, 255) : Windows.UI.Color.FromArgb(140, 160, 175, 195))
+				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 67, 56, 202) : Windows.UI.Color.FromArgb(255, 100, 116, 139))
 			};
 			stack.Children.Add(descTb);
 
 			var indicator = new Border
 			{
 				Height = 2.5,
-				Background = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(30, 255, 255, 255)),
+				Background = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 				CornerRadius = new CornerRadius(1),
 				Margin = new Thickness(0, 6, 0, 0)
 			};
@@ -2122,7 +2164,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "前级增益",
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		});
 
 		_rgPreampValueTb = new TextBlock
@@ -2130,7 +2172,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = $"{ViewModel?.EchoReplayGainPreampDb ?? 0.0:+0.0;-0.0;0.0} dB",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		Grid.SetColumn(_rgPreampValueTb, 1);
 		headerGrid.Children.Add(_rgPreampValueTb);
@@ -2160,9 +2202,9 @@ public sealed class DspPage : Page, IComponentConnector
 		labelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		labelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var tbLeft = new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 140, 155, 175)), HorizontalAlignment = HorizontalAlignment.Left };
-		var tbMid = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 140, 155, 175)), HorizontalAlignment = HorizontalAlignment.Center };
-		var tbRight = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 140, 155, 175)), HorizontalAlignment = HorizontalAlignment.Right };
+		var tbLeft = new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left };
+		var tbMid = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		var tbRight = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Right };
 		Grid.SetColumn(tbLeft, 0); Grid.SetColumn(tbMid, 1); Grid.SetColumn(tbRight, 2);
 		labelsGrid.Children.Add(tbLeft); labelsGrid.Children.Add(tbMid); labelsGrid.Children.Add(tbRight);
 		root.Children.Add(labelsGrid);
@@ -2174,8 +2216,8 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 26, 30, 42)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18),
@@ -2194,12 +2236,12 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "当前状态",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		});
 
 		var btnRefreshStatus = new Button
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "刷新", FontSize = 12 } } },
+			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) }, new TextBlock { Text = "刷新", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) } } },
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(6, 2, 6, 2)
@@ -2215,7 +2257,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "当前应用  --",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
 		});
 
 		_rgStatusLargeTb = new TextBlock
@@ -2223,7 +2265,9 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = (ViewModel?.EchoReplayGainEnabled ?? false) ? "已开启" : "未开启",
 			FontSize = 26,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = (ViewModel?.EchoReplayGainEnabled ?? false)
+				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74))
+				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			Margin = new Thickness(0, 6, 0, 4)
 		};
 		appliedSp.Children.Add(_rgStatusLargeTb);
@@ -2234,7 +2278,7 @@ public sealed class DspPage : Page, IComponentConnector
 			FontSize = 12,
 			TextWrapping = TextWrapping.Wrap,
 			LineHeight = 18,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(170, 160, 175, 195))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
 		};
 		appliedSp.Children.Add(_rgStatusDetailTb);
 		stack.Children.Add(appliedSp);
@@ -2243,7 +2287,7 @@ public sealed class DspPage : Page, IComponentConnector
 		stack.Children.Add(new Border
 		{
 			Height = 1,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 			Margin = new Thickness(0, 6, 0, 6)
 		});
 
@@ -2272,7 +2316,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "当增益导致峰值超过 0 dBFS 时自动下调，避免削波失真。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(130, 160, 175, 195)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(28, -6, 0, 0)
 		});
@@ -2288,8 +2332,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var fallbackGrid = new Grid { Margin = new Thickness(0, 4, 0, 0) };
 		fallbackGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		fallbackGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		fallbackGrid.Children.Add(new TextBlock { Text = "未扫描曲目回退增益", FontSize = 12, Opacity = 0.8, VerticalAlignment = VerticalAlignment.Center });
-		var tbFallback = new TextBlock { Text = "-5.0 dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+		fallbackGrid.Children.Add(new TextBlock { Text = "未扫描曲目回退增益", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
+		var tbFallback = new TextBlock { Text = "-5.0 dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), VerticalAlignment = VerticalAlignment.Center };
 		Grid.SetColumn(tbFallback, 1);
 		fallbackGrid.Children.Add(tbFallback);
 		advStack.Children.Add(fallbackGrid);
@@ -2297,8 +2341,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var protoGrid = new Grid { Margin = new Thickness(0, 2, 0, 6) };
 		protoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		protoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		protoGrid.Children.Add(new TextBlock { Text = "响度分析协议", FontSize = 12, Opacity = 0.8, VerticalAlignment = VerticalAlignment.Center });
-		var tbProto = new TextBlock { Text = "EBU R128 / BS.1770-4", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 160, 255)), VerticalAlignment = VerticalAlignment.Center };
+		protoGrid.Children.Add(new TextBlock { Text = "响度分析协议", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
+		var tbProto = new TextBlock { Text = "EBU R128 / BS.1770-4", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
 		Grid.SetColumn(tbProto, 1);
 		protoGrid.Children.Add(tbProto);
 		advStack.Children.Add(protoGrid);
@@ -2309,7 +2353,11 @@ public sealed class DspPage : Page, IComponentConnector
 			FontSize = 12,
 			HorizontalAlignment = HorizontalAlignment.Right,
 			Padding = new Thickness(10, 4, 10, 4),
-			CornerRadius = new CornerRadius(6)
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		};
 		btnRestoreRec.Click += (s, e) =>
 		{
@@ -2351,12 +2399,12 @@ public sealed class DspPage : Page, IComponentConnector
 			if (btn.Tag is double val && btn.Content is StackPanel sp && sp.Children.Count >= 3)
 			{
 				bool isSel = Math.Abs(val - lufs) < 0.2;
-				if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(160, 160, 175, 195));
+				if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 100, 116, 139));
 				if (sp.Children[1] is StackPanel spNum && spNum.Children.Count >= 1 && spNum.Children[0] is TextBlock tNum)
 				{
-					tNum.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Colors.White);
+					tNum.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42));
 				}
-				if (sp.Children[2] is Border ind) ind.Background = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(40, 255, 255, 255));
+				if (sp.Children[2] is Border ind) ind.Background = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 226, 232, 240));
 			}
 		}
 	}
@@ -2372,8 +2420,9 @@ public sealed class DspPage : Page, IComponentConnector
 			if (btn.Tag is int idx && btn.Content is StackPanel sp && sp.Children.Count >= 3)
 			{
 				bool isSel = (idx == modeIdx);
-				if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Colors.White);
-				if (sp.Children[2] is Border ind) ind.Background = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 100, 140, 255) : Windows.UI.Color.FromArgb(30, 255, 255, 255));
+				if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42));
+				if (sp.Children[1] is TextBlock tDesc) tDesc.Foreground = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 67, 56, 202) : Windows.UI.Color.FromArgb(255, 100, 116, 139));
+				if (sp.Children[2] is Border ind) ind.Background = new SolidColorBrush(isSel ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 226, 232, 240));
 			}
 		}
 	}
@@ -2382,7 +2431,13 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		if (ViewModel == null) return;
 		bool on = ViewModel.EchoReplayGainEnabled;
-		if (_rgStatusLargeTb != null) _rgStatusLargeTb.Text = on ? "已开启" : "未开启";
+		if (_rgStatusLargeTb != null)
+		{
+			_rgStatusLargeTb.Text = on ? "已开启" : "未开启";
+			_rgStatusLargeTb.Foreground = on
+				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74))
+				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42));
+		}
 		if (_rgStatusDetailTb != null)
 		{
 			_rgStatusDetailTb.Text = on
@@ -2423,7 +2478,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 		var root = new Grid
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 24, 28, 36)),
+			Background = CreateWhiteAcrylicBrush(0.72, 195),
 			Padding = new Thickness(24, 20, 24, 20),
 			RowSpacing = 16
 		};
@@ -2444,8 +2499,8 @@ public sealed class DspPage : Page, IComponentConnector
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 40, 52)),
-			Child = new FontIcon { Glyph = "\uE916", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 160, 255)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Child = new FontIcon { Glyph = "\uE916", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
 		};
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
@@ -2453,7 +2508,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "Headroom",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -2462,8 +2517,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 		var modulePill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 40, 48, 70)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 70, 90, 140)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -2473,15 +2528,15 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 130, 160, 255)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 190, 255)) }
+					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
+					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
 		var readyPill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 28, 44, 38)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 45, 90, 65)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -2491,8 +2546,8 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 220, 130)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 90, 230, 150)) }
+					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
+					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -2504,13 +2559,15 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12 },
-					new TextBlock { Text = "刷新状态", FontSize = 12 }
+					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) },
+					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) }
 				}
 			},
 			Padding = new Thickness(10, 5, 10, 5),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1)
 		};
 		topActionsSp.Children.Add(modulePill);
 		topActionsSp.Children.Add(readyPill);
@@ -2523,8 +2580,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// --- 1. 增益与峰值安全 卡片 ---
 		var safetyCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 14, 18, 14)
@@ -2532,8 +2589,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var safetyStack = new StackPanel { Spacing = 10 };
 
 		var safetyTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
-		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 180, 215)), VerticalAlignment = VerticalAlignment.Center });
+		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
+		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
 		safetyStack.Children.Add(safetyTitleSp);
 
 		var indGrid3 = new Grid { ColumnSpacing = 16 };
@@ -2541,9 +2598,9 @@ public sealed class DspPage : Page, IComponentConnector
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
-		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
-		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 240)) };
+		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
 		Grid.SetColumn(ind1, 0); indGrid3.Children.Add(ind1);
 		Grid.SetColumn(ind2, 1); indGrid3.Children.Add(ind2);
 		Grid.SetColumn(ind3, 2); indGrid3.Children.Add(ind3);
@@ -2558,8 +2615,8 @@ public sealed class DspPage : Page, IComponentConnector
 		StackPanel MakeMetricBox(string label, string val)
 		{
 			var box = new StackPanel { Spacing = 2 };
-			box.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
-			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+			box.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
 			return box;
 		}
 		var m1 = MakeMetricBox("限幅前", "未知");
@@ -2576,7 +2633,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只需覆盖所报告的阶段。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 175, 205)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -2587,19 +2644,22 @@ public sealed class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 4, 0, 4),
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 175, 240))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium
 		};
 		var foldContent = new Border
 		{
 			Visibility = Visibility.Collapsed,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 20, 24, 34)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 10, 12, 10),
 			Child = new TextBlock
 			{
 				Text = "在 32 位浮点架构下，DSP 信号链内部可保留大于 0 dBFS 的电平余量，不会发生数字硬削波截断。Headroom 控制位于主输出级，可在进入声卡 DAC 之前预留安全的采样间真实峰值 (True Peak) 余量，结合限幅器确保无失真高保真还原。",
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 210, 235)),
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)),
 				TextWrapping = TextWrapping.Wrap
 			}
 		};
@@ -2626,8 +2686,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// --- 2. 动态等响补偿 ---
 		var dynLoudCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(18, 12, 18, 12)
@@ -2641,7 +2701,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "动态等响补偿",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(dynLoudTitleTb, 0);
@@ -2683,8 +2743,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// 左列：主增益卡片
 		var gainCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(22, 18, 22, 18)
@@ -2700,7 +2760,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "增益",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Center
 		});
 
@@ -2722,7 +2782,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = $"{ViewModel?.EchoHeadroomDb ?? -3.0:0.#}",
 			FontSize = 54,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
 		var unitTb = new TextBlock
@@ -2730,7 +2790,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "dB",
 			FontSize = 26,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 175, 195, 220)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(0, 0, 0, 8)
 		};
@@ -2744,7 +2804,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = $"×{initRatio:F3}  {initRatio * 100.0:F1}% amplitude",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			Margin = new Thickness(2, 0, 0, 10)
 		};
 		gainStack.Children.Add(_headroomAmpRatioTb);
@@ -2765,7 +2825,10 @@ public sealed class DspPage : Page, IComponentConnector
 			Padding = new Thickness(0),
 			HorizontalContentAlignment = HorizontalAlignment.Center,
 			VerticalContentAlignment = VerticalAlignment.Center,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 42, 50, 68))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnMinus, "减少 Headroom 增益 0.5 dB");
 		ToolTipService.SetToolTip(btnMinus, "步进减少 0.5 dB (下限 -12 dB)");
@@ -2792,14 +2855,14 @@ public sealed class DspPage : Page, IComponentConnector
 		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		scaleGrid.Children.Add(new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Left });
-		var sc2 = new TextBlock { Text = "-6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center };
+		scaleGrid.Children.Add(new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left });
+		var sc2 = new TextBlock { Text = "-6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc2, 1); scaleGrid.Children.Add(sc2);
-		var sc3 = new TextBlock { Text = "0 dB", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center };
+		var sc3 = new TextBlock { Text = "0 dB", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc3, 2); scaleGrid.Children.Add(sc3);
-		var sc4 = new TextBlock { Text = "+6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center };
+		var sc4 = new TextBlock { Text = "+6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc4, 3); scaleGrid.Children.Add(sc4);
-		var sc5 = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Right };
+		var sc5 = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Right };
 		Grid.SetColumn(sc5, 4); scaleGrid.Children.Add(sc5);
 		sliderColSp.Children.Add(scaleGrid);
 
@@ -2817,7 +2880,10 @@ public sealed class DspPage : Page, IComponentConnector
 			Padding = new Thickness(0),
 			HorizontalContentAlignment = HorizontalAlignment.Center,
 			VerticalContentAlignment = VerticalAlignment.Center,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 42, 50, 68))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnPlus, "增加 Headroom 增益 0.5 dB");
 		ToolTipService.SetToolTip(btnPlus, "步进增加 0.5 dB (上限 +12 dB)");
@@ -2838,14 +2904,14 @@ public sealed class DspPage : Page, IComponentConnector
 				Padding = new Thickness(14, 6, 14, 6),
 				CornerRadius = new CornerRadius(8),
 				BorderThickness = new Thickness(1),
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 32, 38, 52)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255))
+				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225))
 			};
 			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pillBtn, $"快速应用 {label} {targetDb:+0;-0;0} dB");
 			ToolTipService.SetToolTip(pillBtn, $"快速切换至 {label} {targetDb:+0;-0;0} dB");
 			var contentSp = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
-			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)), HorizontalAlignment = HorizontalAlignment.Center });
-			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), HorizontalAlignment = HorizontalAlignment.Center });
+			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center });
+			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Center });
 			pillBtn.Content = contentSp;
 			pillBtn.Click += (s, e) =>
 			{
@@ -2868,14 +2934,14 @@ public sealed class DspPage : Page, IComponentConnector
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE7F6", FontSize = 13 },
-					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium }
+					new FontIcon { Glyph = "\uE7F6", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
+					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) }
 				}
 			},
 			Padding = new Thickness(14, 8, 14, 8),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 44, 60)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1)
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomAuditionBtn, "按住临时直通试听");
@@ -2916,7 +2982,7 @@ public sealed class DspPage : Page, IComponentConnector
 		{
 			Text = "向右提高增益会直接加大音量。还没有峰值读数，安全范围先按不超过 0 dB。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 175, 205)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			Margin = new Thickness(0, 10, 0, 0)
 		});
 
@@ -2927,8 +2993,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// 右列：340px 实时余量卡片
 		var rightCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 18, 20, 18)
@@ -2940,7 +3006,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "实时余量",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		});
 
 		rightStack.Children.Add(new TextBlock
@@ -2948,20 +3014,20 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "-- --",
 			FontSize = 38,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 190, 220)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
 			Margin = new Thickness(0, 4, 0, 2)
 		});
 
 		var lampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 50, 215, 75)) };
+		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) };
 		lampSp.Children.Add(lampDot);
-		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
+		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
 		rightStack.Children.Add(lampSp);
 
 		var recoCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 36, 44, 60)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 248, 250, 252)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(16, 14, 16, 14),
@@ -2970,8 +3036,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var recoStack = new StackPanel { Spacing = 8 };
 
 		var recoHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 190, 240)) });
-		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 170, 195, 230)) });
+		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
+		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
 		recoStack.Children.Add(recoHeadSp);
 
 		recoStack.Children.Add(new TextBlock
@@ -2979,13 +3045,13 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "保持待命",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White)
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		});
 		recoStack.Children.Add(new TextBlock
 		{
 			Text = "有 DSP 模块开启，但暂未检测到风险。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 200, 225)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -2993,10 +3059,10 @@ public sealed class DspPage : Page, IComponentConnector
 		var btnApplyNeg3 = new Button
 		{
 			Content = "应用 -3 dB",
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Padding = new Thickness(12, 6, 12, 6),
+			Padding = new Thickness(14, 7, 14, 7),
 			CornerRadius = new CornerRadius(8)
 		};
 		btnApplyNeg3.Click += (s, e) =>
@@ -3006,11 +3072,11 @@ public sealed class DspPage : Page, IComponentConnector
 		var btnSetNeg6 = new Button
 		{
 			Content = "设为 -6 dB",
-			Background = new SolidColorBrush(Colors.Transparent),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 255, 255, 255)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Colors.White),
-			Padding = new Thickness(12, 6, 12, 6),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+			Padding = new Thickness(14, 7, 14, 7),
 			CornerRadius = new CornerRadius(8)
 		};
 		btnSetNeg6.Click += (s, e) =>
@@ -3034,8 +3100,8 @@ public sealed class DspPage : Page, IComponentConnector
 		// --- 4. 底部 Headroom 预算卡片 ---
 		var budgetCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 16)
@@ -3047,17 +3113,19 @@ public sealed class DspPage : Page, IComponentConnector
 		budgetHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var budgetHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Colors.White) });
-		budgetHeadSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 150, 180, 215)), VerticalAlignment = VerticalAlignment.Center });
+		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
+		budgetHeadSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
 		Grid.SetColumn(budgetHeadSp, 0);
 		budgetHeadGrid.Children.Add(budgetHeadSp);
 
 		var btnRefreshBudget = new Button
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "刷新状态", FontSize = 12 } } },
+			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) }, new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) } } },
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1)
 		};
 		Grid.SetColumn(btnRefreshBudget, 1);
 		budgetHeadGrid.Children.Add(btnRefreshBudget);
@@ -3071,16 +3139,16 @@ public sealed class DspPage : Page, IComponentConnector
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		meterScaleGrid.Children.Add(new TextBlock { Text = "-24", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Left });
-		var ms1 = new TextBlock { Text = "-18", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		meterScaleGrid.Children.Add(new TextBlock { Text = "-24", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left });
+		var ms1 = new TextBlock { Text = "-18", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms1, 1); meterScaleGrid.Children.Add(ms1);
-		var ms2 = new TextBlock { Text = "-12", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms2 = new TextBlock { Text = "-12", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms2, 2); meterScaleGrid.Children.Add(ms2);
-		var ms3 = new TextBlock { Text = "-6", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms3 = new TextBlock { Text = "-6", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms3, 3); meterScaleGrid.Children.Add(ms3);
-		var ms4 = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms4 = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms4, 4); meterScaleGrid.Children.Add(ms4);
-		var msUnit = new TextBlock { Text = "dBFS", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)), Margin = new Thickness(8, 0, 0, 0) };
+		var msUnit = new TextBlock { Text = "dBFS", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), Margin = new Thickness(8, 0, 0, 0) };
 		Grid.SetColumn(msUnit, 5); meterScaleGrid.Children.Add(msUnit);
 		budgetStack.Children.Add(meterScaleGrid);
 
@@ -3091,7 +3159,7 @@ public sealed class DspPage : Page, IComponentConnector
 			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Pixel) });
 
-			var lblTb = new TextBlock { Text = label, FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)), VerticalAlignment = VerticalAlignment.Center };
+			var lblTb = new TextBlock { Text = label, FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)), VerticalAlignment = VerticalAlignment.Center };
 			Grid.SetColumn(lblTb, 0); row.Children.Add(lblTb);
 
 			var segSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
@@ -3103,14 +3171,14 @@ public sealed class DspPage : Page, IComponentConnector
 					Height = 14,
 					CornerRadius = new CornerRadius(1),
 					Background = (i == 0)
-						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 50, 150, 255))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255))
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240))
 				};
 				segSp.Children.Add(seg);
 			}
 			Grid.SetColumn(segSp, 1); row.Children.Add(segSp);
 
-			var valTb = new TextBlock { Text = "--", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 190, 255)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+			var valTb = new TextBlock { Text = "--", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
 			Grid.SetColumn(valTb, 2); row.Children.Add(valTb);
 			return row;
 		}
@@ -3126,7 +3194,8 @@ public sealed class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 6, 0, 2),
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 175, 240))
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium
 		};
 		var statusFoldContent = new Grid { Margin = new Thickness(0, 4, 0, 0), ColumnSpacing = 16 };
 		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -3138,12 +3207,12 @@ public sealed class DspPage : Page, IComponentConnector
 		StackPanel MakeStatusStat(string statTitle, string statVal, Windows.UI.Color? col = null)
 		{
 			var sp = new StackPanel { Spacing = 2 };
-			sp.Children.Add(new TextBlock { Text = statTitle, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 160, 185, 215)) });
-			sp.Children.Add(new TextBlock { Text = statVal, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(col ?? Colors.White) });
+			sp.Children.Add(new TextBlock { Text = statTitle, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+			sp.Children.Add(new TextBlock { Text = statVal, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(col ?? Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
 			return sp;
 		}
-		var st1 = MakeStatusStat("保护状态", "待命", Windows.UI.Color.FromArgb(255, 50, 215, 75));
-		var st2 = MakeStatusStat("削波次数", "0 次", Windows.UI.Color.FromArgb(255, 50, 215, 75));
+		var st1 = MakeStatusStat("保护状态", "待命", Windows.UI.Color.FromArgb(255, 22, 163, 74));
+		var st2 = MakeStatusStat("削波次数", "0 次", Windows.UI.Color.FromArgb(255, 22, 163, 74));
 		var st3 = MakeStatusStat("最近削波", "无记录");
 		var st4 = MakeStatusStat("True Peak", "--");
 		var st5 = MakeStatusStat("实时余量", "--");
@@ -3190,11 +3259,16 @@ public sealed class DspPage : Page, IComponentConnector
 				{
 					bool isMatch = Math.Abs(targetDb - db) < 0.1;
 					btn.Background = isMatch
-						? new SolidColorBrush(Windows.UI.Color.FromArgb(180, 99, 102, 241))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 32, 38, 52));
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
 					btn.BorderBrush = isMatch
-						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 140, 160, 255))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255));
+						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225));
+					if (btn.Content is StackPanel sp && sp.Children.Count >= 2)
+					{
+						if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isMatch ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 100, 116, 139));
+						if (sp.Children[1] is TextBlock t2) t2.Foreground = new SolidColorBrush(isMatch ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42));
+					}
 				}
 			}
 		}
@@ -3243,7 +3317,7 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		var root = new Grid
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 24, 28, 36)),
+			Background = CreateWhiteAcrylicBrush(0.72, 195),
 			Padding = new Thickness(24, 20, 24, 20),
 			RowSpacing = 14
 		};
@@ -3262,7 +3336,7 @@ public sealed class DspPage : Page, IComponentConnector
 			Text = "参数 EQ",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Colors.White),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), // Slate 900
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		leftTitleSp.Children.Add(titleTb);
@@ -3288,28 +3362,69 @@ public sealed class DspPage : Page, IComponentConnector
 
 		var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
-		// Simple / Pro segmented button
+		// Simple / Pro segmented button (White Acrylic styled)
 		var modeBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 35, 42, 54)),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 241, 245, 249)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(2)
 		};
 		var modeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-		var btnSimple = new Button { Content = "Simple", Padding = new Thickness(10, 3, 10, 3), CornerRadius = new CornerRadius(12), FontSize = 12, Background = new SolidColorBrush(Colors.Transparent), BorderThickness = new Thickness(0) };
-		var btnPro = new Button { Content = "Pro", Padding = new Thickness(10, 3, 10, 3), CornerRadius = new CornerRadius(12), FontSize = 12, Background = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 255, 255, 255)), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 20, 24, 32)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, BorderThickness = new Thickness(0) };
+		var btnSimple = new Button
+		{
+			Content = "Simple",
+			Padding = new Thickness(12, 3, 12, 3),
+			CornerRadius = new CornerRadius(12),
+			FontSize = 12,
+			Background = new SolidColorBrush(Colors.Transparent),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), // Slate 500
+			BorderThickness = new Thickness(0)
+		};
+		var btnPro = new Button
+		{
+			Content = "Pro",
+			Padding = new Thickness(12, 3, 12, 3),
+			CornerRadius = new CornerRadius(12),
+			FontSize = 12,
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), // Slate 900
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			BorderThickness = new Thickness(0)
+		};
+		btnSimple.Click += (s, e) =>
+		{
+			btnSimple.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
+			btnSimple.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42));
+			btnSimple.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+			btnPro.Background = new SolidColorBrush(Colors.Transparent);
+			btnPro.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
+			btnPro.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+		};
+		btnPro.Click += (s, e) =>
+		{
+			btnPro.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
+			btnPro.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42));
+			btnPro.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+			btnSimple.Background = new SolidColorBrush(Colors.Transparent);
+			btnSimple.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
+			btnSimple.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
+		};
 		modeSp.Children.Add(btnSimple);
 		modeSp.Children.Add(btnPro);
 		modeBorder.Child = modeSp;
 		rightSp.Children.Add(modeBorder);
 
-		// Preset Dropdown
+		// Preset Dropdown (Translucent White Acrylic)
 		var presetCombo = new ComboBox
 		{
 			MinWidth = 240,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 32, 38, 48)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 255, 255, 255))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		string[] presets = {
 			"平坦 (Flat)",
@@ -3333,7 +3448,7 @@ public sealed class DspPage : Page, IComponentConnector
 		};
 		rightSp.Children.Add(presetCombo);
 
-		// Spectrum button
+		// Spectrum button (White Acrylic)
 		var btnSpectrum = new Button
 		{
 			Content = new StackPanel
@@ -3343,7 +3458,11 @@ public sealed class DspPage : Page, IComponentConnector
 				Children = { new FontIcon { Glyph = "\uE9D9", FontSize = 14 }, new TextBlock { Text = "频谱", FontSize = 12, VerticalAlignment = VerticalAlignment.Center } }
 			},
 			Padding = new Thickness(10, 4, 10, 4),
-			CornerRadius = new CornerRadius(8)
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		};
 		btnSpectrum.Click += (s, e) =>
 		{
@@ -3351,16 +3470,49 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				_eqCurveControl.ShowSpectrum = !_eqCurveControl.ShowSpectrum;
 				btnSpectrum.Background = _eqCurveControl.ShowSpectrum
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(180, 0, 180, 255))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(100, 35, 42, 54));
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(235, 238, 242, 255))
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255));
+				btnSpectrum.BorderBrush = _eqCurveControl.ShowSpectrum
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240));
+				btnSpectrum.Foreground = _eqCurveControl.ShowSpectrum
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85));
 			}
 		};
 		rightSp.Children.Add(btnSpectrum);
 
 		// Undo / Redo / Reset buttons
-		var btnUndo = new Button { Content = new FontIcon { Glyph = "\uE7A7", FontSize = 13 }, Padding = new Thickness(8, 4, 8, 4), CornerRadius = new CornerRadius(8) };
-		var btnRedo = new Button { Content = new FontIcon { Glyph = "\uE7A6", FontSize = 13 }, Padding = new Thickness(8, 4, 8, 4), CornerRadius = new CornerRadius(8) };
-		var btnResetCurve = new Button { Content = new FontIcon { Glyph = "\uE72C", FontSize = 13 }, Padding = new Thickness(8, 4, 8, 4), CornerRadius = new CornerRadius(8) };
+		var btnUndo = new Button
+		{
+			Content = new FontIcon { Glyph = "\uE7A7", FontSize = 13 },
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+		};
+		var btnRedo = new Button
+		{
+			Content = new FontIcon { Glyph = "\uE7A6", FontSize = 13 },
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+		};
+		var btnResetCurve = new Button
+		{
+			Content = new FontIcon { Glyph = "\uE72C", FontSize = 13 },
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+		};
 		btnResetCurve.Click += (s, e) => ResetEqBandsToFlat();
 		rightSp.Children.Add(btnUndo);
 		rightSp.Children.Add(btnRedo);
@@ -3368,10 +3520,48 @@ public sealed class DspPage : Page, IComponentConnector
 
 		// Scale Controls: + ±12 dB - | 自动
 		var scaleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
-		var btnZoomIn = new Button { Content = "+", Padding = new Thickness(6, 2, 6, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
-		var tbScale = new TextBlock { Text = "±12 dB", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 230, 240, 255)) };
-		var btnZoomOut = new Button { Content = "-", Padding = new Thickness(6, 2, 6, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
-		var btnAuto = new Button { Content = "自动", Padding = new Thickness(8, 2, 8, 2), FontSize = 12, CornerRadius = new CornerRadius(6) };
+		var btnZoomIn = new Button
+		{
+			Content = "+",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 12,
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
+		var tbScale = new TextBlock
+		{
+			Text = "±12 dB",
+			FontSize = 12,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center,
+			Margin = new Thickness(6, 0, 6, 0),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) // Slate 900
+		};
+		var btnZoomOut = new Button
+		{
+			Content = "-",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 12,
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
+		var btnAuto = new Button
+		{
+			Content = "自动",
+			Padding = new Thickness(10, 2, 10, 2),
+			FontSize = 12,
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		btnZoomIn.Click += (s, e) =>
 		{
 			if (_eqCurveControl != null && _eqCurveControl.DbRange > 6.0)
@@ -3407,12 +3597,20 @@ public sealed class DspPage : Page, IComponentConnector
 		};
 		var bodyStack = new StackPanel { Spacing = 14 };
 
-		// A. Large Interactive EQ Curve Display (ParametricEqCurveControl)
+		// A. Large Interactive EQ Curve Display (ParametricEqCurveControl) wrapped in White Acrylic Border
 		_eqCurveControl = new ParametricEqCurveControl
 		{
 			Height = 330,
-			HorizontalAlignment = HorizontalAlignment.Stretch,
-			Margin = new Thickness(0, 4, 0, 4)
+			HorizontalAlignment = HorizontalAlignment.Stretch
+		};
+		var curveCard = new Border
+		{
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(2),
+			Child = _eqCurveControl
 		};
 		if (ViewModel != null)
 		{
@@ -3421,14 +3619,16 @@ public sealed class DspPage : Page, IComponentConnector
 		}
 		_eqCurveControl.BandSelected += (idx) => SelectEqBand(idx);
 		_eqCurveControl.BandChanged += (idx, freq, gain) => OnCurveBandMoved(idx, freq, gain);
-		bodyStack.Children.Add(_eqCurveControl);
+		bodyStack.Children.Add(curveCard);
 
-		// B. Band Carousel / Horizontal Pill List Row
+		// B. Band Carousel / Horizontal Pill List Row (White Acrylic)
 		var carouselCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 20, 24, 32)),
-			CornerRadius = new CornerRadius(10),
-			Padding = new Thickness(12, 8, 12, 8)
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(16, 12, 16, 12)
 		};
 		var carouselGrid = new Grid();
 		carouselGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Status text & compare
@@ -3439,15 +3639,51 @@ public sealed class DspPage : Page, IComponentConnector
 		statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var statusLeftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		statusLeftSp.Children.Add(new TextBlock { Text = "● 待确认 余量 -0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 220, 140)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-		statusLeftSp.Children.Add(new TextBlock { Text = "待改前", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)) });
-		statusLeftSp.Children.Add(new TextBlock { Text = "待改后", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 190, 215, 240)) });
+		statusLeftSp.Children.Add(new TextBlock
+		{
+			Text = "● 待确认 余量 -0.0 dB",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), // Green 600
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		});
+		statusLeftSp.Children.Add(new TextBlock
+		{
+			Text = "待改前",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) // Slate 500
+		});
+		statusLeftSp.Children.Add(new TextBlock
+		{
+			Text = "待改后",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) // Slate 500
+		});
 		Grid.SetColumn(statusLeftSp, 0);
 		statusRow.Children.Add(statusLeftSp);
 
-		var compareRightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		var btnAb = new Button { Content = "⇄ A/B 对比", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(6) };
-		var btnLoudness = new Button { Content = "实时等响对比", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(6) };
+		var compareRightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+		var btnAb = new Button
+		{
+			Content = "⇄ A/B 对比",
+			Padding = new Thickness(10, 4, 10, 4),
+			FontSize = 11,
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
+		var btnLoudness = new Button
+		{
+			Content = "实时等响对比",
+			Padding = new Thickness(10, 4, 10, 4),
+			FontSize = 11,
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		compareRightSp.Children.Add(btnAb);
 		compareRightSp.Children.Add(btnLoudness);
 		Grid.SetColumn(compareRightSp, 1);
@@ -3484,14 +3720,14 @@ public sealed class DspPage : Page, IComponentConnector
 	{
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 28, 33, 44)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(50, 255, 255, 255)),
+			Background = CreateAcrylicCardBrush(0.90, 240),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)), // Slate 200 (#E2E8F0)
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(16, 14, 16, 14)
+			Padding = new Thickness(18, 16, 18, 16)
 		};
 
-		var stack = new StackPanel { Spacing = 12 };
+		var stack = new StackPanel { Spacing = 14 };
 
 		// Row 1: Band badge, Filter Type ComboBox, Enable checkbox, Reset, Delete
 		var row1 = new Grid { ColumnSpacing = 12 };
@@ -3503,17 +3739,17 @@ public sealed class DspPage : Page, IComponentConnector
 		_bandIndexBadge = new TextBlock
 		{
 			Text = "01",
-			FontSize = 14,
+			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 200, 255)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600
 			VerticalAlignment = VerticalAlignment.Center,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		var badgeBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(60, 0, 180, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 0, 180, 255)),
-			BorderThickness = new Thickness(1),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)), // Indigo 50 (#EEF2FF)
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), // Indigo 500 (#6366F1)
+			BorderThickness = new Thickness(1.2),
 			CornerRadius = new CornerRadius(14),
 			Width = 32,
 			Height = 32,
@@ -3524,9 +3760,12 @@ public sealed class DspPage : Page, IComponentConnector
 
 		_filterTypeCombo = new ComboBox
 		{
-			MinWidth = 120,
+			MinWidth = 150,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 36, 44, 58))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), // Slate 300
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		string[] typeNames = { "低架 (Low Shelf)", "峰值 (Peaking)", "高架 (High Shelf)", "低通 (Low Pass)", "高通 (High Pass)", "带通 (Band Pass)", "陷波 (Notch)" };
 		foreach (var t in typeNames) _filterTypeCombo.Items.Add(new ComboBoxItem { Content = t });
@@ -3541,7 +3780,8 @@ public sealed class DspPage : Page, IComponentConnector
 			Content = "启用此段",
 			IsChecked = true,
 			FontSize = 13,
-			FontWeight = Microsoft.UI.Text.FontWeights.Medium
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		_bandEnableCb.Checked += (s, e) => OnInspectorBandEnabledChanged(true);
 		_bandEnableCb.Unchecked += (s, e) => OnInspectorBandEnabledChanged(false);
@@ -3550,8 +3790,12 @@ public sealed class DspPage : Page, IComponentConnector
 		var btnResetBand = new Button
 		{
 			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "重置此段", FontSize = 12 } } },
-			Padding = new Thickness(8, 4, 8, 4),
-			CornerRadius = new CornerRadius(6)
+			Padding = new Thickness(10, 5, 10, 5),
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		};
 		btnResetBand.Click += (s, e) => ResetCurrentBand();
 		row1RightSp.Children.Add(btnResetBand);
@@ -3559,8 +3803,12 @@ public sealed class DspPage : Page, IComponentConnector
 		var btnDeleteBand = new Button
 		{
 			Content = new FontIcon { Glyph = "\uE74D", FontSize = 13 },
-			Padding = new Thickness(8, 4, 8, 4),
-			CornerRadius = new CornerRadius(6)
+			Padding = new Thickness(8, 5, 8, 5),
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 254, 202, 202)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38))
 		};
 		btnDeleteBand.Click += (s, e) => ZeroCurrentBandGain();
 		row1RightSp.Children.Add(btnDeleteBand);
@@ -3580,8 +3828,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var freqHead = new Grid();
 		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		freqHead.Children.Add(new TextBlock { Text = "频率 Frequency", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
-		_freqValueTb = new TextBlock { Text = "1000 Hz", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 200, 255)) };
+		freqHead.Children.Add(new TextBlock { Text = "频率 Frequency", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		_freqValueTb = new TextBlock { Text = "1000 Hz", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 2, 132, 199)) }; // Sky 600
 		Grid.SetColumn(_freqValueTb, 1);
 		freqHead.Children.Add(_freqValueTb);
 		freqCol.Children.Add(freqHead);
@@ -3597,8 +3845,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var gainHead = new Grid();
 		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		gainHead.Children.Add(new TextBlock { Text = "增益 Gain", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
-		_gainValueTb = new TextBlock { Text = "0.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 120, 80)) };
+		gainHead.Children.Add(new TextBlock { Text = "增益 Gain", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		_gainValueTb = new TextBlock { Text = "0.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 88, 12)) }; // Orange 600
 		Grid.SetColumn(_gainValueTb, 1);
 		gainHead.Children.Add(_gainValueTb);
 		gainCol.Children.Add(gainHead);
@@ -3614,8 +3862,8 @@ public sealed class DspPage : Page, IComponentConnector
 		var qHead = new Grid();
 		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		qHead.Children.Add(new TextBlock { Text = "品质因数 Q", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) });
-		_qValueTb = new TextBlock { Text = "1.41", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 130, 255)) };
+		qHead.Children.Add(new TextBlock { Text = "品质因数 Q", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		_qValueTb = new TextBlock { Text = "1.41", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 124, 58, 237)) }; // Violet 600
 		Grid.SetColumn(_qValueTb, 1);
 		qHead.Children.Add(_qValueTb);
 		qCol.Children.Add(qHead);
@@ -3624,12 +3872,42 @@ public sealed class DspPage : Page, IComponentConnector
 		_qSlider.ValueChanged += OnInspectorQSliderChanged;
 		qCol.Children.Add(_qSlider);
 
-		var qTagsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
-		var btnWide = new Button { Content = "宽 (0.5)", Padding = new Thickness(6, 2, 6, 2), FontSize = 10, CornerRadius = new CornerRadius(4) };
+		var qTagsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
+		var btnWide = new Button
+		{
+			Content = "宽 (0.5)",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 10,
+			CornerRadius = new CornerRadius(4),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		btnWide.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 0.5; };
-		var btnStd = new Button { Content = "标准 (1.4)", Padding = new Thickness(6, 2, 6, 2), FontSize = 10, CornerRadius = new CornerRadius(4) };
+		var btnStd = new Button
+		{
+			Content = "标准 (1.4)",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 10,
+			CornerRadius = new CornerRadius(4),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		btnStd.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 1.41; };
-		var btnNarrow = new Button { Content = "窄 (3.0)", Padding = new Thickness(6, 2, 6, 2), FontSize = 10, CornerRadius = new CornerRadius(4) };
+		var btnNarrow = new Button
+		{
+			Content = "窄 (3.0)",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 10,
+			CornerRadius = new CornerRadius(4),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		btnNarrow.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 3.0; };
 		qTagsSp.Children.Add(btnWide);
 		qTagsSp.Children.Add(btnStd);
@@ -3646,17 +3924,38 @@ public sealed class DspPage : Page, IComponentConnector
 		row3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Preamp slider
 
 		var scopeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var cbSnap = new CheckBox { Content = "吸附到标准频点", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)) };
+		var cbSnap = new CheckBox
+		{
+			Content = "吸附到标准频点",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
 		scopeSp.Children.Add(cbSnap);
 
-		var scopeBorder = new Border { Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 36, 42, 54)), CornerRadius = new CornerRadius(8), Padding = new Thickness(4, 2, 4, 2) };
+		var scopeBorder = new Border
+		{
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 241, 245, 249)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(8),
+			Padding = new Thickness(4, 2, 4, 2)
+		};
 		var scopeInnerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		scopeInnerSp.Children.Add(new TextBlock { Text = "作用域:", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 200, 220, 245)), VerticalAlignment = VerticalAlignment.Center });
-		scopeInnerSp.Children.Add(new Button { Content = "立体声", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 0, 180, 255)), Foreground = new SolidColorBrush(Colors.Black), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-		scopeInnerSp.Children.Add(new Button { Content = "左", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
-		scopeInnerSp.Children.Add(new Button { Content = "右", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
-		scopeInnerSp.Children.Add(new Button { Content = "中 (M)", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
-		scopeInnerSp.Children.Add(new Button { Content = "侧 (S)", Padding = new Thickness(6, 2, 6, 2), FontSize = 11, CornerRadius = new CornerRadius(4) });
+		scopeInnerSp.Children.Add(new TextBlock { Text = "作用域:", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
+		scopeInnerSp.Children.Add(new Button
+		{
+			Content = "立体声",
+			Padding = new Thickness(8, 2, 8, 2),
+			FontSize = 11,
+			CornerRadius = new CornerRadius(4),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600
+			Foreground = new SolidColorBrush(Colors.White),
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		});
+		scopeInnerSp.Children.Add(new Button { Content = "左", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		scopeInnerSp.Children.Add(new Button { Content = "右", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		scopeInnerSp.Children.Add(new Button { Content = "中 (M)", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		scopeInnerSp.Children.Add(new Button { Content = "侧 (S)", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
 		scopeBorder.Child = scopeInnerSp;
 		scopeSp.Children.Add(scopeBorder);
 
@@ -3665,7 +3964,7 @@ public sealed class DspPage : Page, IComponentConnector
 
 		// Preamp controls
 		var preampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-		preampSp.Children.Add(new TextBlock { Text = "EQ 前级增益:", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 235, 250)), VerticalAlignment = VerticalAlignment.Center });
+		preampSp.Children.Add(new TextBlock { Text = "EQ 前级增益:", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
 		_preampSlider = new Slider { Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = ViewModel?.EchoEqPreampDb ?? 0.0, Width = 140, VerticalAlignment = VerticalAlignment.Center };
 		_preampSlider.ValueChanged += (s, e) =>
 		{
@@ -3678,9 +3977,9 @@ public sealed class DspPage : Page, IComponentConnector
 			}
 		};
 		preampSp.Children.Add(_preampSlider);
-		_preampValueTb = new TextBlock { Text = $"{_preampSlider.Value:+0.0;-0.0;0.0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Width = 55, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center };
+		_preampValueTb = new TextBlock { Text = $"{_preampSlider.Value:+0.0;-0.0;0.0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Width = 55, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), VerticalAlignment = VerticalAlignment.Center };
 		preampSp.Children.Add(_preampValueTb);
-		preampSp.Children.Add(new TextBlock { Text = "合成响应 -0.0 dB (自动补偿提升)", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 185, 210, 235)), VerticalAlignment = VerticalAlignment.Center });
+		preampSp.Children.Add(new TextBlock { Text = "合成响应 -0.0 dB (自动补偿提升)", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
 
 		Grid.SetColumn(preampSp, 1);
 		row3.Children.Add(preampSp);
@@ -3700,9 +3999,9 @@ public sealed class DspPage : Page, IComponentConnector
 		var btnSaveMod = new Button
 		{
 			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = "\uE74E", FontSize = 13 }, new TextBlock { Text = "保存修改", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } } },
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 180, 255)),
-			Foreground = new SolidColorBrush(Colors.Black),
-			Padding = new Thickness(14, 6, 14, 6),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600 (#4F46E5)
+			Foreground = new SolidColorBrush(Colors.White),
+			Padding = new Thickness(16, 6, 16, 6),
 			CornerRadius = new CornerRadius(8)
 		};
 		leftSp.Children.Add(btnSaveMod);
@@ -3710,36 +4009,53 @@ public sealed class DspPage : Page, IComponentConnector
 		var tbPresetName = new TextBox
 		{
 			PlaceholderText = "保存为用户预设名称...",
-			Width = 200,
+			Width = 220,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 32, 38, 48))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
 		};
 		leftSp.Children.Add(tbPresetName);
 
 		var btnSavePreset = new Button
 		{
 			Content = "保存到预设",
-			Padding = new Thickness(12, 6, 12, 6),
-			CornerRadius = new CornerRadius(8)
+			Padding = new Thickness(14, 6, 14, 6),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		};
 		leftSp.Children.Add(btnSavePreset);
 		Grid.SetColumn(leftSp, 0);
 		bar.Children.Add(leftSp);
 
 		var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		rightSp.Children.Add(new Button { Content = "🎧 输出配置", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) });
-		rightSp.Children.Add(new Button { Content = "❓", Padding = new Thickness(8, 6, 8, 6), CornerRadius = new CornerRadius(8) });
-		rightSp.Children.Add(new Button { Content = "🔗 分享曲线", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) });
-		rightSp.Children.Add(new Button { Content = "📥 导入分享码", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) });
-		var btnResetAll = new Button { Content = "🔄 重置曲线", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) };
+		Button CreateToolBtn(string text) => new Button
+		{
+			Content = text,
+			Padding = new Thickness(10, 6, 10, 6),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+		};
+
+		rightSp.Children.Add(CreateToolBtn("🎧 输出配置"));
+		rightSp.Children.Add(CreateToolBtn("❓"));
+		rightSp.Children.Add(CreateToolBtn("🔗 分享曲线"));
+		rightSp.Children.Add(CreateToolBtn("📥 导入分享码"));
+		var btnResetAll = CreateToolBtn("🔄 重置曲线");
 		btnResetAll.Click += (s, e) => ResetEqBandsToFlat();
 		rightSp.Children.Add(btnResetAll);
 
-		var btnImportApo = new Button { Content = "📁 导入预设 / APO", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) };
+		var btnImportApo = CreateToolBtn("📁 导入预设 / APO");
 		btnImportApo.Click += OnAutoEqImportClick;
 		rightSp.Children.Add(btnImportApo);
 
-		rightSp.Children.Add(new Button { Content = "更多工具 ▾", Padding = new Thickness(10, 6, 10, 6), CornerRadius = new CornerRadius(8) });
+		rightSp.Children.Add(CreateToolBtn("更多工具 ▾"));
 		Grid.SetColumn(rightSp, 1);
 		bar.Children.Add(rightSp);
 
@@ -3755,16 +4071,16 @@ public sealed class DspPage : Page, IComponentConnector
 		int activeIdx = _eqCurveControl?.SelectedBandIndex ?? 0;
 
 		Windows.UI.Color[] pillColors = {
-			Windows.UI.Color.FromArgb(255, 60, 180, 255), // 01 cyan
-			Windows.UI.Color.FromArgb(255, 80, 220, 140), // 02 green
-			Windows.UI.Color.FromArgb(255, 160, 130, 255), // 03 purple
-			Windows.UI.Color.FromArgb(255, 255, 110, 140), // 04 pink
-			Windows.UI.Color.FromArgb(255, 255, 160, 60),  // 05 orange
-			Windows.UI.Color.FromArgb(255, 255, 210, 60),  // 06 yellow
-			Windows.UI.Color.FromArgb(255, 60, 230, 210),  // 07 teal
-			Windows.UI.Color.FromArgb(255, 140, 180, 255), // 08 soft blue
-			Windows.UI.Color.FromArgb(255, 220, 120, 255), // 09 violet
-			Windows.UI.Color.FromArgb(255, 255, 100, 100)  // 10 red
+			Windows.UI.Color.FromArgb(255, 14, 165, 233), // 01 sky
+			Windows.UI.Color.FromArgb(255, 22, 163, 74),  // 02 green
+			Windows.UI.Color.FromArgb(255, 147, 51, 234), // 03 purple
+			Windows.UI.Color.FromArgb(255, 225, 29, 72),  // 04 rose
+			Windows.UI.Color.FromArgb(255, 234, 88, 12),  // 05 orange
+			Windows.UI.Color.FromArgb(255, 202, 138, 4),  // 06 amber
+			Windows.UI.Color.FromArgb(255, 13, 148, 136), // 07 teal
+			Windows.UI.Color.FromArgb(255, 37, 99, 235),  // 08 blue
+			Windows.UI.Color.FromArgb(255, 192, 38, 211), // 09 fuchsia
+			Windows.UI.Color.FromArgb(255, 220, 38, 38)   // 10 red
 		};
 
 		for (int i = 0; i < bands.Count; i++)
@@ -3780,11 +4096,11 @@ public sealed class DspPage : Page, IComponentConnector
 				Padding = new Thickness(8, 4, 10, 4),
 				CornerRadius = new CornerRadius(16),
 				Background = isSelected
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(70, color.R, color.G, color.B))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 26, 30, 40)),
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(45, color.R, color.G, color.B))
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
 				BorderBrush = isSelected
 					? new SolidColorBrush(color)
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 				BorderThickness = new Thickness(isSelected ? 1.5 : 1)
 			};
 
@@ -3801,7 +4117,7 @@ public sealed class DspPage : Page, IComponentConnector
 					Text = $"{bandIndex + 1:D2}",
 					FontSize = 10,
 					FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-					Foreground = new SolidColorBrush(Colors.Black),
+					Foreground = new SolidColorBrush(Colors.White),
 					HorizontalAlignment = HorizontalAlignment.Center,
 					VerticalAlignment = VerticalAlignment.Center
 				}
@@ -3814,8 +4130,8 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				Text = $"{freqText} Hz  {gainText} dB",
 				FontSize = 11,
-				FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
-				Foreground = new SolidColorBrush(isSelected ? Colors.White : Windows.UI.Color.FromArgb(200, 200, 215, 230)),
+				FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
+				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 15, 23, 42) : Windows.UI.Color.FromArgb(255, 51, 65, 85)),
 				VerticalAlignment = VerticalAlignment.Center
 			});
 
@@ -3830,7 +4146,10 @@ public sealed class DspPage : Page, IComponentConnector
 			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = "添加频段", FontSize = 11 } } },
 			Padding = new Thickness(8, 4, 10, 4),
 			CornerRadius = new CornerRadius(16),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(100, 35, 42, 54))
+			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			BorderThickness = new Thickness(1),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
 		};
 		btnAddBand.Click += (s, e) => AddNewEqBand();
 		_eqBandPillsStack.Children.Add(btnAddBand);
@@ -4100,8 +4419,37 @@ public sealed class DspPage : Page, IComponentConnector
 			{
 				bool isSelected = (key == category);
 				btn.Background = isSelected
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(180, 0, 160, 240))
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)) // Indigo 50 (#EEF2FF)
 					: new SolidColorBrush(Colors.Transparent);
+				btn.BorderBrush = isSelected
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) // Indigo 500 (#6366F1)
+					: new SolidColorBrush(Colors.Transparent);
+				btn.BorderThickness = new Thickness(isSelected ? 1 : 0);
+
+				if (btn.Content is Grid g)
+				{
+					if (g.Children.Count > 0 && g.Children[0] is FontIcon ic)
+					{
+						ic.Foreground = isSelected
+							? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) // Indigo 600
+							: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)); // Slate 500
+					}
+					if (g.Children.Count > 1 && g.Children[1] is StackPanel sp)
+					{
+						if (sp.Children.Count > 0 && sp.Children[0] is TextBlock t1)
+						{
+							t1.Foreground = isSelected
+								? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+								: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)); // Slate 800
+						}
+						if (sp.Children.Count > 1 && sp.Children[1] is TextBlock t2)
+						{
+							t2.Foreground = isSelected
+								? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
+								: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
+						}
+					}
+				}
 			}
 		}
 
@@ -4138,10 +4486,14 @@ public sealed class DspPage : Page, IComponentConnector
 		innerCard.VerticalAlignment = VerticalAlignment.Stretch;
 		innerCard.Width = double.NaN;
 		innerCard.Height = double.NaN;
+		innerCard.Background = CreateAcrylicCardBrush(0.88, 235);
+		innerCard.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240));
+		innerCard.BorderThickness = new Thickness(1);
+		innerCard.CornerRadius = new CornerRadius(12);
 
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 24, 28, 36)),
+			Background = CreateWhiteAcrylicBrush(0.72, 195),
 			Padding = new Thickness(24, 20, 24, 20),
 			Child = innerCard
 		};
