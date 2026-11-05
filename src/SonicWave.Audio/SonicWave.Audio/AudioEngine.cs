@@ -232,6 +232,9 @@ public sealed class AudioEngine : IDisposable
 	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
 		=> _session.SetEchoChannelMatrix(preset);
 
+	public void SetFurinaReplayGain(ReplayGainMode mode, float targetLufs, float preampDb, float unknownDb, bool preventClipping)
+		=> _session.SetFurinaReplayGain(mode, targetLufs, preampDb, unknownDb, preventClipping);
+
 	public void SetEchoReplayGain(ReplayGainMode mode, float preampDb, bool preventClipping)
 		=> _session.SetEchoReplayGain(mode, preampDb, preventClipping);
 

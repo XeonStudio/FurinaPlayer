@@ -93,14 +93,37 @@ public sealed class AppSettings
 	public double EchoStereoCenterGainDb { get; set; } = 0.0;
 	public double EchoStereoSideGainDb { get; set; } = 0.0;
 	public int EchoChannelMatrixPreset { get; set; } = 0;
-	public int EchoReplayGainMode { get; set; } = 1;
-	public double EchoReplayGainPreampDb { get; set; } = 0.0;
-	public bool EchoReplayGainPreventClipping { get; set; } = true;
+	public bool FurinaReplayGainEnabled { get; set; } = false;
+	public double FurinaReplayGainTargetLufs { get; set; } = -14.0;
+	public int FurinaReplayGainMode { get; set; } = 1;
+	public double FurinaReplayGainPreampDb { get; set; } = 0.0;
+	public double FurinaReplayGainUnknownDb { get; set; } = -5.0;
+	public bool FurinaReplayGainPreventClipping { get; set; } = true;
+	public bool FurinaReplayGainTruePeak { get; set; } = true;
+	public bool FurinaReplayGainAnalyzeOnScan { get; set; } = false;
+
+	// 向前兼容属性映射
+	public bool EchoReplayGainEnabled { get => FurinaReplayGainEnabled; set => FurinaReplayGainEnabled = value; }
+	public double EchoReplayGainTargetLufs { get => FurinaReplayGainTargetLufs; set => FurinaReplayGainTargetLufs = value; }
+	public int EchoReplayGainMode { get => FurinaReplayGainMode; set => FurinaReplayGainMode = value; }
+	public double EchoReplayGainPreampDb { get => FurinaReplayGainPreampDb; set => FurinaReplayGainPreampDb = value; }
+	public double EchoReplayGainUnknownDb { get => FurinaReplayGainUnknownDb; set => FurinaReplayGainUnknownDb = value; }
+	public bool EchoReplayGainPreventClipping { get => FurinaReplayGainPreventClipping; set => FurinaReplayGainPreventClipping = value; }
+	public bool EchoReplayGainTruePeak { get => FurinaReplayGainTruePeak; set => FurinaReplayGainTruePeak = value; }
+	public bool EchoReplayGainAnalyzeOnScan { get => FurinaReplayGainAnalyzeOnScan; set => FurinaReplayGainAnalyzeOnScan = value; }
 	public bool EchoConvolutionEnabled { get; set; } = false;
 	public string? EchoConvolutionFilePath { get; set; }
 	public double EchoConvolutionTrimDb { get; set; } = 0.0;
 	public bool EchoResamplerEnabled { get; set; } = false;
 	public int EchoResamplerTargetRate { get; set; } = 192000;
+	public string FurinaSrcMode { get; set; } = "off";
+	public string FurinaSrcQuality { get; set; } = "transparent";
+	public string FurinaSrcFilter1x { get; set; } = "furina-gauss-long";
+	public string FurinaSrcFilterNx { get; set; } = "furina-hb";
+	public string FurinaSrcCompute { get; set; } = "simd";
+	public string FurinaSrcDither { get; set; } = "off";
+	public bool FurinaSrcAdvanced { get; set; } = false;
+	public bool FurinaSrcAbBenchmark { get; set; } = false;
 	public bool EchoSdmEnabled { get; set; } = false;
 	public int EchoSdmOrder { get; set; } = 5;
 	public int EchoSdmRate { get; set; } = 64;

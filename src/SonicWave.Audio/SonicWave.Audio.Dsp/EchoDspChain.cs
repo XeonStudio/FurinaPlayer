@@ -12,7 +12,7 @@ public sealed class EchoDspChain
 
 	public EchoEqProcessor Eq { get; }
 	public EchoConvolutionProcessor Convolution { get; }
-	public EchoReplayGainProcessor ReplayGain { get; }
+	public FurinaPlayerReplayGainProcessor ReplayGain { get; }
 	public EchoCompressorProcessor Compressor { get; }
 	public EchoSpatialProcessor Spatial { get; }
 	public EchoHeadroomProcessor Headroom { get; }
@@ -32,7 +32,7 @@ public sealed class EchoDspChain
 		_sampleRate = sampleRate;
 		Eq = new EchoEqProcessor(sampleRate);
 		Convolution = new EchoConvolutionProcessor();
-		ReplayGain = new EchoReplayGainProcessor();
+		ReplayGain = new FurinaPlayerReplayGainProcessor();
 		Compressor = new EchoCompressorProcessor();
 		Spatial = new EchoSpatialProcessor();
 		Headroom = new EchoHeadroomProcessor();

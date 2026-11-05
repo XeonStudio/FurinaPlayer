@@ -632,14 +632,27 @@ public class DspViewModel : ObservableObject
 		EchoStereoCenterGainDb = appSettings.EchoStereoCenterGainDb;
 		EchoStereoSideGainDb = appSettings.EchoStereoSideGainDb;
 		EchoChannelMatrixPreset = appSettings.EchoChannelMatrixPreset;
-		EchoReplayGainMode = appSettings.EchoReplayGainMode;
-		EchoReplayGainPreampDb = appSettings.EchoReplayGainPreampDb;
-		EchoReplayGainPreventClipping = appSettings.EchoReplayGainPreventClipping;
+		FurinaReplayGainEnabled = appSettings.FurinaReplayGainEnabled;
+		FurinaReplayGainTargetLufs = appSettings.FurinaReplayGainTargetLufs;
+		FurinaReplayGainMode = appSettings.FurinaReplayGainMode;
+		FurinaReplayGainPreampDb = appSettings.FurinaReplayGainPreampDb;
+		FurinaReplayGainUnknownDb = appSettings.FurinaReplayGainUnknownDb;
+		FurinaReplayGainPreventClipping = appSettings.FurinaReplayGainPreventClipping;
+		FurinaReplayGainTruePeak = appSettings.FurinaReplayGainTruePeak;
+		FurinaReplayGainAnalyzeOnScan = appSettings.FurinaReplayGainAnalyzeOnScan;
 		EchoConvolutionEnabled = appSettings.EchoConvolutionEnabled;
 		EchoConvolutionFilePath = appSettings.EchoConvolutionFilePath;
 		EchoConvolutionTrimDb = appSettings.EchoConvolutionTrimDb;
 		EchoResamplerEnabled = appSettings.EchoResamplerEnabled;
 		EchoResamplerTargetRate = appSettings.EchoResamplerTargetRate;
+		FurinaSrcMode = appSettings.FurinaSrcMode ?? "off";
+		FurinaSrcQuality = appSettings.FurinaSrcQuality ?? "transparent";
+		FurinaSrcFilter1x = appSettings.FurinaSrcFilter1x ?? "furina-gauss-long";
+		FurinaSrcFilterNx = appSettings.FurinaSrcFilterNx ?? "furina-hb";
+		FurinaSrcCompute = appSettings.FurinaSrcCompute ?? "simd";
+		FurinaSrcDither = appSettings.FurinaSrcDither ?? "off";
+		FurinaSrcAdvanced = appSettings.FurinaSrcAdvanced;
+		FurinaSrcAbBenchmark = appSettings.FurinaSrcAbBenchmark;
 		EchoSdmEnabled = appSettings.EchoSdmEnabled;
 		EchoSdmOrder = appSettings.EchoSdmOrder;
 		EchoSdmRate = appSettings.EchoSdmRate;
@@ -1053,31 +1066,59 @@ public class DspViewModel : ObservableObject
 	public double EchoStereoSideGainDb { get; set; } = 0.0;
 
 	public int EchoChannelMatrixPreset { get; set; } = 0;
-	public bool EchoReplayGainEnabled { get; set; } = false;
-	public double EchoReplayGainTargetLufs { get; set; } = -14.0;
-	public int EchoReplayGainMode { get; set; } = 1; // 0: Auto, 1: Track, 2: Album
-	public double EchoReplayGainPreampDb { get; set; } = 0.0;
-	public double EchoReplayGainUnknownDb { get; set; } = -5.0;
-	public bool EchoReplayGainPreventClipping { get; set; } = true;
-	public bool EchoReplayGainTruePeak { get; set; } = true;
-	public double? EchoReplayGainCurrentAppliedDb { get; set; } = null;
-	public double? EchoReplayGainIntegratedLufs { get; set; } = null;
-	public bool EchoReplayGainIsScanning { get; set; } = false;
-	public double EchoReplayGainScanProgress { get; set; } = 0.0;
-	public string EchoReplayGainScanText { get; set; } = "就绪";
+
+	public bool FurinaReplayGainEnabled { get; set; } = false;
+	public double FurinaReplayGainTargetLufs { get; set; } = -14.0;
+	public int FurinaReplayGainMode { get; set; } = 1; // 0: Auto, 1: Track, 2: Album
+	public double FurinaReplayGainPreampDb { get; set; } = 0.0;
+	public double FurinaReplayGainUnknownDb { get; set; } = -5.0;
+	public bool FurinaReplayGainPreventClipping { get; set; } = true;
+	public bool FurinaReplayGainTruePeak { get; set; } = true;
+	public bool FurinaReplayGainAnalyzeOnScan { get; set; } = false;
+
+	public double? FurinaReplayGainCurrentAppliedDb { get; set; } = null;
+	public double? FurinaReplayGainIntegratedLufs { get; set; } = null;
+	public double? FurinaReplayGainTrackGainDb { get; set; } = null;
+	public double? FurinaReplayGainAlbumGainDb { get; set; } = null;
+	public double? FurinaReplayGainPeak { get; set; } = null;
+	public string FurinaReplayGainSource { get; set; } = "无数据";
+	public string FurinaReplayGainEffectiveMode { get; set; } = "单曲";
+	public bool FurinaReplayGainPreventedClipping { get; set; } = false;
+	public bool FurinaReplayGainIsScanning { get; set; } = false;
+	public double FurinaReplayGainScanProgress { get; set; } = 0.0;
+	public string FurinaReplayGainScanText { get; set; } = "就绪";
+
+	// 向前兼容属性映射
+	public bool EchoReplayGainEnabled { get => FurinaReplayGainEnabled; set => FurinaReplayGainEnabled = value; }
+	public double EchoReplayGainTargetLufs { get => FurinaReplayGainTargetLufs; set => FurinaReplayGainTargetLufs = value; }
+	public int EchoReplayGainMode { get => FurinaReplayGainMode; set => FurinaReplayGainMode = value; }
+	public double EchoReplayGainPreampDb { get => FurinaReplayGainPreampDb; set => FurinaReplayGainPreampDb = value; }
+	public double EchoReplayGainUnknownDb { get => FurinaReplayGainUnknownDb; set => FurinaReplayGainUnknownDb = value; }
+	public bool EchoReplayGainPreventClipping { get => FurinaReplayGainPreventClipping; set => FurinaReplayGainPreventClipping = value; }
+	public bool EchoReplayGainTruePeak { get => FurinaReplayGainTruePeak; set => FurinaReplayGainTruePeak = value; }
+	public bool EchoReplayGainAnalyzeOnScan { get => FurinaReplayGainAnalyzeOnScan; set => FurinaReplayGainAnalyzeOnScan = value; }
+	public double? EchoReplayGainCurrentAppliedDb { get => FurinaReplayGainCurrentAppliedDb; set => FurinaReplayGainCurrentAppliedDb = value; }
+	public double? EchoReplayGainIntegratedLufs { get => FurinaReplayGainIntegratedLufs; set => FurinaReplayGainIntegratedLufs = value; }
+	public bool EchoReplayGainIsScanning { get => FurinaReplayGainIsScanning; set => FurinaReplayGainIsScanning = value; }
+	public double EchoReplayGainScanProgress { get => FurinaReplayGainScanProgress; set => FurinaReplayGainScanProgress = value; }
+	public string EchoReplayGainScanText { get => FurinaReplayGainScanText; set => FurinaReplayGainScanText = value; }
 
 	public void ApplyReplayGainSettings()
 	{
+		var mode = !FurinaReplayGainEnabled ? ReplayGainMode.Off : (FurinaReplayGainMode switch
+		{
+			0 => ReplayGainMode.Auto,
+			1 => ReplayGainMode.Track,
+			2 => ReplayGainMode.Album,
+			_ => ReplayGainMode.Track
+		});
+
 		if (Engine != null)
 		{
-			var mode = !EchoReplayGainEnabled ? ReplayGainMode.Off : (EchoReplayGainMode switch
-			{
-				0 => ReplayGainMode.Track,
-				2 => ReplayGainMode.Album,
-				_ => ReplayGainMode.Track
-			});
-			Engine.SetEchoReplayGain(mode, (float)EchoReplayGainPreampDb, EchoReplayGainPreventClipping);
+			Engine.SetFurinaReplayGain(mode, (float)FurinaReplayGainTargetLufs, (float)FurinaReplayGainPreampDb, (float)FurinaReplayGainUnknownDb, FurinaReplayGainPreventClipping);
 		}
+
+		SaveEchoSettings();
 	}
 
 	public bool EchoConvolutionEnabled { get; set; } = false;
@@ -1086,6 +1127,14 @@ public class DspViewModel : ObservableObject
 
 	public bool EchoResamplerEnabled { get; set; } = false;
 	public int EchoResamplerTargetRate { get; set; } = 192000;
+	public string FurinaSrcMode { get; set; } = "off";
+	public string FurinaSrcQuality { get; set; } = "transparent";
+	public string FurinaSrcFilter1x { get; set; } = "furina-gauss-long";
+	public string FurinaSrcFilterNx { get; set; } = "furina-hb";
+	public string FurinaSrcCompute { get; set; } = "simd";
+	public string FurinaSrcDither { get; set; } = "off";
+	public bool FurinaSrcAdvanced { get; set; } = false;
+	public bool FurinaSrcAbBenchmark { get; set; } = false;
 
 	public bool EchoSdmEnabled { get; set; } = false;
 	public int EchoSdmOrder { get; set; } = 5;
@@ -1128,14 +1177,27 @@ public class DspViewModel : ObservableObject
 			s.EchoStereoCenterGainDb = EchoStereoCenterGainDb;
 			s.EchoStereoSideGainDb = EchoStereoSideGainDb;
 			s.EchoChannelMatrixPreset = EchoChannelMatrixPreset;
-			s.EchoReplayGainMode = EchoReplayGainMode;
-			s.EchoReplayGainPreampDb = EchoReplayGainPreampDb;
-			s.EchoReplayGainPreventClipping = EchoReplayGainPreventClipping;
+			s.FurinaReplayGainEnabled = FurinaReplayGainEnabled;
+			s.FurinaReplayGainTargetLufs = FurinaReplayGainTargetLufs;
+			s.FurinaReplayGainMode = FurinaReplayGainMode;
+			s.FurinaReplayGainPreampDb = FurinaReplayGainPreampDb;
+			s.FurinaReplayGainUnknownDb = FurinaReplayGainUnknownDb;
+			s.FurinaReplayGainPreventClipping = FurinaReplayGainPreventClipping;
+			s.FurinaReplayGainTruePeak = FurinaReplayGainTruePeak;
+			s.FurinaReplayGainAnalyzeOnScan = FurinaReplayGainAnalyzeOnScan;
 			s.EchoConvolutionEnabled = EchoConvolutionEnabled;
 			s.EchoConvolutionFilePath = EchoConvolutionFilePath;
 			s.EchoConvolutionTrimDb = EchoConvolutionTrimDb;
 			s.EchoResamplerEnabled = EchoResamplerEnabled;
 			s.EchoResamplerTargetRate = EchoResamplerTargetRate;
+			s.FurinaSrcMode = FurinaSrcMode;
+			s.FurinaSrcQuality = FurinaSrcQuality;
+			s.FurinaSrcFilter1x = FurinaSrcFilter1x;
+			s.FurinaSrcFilterNx = FurinaSrcFilterNx;
+			s.FurinaSrcCompute = FurinaSrcCompute;
+			s.FurinaSrcDither = FurinaSrcDither;
+			s.FurinaSrcAdvanced = FurinaSrcAdvanced;
+			s.FurinaSrcAbBenchmark = FurinaSrcAbBenchmark;
 			s.EchoSdmEnabled = EchoSdmEnabled;
 			s.EchoSdmOrder = EchoSdmOrder;
 			s.EchoSdmRate = EchoSdmRate;

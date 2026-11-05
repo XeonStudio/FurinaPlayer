@@ -954,15 +954,22 @@ internal sealed class AudioSession : IDisposable
 		}
 	}
 
-	public void SetEchoReplayGain(ReplayGainMode mode, float preampDb, bool preventClipping)
+	public void SetFurinaReplayGain(ReplayGainMode mode, float targetLufs, float preampDb, float unknownDb, bool preventClipping)
 	{
 		var chain = DspChain;
 		if (chain != null)
 		{
 			chain.ReplayGain.Mode = mode;
+			chain.ReplayGain.TargetLufs = targetLufs;
 			chain.ReplayGain.PreampDb = preampDb;
+			chain.ReplayGain.UnknownLoudnessDb = unknownDb;
 			chain.ReplayGain.PreventClipping = preventClipping;
 		}
+	}
+
+	public void SetEchoReplayGain(ReplayGainMode mode, float preampDb, bool preventClipping)
+	{
+		SetFurinaReplayGain(mode, -14.0f, preampDb, -5.0f, preventClipping);
 	}
 
 	public bool LoadEchoConvolution(string filePath, float trimDb)

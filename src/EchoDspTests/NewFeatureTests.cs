@@ -128,7 +128,7 @@ public static class NewFeatureTests
 
 	private static void TestVolumeEqualizationEngine()
 	{
-		Console.WriteLine("--- Testing ECHO Volume Equalization & ReplayGain Engine ---");
+		Console.WriteLine("--- Testing FurinaPlayer Volume Equalization & ReplayGain Engine ---");
 		var rg = new EchoReplayGainProcessor();
 		rg.Prepare(44100.0);
 		rg.PreampDb = 0.0f;
@@ -174,6 +174,30 @@ public static class NewFeatureTests
 			throw new Exception($"Anti-clipping failed: sample exceeded 1.0: {lastSample}");
 
 		Console.WriteLine($"[PASS] Anti-clipping protected audio: peak limited to {lastSample:F4} <= 1.0");
+
+		// Test FurinaPlayerReplayGainProcessor directly with TargetLufs and Auto Mode
+		var furinaRg = new FurinaPlayerReplayGainProcessor();
+		furinaRg.Prepare(44100.0);
+		furinaRg.TargetLufs = -14.0f;
+		furinaRg.TrackLufs = -18.0f;
+		furinaRg.TrackPeak = 0.5f;
+		furinaRg.Mode = ReplayGainMode.Track;
+		furinaRg.Reset();
+		if (Math.Abs(furinaRg.CurrentAppliedGainDb - 4.0f) > 0.05f)
+			throw new Exception($"Expected CurrentAppliedGainDb ~4.0, got {furinaRg.CurrentAppliedGainDb}");
+		Console.WriteLine($"[PASS] FurinaPlayerReplayGainProcessor target loudness -14 LUFS computed +4.0 dB gain correctly");
+
+		// Test Unknown Loudness Protection:
+		var unkRg = new FurinaPlayerReplayGainProcessor();
+		unkRg.Prepare(44100.0);
+		unkRg.UnknownLoudnessDb = -5.0f;
+		unkRg.TrackLufs = -70.0f; // Unknown
+		unkRg.TrackGainDb = 0.0f;
+		unkRg.Mode = ReplayGainMode.Track;
+		unkRg.Reset();
+		if (Math.Abs(unkRg.CurrentAppliedGainDb - (-5.0f)) > 0.05f)
+			throw new Exception($"Expected fallback gain -5.0 dB, got {unkRg.CurrentAppliedGainDb}");
+		Console.WriteLine($"[PASS] FurinaPlayer unknown loudness protection applied -5.0 dB fallback");
 	}
 
 	private static void TestHeadroomEngine()

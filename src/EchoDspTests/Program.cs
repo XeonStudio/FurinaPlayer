@@ -47,6 +47,7 @@ class Program
 		TestOpraDatabaseAndHeadphoneCalibration();
 		TestReplayGainScannerService();
 		TestPolySincResampler();
+		TestFurinaPlayerPcmResamplerAdvancedModes();
 
 		NewFeatureTests.RunAll();
 
@@ -326,6 +327,28 @@ Filter 5: OFF NO Fc 60 Hz Gain 0.0 dB Q 10.0
 		Assert(dop.Length == 16 * 2, $"DoP encoder output {dop.Length} 24-bit DoP frames");
 		byte marker = (byte)(dop[0] >> 16);
 		Assert(marker == 0x05 || marker == 0xFA, $"DoP frame marker matches standard DSD marker (0x{marker:X2})");
+
+		// Test FurinaPlayerSdmModulator features & NTF calculation
+		var furinaModulator = new FurinaPlayerSdmModulator
+		{
+			Order = SdmOrder.Order5_Precision,
+			TargetRate = SdmTargetRate.Dsd128,
+			Mode = SdmMode.PcmToSdm,
+			QuantizerStrategy = SdmQuantizerStrategy.Dither,
+			SoundProfile = SdmSoundProfile.FurinaPlayerLinear
+		};
+
+		double ntfAudioBand = furinaModulator.ComputeNtfDb(1000.0, 5644800.0);
+		double ntfUltraBand = furinaModulator.ComputeNtfDb(100000.0, 5644800.0);
+		Assert(ntfAudioBand < -80.0, $"NTF in audio baseband (1kHz) is deeply suppressed: {ntfAudioBand:F1} dB (< -80 dB)");
+		Assert(ntfUltraBand > ntfAudioBand, $"NTF exhibits steep high-pass roll-up at 100kHz: {ntfUltraBand:F1} dB");
+
+		// Test DSD Passthrough to DoP
+		ushort[] dsdWords = new ushort[32];
+		for (int i = 0; i < dsdWords.Length; i++) dsdWords[i] = 0xAAAA;
+		uint[] passthroughDop = furinaModulator.EncodeDsdPassthroughToDop(dsdWords, dsdWords.Length, 2);
+		Assert(passthroughDop.Length == 32, $"DoP passthrough produced {passthroughDop.Length} frames");
+		Assert((passthroughDop[0] & 0xFFFF) == 0xAAAA, "DoP passthrough preserved pristine 16-bit DSD payload");
 	}
 
 	static void TestDspRackOrderAndChain()
@@ -453,5 +476,41 @@ Filter 5: OFF NO Fc 60 Hz Gain 0.0 dB Q 10.0
 		float[] outPcm = resampler.ResampleInterleaved(pcm, 0, pcm.Length, 2, out int outCount);
 		Assert(outCount == 400 * 2, $"Polyphase FIR 2x upsampler produced exact double frame count ({outCount / 2} frames)");
 		Assert(outPcm[100] > 0.48f && outPcm[100] < 0.52f, $"Polyphase Sinc FIR preserved unity DC gain ({outPcm[100]:F4})");
+	}
+
+	static void TestFurinaPlayerPcmResamplerAdvancedModes()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerPcmResampler Advanced Profiles & Dither ---");
+		var resampler = new FurinaPlayerPcmResampler
+		{
+			FilterMode = ResamplerFilterMode.GaussLong,
+			DitherMode = FurinaDitherMode.HighPass
+		};
+		resampler.Prepare(44100, 176400); // 4x upsampling
+		resampler.Enabled = true;
+
+		float[] pcm = new float[100 * 2];
+		for (int i = 0; i < 100; i++)
+		{
+			pcm[i * 2] = 0.4f;
+			pcm[i * 2 + 1] = -0.4f;
+		}
+
+		float[] out4x = resampler.ResampleInterleaved(pcm, 0, pcm.Length, 2, out int outCount4x);
+		Assert(outCount4x == 400 * 2, $"FurinaPlayer Gauss Long 4x produced 400 frames ({outCount4x / 2} frames)");
+		Assert(Math.Abs(out4x[100] - 0.4f) < 0.05f, $"Gauss Long preserved signal fidelity ({out4x[100]:F4})");
+
+		// Test 8x Steep mode
+		resampler.FilterMode = ResamplerFilterMode.Steep;
+		resampler.Prepare(48000, 384000); // 8x upsampling
+		float[] pcm48 = new float[50 * 2];
+		for (int i = 0; i < 50; i++)
+		{
+			pcm48[i * 2] = 0.8f;
+			pcm48[i * 2 + 1] = 0.8f;
+		}
+		float[] out8x = resampler.ResampleInterleaved(pcm48, 0, pcm48.Length, 2, out int outCount8x);
+		Assert(outCount8x == 400 * 2, $"FurinaPlayer Steep 8x produced 400 frames ({outCount8x / 2} frames)");
+		Assert(Math.Abs(out8x[100] - 0.8f) < 0.05f, $"Steep FIR preserved DC gain ({out8x[100]:F4})");
 	}
 }
