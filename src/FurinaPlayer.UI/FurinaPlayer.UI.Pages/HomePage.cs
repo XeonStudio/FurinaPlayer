@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -429,7 +429,7 @@ public sealed class HomePage : Page, IComponentConnector
 		Loaded += (s, e) =>
 		{
 			FluentIconFactory.UpgradeButtonsInVisualTree(this);
-			EnsureStreamingButton();
+			// EnsureStreamingButton();
 			ApplyHomeLiquidGlass();
 		};
 		ActualThemeChanged += (s, e) => ApplyHomeLiquidGlass();
@@ -452,7 +452,7 @@ public sealed class HomePage : Page, IComponentConnector
 			DataContext = homeViewModel;
 		}
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
-			EnsureStreamingButton();
+			// EnsureStreamingButton();
 		ApplyHomeLiquidGlass();
 		UpdateAlbumToggleBtnIcon();
 		SyncAlbumColWidthResource();
@@ -472,7 +472,7 @@ public sealed class HomePage : Page, IComponentConnector
 			{
 				PageRoot.Background = new SolidColorBrush(Colors.Transparent);
 
-				if (_ambientCausticCanvas == null)
+				if (false && _ambientCausticCanvas == null)
 				{
 					_ambientCausticCanvas = LiquidGlassEngine.CreateAmbientCausticCanvas(() => LiquidGlassEngine.IsElementDarkTheme(this));
 					Grid.SetRow(_ambientCausticCanvas, 0);
@@ -482,17 +482,17 @@ public sealed class HomePage : Page, IComponentConnector
 					Canvas.SetZIndex(_ambientCausticCanvas, -10);
 				}
 
-				if (!PageRoot.Children.Contains(_ambientCausticCanvas))
+				if (_ambientCausticCanvas != null && !PageRoot.Children.Contains(_ambientCausticCanvas))
 				{
 					PageRoot.Children.Insert(0, _ambientCausticCanvas);
 				}
-				else if (PageRoot.Children.IndexOf(_ambientCausticCanvas) != 0)
+				else if (_ambientCausticCanvas != null && PageRoot.Children.IndexOf(_ambientCausticCanvas) != 0)
 				{
 					PageRoot.Children.Remove(_ambientCausticCanvas);
 					PageRoot.Children.Insert(0, _ambientCausticCanvas);
 				}
 
-				_ambientCausticCanvas.Invalidate();
+				_ambientCausticCanvas?.Invalidate();
 			}
 
 			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
@@ -1065,31 +1065,6 @@ public sealed class HomePage : Page, IComponentConnector
 
 	private void EnsureStreamingButton()
 	{
-		if (_importFilesBtn?.Parent is Panel parent && _streamingBtn == null)
-		{
-			_streamingBtn = new Button
-			{
-				Content = new StackPanel
-				{
-					Orientation = Orientation.Horizontal,
-					Spacing = 6,
-					Children =
-					{
-						new FontIcon { Glyph = "\uE774", FontSize = 14, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) },
-						new TextBlock { Text = "在线流媒体", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-					}
-				},
-				CornerRadius = new CornerRadius(12),
-				Padding = new Thickness(12, 6, 14, 6),
-				Margin = new Thickness(6, 0, 0, 0),
-				Tag = "__fluent_upgraded"
-			};
-			LiquidGlassEngine.AttachInteractiveLiquidGlass(_streamingBtn, LiquidGlassVariant.AccentLensed, isDark: false, enablePointerTracking: true);
-			_streamingBtn.Click += OnStreamingBtnClick;
-			int idx = parent.Children.IndexOf(_importFilesBtn);
-			if (idx >= 0) parent.Children.Insert(idx + 1, _streamingBtn);
-			else parent.Children.Add(_streamingBtn);
-		}
 	}
 
 	private async void OnStreamingBtnClick(object sender, RoutedEventArgs e)

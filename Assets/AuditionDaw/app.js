@@ -2594,7 +2594,11 @@
     if (!series) {
       const p = new Float32Array(ENV_BUCKETS);
       const r = new Float32Array(ENV_BUCKETS);
-      series = { p, r, filled: 0, isTruePcm: false };
+      const lMin = new Float32Array(ENV_BUCKETS);
+      const lMax = new Float32Array(ENV_BUCKETS);
+      const rMin = new Float32Array(ENV_BUCKETS);
+      const rMax = new Float32Array(ENV_BUCKETS);
+      series = { p, r, lMin, lMax, rMin, rMax, filled: 0, isTruePcm: false };
       state.envelopes.set(trackId, series);
       state.envelopes.set(String(trackId), series);
       while (state.envelopes.size > MAX_ENV_CACHE * 4) {
@@ -2627,10 +2631,57 @@
     const isLinear = state.prefs.waveScale !== "db";
     const pv = peak === null ? (isLinear ? energy : clamp(energy, 0, 1)) : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
     const rv = rms === null ? (isLinear ? pv * 0.7 : energy * 0.8) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
+    const wasEmpty = series.p[bucket] <= 0;
     if (pv > series.p[bucket]) series.p[bucket] = pv;
     if (rv > series.r[bucket]) series.r[bucket] = rv;
+
+    if (!series.lMax || series.lMax.length !== len) {
+      series.lMin = new Float32Array(len);
+      series.lMax = new Float32Array(len);
+      series.rMin = new Float32Array(len);
+      series.rMax = new Float32Array(len);
+    }
+    const balance = clamp(num(state.levels.balance ?? state.spectrum.balance, 0) || 0, -1, 1);
+    const lGain = clamp(1 - Math.max(0, balance) * 0.5, 0.2, 1.2);
+    const rGain = clamp(1 + Math.min(0, balance) * 0.5, 0.2, 1.2);
+    const lPk = clamp(pv * lGain, 0, 1);
+    const rPk = clamp(pv * rGain, 0, 1);
+    if (lPk > series.lMax[bucket]) series.lMax[bucket] = lPk;
+    if (lPk > series.lMin[bucket]) series.lMin[bucket] = lPk;
+    if (rPk > series.rMax[bucket]) series.rMax[bucket] = rPk;
+    if (rPk > series.rMin[bucket]) series.rMin[bucket] = rPk;
+
+    const bands = state.spectrum.bands;
+    if (Array.isArray(bands) && bands.length > 0) {
+      const specCols = 768;
+      const specBins = 80;
+      if (!series.specL || !series.specR || series.specCols !== specCols || series.specBins !== specBins) {
+        series.specCols = specCols;
+        series.specBins = specBins;
+        series.sampleRate = series.sampleRate || 48000;
+        series.specL = new Uint8Array(specCols * specBins);
+        series.specR = new Uint8Array(specCols * specBins);
+      }
+      const col = clamp(Math.floor((pos / duration) * specCols), 0, specCols - 1);
+      const base = col * specBins;
+      const nBands = bands.length;
+      for (let b = 0; b < specBins; b++) {
+        const bf = (b / (specBins - 1)) * (nBands - 1);
+        const b0 = Math.floor(bf);
+        const b1 = Math.min(nBands - 1, b0 + 1);
+        const frac = bf - b0;
+        const mag = clamp(((Number(bands[b0]) || 0) * (1 - frac) + (Number(bands[b1]) || 0) * frac), 0, 1);
+        const qL = clamp(Math.round(mag * lGain * 255), 0, 255);
+        const qR = clamp(Math.round(mag * rGain * 255), 0, 255);
+        if (qL > series.specL[base + b]) series.specL[base + b] = qL;
+        if (qR > series.specR[base + b]) series.specR[base + b] = qR;
+      }
+    }
+
     state.envRev += 1;
-    series.filled = Math.min(len, series.filled + (series.p[bucket] > 0 ? 0 : 1));
+    if (wasEmpty && pv > 0) {
+      series.filled = Math.min(len, series.filled + 1);
+    }
     scheduleSave();
   }
 
@@ -5569,6 +5620,16 @@
       }
       case "echo:workshop-ui:clock": {
         const incoming = msg.clock ?? null;
+        const durMs = num(incoming?.durationMs ?? msg.durationMs, 0) || (num(incoming?.durationSeconds ?? msg.durationSeconds, 0) * 1000);
+        if (durMs > 0) {
+          state.playback.durationSeconds = durMs / 1000;
+          if (incoming && (!incoming.durationSeconds || incoming.durationSeconds <= 0)) {
+            incoming.durationSeconds = state.playback.durationSeconds;
+          }
+          if (state.track && (!state.track.durationSeconds || state.track.durationSeconds <= 0)) {
+            state.track.durationSeconds = state.playback.durationSeconds;
+          }
+        }
         if (incoming) {
           const nowPerf = performance.now();
           const prevClock = state.clock;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -508,7 +508,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		ReverbPresetCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ReverbNames, ViewModel.ReverbPreset));
 		DrawEqCurve(ViewModel.EqGains);
 		RestoreLayouts();
-		OptimizeVst3PanelLayout();
+		UpdateVst3SidebarSubtitle();
 		if (_currentDspCategory != "free")
 		{
 			SetDspViewCategory(_currentDspCategory);
@@ -797,10 +797,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Vst3PluginState vst3PluginState = ViewModel.Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && string.Equals(p.Path, w.PluginPath, StringComparison.OrdinalIgnoreCase));
 			if (vst3PluginState != null && vst3PluginState.IsActive)
 			{
-				vst3PluginState.Enabled = false;
+				// Keep plugin audio processing active in rack when GUI window is closed
 				vst3PluginState.Bypass = false;
 				ViewModel.ApplyVst3Command.Execute(null);
-				ViewModel.Vst3StatusText = "已关闭插件界面并停用《" + vst3PluginState.Name + "》：歌曲继续正常播放（可在列表中重新启用）";
+				ViewModel.Vst3StatusText = "已关闭《" + vst3PluginState.Name + "》原生窗口：插件仍在机架后台实时处理音频（可随时重新打开界面或停用）";
+				RefreshVst3RackUi();
 			}
 		}
 	}
@@ -1507,6 +1508,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 				bool enabled = ViewModel?.FurinaChannelToolEnabled ?? false;
 				subTb.Text = !enabled ? "立体声直通" : "已启用";
 			}
+			else if (key == "vst3")
+			{
+				_vst3NavSubTb = subTb;
+				UpdateVst3SidebarSubtitle();
+			}
 			textSp.Children.Add(titleTb);
 			textSp.Children.Add(subTb);
 			Grid.SetColumn(textSp, 1);
@@ -1569,6 +1575,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		AddNavSectionHeader("音色");
 		itemsStack.Children.Add(CreateNavButton("param_eq", "\uE995", "参数 EQ", "已启用 · 10频段", hasCheck: true));
 		itemsStack.Children.Add(CreateNavButton("headphone", "\uE7F5", "耳机校正", "已旁路"));
+		AddNavSectionHeader("插件宿主");
+		itemsStack.Children.Add(CreateNavButton("vst3", "\uE8B8", "VST3 机架", "原生插件宿主"));
 		AddNavSectionHeader("空间与输出");
 		itemsStack.Children.Add(CreateNavButton("room", "\uE7BE", "房间校正", "无 IR"));
 		itemsStack.Children.Add(CreateNavButton("channel", "\uE768", "声道工具", "立体声直通"));
@@ -1622,7 +1630,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		advPanel.Children.Add(CreateNavButton("virtual_stage", "\uE995", "虚拟声场", "已旁路"));
 		advPanel.Children.Add(CreateNavButton("stereo_field", "\uE7BE", "立体声场", "132%", hasCheck: true));
 		advPanel.Children.Add(CreateNavButton("channel_matrix", "\uE8AB", "声道矩阵", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("vst3", "\uE8B8", "VST3 机架", "扩展机架"));
+		// VST3 promoted to top-level section "插件宿主"
 		itemsStack.Children.Add(advPanel);
 		sv.Content = itemsStack;
 		Grid.SetRow(sv, 1);
@@ -3647,7 +3655,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			"dsd" or "sdm" => _sdmDsdWorkbench ?? CreateSdmDsdWorkbench(),
 			"safety" => _outputSafetyWorkbench ?? CreateOutputSafetyWorkbench(),
 			"device" => _audioDeviceWorkbench ?? CreateAudioDeviceWorkbench(),
-			"vst3" => CreateWrappedCard("VST3 扩展机架", "\uE8B8", Vst3Panel),
+			"vst3" => _vst3RackWorkbench ?? CreateVst3RackWorkbench(),
 			_ => _parametricEqWorkbench ?? CreateParametricEqWorkbench()
 		};
 
@@ -3655,6 +3663,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 		Grid.SetColumn(activeView, 0);
 		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(activeView, isDark: false);
 		_workbenchHost.Children.Add(activeView);
+		if (category == "vst3")
+		{
+			RefreshVst3RackUi();
+		}
 	}
 
 	public void SetDspViewCategory(string category)

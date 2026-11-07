@@ -19,9 +19,33 @@ public sealed class SafeAudioFileReader : WaveStream, ISampleProvider
 	public SafeAudioFileReader(string filePath)
 	{
 		WaveStream stream;
+		if (StreamAudioCache.IsNetworkUrl(filePath))
+		{
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(filePath, out string cachedPath) && File.Exists(cachedPath))
+			{
+				filePath = cachedPath;
+				stream = OpenLocalWaveStream(filePath);
+			}
+			else
+			{
+				stream = new MediaFoundationReader(filePath);
+			}
+		}
+		else
+		{
+			stream = OpenLocalWaveStream(filePath);
+		}
+
+		_readerStream = stream;
+		_sampleChannel = new SampleChannel(_readerStream, false);
+		_length = _readerStream.Length;
+	}
+
+	private static WaveStream OpenLocalWaveStream(string filePath)
+	{
 		try
 		{
-			stream = new AudioFileReader(filePath);
+			return new AudioFileReader(filePath);
 		}
 		catch
 		{
@@ -29,17 +53,10 @@ public sealed class SafeAudioFileReader : WaveStream, ISampleProvider
 			if (ext == ".flac")
 			{
 				var sanitizingStream = new FlacSanitizingStream(filePath);
-				stream = new StreamMediaFoundationReader(sanitizingStream);
+				return new StreamMediaFoundationReader(sanitizingStream);
 			}
-			else
-			{
-				throw;
-			}
+			throw;
 		}
-
-		_readerStream = stream;
-		_sampleChannel = new SampleChannel(_readerStream, false);
-		_length = _readerStream.Length;
 	}
 
 	public override WaveFormat WaveFormat => _sampleChannel.WaveFormat;

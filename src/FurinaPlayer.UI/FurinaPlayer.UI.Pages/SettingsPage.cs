@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -19,9 +19,11 @@ using SonicWave.Audio.Output;
 using SonicWave.Core.Models;
 using WinRT;
 using WinRT.Interop;
+using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
+using Windows.UI;
 
 namespace FurinaPlayer.UI.Pages;
 
@@ -205,6 +207,21 @@ public sealed class SettingsPage : Page, IComponentConnector
 		return null;
 	}
 
+	private Grid? ResolveSettingsGrid()
+	{
+		if (_innerSettingsGrid != null)
+		{
+			return _innerSettingsGrid;
+		}
+		ScrollViewer? sv = ResolveSettingsScrollViewer();
+		if (sv?.Content is Grid g)
+		{
+			_innerSettingsGrid = g;
+			return g;
+		}
+		return null;
+	}
+
 	private void ApplySettingsLiquidGlass()
 	{
 		try
@@ -212,52 +229,62 @@ public sealed class SettingsPage : Page, IComponentConnector
 			bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
 			Background = new SolidColorBrush(Colors.Transparent);
 
-			if (_ambientCausticCanvas == null)
+			if (_ambientCausticCanvas != null)
 			{
-				_ambientCausticCanvas = LiquidGlassEngine.CreateAmbientCausticCanvas(() => LiquidGlassEngine.IsElementDarkTheme(this));
-				Grid.SetRow(_ambientCausticCanvas, 0);
-				Grid.SetColumn(_ambientCausticCanvas, 0);
-				Grid.SetRowSpan(_ambientCausticCanvas, 12);
-				Grid.SetColumnSpan(_ambientCausticCanvas, 12);
-				Canvas.SetZIndex(_ambientCausticCanvas, -10);
+				_ambientCausticCanvas.Visibility = Visibility.Collapsed;
 			}
 
-			if (Content is ScrollViewer sv)
+			ScrollViewer? targetSv = ResolveSettingsScrollViewer();
+			if (targetSv != null)
 			{
-				_settingsScrollViewer = sv;
-				sv.Background = new SolidColorBrush(Colors.Transparent);
-				_rootStageGrid = new Grid
+				targetSv.Background = new SolidColorBrush(Colors.Transparent);
+			}
+
+			Grid? settingsGrid = ResolveSettingsGrid();
+			if (targetSv != null && settingsGrid != null && _outerSettingsContainer == null)
+			{
+				Thickness gridPad = settingsGrid.Padding;
+				Thickness gridMargin = settingsGrid.Margin;
+				settingsGrid.Padding = new Thickness(0);
+				settingsGrid.Margin = new Thickness(0);
+
+				_outerSettingsContainer = new StackPanel
 				{
+					Spacing = 18,
+					Padding = gridPad.Left > 0 ? gridPad : new Thickness(24, 16, 24, 28),
+					Margin = gridMargin,
 					Background = new SolidColorBrush(Colors.Transparent)
 				};
-				Content = null;
-				_rootStageGrid.Children.Insert(0, _ambientCausticCanvas);
-				_rootStageGrid.Children.Add(sv);
-				Content = _rootStageGrid;
-			}
-			else if (Content is Grid existingRootGrid)
-			{
-				_rootStageGrid = existingRootGrid;
-				existingRootGrid.Background = new SolidColorBrush(Colors.Transparent);
-				if (!existingRootGrid.Children.Contains(_ambientCausticCanvas))
-				{
-					existingRootGrid.Children.Insert(0, _ambientCausticCanvas);
-				}
-				else if (existingRootGrid.Children.IndexOf(_ambientCausticCanvas) != 0)
-				{
-					existingRootGrid.Children.Remove(_ambientCausticCanvas);
-					existingRootGrid.Children.Insert(0, _ambientCausticCanvas);
-				}
-			}
 
-			_ambientCausticCanvas.Invalidate();
+				targetSv.Content = null;
+				_echoAppearanceCard = CreateEchoAppearanceWorkbenchCard(isDark);
+				_outerSettingsContainer.Children.Add(_echoAppearanceCard);
+				_outerSettingsContainer.Children.Add(settingsGrid);
+				targetSv.Content = _outerSettingsContainer;
+			}
+			else if (_echoAppearanceCard != null)
+			{
+				RefreshEchoAppearanceWorkbenchVisuals(isDark);
+			}
 
 			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
 
-			ScrollViewer? targetSv = ResolveSettingsScrollViewer();
-			if (targetSv?.Content is Grid settingsGrid)
+			if (settingsGrid != null)
 			{
 				settingsGrid.Background = new SolidColorBrush(Colors.Transparent);
+				var panels = settingsGrid.Children.OfType<FrameworkElement>().Where(c => c is not SKXamlCanvas).ToList();
+				if (panels.Count >= 2 && panels[1] is StackPanel col1Panel)
+				{
+					if (_systemSettingsCard == null)
+					{
+						_systemSettingsCard = CreateSystemAndWindowSettingsCard(isDark);
+						col1Panel.Children.Insert(0, _systemSettingsCard);
+					}
+					else
+					{
+						LiquidGlassEngine.AttachInteractiveLiquidGlass(_systemSettingsCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+					}
+				}
 				foreach (UIElement child in settingsGrid.Children)
 				{
 					if (child is Border cardBorder)
@@ -369,12 +396,13 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private void UpgradeSettingsVisualTreeNodes(DependencyObject root, bool isDark)
 	{
-		if (root == null) return;
+		if (root == null || ReferenceEquals(root, _echoAppearanceCard)) return;
 
 		int count = VisualTreeHelper.GetChildrenCount(root);
 		for (int i = 0; i < count; i++)
 		{
 			DependencyObject child = VisualTreeHelper.GetChild(root, i);
+			if (ReferenceEquals(child, _echoAppearanceCard)) continue;
 			if (child is LiquidGlassBorder lgBorder)
 			{
 				lgBorder.Variant = LiquidGlassVariant.Regular;
@@ -415,8 +443,9 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		try
 		{
-			ScrollViewer? sv = ResolveSettingsScrollViewer();
-			if (sv != null && sv.Content is Grid settingsGrid)
+			UpdatePresetGridColumns(width);
+			Grid? settingsGrid = ResolveSettingsGrid();
+			if (settingsGrid != null)
 			{
 				List<FrameworkElement> panels = settingsGrid.Children
 					.OfType<FrameworkElement>()
@@ -846,6 +875,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 			WallpaperLocalPanel.Visibility = ((ViewModel.Settings.WallpaperSource != WallpaperSource.LocalImage) ? Visibility.Collapsed : Visibility.Visible);
 			WallpaperPathText.Text = ViewModel.LocalWallpaperPath;
 			RefreshDevices();
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
 		}
 	}
 
@@ -1027,5 +1057,1517 @@ public sealed class SettingsPage : Page, IComponentConnector
 	public IComponentConnector GetBindingConnector(int connectionId, object target)
 	{
 		return null;
+	}
+
+	private Border? _systemSettingsCard;
+
+	private Border CreateSystemAndWindowSettingsCard(bool isDark)
+	{
+		var card = new Border
+		{
+			Name = "SystemAndWindowSettingsCard",
+			CornerRadius = new CornerRadius(16),
+			Margin = new Thickness(0, 0, 0, 16)
+		};
+
+		var sp = new StackPanel { Spacing = 12, Padding = new Thickness(16) };
+
+		// Header
+		var headerPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		headerPanel.Children.Add(FluentIconFactory.Create(FluentIconKind.Settings, 20));
+		headerPanel.Children.Add(new TextBlock
+		{
+			Text = "系统与窗口设置",
+			FontSize = 16,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		sp.Children.Add(headerPanel);
+
+		// 1. 界面缩放 (UI Scale)
+		var scalePanel = new StackPanel { Spacing = 6 };
+		var scaleHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+		scaleHeader.Children.Add(new TextBlock { Text = "界面缩放 (UI Scale)", FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontSize = 14 });
+		var scaleValueText = new TextBlock
+		{
+			Text = $"{((int)Math.Round((ViewModel?.UiScale ?? 1.0) * 100))}%",
+			FontSize = 13,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		scaleHeader.Children.Add(scaleValueText);
+		scalePanel.Children.Add(scaleHeader);
+
+		var scaleControls = new Grid { ColumnSpacing = 12 };
+		scaleControls.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		scaleControls.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140, GridUnitType.Pixel) });
+
+		var scaleSlider = new Slider
+		{
+			Minimum = 80,
+			Maximum = 200,
+			StepFrequency = 5,
+			Value = Math.Round((ViewModel?.UiScale ?? 1.0) * 100),
+			Margin = new Thickness(0, -6, 0, 0)
+		};
+
+		var scaleCombo = new ComboBox
+		{
+			MinWidth = 130,
+			CornerRadius = new CornerRadius(10),
+			HorizontalAlignment = HorizontalAlignment.Right
+		};
+		var scalePresets = new[] { 80, 90, 100, 110, 125, 150, 175, 200 };
+		int selectedComboIdx = 2;
+		for (int i = 0; i < scalePresets.Length; i++)
+		{
+			int p = scalePresets[i];
+			scaleCombo.Items.Add(new ComboBoxItem { Content = $"{p}%" + (p == 100 ? "（标准）" : ""), Tag = p });
+			if (Math.Abs(scaleSlider.Value - p) < 3) selectedComboIdx = i;
+		}
+		scaleCombo.SelectedIndex = selectedComboIdx;
+
+		bool updatingScale = false;
+		scaleSlider.ValueChanged += (s, e) =>
+		{
+			if (updatingScale || ViewModel == null) return;
+			updatingScale = true;
+			double sVal = e.NewValue / 100.0;
+			scaleValueText.Text = $"{((int)e.NewValue)}%";
+			ViewModel.SetUiScale(sVal);
+			for (int i = 0; i < scaleCombo.Items.Count; i++)
+			{
+				if (scaleCombo.Items[i] is ComboBoxItem cbi && cbi.Tag is int tag && Math.Abs(tag - e.NewValue) < 3)
+				{
+					scaleCombo.SelectedIndex = i;
+					break;
+				}
+			}
+			updatingScale = false;
+		};
+
+		scaleCombo.SelectionChanged += (s, e) =>
+		{
+			if (updatingScale || ViewModel == null) return;
+			if (scaleCombo.SelectedItem is ComboBoxItem cbi && cbi.Tag is int tag)
+			{
+				updatingScale = true;
+				scaleSlider.Value = tag;
+				scaleValueText.Text = $"{tag}%";
+				ViewModel.SetUiScale(tag / 100.0);
+				updatingScale = false;
+			}
+		};
+
+		Grid.SetColumn(scaleSlider, 0);
+		Grid.SetColumn(scaleCombo, 1);
+		scaleControls.Children.Add(scaleSlider);
+		scaleControls.Children.Add(scaleCombo);
+		scalePanel.Children.Add(scaleControls);
+		sp.Children.Add(scalePanel);
+
+		// 2. 窗口关闭时隐藏到托盘
+		var trayToggle = new ToggleSwitch
+		{
+			Header = "窗口关闭时隐藏到托盘",
+			IsOn = ViewModel?.CloseToTray ?? true,
+			OnContent = "开启",
+			OffContent = "关闭"
+		};
+		trayToggle.Toggled += (s, e) => ViewModel?.SetCloseToTray(trayToggle.IsOn);
+		var trayDesc = new TextBlock
+		{
+			Text = "点击右上角关闭按钮时，保持应用在后台运行，双击托盘图标恢复窗口。",
+			FontSize = 11,
+			Opacity = 0.6,
+			Margin = new Thickness(0, -6, 0, 4)
+		};
+		sp.Children.Add(trayToggle);
+		sp.Children.Add(trayDesc);
+
+		// 3. 记住窗口位置与尺寸
+		var rememberToggle = new ToggleSwitch
+		{
+			Header = "记住窗口大小与位置",
+			IsOn = ViewModel?.RememberWindowState ?? true,
+			OnContent = "开启",
+			OffContent = "关闭"
+		};
+		rememberToggle.Toggled += (s, e) => ViewModel?.SetRememberWindowState(rememberToggle.IsOn);
+		var rememberDesc = new TextBlock
+		{
+			Text = "退出时记录窗口尺寸与屏幕位置，并在下次启动时精准恢复。",
+			FontSize = 11,
+			Opacity = 0.6,
+			Margin = new Thickness(0, -6, 0, 4)
+		};
+		sp.Children.Add(rememberToggle);
+		sp.Children.Add(rememberDesc);
+
+		// 4. 音乐播放时设备保持唤醒
+		var wakeToggle = new ToggleSwitch
+		{
+			Header = "播放音乐时阻止系统休眠",
+			IsOn = ViewModel?.PreventSystemSleep ?? true,
+			OnContent = "开启",
+			OffContent = "关闭"
+		};
+		wakeToggle.Toggled += (s, e) => ViewModel?.SetPreventSystemSleep(wakeToggle.IsOn);
+		var wakeDesc = new TextBlock
+		{
+			Text = "在音频高保真播放期间保持系统唤醒，避免 Windows 进入睡眠导致播放中断。",
+			FontSize = 11,
+			Opacity = 0.6,
+			Margin = new Thickness(0, -6, 0, 4)
+		};
+		sp.Children.Add(wakeToggle);
+		sp.Children.Add(wakeDesc);
+
+		card.Child = sp;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+		return card;
+	}
+
+	private Grid? _innerSettingsGrid;
+	private StackPanel? _outerSettingsContainer;
+	private Border? _echoAppearanceCard;
+	private readonly Dictionary<string, Button> _echoSubTabButtons = new();
+	private readonly Dictionary<string, Border> _echoSubTabIndicators = new();
+	private string _activeEchoSubTab = "theme";
+	private readonly Dictionary<string, Button> _echoThemeModeButtons = new();
+	private Border? _acrylicFeatureCard;
+	private Border? _acrylicLiveBadgeBorder;
+	private TextBlock? _acrylicLiveBadgeText;
+	private Border? _unfocusedSubCard;
+	private ToggleSwitch? _unfocusedToggle;
+	private Border? _opacitySubCard;
+	private TextBlock? _opacityValueText;
+	private Slider? _opacitySlider;
+	private Button? _scheduleToggleBtn;
+	private TextBox? _scheduleDarkStartBox;
+	private TextBox? _scheduleDarkEndBox;
+	private ToggleSwitch? _rainbowToggle;
+	private ToggleSwitch? _invertToggle;
+	private Button? _presetExpanderBtn;
+	private Border? _presetExpanderSwatch;
+	private TextBlock? _presetExpanderNameText;
+	private TextBlock? _presetExpanderArrowText;
+	private Border? _presetWorkbenchContainer;
+	private readonly Dictionary<string, Button> _categoryFilterButtons = new();
+	private Grid? _presetsGridContainer;
+	private int _presetGridCols = 4;
+	private bool _suppressEchoUiEvents;
+
+	private Border CreateEchoAppearanceWorkbenchCard(bool isDark)
+	{
+		var outerCard = new Border
+		{
+			Name = "EchoAppearanceWorkbenchCard",
+			CornerRadius = new CornerRadius(20),
+			Padding = new Thickness(24, 20, 24, 22),
+			Margin = new Thickness(0, 0, 0, 4)
+		};
+
+		var rootStack = new StackPanel { Spacing = 18 };
+
+		// 1. Header "外观" + Sub-navigation tabs ("主题与字体" | "布局与可视化" | "迷你播放器" | "背景与封面" | "无障碍")
+		var headerSection = new StackPanel { Spacing = 12 };
+		var titleRow = new Grid();
+		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var titleText = new TextBlock
+		{
+			Text = "外观",
+			FontSize = 22,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		Grid.SetColumn(titleText, 0);
+		titleRow.Children.Add(titleText);
+
+		var activePresetSummaryBadge = new Border
+		{
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(12, 5, 12, 5),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(45, 99, 102, 241) : Color.FromArgb(26, 99, 102, 241)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(95, 99, 102, 241)),
+			BorderThickness = new Thickness(1)
+		};
+		var badgeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		badgeSp.Children.Add(new TextBlock
+		{
+			Text = "ECHO 光学外观引擎 · 实时生效",
+			FontSize = 11.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 79, 70, 229))
+		});
+		activePresetSummaryBadge.Child = badgeSp;
+		Grid.SetColumn(activePresetSummaryBadge, 1);
+		titleRow.Children.Add(activePresetSummaryBadge);
+		headerSection.Children.Add(titleRow);
+
+		var subTabsBar = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 22
+		};
+		(string Key, string Label)[] subTabs = new[]
+		{
+			("theme", "主题与字体"),
+			("layout", "布局与可视化"),
+			("mini", "迷你播放器"),
+			("bg", "背景与封面"),
+			("a11y", "无障碍")
+		};
+		_echoSubTabButtons.Clear();
+		_echoSubTabIndicators.Clear();
+		foreach (var tab in subTabs)
+		{
+			var tabStack = new StackPanel { Spacing = 5 };
+			var tabBtn = new Button
+			{
+				Content = tab.Label,
+				Tag = tab.Key,
+				Background = new SolidColorBrush(Colors.Transparent),
+				BorderThickness = new Thickness(0),
+				Padding = new Thickness(4, 4, 4, 4),
+				FontSize = 13.5,
+				FontWeight = tab.Key == _activeEchoSubTab ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Medium
+			};
+			var indicator = new Border
+			{
+				Height = 2.5,
+				CornerRadius = new CornerRadius(2),
+				Background = new SolidColorBrush(tab.Key == _activeEchoSubTab
+					? LiquidGlassEngine.ActivePreset.AccentPrimary
+					: Colors.Transparent)
+			};
+			tabBtn.Click += (s, e) =>
+			{
+				_activeEchoSubTab = tab.Key;
+				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+			};
+			_echoSubTabButtons[tab.Key] = tabBtn;
+			_echoSubTabIndicators[tab.Key] = indicator;
+			tabStack.Children.Add(tabBtn);
+			tabStack.Children.Add(indicator);
+			subTabsBar.Children.Add(tabStack);
+		}
+		headerSection.Children.Add(subTabsBar);
+		headerSection.Children.Add(new Border
+		{
+			Height = 1,
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(30, 255, 255, 255) : Color.FromArgb(22, 15, 23, 42)),
+			Margin = new Thickness(0, -4, 0, 0)
+		});
+		rootStack.Children.Add(headerSection);
+
+		// 2. "主题" Mode Selector Row (浅色 | 深色 | 跟随系统 | 氛围 | 亚克力 | 液态玻璃)
+		var themeModeRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+		themeModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		themeModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+		var themeLabel = new TextBlock
+		{
+			Text = "主题",
+			FontSize = 15,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		Grid.SetColumn(themeLabel, 0);
+		themeModeRow.Children.Add(themeLabel);
+
+		var modeButtonsPanel = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 8,
+			HorizontalAlignment = HorizontalAlignment.Right
+		};
+		(string Key, string Icon, string Label)[] modeItems = new[]
+		{
+			("light", "☀", "浅色"),
+			("dark", "🌙", "深色"),
+			("system", "🖥", "跟随系统"),
+			("ambient", "✨", "氛围"),
+			("acrylic", "🪟", "亚克力"),
+			("liquid-glass", "💧", "液态玻璃")
+		};
+		_echoThemeModeButtons.Clear();
+		foreach (var m in modeItems)
+		{
+			var btnContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+			btnContent.Children.Add(new TextBlock { Text = m.Icon, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center });
+			btnContent.Children.Add(new TextBlock { Text = m.Label, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+
+			var mBtn = new Button
+			{
+				Content = btnContent,
+				Tag = m.Key,
+				CornerRadius = new CornerRadius(10),
+				Padding = new Thickness(13, 7, 13, 7),
+				BorderThickness = new Thickness(1.2)
+			};
+			mBtn.Click += (s, e) =>
+			{
+				if (_suppressEchoUiEvents || ViewModel == null) return;
+				ViewModel.SetEchoThemeMode(m.Key);
+				SyncLegacyThemeMaterialCombos();
+				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+			};
+			_echoThemeModeButtons[m.Key] = mBtn;
+			modeButtonsPanel.Children.Add(mBtn);
+		}
+		Grid.SetColumn(modeButtonsPanel, 1);
+		themeModeRow.Children.Add(modeButtonsPanel);
+		rootStack.Children.Add(themeModeRow);
+
+		// 3. "窗口亚克力主题" Feature Card (with miniature glass preview, live % badge, 失焦时保持通透 & 透明度 0-100% slider)
+		_acrylicFeatureCard = new Border
+		{
+			CornerRadius = new CornerRadius(16),
+			Padding = new Thickness(18, 16, 18, 16),
+			BorderThickness = new Thickness(1)
+		};
+		var acrylicStack = new StackPanel { Spacing = 14 };
+
+		var acrylicTopGrid = new Grid { ColumnSpacing = 14 };
+		acrylicTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		acrylicTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		acrylicTopGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		// Miniature glass window preview icon
+		var miniGlassPreview = new Border
+		{
+			Width = 48,
+			Height = 48,
+			CornerRadius = new CornerRadius(12),
+			BorderThickness = new Thickness(1),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 148, 163, 184)),
+			Background = new LinearGradientBrush
+			{
+				StartPoint = new Point(0, 0),
+				EndPoint = new Point(1, 1),
+				GradientStops =
+				{
+					new GradientStop { Color = Color.FromArgb(220, 224, 242, 254), Offset = 0.0 },
+					new GradientStop { Color = Color.FromArgb(190, 224, 231, 255), Offset = 0.5 },
+					new GradientStop { Color = Color.FromArgb(210, 254, 243, 199), Offset = 1.0 }
+				}
+			}
+		};
+		var miniInnerGrid = new Grid { Padding = new Thickness(7) };
+		miniInnerGrid.Children.Add(new Border
+		{
+			Width = 8,
+			Height = 8,
+			CornerRadius = new CornerRadius(4),
+			HorizontalAlignment = HorizontalAlignment.Left,
+			VerticalAlignment = VerticalAlignment.Top,
+			Background = new SolidColorBrush(Color.FromArgb(230, 56, 189, 248))
+		});
+		miniInnerGrid.Children.Add(new Border
+		{
+			Height = 14,
+			CornerRadius = new CornerRadius(5),
+			VerticalAlignment = VerticalAlignment.Bottom,
+			Background = new SolidColorBrush(Color.FromArgb(195, 255, 255, 255)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 255, 255, 255)),
+			BorderThickness = new Thickness(1)
+		});
+		miniGlassPreview.Child = miniInnerGrid;
+		Grid.SetColumn(miniGlassPreview, 0);
+		acrylicTopGrid.Children.Add(miniGlassPreview);
+
+		var acrylicTextStack = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+		acrylicTextStack.Children.Add(new TextBlock
+		{
+			Text = "窗口亚克力主题",
+			FontSize = 15,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
+		});
+		acrylicTextStack.Children.Add(new TextBlock
+		{
+			Text = "开启后会立即使用系统亚克力材质，让桌面背景从窗口后方透出；界面会保留可读遮罩，Windows 11 22H2 及以上效果最佳。",
+			FontSize = 12.5,
+			Opacity = 0.78,
+			TextWrapping = TextWrapping.Wrap
+		});
+		Grid.SetColumn(acrylicTextStack, 1);
+		acrylicTopGrid.Children.Add(acrylicTextStack);
+
+		int initOpacity = ViewModel?.AcrylicOpacityPercent ?? 100;
+		_acrylicLiveBadgeBorder = new Border
+		{
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(12, 5, 12, 5),
+			VerticalAlignment = VerticalAlignment.Center,
+			BorderThickness = new Thickness(1)
+		};
+		_acrylicLiveBadgeText = new TextBlock
+		{
+			Text = $"{initOpacity}%",
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
+		};
+		_acrylicLiveBadgeBorder.Child = _acrylicLiveBadgeText;
+		Grid.SetColumn(_acrylicLiveBadgeBorder, 2);
+		acrylicTopGrid.Children.Add(_acrylicLiveBadgeBorder);
+		acrylicStack.Children.Add(acrylicTopGrid);
+
+		// Bottom two sub-cards: 失焦时保持通透 | 透明度
+		var acrylicSubCardsGrid = new Grid { ColumnSpacing = 14 };
+		acrylicSubCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		acrylicSubCardsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+		// Left sub-card: 失焦时保持通透
+		_unfocusedSubCard = new Border
+		{
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(16, 12, 16, 12),
+			BorderThickness = new Thickness(1)
+		};
+		var unfocusedGrid = new Grid { ColumnSpacing = 10 };
+		unfocusedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		unfocusedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var unfocusedLabels = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+		unfocusedLabels.Children.Add(new TextBlock
+		{
+			Text = "失焦时保持通透",
+			FontSize = 13.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		});
+		unfocusedLabels.Children.Add(new TextBlock
+		{
+			Text = "切到别的软件时，不收回窗口亚克力透明效果",
+			FontSize = 11.5,
+			Opacity = 0.72,
+			TextWrapping = TextWrapping.Wrap
+		});
+		Grid.SetColumn(unfocusedLabels, 0);
+		unfocusedGrid.Children.Add(unfocusedLabels);
+
+		_unfocusedToggle = new ToggleSwitch
+		{
+			IsOn = ViewModel?.AcrylicKeepTranslucentWhenUnfocused ?? true,
+			OnContent = null,
+			OffContent = null,
+			MinWidth = 0,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_unfocusedToggle.Toggled += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			ViewModel.SetAcrylicKeepTranslucentWhenUnfocused(_unfocusedToggle.IsOn);
+		};
+		Grid.SetColumn(_unfocusedToggle, 1);
+		unfocusedGrid.Children.Add(_unfocusedToggle);
+		_unfocusedSubCard.Child = unfocusedGrid;
+		Grid.SetColumn(_unfocusedSubCard, 0);
+		acrylicSubCardsGrid.Children.Add(_unfocusedSubCard);
+
+		// Right sub-card: 透明度 0% - 100%
+		_opacitySubCard = new Border
+		{
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(16, 12, 16, 12),
+			BorderThickness = new Thickness(1)
+		};
+		var opacityStack = new StackPanel { Spacing = 4 };
+		var opacityHeaderGrid = new Grid();
+		opacityHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		opacityHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		opacityHeaderGrid.Children.Add(new TextBlock
+		{
+			Text = "透明度",
+			FontSize = 13.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		});
+		_opacityValueText = new TextBlock
+		{
+			Text = $"{initOpacity}%",
+			FontSize = 13,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
+		};
+		Grid.SetColumn(_opacityValueText, 1);
+		opacityHeaderGrid.Children.Add(_opacityValueText);
+		opacityStack.Children.Add(opacityHeaderGrid);
+
+		_opacitySlider = new Slider
+		{
+			Minimum = 0,
+			Maximum = 100,
+			StepFrequency = 1,
+			Value = initOpacity,
+			Margin = new Thickness(0, -4, 0, -4)
+		};
+		_opacitySlider.ValueChanged += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			int pct = (int)Math.Round(e.NewValue);
+			if (_opacityValueText != null) _opacityValueText.Text = $"{pct}%";
+			if (_acrylicLiveBadgeText != null) _acrylicLiveBadgeText.Text = $"{pct}%";
+			ViewModel.SetAcrylicOpacityPercent(pct);
+		};
+		opacityStack.Children.Add(_opacitySlider);
+		opacityStack.Children.Add(new TextBlock
+		{
+			Text = "0% 为不透明，100% 为最通透",
+			FontSize = 11.5,
+			Opacity = 0.72
+		});
+		_opacitySubCard.Child = opacityStack;
+		Grid.SetColumn(_opacitySubCard, 1);
+		acrylicSubCardsGrid.Children.Add(_opacitySubCard);
+
+		acrylicStack.Children.Add(acrylicSubCardsGrid);
+		_acrylicFeatureCard.Child = acrylicStack;
+		rootStack.Children.Add(_acrylicFeatureCard);
+
+		// 4. "定时切换深色模式" Row
+		var scheduleRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+		scheduleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		scheduleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var scheduleLabel = new TextBlock
+		{
+			Text = "定时切换深色模式",
+			FontSize = 14.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		Grid.SetColumn(scheduleLabel, 0);
+		scheduleRow.Children.Add(scheduleLabel);
+
+		var scheduleControls = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 10,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_scheduleToggleBtn = new Button
+		{
+			Content = (ViewModel?.ScheduledDarkModeEnabled ?? false) ? "已启用" : "未启用",
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(14, 6, 14, 6),
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		};
+		_scheduleToggleBtn.Click += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			bool next = !ViewModel.ScheduledDarkModeEnabled;
+			ViewModel.SetScheduledDarkMode(next, _scheduleDarkStartBox?.Text, _scheduleDarkEndBox?.Text);
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		};
+		scheduleControls.Children.Add(_scheduleToggleBtn);
+
+		scheduleControls.Children.Add(new TextBlock
+		{
+			Text = "切到深色",
+			FontSize = 12.5,
+			Opacity = 0.78,
+			VerticalAlignment = VerticalAlignment.Center,
+			Margin = new Thickness(4, 0, 0, 0)
+		});
+		_scheduleDarkStartBox = new TextBox
+		{
+			Text = ViewModel?.ScheduledDarkStartTime ?? "19:00",
+			Width = 96,
+			CornerRadius = new CornerRadius(8),
+			FontSize = 12.5,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_scheduleDarkStartBox.LostFocus += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			ViewModel.SetScheduledDarkMode(ViewModel.ScheduledDarkModeEnabled, _scheduleDarkStartBox.Text, _scheduleDarkEndBox?.Text);
+		};
+		scheduleControls.Children.Add(_scheduleDarkStartBox);
+
+		scheduleControls.Children.Add(new TextBlock
+		{
+			Text = "切回浅色",
+			FontSize = 12.5,
+			Opacity = 0.78,
+			VerticalAlignment = VerticalAlignment.Center,
+			Margin = new Thickness(4, 0, 0, 0)
+		});
+		_scheduleDarkEndBox = new TextBox
+		{
+			Text = ViewModel?.ScheduledDarkEndTime ?? "07:00",
+			Width = 96,
+			CornerRadius = new CornerRadius(8),
+			FontSize = 12.5,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_scheduleDarkEndBox.LostFocus += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			ViewModel.SetScheduledDarkMode(ViewModel.ScheduledDarkModeEnabled, _scheduleDarkStartBox?.Text, _scheduleDarkEndBox.Text);
+		};
+		scheduleControls.Children.Add(_scheduleDarkEndBox);
+
+		Grid.SetColumn(scheduleControls, 1);
+		scheduleRow.Children.Add(scheduleControls);
+		rootStack.Children.Add(scheduleRow);
+
+		// 5. "Rainbow 模式" PRO Row
+		var rainbowRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+		rainbowRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		rainbowRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var rainbowLeft = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 10,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		rainbowLeft.Children.Add(new TextBlock
+		{
+			Text = "Rainbow 模式",
+			FontSize = 14.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		rainbowLeft.Children.Add(new Border
+		{
+			CornerRadius = new CornerRadius(6),
+			Padding = new Thickness(7, 2, 7, 2),
+			Background = new SolidColorBrush(Color.FromArgb(38, 124, 58, 237)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(110, 124, 58, 237)),
+			BorderThickness = new Thickness(1),
+			VerticalAlignment = VerticalAlignment.Center,
+			Child = new TextBlock
+			{
+				Text = "PRO",
+				FontSize = 10.5,
+				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+				Foreground = new SolidColorBrush(Color.FromArgb(255, 139, 92, 246))
+			}
+		});
+		rainbowLeft.Children.Add(new Border
+		{
+			Width = 38,
+			Height = 16,
+			CornerRadius = new CornerRadius(8),
+			VerticalAlignment = VerticalAlignment.Center,
+			Background = new LinearGradientBrush
+			{
+				StartPoint = new Point(0, 0.5),
+				EndPoint = new Point(1, 0.5),
+				GradientStops =
+				{
+					new GradientStop { Color = Color.FromArgb(255, 244, 63, 94), Offset = 0.0 },
+					new GradientStop { Color = Color.FromArgb(255, 245, 158, 11), Offset = 0.25 },
+					new GradientStop { Color = Color.FromArgb(255, 16, 185, 129), Offset = 0.5 },
+					new GradientStop { Color = Color.FromArgb(255, 56, 189, 248), Offset = 0.75 },
+					new GradientStop { Color = Color.FromArgb(255, 139, 92, 246), Offset = 1.0 }
+				}
+			}
+		});
+		Grid.SetColumn(rainbowLeft, 0);
+		rainbowRow.Children.Add(rainbowLeft);
+
+		_rainbowToggle = new ToggleSwitch
+		{
+			IsOn = ViewModel?.RainbowModeEnabled ?? false,
+			OnContent = null,
+			OffContent = null,
+			MinWidth = 0,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_rainbowToggle.Toggled += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			ViewModel.SetRainbowMode(_rainbowToggle.IsOn);
+		};
+		Grid.SetColumn(_rainbowToggle, 1);
+		rainbowRow.Children.Add(_rainbowToggle);
+		rootStack.Children.Add(rainbowRow);
+
+		// 6. "反色模式" Row
+		var invertRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+		invertRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		invertRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		invertRow.Children.Add(new TextBlock
+		{
+			Text = "反色模式",
+			FontSize = 14.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		_invertToggle = new ToggleSwitch
+		{
+			IsOn = ViewModel?.InvertModeEnabled ?? false,
+			OnContent = null,
+			OffContent = null,
+			MinWidth = 0,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_invertToggle.Toggled += (s, e) =>
+		{
+			if (_suppressEchoUiEvents || ViewModel == null) return;
+			ViewModel.SetInvertMode(_invertToggle.IsOn);
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		};
+		Grid.SetColumn(_invertToggle, 1);
+		invertRow.Children.Add(_invertToggle);
+		rootStack.Children.Add(invertRow);
+
+		// 7. "主题预设" Header + Expander Pill Button
+		var presetHeaderRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+		presetHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		presetHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		presetHeaderRow.Children.Add(new TextBlock
+		{
+			Text = "主题预设",
+			FontSize = 15,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+
+		var expanderContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		_presetExpanderSwatch = new Border
+		{
+			Width = 14,
+			Height = 14,
+			CornerRadius = new CornerRadius(7),
+			Background = new SolidColorBrush(LiquidGlassEngine.ActivePreset.AccentPrimary),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)),
+			BorderThickness = new Thickness(1),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_presetExpanderNameText = new TextBlock
+		{
+			Text = LiquidGlassEngine.ActivePreset.Name,
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_presetExpanderArrowText = new TextBlock
+		{
+			Text = (ViewModel?.ThemePresetsExpanded ?? true) ? "收起主题预设 ∧" : "展开主题预设 ∨",
+			FontSize = 12.5,
+			Opacity = 0.78,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		expanderContent.Children.Add(_presetExpanderSwatch);
+		expanderContent.Children.Add(_presetExpanderNameText);
+		expanderContent.Children.Add(_presetExpanderArrowText);
+
+		_presetExpanderBtn = new Button
+		{
+			Content = expanderContent,
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(14, 7, 14, 7),
+			BorderThickness = new Thickness(1)
+		};
+		_presetExpanderBtn.Click += (s, e) =>
+		{
+			if (ViewModel == null) return;
+			bool next = !ViewModel.ThemePresetsExpanded;
+			ViewModel.SetThemePresetsExpanded(next);
+			if (_presetWorkbenchContainer != null)
+			{
+				_presetWorkbenchContainer.Visibility = next ? Visibility.Visible : Visibility.Collapsed;
+			}
+			if (_presetExpanderArrowText != null)
+			{
+				_presetExpanderArrowText.Text = next ? "收起主题预设 ∧" : "展开主题预设 ∨";
+			}
+		};
+		Grid.SetColumn(_presetExpanderBtn, 1);
+		presetHeaderRow.Children.Add(_presetExpanderBtn);
+		rootStack.Children.Add(presetHeaderRow);
+
+		// 8. Theme Presets & Custom Theme Expanded Workbench Container
+		_presetWorkbenchContainer = new Border
+		{
+			CornerRadius = new CornerRadius(16),
+			Padding = new Thickness(18, 16, 18, 18),
+			BorderThickness = new Thickness(1),
+			Visibility = (ViewModel?.ThemePresetsExpanded ?? true) ? Visibility.Visible : Visibility.Collapsed
+		};
+		var workbenchStack = new StackPanel { Spacing = 14 };
+
+		// 8a. Custom Theme Header Bar ("自定义主题" + "✎ 进入编辑" | "+ 新建我的主题" | "📁 导入参数")
+		var customHeaderGrid = new Grid { ColumnSpacing = 12 };
+		customHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		customHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var customTitleStack = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 12,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		customTitleStack.Children.Add(new TextBlock
+		{
+			Text = "自定义主题",
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		customTitleStack.Children.Add(new TextBlock
+		{
+			Text = "新主题会自动收入「我的」，支持配色编辑和 JSON 参数导入",
+			FontSize = 12,
+			Opacity = 0.72,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		Grid.SetColumn(customTitleStack, 0);
+		customHeaderGrid.Children.Add(customTitleStack);
+
+		var customActionsBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		var editThemeBtn = new Button
+		{
+			Content = "✎ 进入编辑",
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(13, 6, 13, 6),
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		};
+		editThemeBtn.Click += async (s, e) => await ShowCustomThemeEditorDialogAsync(editCurrent: true);
+
+		var newThemeBtn = new Button
+		{
+			Content = "+ 新建我的主题",
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(13, 6, 13, 6),
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		};
+		newThemeBtn.Click += async (s, e) => await ShowCustomThemeEditorDialogAsync(editCurrent: false);
+
+		var importThemeBtn = new Button
+		{
+			Content = "📁 导入参数",
+			CornerRadius = new CornerRadius(999),
+			Padding = new Thickness(13, 6, 13, 6),
+			FontSize = 12.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		};
+		importThemeBtn.Click += async (s, e) => await ShowImportThemeParamsDialogAsync();
+
+		customActionsBar.Children.Add(editThemeBtn);
+		customActionsBar.Children.Add(newThemeBtn);
+		customActionsBar.Children.Add(importThemeBtn);
+		Grid.SetColumn(customActionsBar, 1);
+		customHeaderGrid.Children.Add(customActionsBar);
+		workbenchStack.Children.Add(customHeaderGrid);
+
+		// 8b. Category Filter Bar (全部 | 我的 | 简洁 | 柔和 | 和纸 | 夜色 | 工作室 | 个性)
+		var categoryBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		_categoryFilterButtons.Clear();
+		foreach (string cat in LiquidGlassEngine.ThemeCategories)
+		{
+			string currentCat = cat;
+			var catBtn = new Button
+			{
+				Content = currentCat,
+				Tag = currentCat,
+				CornerRadius = new CornerRadius(999),
+				Padding = new Thickness(14, 5, 14, 5),
+				FontSize = 12.5,
+				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+				BorderThickness = new Thickness(1)
+			};
+			catBtn.Click += (s, e) =>
+			{
+				ViewModel?.SetSelectedThemeCategory(currentCat);
+				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+			};
+			_categoryFilterButtons[currentCat] = catBtn;
+			categoryBar.Children.Add(catBtn);
+		}
+		workbenchStack.Children.Add(categoryBar);
+
+		// 8c. Preset Cards Grid
+		_presetsGridContainer = new Grid
+		{
+			ColumnSpacing = 12,
+			RowSpacing = 12,
+			Margin = new Thickness(0, 4, 0, 0)
+		};
+		workbenchStack.Children.Add(_presetsGridContainer);
+
+		_presetWorkbenchContainer.Child = workbenchStack;
+		rootStack.Children.Add(_presetWorkbenchContainer);
+
+		outerCard.Child = rootStack;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(outerCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+		RefreshEchoAppearanceWorkbenchVisuals(isDark);
+		return outerCard;
+	}
+
+	private void SyncLegacyThemeMaterialCombos()
+	{
+		if (ViewModel == null) return;
+		try
+		{
+			_suppressMaterialChange = true;
+			if (ThemeCombo != null)
+			{
+				ThemeCombo.SelectedIndex = (int)ViewModel.Settings.Theme;
+			}
+			if (MaterialCombo != null)
+			{
+				MaterialCombo.SelectedIndex = IndexFromMaterial(ViewModel.Settings.BackgroundMaterial);
+			}
+		}
+		catch
+		{
+		}
+		finally
+		{
+			_suppressMaterialChange = false;
+		}
+	}
+
+	private void UpdatePresetGridColumns(double pageWidth)
+	{
+		int targetCols = pageWidth >= 1120 ? 4 : (pageWidth >= 780 ? 3 : 2);
+		if (targetCols != _presetGridCols)
+		{
+			_presetGridCols = targetCols;
+			PopulateEchoPresetCardsGrid(LiquidGlassEngine.IsElementDarkTheme(this));
+		}
+	}
+
+	private void RefreshEchoAppearanceWorkbenchVisuals(bool isDark)
+	{
+		if (_echoAppearanceCard == null) return;
+		_suppressEchoUiEvents = true;
+		try
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_echoAppearanceCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+
+			var activePreset = LiquidGlassEngine.ActivePreset;
+			Color accent = activePreset.AccentPrimary;
+			Color cardSurface = isDark
+				? Color.FromArgb(145, 30, 41, 59)
+				: Color.FromArgb(185, 255, 255, 255);
+			Color subCardSurface = isDark
+				? Color.FromArgb(165, 22, 30, 46)
+				: Color.FromArgb(215, 255, 255, 255);
+			Color subtleBorder = isDark
+				? Color.FromArgb(60, 255, 255, 255)
+				: Color.FromArgb(35, 15, 23, 42);
+
+			// Update Sub-tabs
+			foreach (var kv in _echoSubTabButtons)
+			{
+				bool isSelected = kv.Key == _activeEchoSubTab;
+				kv.Value.FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Medium;
+				kv.Value.Opacity = isSelected ? 1.0 : 0.72;
+				if (_echoSubTabIndicators.TryGetValue(kv.Key, out var ind))
+				{
+					ind.Background = new SolidColorBrush(isSelected ? accent : Colors.Transparent);
+				}
+			}
+
+			// Update Theme Mode Buttons
+			string currentMode = ViewModel?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			foreach (var kv in _echoThemeModeButtons)
+			{
+				bool isSelected = string.Equals(kv.Key, currentMode, StringComparison.OrdinalIgnoreCase);
+				if (isSelected)
+				{
+					kv.Value.Background = new SolidColorBrush(isDark
+						? Color.FromArgb(95, accent.R, accent.G, accent.B)
+						: Color.FromArgb(38, accent.R, accent.G, accent.B));
+					kv.Value.BorderBrush = new SolidColorBrush(accent);
+				}
+				else
+				{
+					kv.Value.Background = new SolidColorBrush(isDark
+						? Color.FromArgb(110, 30, 41, 59)
+						: Color.FromArgb(175, 255, 255, 255));
+					kv.Value.BorderBrush = new SolidColorBrush(subtleBorder);
+				}
+			}
+
+			// Update Acrylic Feature Card & Subcards
+			if (_acrylicFeatureCard != null)
+			{
+				_acrylicFeatureCard.Background = new SolidColorBrush(cardSurface);
+				_acrylicFeatureCard.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+			if (_unfocusedSubCard != null)
+			{
+				_unfocusedSubCard.Background = new SolidColorBrush(subCardSurface);
+				_unfocusedSubCard.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+			if (_opacitySubCard != null)
+			{
+				_opacitySubCard.Background = new SolidColorBrush(subCardSurface);
+				_opacitySubCard.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+
+			int pct = ViewModel?.AcrylicOpacityPercent ?? 100;
+			if (_acrylicLiveBadgeBorder != null)
+			{
+				_acrylicLiveBadgeBorder.Background = new SolidColorBrush(subCardSurface);
+				_acrylicLiveBadgeBorder.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+			if (_acrylicLiveBadgeText != null) _acrylicLiveBadgeText.Text = $"{pct}%";
+			if (_opacityValueText != null) _opacityValueText.Text = $"{pct}%";
+			if (_opacitySlider != null && Math.Abs(_opacitySlider.Value - pct) > 0.5)
+			{
+				_opacitySlider.Value = pct;
+			}
+			if (_unfocusedToggle != null)
+			{
+				_unfocusedToggle.IsOn = ViewModel?.AcrylicKeepTranslucentWhenUnfocused ?? true;
+			}
+
+			// Update Scheduled Dark Mode controls
+			bool schedOn = ViewModel?.ScheduledDarkModeEnabled ?? false;
+			if (_scheduleToggleBtn != null)
+			{
+				_scheduleToggleBtn.Content = schedOn ? "已启用" : "未启用";
+				_scheduleToggleBtn.Background = new SolidColorBrush(schedOn
+					? Color.FromArgb(isDark ? (byte)90 : (byte)36, accent.R, accent.G, accent.B)
+					: subCardSurface);
+				_scheduleToggleBtn.BorderBrush = new SolidColorBrush(schedOn ? accent : subtleBorder);
+				_scheduleToggleBtn.BorderThickness = new Thickness(1);
+			}
+			if (_scheduleDarkStartBox != null && !_scheduleDarkStartBox.FocusState.HasFlag(FocusState.Keyboard))
+			{
+				_scheduleDarkStartBox.Text = ViewModel?.ScheduledDarkStartTime ?? "19:00";
+			}
+			if (_scheduleDarkEndBox != null && !_scheduleDarkEndBox.FocusState.HasFlag(FocusState.Keyboard))
+			{
+				_scheduleDarkEndBox.Text = ViewModel?.ScheduledDarkEndTime ?? "07:00";
+			}
+
+			if (_rainbowToggle != null) _rainbowToggle.IsOn = ViewModel?.RainbowModeEnabled ?? false;
+			if (_invertToggle != null) _invertToggle.IsOn = ViewModel?.InvertModeEnabled ?? false;
+
+			// Update Preset Expander Button
+			if (_presetExpanderSwatch != null)
+			{
+				_presetExpanderSwatch.Background = new SolidColorBrush(activePreset.AccentPrimary);
+			}
+			if (_presetExpanderNameText != null)
+			{
+				_presetExpanderNameText.Text = activePreset.Name;
+			}
+			bool expanded = ViewModel?.ThemePresetsExpanded ?? true;
+			if (_presetExpanderArrowText != null)
+			{
+				_presetExpanderArrowText.Text = expanded ? "收起主题预设 ∧" : "展开主题预设 ∨";
+			}
+			if (_presetExpanderBtn != null)
+			{
+				_presetExpanderBtn.Background = new SolidColorBrush(subCardSurface);
+				_presetExpanderBtn.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+			if (_presetWorkbenchContainer != null)
+			{
+				_presetWorkbenchContainer.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+				_presetWorkbenchContainer.Background = new SolidColorBrush(cardSurface);
+				_presetWorkbenchContainer.BorderBrush = new SolidColorBrush(subtleBorder);
+			}
+
+			// Update Category Filter Buttons
+			string selectedCat = ViewModel?.SelectedThemeCategory ?? "全部";
+			foreach (var kv in _categoryFilterButtons)
+			{
+				bool isCatSelected = string.Equals(kv.Key, selectedCat, StringComparison.OrdinalIgnoreCase);
+				kv.Value.Background = new SolidColorBrush(isCatSelected
+					? Color.FromArgb(isDark ? (byte)95 : (byte)38, accent.R, accent.G, accent.B)
+					: subCardSurface);
+				kv.Value.BorderBrush = new SolidColorBrush(isCatSelected ? accent : subtleBorder);
+			}
+
+			PopulateEchoPresetCardsGrid(isDark);
+		}
+		finally
+		{
+			_suppressEchoUiEvents = false;
+		}
+	}
+
+	private void PopulateEchoPresetCardsGrid(bool isDark)
+	{
+		if (_presetsGridContainer == null) return;
+		_presetsGridContainer.Children.Clear();
+		_presetsGridContainer.ColumnDefinitions.Clear();
+		_presetsGridContainer.RowDefinitions.Clear();
+
+		int cols = Math.Max(2, _presetGridCols);
+		for (int c = 0; c < cols; c++)
+		{
+			_presetsGridContainer.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		}
+
+		string selectedCat = ViewModel?.SelectedThemeCategory ?? "全部";
+		var allPresets = LiquidGlassEngine.GetAllPresets().ToList();
+		List<EchoThemePreset> filtered;
+		if (selectedCat == "全部")
+		{
+			filtered = allPresets;
+		}
+		else if (selectedCat == "我的")
+		{
+			filtered = allPresets.Where(p => p.IsCustom || p.Category == "我的").ToList();
+		}
+		else
+		{
+			filtered = allPresets.Where(p => string.Equals(p.Category, selectedCat, StringComparison.OrdinalIgnoreCase)).ToList();
+		}
+
+		var cardElements = new List<FrameworkElement>();
+		if (selectedCat == "全部" || selectedCat == "个性")
+		{
+			cardElements.Add(CreateRandomPresetCard(isDark));
+		}
+		foreach (var preset in filtered)
+		{
+			cardElements.Add(CreatePresetCard(preset, isDark));
+		}
+
+		int totalRows = (cardElements.Count + cols - 1) / cols;
+		for (int r = 0; r < totalRows; r++)
+		{
+			_presetsGridContainer.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+		}
+
+		for (int i = 0; i < cardElements.Count; i++)
+		{
+			int r = i / cols;
+			int c = i % cols;
+			Grid.SetRow(cardElements[i], r);
+			Grid.SetColumn(cardElements[i], c);
+			_presetsGridContainer.Children.Add(cardElements[i]);
+		}
+	}
+
+	private FrameworkElement CreateRandomPresetCard(bool isDark)
+	{
+		var activePreset = LiquidGlassEngine.ActivePreset;
+		bool isRandomActive = activePreset.Id.StartsWith("random-", StringComparison.OrdinalIgnoreCase);
+
+		Color cardBg = isDark
+			? Color.FromArgb(175, 24, 32, 50)
+			: Color.FromArgb(228, 255, 255, 255);
+		Color cardBorder = isRandomActive
+			? activePreset.AccentPrimary
+			: (isDark ? Color.FromArgb(55, 255, 255, 255) : Color.FromArgb(35, 15, 23, 42));
+
+		var card = new Border
+		{
+			CornerRadius = new CornerRadius(14),
+			Padding = new Thickness(14, 12, 14, 12),
+			Background = new SolidColorBrush(cardBg),
+			BorderBrush = new SolidColorBrush(cardBorder),
+			BorderThickness = new Thickness(isRandomActive ? 2.0 : 1.0)
+		};
+
+		var stack = new StackPanel { Spacing = 8 };
+
+		// Top gradient banner + refresh button
+		var banner = new Border
+		{
+			Height = 36,
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(10, 0, 8, 0),
+			Background = new LinearGradientBrush
+			{
+				StartPoint = new Point(0, 0),
+				EndPoint = new Point(1, 1),
+				GradientStops =
+				{
+					new GradientStop { Color = isRandomActive ? activePreset.StageTopColor : Color.FromArgb(255, 224, 242, 254), Offset = 0.0 },
+					new GradientStop { Color = isRandomActive ? activePreset.StageMidColor : Color.FromArgb(255, 237, 233, 254), Offset = 0.55 },
+					new GradientStop { Color = isRandomActive ? activePreset.AccentPrimary : Color.FromArgb(255, 244, 114, 182), Offset = 1.0 }
+				}
+			}
+		};
+		var bannerGrid = new Grid();
+		var refreshBtn = new Button
+		{
+			Content = "↻",
+			Width = 26,
+			Height = 26,
+			Padding = new Thickness(0),
+			CornerRadius = new CornerRadius(13),
+			FontSize = 13,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			HorizontalAlignment = HorizontalAlignment.Right,
+			VerticalAlignment = VerticalAlignment.Center,
+			Background = new SolidColorBrush(Color.FromArgb(215, 255, 255, 255)),
+			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+			BorderThickness = new Thickness(0)
+		};
+		refreshBtn.Click += (s, e) =>
+		{
+			ViewModel?.GenerateAndApplyRandomPreset();
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		};
+		bannerGrid.Children.Add(refreshBtn);
+		banner.Child = bannerGrid;
+		stack.Children.Add(banner);
+
+		stack.Children.Add(new TextBlock
+		{
+			Text = isRandomActive ? $"随机主题 · {activePreset.Name}" : "随机主题",
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
+		});
+		stack.Children.Add(new TextBlock
+		{
+			Text = "随机生成一套颜色并自动调整对比度，保证文字和按钮可读。",
+			FontSize = 11.5,
+			Opacity = 0.74,
+			TextWrapping = TextWrapping.Wrap,
+			MinHeight = 32
+		});
+
+		// Swatch circles
+		var swatchesRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 2, 0, 0) };
+		Color s1 = isRandomActive ? activePreset.Swatch1 : Color.FromArgb(255, 224, 242, 254);
+		Color s2 = isRandomActive ? activePreset.Swatch2 : Color.FromArgb(255, 167, 243, 208);
+		Color s3 = isRandomActive ? activePreset.Swatch3 : Color.FromArgb(255, 99, 102, 241);
+		swatchesRow.Children.Add(CreateSwatchDot(s1));
+		swatchesRow.Children.Add(CreateSwatchDot(s2));
+		swatchesRow.Children.Add(CreateSwatchDot(s3));
+		stack.Children.Add(swatchesRow);
+
+		card.Child = stack;
+		card.PointerPressed += (s, e) =>
+		{
+			ViewModel?.GenerateAndApplyRandomPreset();
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		};
+		return card;
+	}
+
+	private FrameworkElement CreatePresetCard(EchoThemePreset preset, bool isDark)
+	{
+		bool isSelected = string.Equals(LiquidGlassEngine.ActivePreset.Id, preset.Id, StringComparison.OrdinalIgnoreCase);
+
+		Color cardBg = isDark
+			? Color.FromArgb(180, 24, 32, 50)
+			: Color.FromArgb(232, 255, 255, 255);
+		Color borderColor = isSelected
+			? preset.AccentPrimary
+			: (isDark ? Color.FromArgb(55, 255, 255, 255) : Color.FromArgb(35, 15, 23, 42));
+
+		var card = new Border
+		{
+			CornerRadius = new CornerRadius(14),
+			Padding = new Thickness(14, 12, 14, 12),
+			Background = new SolidColorBrush(cardBg),
+			BorderBrush = new SolidColorBrush(borderColor),
+			BorderThickness = new Thickness(isSelected ? 2.0 : 1.0)
+		};
+
+		var stack = new StackPanel { Spacing = 8 };
+
+		// Top miniature gradient preview banner + checkmark badge when selected
+		var banner = new Border
+		{
+			Height = 36,
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(10, 0, 8, 0),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(45, preset.AccentPrimary.R, preset.AccentPrimary.G, preset.AccentPrimary.B)),
+			BorderThickness = new Thickness(1),
+			Background = new LinearGradientBrush
+			{
+				StartPoint = new Point(0, 0),
+				EndPoint = new Point(1, 1),
+				GradientStops =
+				{
+					new GradientStop { Color = preset.StageTopColor, Offset = 0.0 },
+					new GradientStop { Color = preset.StageMidColor, Offset = 0.62 },
+					new GradientStop { Color = Color.FromArgb(195, preset.AccentPrimary.R, preset.AccentPrimary.G, preset.AccentPrimary.B), Offset = 1.0 }
+				}
+			}
+		};
+
+		if (isSelected)
+		{
+			var checkGrid = new Grid();
+			checkGrid.Children.Add(new Border
+			{
+				Width = 22,
+				Height = 22,
+				CornerRadius = new CornerRadius(11),
+				HorizontalAlignment = HorizontalAlignment.Right,
+				VerticalAlignment = VerticalAlignment.Center,
+				Background = new SolidColorBrush(Color.FromArgb(230, 255, 255, 255)),
+				BorderBrush = new SolidColorBrush(preset.AccentPrimary),
+				BorderThickness = new Thickness(1.2),
+				Child = new TextBlock
+				{
+					Text = "✓",
+					FontSize = 12,
+					FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+					Foreground = new SolidColorBrush(preset.AccentPrimary),
+					HorizontalAlignment = HorizontalAlignment.Center,
+					VerticalAlignment = VerticalAlignment.Center
+				}
+			});
+			banner.Child = checkGrid;
+		}
+		stack.Children.Add(banner);
+
+		stack.Children.Add(new TextBlock
+		{
+			Text = preset.Name,
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
+		});
+		stack.Children.Add(new TextBlock
+		{
+			Text = preset.Description,
+			FontSize = 11.5,
+			Opacity = 0.74,
+			TextWrapping = TextWrapping.Wrap,
+			MinHeight = 32
+		});
+
+		var swatchesRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 2, 0, 0) };
+		swatchesRow.Children.Add(CreateSwatchDot(preset.Swatch1));
+		swatchesRow.Children.Add(CreateSwatchDot(preset.Swatch2));
+		swatchesRow.Children.Add(CreateSwatchDot(preset.Swatch3));
+		stack.Children.Add(swatchesRow);
+
+		card.Child = stack;
+		card.PointerPressed += (s, e) =>
+		{
+			if (ViewModel == null) return;
+			ViewModel.SelectThemePreset(preset.Id);
+			SyncLegacyThemeMaterialCombos();
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		};
+		return card;
+	}
+
+	private static Border CreateSwatchDot(Color c)
+	{
+		return new Border
+		{
+			Width = 16,
+			Height = 16,
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(c),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(75, 100, 116, 139)),
+			BorderThickness = new Thickness(1)
+		};
+	}
+
+	private async System.Threading.Tasks.Task ShowCustomThemeEditorDialogAsync(bool editCurrent)
+	{
+		if (XamlRoot == null || ViewModel == null) return;
+		var current = LiquidGlassEngine.ActivePreset;
+
+		var nameBox = new TextBox
+		{
+			Header = "主题名称",
+			Text = editCurrent ? (current.Name + " · 定制") : "我的水神主题",
+			CornerRadius = new CornerRadius(8)
+		};
+		var topHexBox = new TextBox
+		{
+			Header = "背景主色 (Hex)",
+			Text = LiquidGlassEngine.ToHexColor(current.StageTopColor),
+			CornerRadius = new CornerRadius(8)
+		};
+		var midHexBox = new TextBox
+		{
+			Header = "面板渐变色 (Hex)",
+			Text = LiquidGlassEngine.ToHexColor(current.StageMidColor),
+			CornerRadius = new CornerRadius(8)
+		};
+		var accentHexBox = new TextBox
+		{
+			Header = "强调色 (Hex)",
+			Text = LiquidGlassEngine.ToHexColor(current.AccentPrimary),
+			CornerRadius = new CornerRadius(8)
+		};
+		var darkSwitch = new ToggleSwitch
+		{
+			Header = "深色基底主题",
+			IsOn = current.IsDark,
+			OnContent = "深色",
+			OffContent = "浅色"
+		};
+
+		var sp = new StackPanel { Spacing = 10, MinWidth = 340 };
+		sp.Children.Add(nameBox);
+		sp.Children.Add(topHexBox);
+		sp.Children.Add(midHexBox);
+		sp.Children.Add(accentHexBox);
+		sp.Children.Add(darkSwitch);
+
+		var dialog = new ContentDialog
+		{
+			Title = editCurrent ? "编辑并保存为我的主题" : "新建我的主题",
+			Content = sp,
+			PrimaryButtonText = "保存并应用",
+			CloseButtonText = "取消",
+			DefaultButton = ContentDialogButton.Primary,
+			XamlRoot = XamlRoot
+		};
+
+		if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+		{
+			ViewModel.CreateCustomThemePreset(
+				nameBox.Text,
+				topHexBox.Text,
+				midHexBox.Text,
+				accentHexBox.Text,
+				darkSwitch.IsOn);
+			SyncLegacyThemeMaterialCombos();
+			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+		}
+	}
+
+	private async System.Threading.Tasks.Task ShowImportThemeParamsDialogAsync()
+	{
+		if (XamlRoot == null || ViewModel == null) return;
+		string currentJson = LiquidGlassEngine.SerializeCustomPresets();
+		if (string.IsNullOrWhiteSpace(currentJson) || currentJson == "[]")
+		{
+			var p = LiquidGlassEngine.ActivePreset;
+			currentJson = $"[{{\"id\":\"custom-import\",\"name\":\"{p.Name} (导入)\",\"category\":\"我的\",\"desc\":\"JSON 导入主题预设\",\"isDark\":\"{(p.IsDark ? "1" : "0")}\",\"top\":\"{LiquidGlassEngine.ToHexColor(p.StageTopColor)}\",\"mid\":\"{LiquidGlassEngine.ToHexColor(p.StageMidColor)}\",\"pri\":\"{LiquidGlassEngine.ToHexColor(p.AccentPrimary)}\"}}]";
+		}
+
+		var jsonBox = new TextBox
+		{
+			Header = "主题预设 JSON 参数（支持复制导出或粘贴导入）",
+			Text = currentJson,
+			AcceptsReturn = true,
+			TextWrapping = TextWrapping.Wrap,
+			Height = 160,
+			CornerRadius = new CornerRadius(8)
+		};
+
+		var dialog = new ContentDialog
+		{
+			Title = "导入 / 导出自定义主题参数",
+			Content = jsonBox,
+			PrimaryButtonText = "导入并应用",
+			CloseButtonText = "取消",
+			DefaultButton = ContentDialogButton.Primary,
+			XamlRoot = XamlRoot
+		};
+
+		if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+		{
+			if (ViewModel.ImportCustomThemePresetJson(jsonBox.Text))
+			{
+				SyncLegacyThemeMaterialCombos();
+				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+			}
+		}
 	}
 }

@@ -49,6 +49,8 @@ public class App : Application, IXamlMetadataProvider
 
 	private EditorViewModel? _editorVm;
 
+	private StreamingViewModel? _streamingVm;
+
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private bool _contentLoaded;
 
@@ -154,6 +156,7 @@ public class App : Application, IXamlMetadataProvider
 			EditorViewModel editorVm = (_editorVm = new EditorViewModel(_audioEngine, _settingsService));
 			_settingsVm = new SettingsViewModel(_settingsService, _albumArtService);
 			_dspVm = new DspViewModel(_audioEngine, _settingsService);
+			_streamingVm = new StreamingViewModel(_audioEngine, _library, _albumArtService, _settingsService);
 			_settingsVm.ThemeChanged += (ThemeMode t) =>
 			{
 				_window?.ApplyTheme(t);
@@ -184,17 +187,16 @@ public class App : Application, IXamlMetadataProvider
 				SaveSessionThrottled();
 			};
 			Log("creating MainWindow");
-			_window = new MainWindow(homeViewModel, _nowPlayingVm, editorVm, _settingsVm, _dspVm, _audioEngine);
+			_window = new MainWindow(homeViewModel, _nowPlayingVm, editorVm, _settingsVm, _dspVm, _streamingVm, _audioEngine);
 			_window.SessionClosing += SaveSession;
 			Log("MainWindow created");
 			WindowManager.CurrentWindow = _window;
-			_window.WallpaperRefreshRequested += () => ApplyWallpaperAsync(_settings);
+			_window.WallpaperRefreshRequested += () => ApplyWallpaperAsync(_settingsVm?.Settings ?? _settings);
 			Log("activating window");
 			_window.Activate();
-			_window.ApplyTheme(settings.Theme);
-			_window.ApplyMaterial(settings.BackgroundMaterial);
+			_window.ApplyEchoAppearanceSettings();
 			Log("window activated");
-			ApplyWallpaperAsync(settings);
+			ApplyWallpaperAsync(_settingsVm?.Settings ?? settings);
 			Task.Run(() =>
 			{
 				RestoreSession(settings);
@@ -226,8 +228,7 @@ public class App : Application, IXamlMetadataProvider
 			_audioEngine?.SetReverb(enabled: false, appSettings.ReverbMix, "大厅");
 			_audioEngine?.SetTimbre(new TimbreSettings());
 			_audioEngine.Volume = appSettings.Volume;
-			_window?.ApplyTheme(appSettings.Theme);
-			_window?.ApplyMaterial(appSettings.BackgroundMaterial);
+			_window?.ApplyEchoAppearanceSettings();
 			_dspVm?.ReloadDefaults();
 			_nowPlayingVm?.ApplyDefaults();
 			_editorVm?.ResetDefaults();
@@ -466,7 +467,7 @@ public class App : Application, IXamlMetadataProvider
 		{
 			Directory.CreateDirectory(outDir);
 			await Task.Delay(2500);
-			string[] pages = new string[] { "home", "playing", "editor", "dsp", "settings" };
+			string[] pages = new string[] { "home", "streaming", "playing", "editor", "dsp", "settings" };
 			foreach (var page in pages)
 			{
 				_window?.DispatcherQueue.TryEnqueue(() =>
@@ -648,7 +649,7 @@ public class App : Application, IXamlMetadataProvider
 			}
 
 			// Copy to brain artifact directory
-			string artifactDir = @"C:\Users\Xeon\.gemini\antigravity\brain\083a6d72-f694-4402-b683-fad78cc28269";
+			string artifactDir = @"C:\Users\Xeon\.gemini\antigravity\brain\f6fd29c5-40af-410c-9230-cce446de9781";
 			if (Directory.Exists(artifactDir))
 			{
 				foreach (var file in Directory.GetFiles(outDir, "*.png"))

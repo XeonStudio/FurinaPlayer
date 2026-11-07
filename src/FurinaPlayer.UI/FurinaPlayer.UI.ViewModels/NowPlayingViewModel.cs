@@ -63,7 +63,7 @@ public class NowPlayingViewModel : ObservableObject
 	private double positionPercent;
 
 	[ObservableProperty]
-	private int volume = 5;
+	private int volume = 80;
 
 	[ObservableProperty]
 	[NotifyPropertyChangedFor("PlayButtonVisibility")]
@@ -643,6 +643,20 @@ public class NowPlayingViewModel : ObservableObject
 		_lyricService = lyricService;
 		_library = library;
 		_settingsService = settingsService;
+		int initialVol = _engine.Volume > 0 ? _engine.Volume : (_settingsService?.Load().Volume > 0 ? _settingsService.Load().Volume : 80);
+		volume = initialVol;
+		_engine.Volume = initialVol;
+		_engine.VolumeChanged += (int v) =>
+		{
+			RunOnUiThread(() =>
+			{
+				if (volume != v && v > 0)
+				{
+					volume = v;
+					OnPropertyChanged(__KnownINotifyPropertyChangedArgs.Volume);
+				}
+			});
+		};
 		_engine.TrackChanged += OnTrackChanged;
 		_engine.StateChanged += OnStateChanged;
 		_engine.PositionChanged += HandlePositionChanged;
@@ -769,8 +783,17 @@ public class NowPlayingViewModel : ObservableObject
 	{
 		RunOnUiThread(() =>
 		{
-			bool num = track != null && CurrentTrack != null && CurrentTrack.Id == track.Id;
+			bool isSameTrack = track != null && CurrentTrack != null && CurrentTrack.Id == track.Id;
+			bool wasReferenceEqual = ReferenceEquals(currentTrack, track);
+			if (track != null && track.DurationMilliseconds <= 0 && _engine.Duration.TotalMilliseconds > 0)
+			{
+				track.DurationMilliseconds = (long)_engine.Duration.TotalMilliseconds;
+			}
 			CurrentTrack = track;
+			if (wasReferenceEqual)
+			{
+				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.CurrentTrack);
+			}
 			CoverPath = track?.CoverPath ?? string.Empty;
 			Title = track?.DisplayTitle ?? string.Empty;
 			Artist = track?.Artist ?? string.Empty;
@@ -778,13 +801,138 @@ public class NowPlayingViewModel : ObservableObject
 			NowPlayingViewModel nowPlayingViewModel = this;
 			TimeSpan timeSpan = ((track != null && track.DurationMilliseconds > 0) ? TimeSpan.FromMilliseconds(track.DurationMilliseconds) : ((_engine.Duration > TimeSpan.Zero) ? _engine.Duration : TimeSpan.Zero));
 			nowPlayingViewModel.Duration = timeSpan;
-			if (!num)
+			if (!isSameTrack)
 			{
 				Position = TimeSpan.Zero;
 				PositionPercent = 0.0;
+				LyricLines = new ObservableCollection<LyricLine>();
+				CurrentLyricIndex = -1;
+				LyricSource = track != null ? "正在加载歌词…" : string.Empty;
 			}
 			Task.Run((Func<Task?>)LoadLyricsAsync);
+
+			ResolveStreamingCoverIfNeeded(track);
 		});
+	}
+
+	private void ResolveStreamingCoverIfNeeded(Track? track)
+	{
+		if (track == null) return;
+		bool isNetwork = track.Id < 0 ||
+			string.Equals(track.Genre, "Online", StringComparison.OrdinalIgnoreCase) ||
+			(!string.IsNullOrEmpty(track.FilePath) &&
+			 (track.FilePath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+			  track.FilePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)));
+
+		if (!isNetwork) return;
+
+		string coverDir = _library?.CoverDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer", "covers");
+		try { Directory.CreateDirectory(coverDir); } catch { }
+
+		long absId = Math.Abs(track.Id);
+		string streamCacheFile = Path.Combine(coverDir, $"stream_{absId}.jpg");
+		string netCacheFile = Path.Combine(coverDir, $"net_{absId}.jpg");
+
+		// 1. 如果本地缓存文件已存在，立即采用本地缓存
+		if (File.Exists(streamCacheFile))
+		{
+			track.CoverPath = streamCacheFile;
+			CoverPath = streamCacheFile;
+			return;
+		}
+		if (File.Exists(netCacheFile))
+		{
+			track.CoverPath = netCacheFile;
+			CoverPath = netCacheFile;
+			return;
+		}
+
+		// 2. 如果 track.CoverPath 自身就是本地已存在的文件，无需额外处理
+		if (!string.IsNullOrEmpty(track.CoverPath) && File.Exists(track.CoverPath))
+		{
+			CoverPath = track.CoverPath;
+			return;
+		}
+
+		// 3. 如果 track.CoverPath 包含网络图片 URL，先赋值给 CoverPath 并后台下载到本地缓存
+		if (!string.IsNullOrEmpty(track.CoverPath) &&
+			(track.CoverPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+			 track.CoverPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+		{
+			string onlineUrl = track.CoverPath;
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+					var bytes = await hc.GetByteArrayAsync(onlineUrl);
+					if (bytes != null && bytes.Length > 0)
+					{
+						await File.WriteAllBytesAsync(streamCacheFile, bytes);
+						track.CoverPath = streamCacheFile;
+						RunOnUiThread(() =>
+						{
+							if (CurrentTrack?.Id == track.Id)
+							{
+								CoverPath = streamCacheFile;
+							}
+						});
+					}
+				}
+				catch { }
+			});
+			return;
+		}
+
+		// 4. 如果 CoverPath 为空，且为网易云流媒体歌曲 (absId > 0)，通过云端歌曲详情接口补充封面并缓存
+		if (absId > 0)
+		{
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(8) };
+					hc.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com/");
+					string detailJson = await hc.GetStringAsync($"http://music.163.com/api/song/detail/?id={absId}&ids=[{absId}]");
+					using var doc = System.Text.Json.JsonDocument.Parse(detailJson);
+					if (doc.RootElement.TryGetProperty("songs", out var songsArr) && songsArr.GetArrayLength() > 0)
+					{
+						var s0 = songsArr[0];
+						string? fetchedPic = null;
+						if (s0.TryGetProperty("album", out var alb) && alb.TryGetProperty("picUrl", out var pProp))
+						{
+							fetchedPic = pProp.GetString();
+						}
+						else if (s0.TryGetProperty("al", out var al) && al.TryGetProperty("picUrl", out var alProp))
+						{
+							fetchedPic = alProp.GetString();
+						}
+
+						if (!string.IsNullOrWhiteSpace(fetchedPic))
+						{
+							if (fetchedPic.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+							{
+								fetchedPic = "https://" + fetchedPic[7..];
+							}
+							var imgBytes = await hc.GetByteArrayAsync(fetchedPic);
+							if (imgBytes != null && imgBytes.Length > 0)
+							{
+								await File.WriteAllBytesAsync(streamCacheFile, imgBytes);
+								track.CoverPath = streamCacheFile;
+								RunOnUiThread(() =>
+								{
+									if (CurrentTrack?.Id == track.Id)
+									{
+										CoverPath = streamCacheFile;
+									}
+								});
+							}
+						}
+					}
+				}
+				catch { }
+			});
+		}
 	}
 
 	public async Task RefreshCurrentCoverAsync()
@@ -817,20 +965,35 @@ public class NowPlayingViewModel : ObservableObject
 		RunOnUiThread(() =>
 		{
 			IsPlaying = state == PlaybackState.Playing;
-			if (state == PlaybackState.Playing && CurrentTrack != null && CurrentTrack.Id != _lastRecordedTrackId)
+			if (CurrentTrack != null && _engine.Duration.TotalMilliseconds > 0)
 			{
-				_lastRecordedTrackId = CurrentTrack.Id;
-				long id = CurrentTrack.Id;
-				Task.Run(async () =>
+				if (CurrentTrack.DurationMilliseconds <= 0)
 				{
-					try
+					CurrentTrack.DurationMilliseconds = (long)_engine.Duration.TotalMilliseconds;
+				}
+				if (Duration <= TimeSpan.Zero)
+				{
+					Duration = _engine.Duration;
+				}
+			}
+			if (state == PlaybackState.Playing && CurrentTrack != null)
+			{
+				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.CurrentTrack);
+				if (CurrentTrack.Id != _lastRecordedTrackId)
+				{
+					_lastRecordedTrackId = CurrentTrack.Id;
+					long id = CurrentTrack.Id;
+					Task.Run(async () =>
 					{
-						await _library.UpdatePlayStateAsync(id);
-					}
-					catch
-					{
-					}
-				});
+						try
+						{
+							await _library.UpdatePlayStateAsync(id);
+						}
+						catch
+						{
+						}
+					});
+				}
 			}
 		});
 	}
@@ -842,6 +1005,11 @@ public class NowPlayingViewModel : ObservableObject
 			if (Duration <= TimeSpan.Zero && _engine.Duration > TimeSpan.Zero)
 			{
 				Duration = _engine.Duration;
+				if (CurrentTrack != null && CurrentTrack.DurationMilliseconds <= 0)
+				{
+					CurrentTrack.DurationMilliseconds = (long)_engine.Duration.TotalMilliseconds;
+				}
+				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.CurrentTrack);
 			}
 			if (!_positionSliderDragging)
 			{
@@ -977,7 +1145,7 @@ public class NowPlayingViewModel : ObservableObject
 
 	public void ApplyDefaults()
 	{
-		Volume = 5;
+		Volume = 80;
 		Speed = 1.0;
 		EqGains = new double[10];
 		_engine.SetEqGains(EqGains);
@@ -1074,32 +1242,76 @@ public class NowPlayingViewModel : ObservableObject
 
 	public async Task LoadLyricsAsync()
 	{
-		Track track = CurrentTrack;
-		if (track != null)
+		Track? track = CurrentTrack;
+		if (track == null)
 		{
-			LyricDocument doc = _lyricService.LoadLocalLyrics(track.FilePath, track.EmbeddedLyrics);
-			if (doc == null)
-			{
-				doc = await _lyricService.SearchOnlineAsync(track.DisplayTitle, track.Artist);
-			}
-			if (doc == null)
-			{
-				doc = await _lyricService.SearchNeteaseAsync(track.DisplayTitle, track.Artist);
-			}
 			RunOnUiThread(() =>
 			{
-				LyricLines = ((doc == null) ? new ObservableCollection<LyricLine>() : new ObservableCollection<LyricLine>(doc.Lines));
-				string text = ((doc != null) ? (doc.Source switch
-				{
-					"local" => "本地歌词", 
-					"embedded" => "内嵌歌词", 
-					"lrclib" => "LRCLIB 在线", 
-					"netease" => "网易云在线", 
-					_ => "未知", 
-				}) : "未找到歌词");
-				LyricSource = text;
+				LyricLines = new ObservableCollection<LyricLine>();
+				CurrentLyricIndex = -1;
+				LyricSource = string.Empty;
 			});
+			return;
 		}
+
+		long targetTrackId = track.Id;
+		LyricDocument? doc = null;
+
+		// 1. 如果是流媒体曲目（track.Id < 0），优先使用网易云原生精准 ID 直接提取歌词
+		long absId = Math.Abs(track.Id);
+		if (track.Id < 0 && absId > 0)
+		{
+			doc = await _lyricService.GetNeteaseLyricByIdAsync(absId);
+		}
+
+		// 2. 本地歌曲或内嵌歌词
+		if (doc == null && !string.IsNullOrEmpty(track.FilePath) && !track.FilePath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+		{
+			doc = _lyricService.LoadLocalLyrics(track.FilePath, track.EmbeddedLyrics);
+		}
+
+		// 3. 在线检索 LRCLIB
+		if (doc == null && !string.IsNullOrWhiteSpace(track.DisplayTitle))
+		{
+			doc = await _lyricService.SearchOnlineAsync(track.DisplayTitle, track.Artist);
+		}
+
+		// 4. 网易云云端检索
+		if (doc == null && !string.IsNullOrWhiteSpace(track.DisplayTitle))
+		{
+			doc = await _lyricService.SearchNeteaseAsync(track.DisplayTitle, track.Artist);
+		}
+
+		// 竞态校验：若已切歌，丢弃旧结果
+		if (CurrentTrack?.Id != targetTrackId)
+		{
+			return;
+		}
+
+		RunOnUiThread(() =>
+		{
+			if (CurrentTrack?.Id != targetTrackId) return;
+
+			if (doc != null && doc.Lines.Count > 0)
+			{
+				LyricLines = new ObservableCollection<LyricLine>(doc.Lines);
+				LyricSource = doc.Source switch
+				{
+					"local" => "本地歌词",
+					"embedded" => "内嵌歌词",
+					"lrclib" => "LRCLIB 在线",
+					"netease" => "网易云在线",
+					_ => "在线歌词"
+				};
+				UpdateLyricHighlight(Position);
+			}
+			else
+			{
+				LyricLines = new ObservableCollection<LyricLine>();
+				CurrentLyricIndex = -1;
+				LyricSource = "未找到歌词";
+			}
+		});
 	}
 
 	private void UpdateLyricHighlight(TimeSpan pos)

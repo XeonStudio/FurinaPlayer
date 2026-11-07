@@ -2,9 +2,22 @@
 sw_*.log
 *.log
 
-# 本地用户数据
+# 本地用户数据与敏感凭据防护
 *.sqlite
 *.db
+settings.json
+*.cookie
+*.cookies
+*.token
+*.credentials
+*.session
+*.pfx
+*.key
+*.pem
+*.secret
+FurinaPlayer_StreamCache/
+Releases/
+*.zip
 
 # 编译生成临时目录
 src/**/bin/

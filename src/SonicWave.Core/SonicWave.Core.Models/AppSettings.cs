@@ -18,7 +18,7 @@ public sealed class AppSettings
 
 	public bool VolumeNormalization { get; set; }
 
-	public int Volume { get; set; } = 5;
+	public int Volume { get; set; } = 80;
 
 	public bool GaplessPlayback { get; set; } = true;
 
@@ -38,7 +38,21 @@ public sealed class AppSettings
 
 	public string? LocalWallpaperPath { get; set; }
 
-	public BackgroundMaterial BackgroundMaterial { get; set; }
+	public BackgroundMaterial BackgroundMaterial { get; set; } = BackgroundMaterial.LiquidGlass;
+
+	// ECHO 外观 (Appearance) 与主题预设系统
+	public string EchoThemeMode { get; set; } = "liquid-glass";
+	public bool AcrylicKeepTranslucentWhenUnfocused { get; set; } = true;
+	public int AcrylicOpacityPercent { get; set; } = 100;
+	public bool ScheduledDarkModeEnabled { get; set; } = false;
+	public string ScheduledDarkStartTime { get; set; } = "19:00";
+	public string ScheduledDarkEndTime { get; set; } = "07:00";
+	public bool RainbowModeEnabled { get; set; } = false;
+	public bool InvertModeEnabled { get; set; } = false;
+	public string SelectedThemePresetId { get; set; } = "classic";
+	public string SelectedThemeCategory { get; set; } = "全部";
+	public bool ThemePresetsExpanded { get; set; } = true;
+	public string? CustomThemePresetsJson { get; set; } = null;
 
 	public string? AccentColorHex { get; set; }
 
@@ -251,4 +265,39 @@ public sealed class AppSettings
 	public int? WindowHeight { get; set; }
 
 	public bool WindowMaximized { get; set; }
+
+	// ECHO 移植系统与窗口高级功能
+	public double UiScale { get; set; } = 1.0;
+
+	public bool CloseToTray { get; set; } = true;
+
+	public bool RememberWindowState { get; set; } = true;
+
+	public bool PreventSystemSleep { get; set; } = true;
+
+	// 流媒体平台登录凭据与状态 (NetEase 等)
+	public string? NeteaseCookie { get; set; }
+	public long NeteaseUserId { get; set; }
+	public string? NeteaseNickname { get; set; }
+	public string? NeteaseAvatarUrl { get; set; }
+	public bool NeteaseIsLoggedIn { get; set; }
+	public string? NeteaseVipTitle { get; set; }
+	public string? StreamingApiBaseUrl { get; set; }
+
+	// QQ 音乐登录凭据与状态
+	public string? QQCookie { get; set; }
+	public string? QQUin { get; set; }
+	public string? QQNickname { get; set; }
+	public string? QQAvatarUrl { get; set; }
+	public bool QQIsLoggedIn { get; set; }
+	public string? QQVipTitle { get; set; }
+
+	// Spotify 登录凭据与状态
+	public string? SpotifyToken { get; set; }
+	public string? SpotifyCookie { get; set; }
+	public string? SpotifyUserId { get; set; }
+	public string? SpotifyNickname { get; set; }
+	public string? SpotifyAvatarUrl { get; set; }
+	public bool SpotifyIsLoggedIn { get; set; }
+	public string? SpotifyProductType { get; set; }
 }

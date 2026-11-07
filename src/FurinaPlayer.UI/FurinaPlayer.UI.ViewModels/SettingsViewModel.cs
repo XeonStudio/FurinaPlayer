@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
+using FurinaPlayer.UI.Controls;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using SonicWave.Audio.Output;
@@ -99,6 +100,61 @@ public class SettingsViewModel : ObservableObject
 
 	[ObservableProperty]
 	private string eqPresetName = "平坦";
+	private double uiScale = 1.0;
+	public double UiScale
+	{
+		get => uiScale;
+		set
+		{
+			if (Math.Abs(uiScale - value) > 0.001)
+			{
+				uiScale = value;
+				OnPropertyChanged(nameof(UiScale));
+			}
+		}
+	}
+
+	private bool closeToTray = true;
+	public bool CloseToTray
+	{
+		get => closeToTray;
+		set
+		{
+			if (closeToTray != value)
+			{
+				closeToTray = value;
+				OnPropertyChanged(nameof(CloseToTray));
+			}
+		}
+	}
+
+	private bool rememberWindowState = true;
+	public bool RememberWindowState
+	{
+		get => rememberWindowState;
+		set
+		{
+			if (rememberWindowState != value)
+			{
+				rememberWindowState = value;
+				OnPropertyChanged(nameof(RememberWindowState));
+			}
+		}
+	}
+
+	private bool preventSystemSleep = true;
+	public bool PreventSystemSleep
+	{
+		get => preventSystemSleep;
+		set
+		{
+			if (preventSystemSleep != value)
+			{
+				preventSystemSleep = value;
+				OnPropertyChanged(nameof(PreventSystemSleep));
+			}
+		}
+	}
 
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.2.0.0")]
 	private RelayCommand? refreshDevicesCommand;
@@ -583,6 +639,22 @@ public class SettingsViewModel : ObservableObject
 	public event Action<BackgroundMaterial>? MaterialChanged;
 
 	public event Action? AlbumCoverUpdated;
+	public event Action<double>? UiScaleChanged;
+	public event Action<bool>? CloseToTrayChanged;
+	public event Action<bool>? PreventSystemSleepChanged;
+	public event Action? AppearanceChanged;
+
+	public string EchoThemeMode => _settings.EchoThemeMode ?? "liquid-glass";
+	public bool AcrylicKeepTranslucentWhenUnfocused => _settings.AcrylicKeepTranslucentWhenUnfocused;
+	public int AcrylicOpacityPercent => Math.Clamp(_settings.AcrylicOpacityPercent, 0, 100);
+	public bool ScheduledDarkModeEnabled => _settings.ScheduledDarkModeEnabled;
+	public string ScheduledDarkStartTime => string.IsNullOrWhiteSpace(_settings.ScheduledDarkStartTime) ? "19:00" : _settings.ScheduledDarkStartTime;
+	public string ScheduledDarkEndTime => string.IsNullOrWhiteSpace(_settings.ScheduledDarkEndTime) ? "07:00" : _settings.ScheduledDarkEndTime;
+	public bool RainbowModeEnabled => _settings.RainbowModeEnabled;
+	public bool InvertModeEnabled => _settings.InvertModeEnabled;
+	public string SelectedThemePresetId => string.IsNullOrWhiteSpace(_settings.SelectedThemePresetId) ? "classic" : _settings.SelectedThemePresetId;
+	public string SelectedThemeCategory => string.IsNullOrWhiteSpace(_settings.SelectedThemeCategory) ? "全部" : _settings.SelectedThemeCategory;
+	public bool ThemePresetsExpanded => _settings.ThemePresetsExpanded;
 
 	public SettingsViewModel(SettingsService settingsService, AlbumArtService? albumArt = null)
 	{
@@ -728,6 +800,11 @@ public class SettingsViewModel : ObservableObject
 		{
 			EqPresetName = "自定义";
 		}
+		UiScale = _settings.UiScale > 0.5 ? _settings.UiScale : 1.0;
+		CloseToTray = _settings.CloseToTray;
+		RememberWindowState = _settings.RememberWindowState;
+		PreventSystemSleep = _settings.PreventSystemSleep;
+		SyncLiquidGlassEngineFromSettings();
 	}
 
 	[RelayCommand]
@@ -748,12 +825,23 @@ public class SettingsViewModel : ObservableObject
 	public void SetOutputMode(OutputMode mode)
 	{
 		_settings.OutputMode = mode;
+		_settingsService.Save(_settings);
 	}
 
 	public void SetTheme(ThemeMode theme)
 	{
 		_settings.Theme = theme;
+		_settings.Theme = theme;
+		_settings.EchoThemeMode = theme switch
+		{
+			ThemeMode.Dark => "dark",
+			ThemeMode.Light => "light",
+			_ => "system"
+		};
+		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		_settingsService.Save(_settings);
 		ThemeChanged?.Invoke(theme);
+		AppearanceChanged?.Invoke();
 	}
 
 	public void SetMaterial(BackgroundMaterial material)
@@ -768,7 +856,18 @@ public class SettingsViewModel : ObservableObject
 			_ => "Mica", 
 		};
 		_settingsService.Save(_settings);
+		if (material == BackgroundMaterial.Acrylic)
+		{
+			_settings.EchoThemeMode = "acrylic";
+		}
+		else if (material == BackgroundMaterial.LiquidGlass || material == BackgroundMaterial.LiquidGlassDwm)
+		{
+			_settings.EchoThemeMode = "liquid-glass";
+		}
+		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		_settingsService.Save(_settings);
 		MaterialChanged?.Invoke(material);
+		AppearanceChanged?.Invoke();
 	}
 
 	public void SetLyricFont(string? familyName, string? filePath)
@@ -792,13 +891,16 @@ public class SettingsViewModel : ObservableObject
 	public void SetWallpaperSource(WallpaperSource source)
 	{
 		_settings.WallpaperSource = source;
+		_settingsService.Save(_settings);
 		OnPropertyChanged("WallpaperLocalVisibility");
 	}
 
 	public void SetLocalWallpaperPath(string path)
 	{
 		_settings.LocalWallpaperPath = path;
+		_settings.LocalWallpaperPath = path;
 		LocalWallpaperPath = path;
+		_settingsService.Save(_settings);
 	}
 
 	public void AddMusicFolder(string folder)
@@ -806,6 +908,7 @@ public class SettingsViewModel : ObservableObject
 		if (!_settings.MusicFolders.Contains(folder))
 		{
 			_settings.MusicFolders.Add(folder);
+			_settingsService.Save(_settings);
 		}
 		MusicFoldersText = string.Join("\n", _settings.MusicFolders);
 	}
@@ -813,6 +916,8 @@ public class SettingsViewModel : ObservableObject
 	public void RemoveMusicFolder(string folder)
 	{
 		_settings.MusicFolders.Remove(folder);
+		MusicFoldersText = string.Join("\n", _settings.MusicFolders);
+		_settingsService.Save(_settings);
 		MusicFoldersText = string.Join("\n", _settings.MusicFolders);
 	}
 
@@ -853,5 +958,239 @@ public class SettingsViewModel : ObservableObject
 	public void Dispose()
 	{
 		_deviceManager.Dispose();
+	}
+
+	public void SetUiScale(double scale)
+	{
+		UiScale = scale;
+		_settings.UiScale = scale;
+		_settingsService.Save(_settings);
+		UiScaleChanged?.Invoke(scale);
+	}
+
+	public void SetCloseToTray(bool enabled)
+	{
+		CloseToTray = enabled;
+		_settings.CloseToTray = enabled;
+		_settingsService.Save(_settings);
+		CloseToTrayChanged?.Invoke(enabled);
+	}
+
+	public void SetRememberWindowState(bool enabled)
+	{
+		RememberWindowState = enabled;
+		_settings.RememberWindowState = enabled;
+		_settingsService.Save(_settings);
+	}
+
+	public void SetPreventSystemSleep(bool enabled)
+	{
+		PreventSystemSleep = enabled;
+		_settings.PreventSystemSleep = enabled;
+		_settingsService.Save(_settings);
+		PreventSystemSleepChanged?.Invoke(enabled);
+	}
+
+	public void SyncLiquidGlassEngineFromSettings()
+	{
+		if (string.IsNullOrWhiteSpace(_settings.EchoThemeMode))
+		{
+			_settings.EchoThemeMode = _settings.BackgroundMaterial switch
+			{
+				BackgroundMaterial.Acrylic => "acrylic",
+				BackgroundMaterial.LiquidGlass or BackgroundMaterial.LiquidGlassDwm => "liquid-glass",
+				_ => _settings.Theme switch
+				{
+					ThemeMode.Dark => "dark",
+					ThemeMode.Light => "light",
+					_ => "liquid-glass"
+				}
+			};
+		}
+		LiquidGlassEngine.LoadCustomPresetsFromJson(_settings.CustomThemePresetsJson);
+		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		LiquidGlassEngine.AcrylicOpacityScale = Math.Clamp(_settings.AcrylicOpacityPercent / 100.0, 0.0, 1.0);
+		LiquidGlassEngine.KeepTranslucentWhenUnfocused = _settings.AcrylicKeepTranslucentWhenUnfocused;
+		LiquidGlassEngine.RainbowModeEnabled = _settings.RainbowModeEnabled;
+		LiquidGlassEngine.InvertModeEnabled = _settings.InvertModeEnabled;
+		LiquidGlassEngine.SelectPreset(_settings.SelectedThemePresetId);
+	}
+
+	public void SetEchoThemeMode(string mode)
+	{
+		if (string.IsNullOrWhiteSpace(mode)) mode = "liquid-glass";
+		_settings.EchoThemeMode = mode;
+		LiquidGlassEngine.ActiveThemeMode = mode;
+
+		switch (mode)
+		{
+			case "light":
+				_settings.Theme = ThemeMode.Light;
+				_settings.BackgroundMaterial = BackgroundMaterial.Mica;
+				break;
+			case "dark":
+				_settings.Theme = ThemeMode.Dark;
+				_settings.BackgroundMaterial = BackgroundMaterial.Mica;
+				break;
+			case "system":
+				_settings.Theme = ThemeMode.System;
+				_settings.BackgroundMaterial = BackgroundMaterial.Mica;
+				break;
+			case "ambient":
+				_settings.BackgroundMaterial = BackgroundMaterial.LiquidGlass;
+				_settings.Theme = LiquidGlassEngine.ActivePreset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
+				break;
+			case "acrylic":
+				_settings.BackgroundMaterial = BackgroundMaterial.Acrylic;
+				_settings.Theme = LiquidGlassEngine.ActivePreset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
+				break;
+			case "liquid-glass":
+			default:
+				_settings.BackgroundMaterial = BackgroundMaterial.LiquidGlass;
+				_settings.Theme = LiquidGlassEngine.ActivePreset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
+				break;
+		}
+
+		_settingsService.Save(_settings);
+		ThemeChanged?.Invoke(_settings.Theme);
+		MaterialChanged?.Invoke(_settings.BackgroundMaterial);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SetAcrylicKeepTranslucentWhenUnfocused(bool keep)
+	{
+		_settings.AcrylicKeepTranslucentWhenUnfocused = keep;
+		LiquidGlassEngine.KeepTranslucentWhenUnfocused = keep;
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SetAcrylicOpacityPercent(int percent)
+	{
+		int clamped = Math.Clamp(percent, 0, 100);
+		_settings.AcrylicOpacityPercent = clamped;
+		LiquidGlassEngine.AcrylicOpacityScale = clamped / 100.0;
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SetScheduledDarkMode(bool enabled, string? startTime = null, string? endTime = null)
+	{
+		_settings.ScheduledDarkModeEnabled = enabled;
+		if (!string.IsNullOrWhiteSpace(startTime))
+		{
+			_settings.ScheduledDarkStartTime = startTime.Trim();
+		}
+		if (!string.IsNullOrWhiteSpace(endTime))
+		{
+			_settings.ScheduledDarkEndTime = endTime.Trim();
+		}
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SetRainbowMode(bool enabled)
+	{
+		_settings.RainbowModeEnabled = enabled;
+		LiquidGlassEngine.RainbowModeEnabled = enabled;
+		if (!enabled)
+		{
+			LiquidGlassEngine.RainbowHueDegrees = 0f;
+		}
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SetInvertMode(bool enabled)
+	{
+		_settings.InvertModeEnabled = enabled;
+		LiquidGlassEngine.InvertModeEnabled = enabled;
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+	}
+
+	public void SelectThemePreset(string presetId)
+	{
+		LiquidGlassEngine.SelectPreset(presetId);
+		var preset = LiquidGlassEngine.ActivePreset;
+		_settings.SelectedThemePresetId = preset.Id;
+		if (_settings.EchoThemeMode == "ambient" || _settings.EchoThemeMode == "acrylic" || _settings.EchoThemeMode == "liquid-glass")
+		{
+			_settings.Theme = preset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
+		}
+		else if (preset.IsDark && _settings.EchoThemeMode == "light")
+		{
+			_settings.EchoThemeMode = "dark";
+			_settings.Theme = ThemeMode.Dark;
+			LiquidGlassEngine.ActiveThemeMode = "dark";
+		}
+		else if (!preset.IsDark && _settings.EchoThemeMode == "dark")
+		{
+			_settings.EchoThemeMode = "light";
+			_settings.Theme = ThemeMode.Light;
+			LiquidGlassEngine.ActiveThemeMode = "light";
+		}
+		_settingsService.Save(_settings);
+		ThemeChanged?.Invoke(_settings.Theme);
+		AppearanceChanged?.Invoke();
+	}
+
+	public EchoThemePreset GenerateAndApplyRandomPreset()
+	{
+		bool preferDark = _settings.Theme == ThemeMode.Dark || LiquidGlassEngine.ActivePreset.IsDark;
+		var preset = LiquidGlassEngine.GenerateRandomPreset(preferDark);
+		_settings.SelectedThemePresetId = preset.Id;
+		_settingsService.Save(_settings);
+		AppearanceChanged?.Invoke();
+		return preset;
+	}
+
+	public EchoThemePreset CreateCustomThemePreset(string name, string stageTopHex, string stageMidHex, string accentHex, bool isDark)
+	{
+		var preset = LiquidGlassEngine.AddCustomPreset(name, stageTopHex, stageMidHex, accentHex, isDark);
+		_settings.CustomThemePresetsJson = LiquidGlassEngine.SerializeCustomPresets();
+		_settings.SelectedThemePresetId = preset.Id;
+		if (_settings.EchoThemeMode == "ambient" || _settings.EchoThemeMode == "acrylic" || _settings.EchoThemeMode == "liquid-glass")
+		{
+			_settings.Theme = preset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
+		}
+		_settingsService.Save(_settings);
+		ThemeChanged?.Invoke(_settings.Theme);
+		AppearanceChanged?.Invoke();
+		return preset;
+	}
+
+	public bool ImportCustomThemePresetJson(string json)
+	{
+		try
+		{
+			LiquidGlassEngine.LoadCustomPresetsFromJson(json);
+			if (LiquidGlassEngine.CustomPresets.Count > 0)
+			{
+				var first = LiquidGlassEngine.CustomPresets[0];
+				LiquidGlassEngine.SelectPreset(first);
+				_settings.CustomThemePresetsJson = LiquidGlassEngine.SerializeCustomPresets();
+				_settings.SelectedThemePresetId = first.Id;
+				_settingsService.Save(_settings);
+				AppearanceChanged?.Invoke();
+				return true;
+			}
+		}
+		catch
+		{
+		}
+		return false;
+	}
+
+	public void SetSelectedThemeCategory(string category)
+	{
+		_settings.SelectedThemeCategory = string.IsNullOrWhiteSpace(category) ? "全部" : category;
+		_settingsService.Save(_settings);
+	}
+
+	public void SetThemePresetsExpanded(bool expanded)
+	{
+		_settings.ThemePresetsExpanded = expanded;
+		_settingsService.Save(_settings);
 	}
 }

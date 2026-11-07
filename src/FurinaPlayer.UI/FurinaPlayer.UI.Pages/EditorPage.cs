@@ -626,18 +626,10 @@ public sealed class EditorPage : Page, IComponentConnector
 		if (Content is Grid rootGrid)
 		{
 			rootGrid.Background = new SolidColorBrush(Colors.Transparent);
-			if (_ambientCausticCanvas == null)
+			if (_ambientCausticCanvas != null)
 			{
-				_ambientCausticCanvas = LiquidGlassEngine.CreateAmbientCausticCanvas(() => LiquidGlassEngine.IsElementDarkTheme(this));
-				Grid.SetRowSpan(_ambientCausticCanvas, 8);
-				Grid.SetColumnSpan(_ambientCausticCanvas, 8);
-				Canvas.SetZIndex(_ambientCausticCanvas, -10);
+				_ambientCausticCanvas.Visibility = Visibility.Collapsed;
 			}
-			if (!rootGrid.Children.Contains(_ambientCausticCanvas))
-			{
-				rootGrid.Children.Insert(0, _ambientCausticCanvas);
-			}
-			_ambientCausticCanvas.Invalidate();
 		}
 
 		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);

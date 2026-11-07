@@ -48,6 +48,16 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	private readonly DspViewModel _dspVm;
 
+	private readonly StreamingViewModel _streamingVm;
+
+	private StreamingPage? _streamingPage;
+
+	private SystemTrayManager? _trayManager;
+
+	private bool _isExplicitExit;
+
+	private ScaleTransform? _uiScaleTransform;
+
 	private bool _placementRestored;
 
 	private BackgroundMaterial _currentMaterial;
@@ -59,6 +69,18 @@ public sealed class MainWindow : Window, IComponentConnector
 	private float _pointerNormY = 0.25f;
 
 	private string _currentNavTag = "home";
+
+	private Border? _wallpaperBorder;
+
+	private string? _lastWallpaperPath;
+
+	private bool _lastWallpaperSolid = true;
+
+	private DispatcherTimer? _rainbowTimer;
+
+	private DispatcherTimer? _scheduledDarkTimer;
+
+	private int _rainbowTickCounter;
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private Grid RootGrid;
@@ -99,7 +121,7 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	public Frame MainContentFrame => ContentFrame;
 
-	public MainWindow(HomeViewModel homeVm, NowPlayingViewModel nowPlayingVm, EditorViewModel editorVm, SettingsViewModel settingsVm, DspViewModel dspVm, AudioEngine engine)
+	public MainWindow(HomeViewModel homeVm, NowPlayingViewModel nowPlayingVm, EditorViewModel editorVm, SettingsViewModel settingsVm, DspViewModel dspVm, StreamingViewModel streamingVm, AudioEngine engine)
 	{
 		InitializeComponent();
 		_engine = engine;
@@ -108,12 +130,16 @@ public sealed class MainWindow : Window, IComponentConnector
 		_editorVm = editorVm;
 		_settingsVm = settingsVm;
 		_dspVm = dspVm;
+		_streamingVm = streamingVm;
 		MiniPlayer.DataContext = nowPlayingVm;
 		this.MiniPlayer.NavigateToPlayingRequested += () => NavigateTo("playing");
 		FurinaPlayer.UI.Controls.MiniPlayer.OpenNowPlayingRequested += () => NavigateTo("playing");
 		Title = "Furina player · 全格式无损音乐播放器";
+		_settingsVm.SyncLiquidGlassEngineFromSettings();
+		EnsureWallpaperLayer();
 		ApplyMaterial(_settingsVm.Material);
 		Activated += OnFirstActivated;
+		Activated += OnWindowFocusChanged;
 		ExtendsContentIntoTitleBar = true;
 		SetTitleBar(TitleBar);
 		nint hwnd = WindowNative.GetWindowHandle(this);
@@ -156,18 +182,70 @@ public sealed class MainWindow : Window, IComponentConnector
 		if (MinButton != null) MinButton.Visibility = Visibility.Collapsed;
 		if (MaxButton != null) MaxButton.Visibility = Visibility.Collapsed;
 		if (CloseButton != null) CloseButton.Visibility = Visibility.Collapsed;
+
+		try
+		{
+			_trayManager = new SystemTrayManager();
+			_trayManager.Initialize();
+			_trayManager.RestoreRequested += () => DispatcherQueue.TryEnqueue(RestoreMainWindow);
+			_trayManager.PlayPauseRequested += () => DispatcherQueue.TryEnqueue(() => _engine.TogglePlayPause());
+			_trayManager.NextRequested += () => DispatcherQueue.TryEnqueue(() => _engine.Next());
+			_trayManager.PrevRequested += () => DispatcherQueue.TryEnqueue(() => _engine.Previous());
+			_trayManager.ExitRequested += () => DispatcherQueue.TryEnqueue(ExitApplication);
+		}
+		catch { }
+
+		AppWindow.Closing += (sender, args) =>
+		{
+			if (_settingsVm.Settings.CloseToTray && !_isExplicitExit)
+			{
+				args.Cancel = true;
+				AppWindow.Hide();
+				_trayManager?.ShowNotification("FurinaPlayer", "已最小化到系统托盘，后台持续播放中");
+			}
+		};
+
+		AppWindow.Changed += (s, args) =>
+		{
+			if (args.DidSizeChange)
+			{
+				UpdateScaledRootSize(_settingsVm.Settings.UiScale);
+			}
+		};
+
+		_settingsVm.UiScaleChanged += s => DispatcherQueue.TryEnqueue(() => ApplyUiScale(s));
+		_settingsVm.AppearanceChanged += () => DispatcherQueue.TryEnqueue(ApplyEchoAppearanceSettings);
+		ApplyUiScale(_settingsVm.Settings.UiScale);
+		InitializeAppearanceTimers();
+
+		_engine.StateChanged += s => UpdateKeepAwake();
+		_settingsVm.PreventSystemSleepChanged += b => UpdateKeepAwake();
+		UpdateKeepAwake();
+
 		Closed += (object _, WindowEventArgs _) =>
 		{
+			_trayManager?.Dispose();
+			PowerWakeManager.SetKeepAwake(false);
 			SaveWindowPlacement();
 			SessionClosing?.Invoke();
 			_engine.Dispose();
 			Vst3NativeHost.Instance.Unload();
 		};
+
+		if (Nav != null && Nav.MenuItems != null)
+		{
+			var streamingItem = new NavigationViewItem
+			{
+				Content = "流媒体音乐",
+				Tag = "streaming"
+			};
+			Nav.MenuItems.Insert(1, streamingItem);
+		}
+
 		ApplyFluentWindowIcons();
-		ApplyWindowBackdrop();
+		ApplyEchoAppearanceSettings();
 		Nav.SelectedItem = Nav.MenuItems[0];
 		UpdateMaxIcon();
-		// Auto capture sequence is managed by App.CapturePagesAsync to avoid dual-runner conflict
 	}
 
 	private void ApplyFluentWindowIcons()
@@ -211,6 +289,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		FluentIconKind kind = tag switch
 		{
 			"home" => FluentIconKind.Home,
+			"streaming" => FluentIconKind.MusicHero,
 			"playing" => FluentIconKind.NowPlaying,
 			"editor" => FluentIconKind.AudioEditor,
 			"dsp" => FluentIconKind.DspEffects,
@@ -256,6 +335,17 @@ public sealed class MainWindow : Window, IComponentConnector
 		try
 		{
 			AppSettings settings = _settingsVm.Settings;
+			if (!settings.RememberWindowState)
+			{
+				AppWindow.Resize(new SizeInt32(1180, 760));
+				try
+				{
+					RectInt32 workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+					AppWindow.Move(new PointInt32(workArea.X + Math.Max(0, (workArea.Width - 1180) / 2), workArea.Y + Math.Max(0, (workArea.Height - 760) / 2)));
+				}
+				catch { }
+				return;
+			}
 			int? windowWidth = settings.WindowWidth;
 			if (windowWidth.HasValue)
 			{
@@ -320,6 +410,10 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		try
 		{
+			if (!_settingsVm.Settings.RememberWindowState)
+			{
+				return;
+			}
 			WINDOWPLACEMENT lpwndpl = new WINDOWPLACEMENT
 			{
 				length = Marshal.SizeOf<WINDOWPLACEMENT>()
@@ -388,21 +482,201 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	public void ApplyTheme(ThemeMode mode)
 	{
-		Grid rootGrid = RootGrid;
-		rootGrid.RequestedTheme = mode switch
-		{
-			ThemeMode.Dark => ElementTheme.Dark, 
-			ThemeMode.Light => ElementTheme.Light, 
-			_ => ElementTheme.Default, 
-		};
-		_isDarkTheme = mode switch
-		{
-			ThemeMode.Dark => true,
-			ThemeMode.Light => false,
-			_ => LiquidGlassEngine.IsElementDarkTheme(rootGrid)
-		};
-		UpdateTitleBarButtonColors(rootGrid.RequestedTheme);
+		if (RootGrid == null) return;
+		bool effectiveDark = ResolveEffectiveDarkTheme(mode);
+		RootGrid.RequestedTheme = effectiveDark ? ElementTheme.Dark : ElementTheme.Light;
+		_isDarkTheme = effectiveDark;
+		UpdateTitleBarButtonColors(RootGrid.RequestedTheme);
 		ApplyMaterial(_currentMaterial);
+		LiquidGlassEngine.RefreshAllAttachedElements(_isDarkTheme);
+		if (ContentFrame?.Content is DependencyObject pageRoot && _currentNavTag != "playing")
+		{
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(pageRoot, _isDarkTheme);
+		}
+		GlassSkiaCanvas?.Invalidate();
+	}
+
+	private bool ResolveEffectiveDarkTheme(ThemeMode? overrideMode = null)
+	{
+		try
+		{
+			if (_settingsVm != null && _settingsVm.ScheduledDarkModeEnabled)
+			{
+				if (IsCurrentlyInScheduledDarkWindow(_settingsVm.ScheduledDarkStartTime, _settingsVm.ScheduledDarkEndTime))
+				{
+					return !LiquidGlassEngine.InvertModeEnabled;
+				}
+				return LiquidGlassEngine.InvertModeEnabled;
+			}
+
+			string echoMode = _settingsVm?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			bool baseDark;
+			if (echoMode == "dark")
+			{
+				baseDark = true;
+			}
+			else if (echoMode == "light")
+			{
+				baseDark = false;
+			}
+			else if (echoMode == "ambient" || echoMode == "acrylic" || echoMode == "liquid-glass")
+			{
+				baseDark = LiquidGlassEngine.ActivePreset.IsDark;
+			}
+			else
+			{
+				ThemeMode tm = overrideMode ?? (_settingsVm?.Settings.Theme ?? ThemeMode.System);
+				baseDark = tm switch
+				{
+					ThemeMode.Dark => true,
+					ThemeMode.Light => false,
+					_ => Application.Current != null && Application.Current.RequestedTheme == ApplicationTheme.Dark
+				};
+			}
+
+			return LiquidGlassEngine.InvertModeEnabled ? !baseDark : baseDark;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	private static bool IsCurrentlyInScheduledDarkWindow(string startStr, string endStr)
+	{
+		if (!TimeSpan.TryParse(startStr, out var start)) start = new TimeSpan(19, 0, 0);
+		if (!TimeSpan.TryParse(endStr, out var end)) end = new TimeSpan(7, 0, 0);
+		var now = DateTime.Now.TimeOfDay;
+		if (start <= end)
+		{
+			return now >= start && now < end;
+		}
+		return now >= start || now < end;
+	}
+
+	private void InitializeAppearanceTimers()
+	{
+		try
+		{
+			_rainbowTimer = new DispatcherTimer
+			{
+				Interval = TimeSpan.FromMilliseconds(55)
+			};
+			_rainbowTimer.Tick += (s, e) =>
+			{
+				if (!LiquidGlassEngine.RainbowModeEnabled)
+				{
+					_rainbowTimer.Stop();
+					return;
+				}
+				LiquidGlassEngine.RainbowHueDegrees = (LiquidGlassEngine.RainbowHueDegrees + 3.6f) % 360f;
+				GlassSkiaCanvas?.Invalidate();
+				_rainbowTickCounter++;
+				if (_rainbowTickCounter % 4 == 0)
+				{
+					ApplyWindowBackdrop();
+					LiquidGlassEngine.RefreshAllAttachedElements(_isDarkTheme);
+				}
+			};
+
+			_scheduledDarkTimer = new DispatcherTimer
+			{
+				Interval = TimeSpan.FromSeconds(30)
+			};
+			_scheduledDarkTimer.Tick += (s, e) =>
+			{
+				if (_settingsVm != null && _settingsVm.ScheduledDarkModeEnabled)
+				{
+					bool targetDark = ResolveEffectiveDarkTheme();
+					if (targetDark != _isDarkTheme)
+					{
+						ApplyEchoAppearanceSettings();
+					}
+				}
+			};
+			_scheduledDarkTimer.Start();
+		}
+		catch
+		{
+		}
+	}
+
+	private void OnWindowFocusChanged(object sender, WindowActivatedEventArgs args)
+	{
+		bool focused = args.WindowActivationState != WindowActivationState.Deactivated;
+		if (LiquidGlassEngine.IsWindowFocused != focused)
+		{
+			LiquidGlassEngine.IsWindowFocused = focused;
+			if (!LiquidGlassEngine.KeepTranslucentWhenUnfocused)
+			{
+				ApplyWindowBackdrop();
+				LiquidGlassEngine.RefreshAllAttachedElements(_isDarkTheme);
+				GlassSkiaCanvas?.Invalidate();
+			}
+		}
+	}
+
+	private void EnsureWallpaperLayer()
+	{
+		if (LiquidGlassOverlay == null) return;
+		if (_wallpaperBorder == null)
+		{
+			_wallpaperBorder = new Border
+			{
+				IsHitTestVisible = false,
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				VerticalAlignment = VerticalAlignment.Stretch,
+				Visibility = Visibility.Collapsed
+			};
+		}
+		if (!LiquidGlassOverlay.Children.Contains(_wallpaperBorder))
+		{
+			LiquidGlassOverlay.Children.Insert(0, _wallpaperBorder);
+		}
+		else if (LiquidGlassOverlay.Children.IndexOf(_wallpaperBorder) != 0)
+		{
+			LiquidGlassOverlay.Children.Remove(_wallpaperBorder);
+			LiquidGlassOverlay.Children.Insert(0, _wallpaperBorder);
+		}
+	}
+
+	public void ApplyEchoAppearanceSettings()
+	{
+		try
+		{
+			_settingsVm?.SyncLiquidGlassEngineFromSettings();
+			bool effectiveDark = ResolveEffectiveDarkTheme();
+			_isDarkTheme = effectiveDark;
+			if (RootGrid != null)
+			{
+				RootGrid.RequestedTheme = effectiveDark ? ElementTheme.Dark : ElementTheme.Light;
+			}
+			UpdateTitleBarButtonColors(effectiveDark ? ElementTheme.Dark : ElementTheme.Light);
+			ApplyMaterial(_settingsVm?.Material ?? _currentMaterial);
+			UpdateWallpaperVisuals();
+			ApplyWindowBackdrop();
+			LiquidGlassEngine.RefreshAllAttachedElements(_isDarkTheme);
+			if (ContentFrame?.Content is DependencyObject pageRoot && _currentNavTag != "playing")
+			{
+				LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(pageRoot, _isDarkTheme);
+			}
+			if (LiquidGlassEngine.RainbowModeEnabled)
+			{
+				if (_rainbowTimer != null && !_rainbowTimer.IsEnabled)
+				{
+					_rainbowTimer.Start();
+				}
+			}
+			else
+			{
+				_rainbowTimer?.Stop();
+			}
+			GlassSkiaCanvas?.Invalidate();
+		}
+		catch (Exception ex)
+		{
+			Log("ApplyEchoAppearanceSettings error: " + ex.Message);
+		}
 	}
 
 	private void UpdateTitleBarButtonColors(ElementTheme theme)
@@ -490,22 +764,38 @@ public sealed class MainWindow : Window, IComponentConnector
 		DwmGlass.SetImmersiveDarkMode(windowHandle, _isDarkTheme);
 		try
 		{
-			if (material == BackgroundMaterial.LiquidGlassDwm)
+			string echoMode = _settingsVm?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			bool useAcrylic = material == BackgroundMaterial.LiquidGlass
+				|| material == BackgroundMaterial.LiquidGlassDwm
+				|| material == BackgroundMaterial.Acrylic
+				|| echoMode == "acrylic"
+				|| echoMode == "liquid-glass"
+				|| echoMode == "ambient";
+
+			DwmGlass.ClearBackdrop(windowHandle);
+			if (useAcrylic)
 			{
-				SystemBackdrop = null;
-				DwmGlass.ApplyTransientBackdrop(windowHandle);
+				if (SystemBackdrop is not DesktopAcrylicBackdrop)
+				{
+					SystemBackdrop = new DesktopAcrylicBackdrop();
+				}
 			}
 			else
 			{
-				DwmGlass.ClearBackdrop(windowHandle);
-				SystemBackdrop = ((material == BackgroundMaterial.LiquidGlass) ? ((SystemBackdrop)new DesktopAcrylicBackdrop()) : ((SystemBackdrop)new MicaBackdrop()));
+				if (SystemBackdrop is not MicaBackdrop)
+				{
+					SystemBackdrop = new MicaBackdrop();
+				}
 			}
 		}
 		catch
 		{
 			try
 			{
-				SystemBackdrop = new MicaBackdrop();
+				if (SystemBackdrop == null)
+				{
+					SystemBackdrop = new DesktopAcrylicBackdrop();
+				}
 			}
 			catch
 			{
@@ -516,6 +806,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		{
 			RootGrid.Background = new SolidColorBrush(Colors.Transparent);
 		}
+		UpdateWallpaperVisuals();
 		if (_currentNavTag == "playing")
 		{
 			if (LiquidGlassOverlay != null)
@@ -554,35 +845,69 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	public void ApplyWallpaper(string? imagePath, bool solid)
 	{
+		_lastWallpaperPath = imagePath;
+		_lastWallpaperSolid = solid;
+		UpdateWallpaperVisuals();
+	}
+
+	private void UpdateWallpaperVisuals()
+	{
 		try
 		{
-			if (_currentNavTag == "playing" || solid)
+			EnsureWallpaperLayer();
+			if (RootGrid != null)
 			{
-				if (RootGrid != null)
-				{
-					RootGrid.Background = new SolidColorBrush(Colors.Transparent);
-				}
+				RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+			}
+			if (_wallpaperBorder == null)
+			{
 				return;
 			}
-			if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath))
+			if (_currentNavTag == "playing" || _lastWallpaperSolid || string.IsNullOrWhiteSpace(_lastWallpaperPath) || !File.Exists(_lastWallpaperPath))
 			{
-				BitmapImage imageSource = new BitmapImage(new Uri(imagePath));
-				RootGrid.Background = new ImageBrush
+				_wallpaperBorder.Visibility = Visibility.Collapsed;
+				return;
+			}
+
+			string echoMode = _settingsVm?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			double opacityScale = Math.Clamp(LiquidGlassEngine.AcrylicOpacityScale, 0.0, 1.0);
+
+			// 在纯亚克力模式下，让系统桌面从窗口后方透出；在氛围/液态玻璃模式下，壁纸与焦散光场柔美交融
+			double targetOpacity = echoMode switch
+			{
+				"acrylic" => Math.Clamp((1.0 - opacityScale) * 0.35, 0.0, 0.35),
+				"ambient" => 0.38 + opacityScale * 0.45,
+				"liquid-glass" => 0.25 + opacityScale * 0.38,
+				_ => 0.20
+			};
+
+			if (targetOpacity <= 0.02)
+			{
+				_wallpaperBorder.Visibility = Visibility.Collapsed;
+				return;
+			}
+
+			if (!(_wallpaperBorder.Background is ImageBrush existingBrush) || (_wallpaperBorder.Tag as string) != _lastWallpaperPath)
+			{
+				BitmapImage imageSource = new BitmapImage(new Uri(_lastWallpaperPath));
+				_wallpaperBorder.Background = new ImageBrush
 				{
 					ImageSource = imageSource,
 					Stretch = Stretch.UniformToFill,
 					AlignmentX = AlignmentX.Center,
 					AlignmentY = AlignmentY.Center
 				};
-				return;
+				_wallpaperBorder.Tag = _lastWallpaperPath;
 			}
+			_wallpaperBorder.Opacity = targetOpacity;
+			_wallpaperBorder.Visibility = Visibility.Visible;
 		}
 		catch
 		{
-		}
-		if (RootGrid != null)
-		{
-			RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+			if (_wallpaperBorder != null)
+			{
+				_wallpaperBorder.Visibility = Visibility.Collapsed;
+			}
 		}
 	}
 
@@ -591,6 +916,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		string tag = e.SourcePageType == typeof(NowPlayingPage) ? "playing"
 			: e.SourcePageType == typeof(EditorPage) ? "editor"
 			: e.SourcePageType == typeof(DspPage) ? "dsp"
+			: e.SourcePageType == typeof(StreamingPage) ? "streaming"
 			: e.SourcePageType == typeof(SettingsPage) ? "settings"
 			: "home";
 		ApplyStageGlassByTag(tag);
@@ -600,6 +926,7 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		_currentNavTag = tag;
 		ApplyWindowBackdrop();
+		UpdateWallpaperVisuals();
 		if (tag == "playing")
 		{
 			if (LiquidGlassOverlay != null)
@@ -647,6 +974,19 @@ public sealed class MainWindow : Window, IComponentConnector
 			{
 			case "home":
 				ContentFrame.Navigate(typeof(HomePage), _homeVm, new SuppressNavigationTransitionInfo());
+				break;
+			case "streaming":
+				try
+				{
+					_streamingPage ??= new StreamingPage(_streamingVm);
+					_streamingPage.ViewModel = _streamingVm;
+					_streamingPage.DataContext = _streamingVm;
+					ContentFrame.Content = _streamingPage;
+				}
+				catch (Exception exStream)
+				{
+					Log("navigate streaming exception: " + exStream);
+				}
 				break;
 			case "playing":
 				ContentFrame.Navigate(typeof(NowPlayingPage), _nowPlayingVm, new SuppressNavigationTransitionInfo());
@@ -749,6 +1089,19 @@ public sealed class MainWindow : Window, IComponentConnector
 			case "home":
 				ContentFrame.Navigate(typeof(HomePage), _homeVm, new SuppressNavigationTransitionInfo());
 				break;
+			case "streaming":
+				try
+				{
+					_streamingPage ??= new StreamingPage(_streamingVm);
+					_streamingPage.ViewModel = _streamingVm;
+					_streamingPage.DataContext = _streamingVm;
+					ContentFrame.Content = _streamingPage;
+				}
+				catch (Exception exStream)
+				{
+					Log("navigate streaming exception: " + exStream);
+				}
+				break;
 			case "playing":
 				ContentFrame.Navigate(typeof(NowPlayingPage), _nowPlayingVm, new SuppressNavigationTransitionInfo());
 				break;
@@ -838,6 +1191,92 @@ public sealed class MainWindow : Window, IComponentConnector
 			break;
 		}
 		_contentLoaded = true;
+	}
+
+	[DllImport("user32.dll")]
+	private static extern bool SetForegroundWindow(nint hWnd);
+
+	public void RestoreMainWindow()
+	{
+		try
+		{
+			AppWindow.Show();
+			if (AppWindow.Presenter is OverlappedPresenter op)
+			{
+				if (op.State == OverlappedPresenterState.Minimized)
+				{
+					op.Restore();
+				}
+			}
+			Activate();
+			nint hwnd = WindowNative.GetWindowHandle(this);
+			SetForegroundWindow(hwnd);
+		}
+		catch { }
+	}
+
+	public void ExitApplication()
+	{
+		_isExplicitExit = true;
+		_trayManager?.Dispose();
+		PowerWakeManager.SetKeepAwake(false);
+		SaveWindowPlacement();
+		Close();
+	}
+
+	public void ApplyUiScale(double scale)
+	{
+		try
+		{
+			if (scale < 0.5 || scale > 3.0) scale = 1.0;
+			if (RootGrid == null) return;
+
+			if (_uiScaleTransform == null)
+			{
+				_uiScaleTransform = new ScaleTransform();
+				RootGrid.RenderTransform = _uiScaleTransform;
+				RootGrid.RenderTransformOrigin = new Windows.Foundation.Point(0, 0);
+			}
+			_uiScaleTransform.ScaleX = scale;
+			_uiScaleTransform.ScaleY = scale;
+			UpdateScaledRootSize(scale);
+		}
+		catch (Exception ex)
+		{
+			Log("ApplyUiScale error: " + ex);
+		}
+	}
+
+	private void UpdateScaledRootSize(double scale)
+	{
+		try
+		{
+			if (RootGrid == null) return;
+			if (Math.Abs(scale - 1.0) < 0.01)
+			{
+				RootGrid.ClearValue(FrameworkElement.WidthProperty);
+				RootGrid.ClearValue(FrameworkElement.HeightProperty);
+				return;
+			}
+			var appSize = AppWindow.Size;
+			if (appSize.Width > 0 && appSize.Height > 0)
+			{
+				RootGrid.Width = Math.Max(100, appSize.Width / scale);
+				RootGrid.Height = Math.Max(100, appSize.Height / scale);
+			}
+		}
+		catch { }
+	}
+
+	private void UpdateKeepAwake()
+	{
+		try
+		{
+			bool preventSleep = _settingsVm.Settings.PreventSystemSleep;
+			bool isPlaying = _engine.State == PlaybackState.Playing;
+			PowerWakeManager.SetKeepAwake(preventSleep && isPlaying);
+		}
+		catch { }
 	}
 
 	private void CheckCommandLineAndRunAutoCapture()

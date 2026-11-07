@@ -81,7 +81,18 @@ public static class WaveformRenderer
 
 	public static AuditionEnvelopeData? ComputeAuditionEnvelopeFromFile(string filePath, int bucketCount = 4096)
 	{
-		if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath) || bucketCount <= 0)
+		if (string.IsNullOrEmpty(filePath) || bucketCount <= 0)
+		{
+			return null;
+		}
+		if (!File.Exists(filePath) && StreamAudioCache.IsNetworkUrl(filePath))
+		{
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(filePath, out string cachedPath) && File.Exists(cachedPath))
+			{
+				filePath = cachedPath;
+			}
+		}
+		if (!File.Exists(filePath))
 		{
 			return null;
 		}
@@ -407,7 +418,18 @@ public static class WaveformRenderer
 	public static List<PeakPair> ComputePeaksFromFile(string filePath, int targetWidth, IProgress<double>? progress = null)
 	{
 		List<PeakPair> list = new List<PeakPair>();
-		if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath) || targetWidth <= 0)
+		if (string.IsNullOrEmpty(filePath) || targetWidth <= 0)
+		{
+			return list;
+		}
+		if (!File.Exists(filePath) && StreamAudioCache.IsNetworkUrl(filePath))
+		{
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(filePath, out string cachedPath) && File.Exists(cachedPath))
+			{
+				filePath = cachedPath;
+			}
+		}
+		if (!File.Exists(filePath))
 		{
 			return list;
 		}

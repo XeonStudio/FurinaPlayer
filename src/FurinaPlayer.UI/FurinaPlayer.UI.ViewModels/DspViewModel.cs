@@ -77,7 +77,7 @@ public class DspViewModel : ObservableObject
 	private ObservableCollection<Vst3PluginState> vst3Plugins = new ObservableCollection<Vst3PluginState>();
 
 	[ObservableProperty]
-	private string vst3StatusText = "扫描 VST3 目录后启用插件，效果经预渲染链路生效（模拟宿主）";
+	private string vst3StatusText = "Steinberg VST3 64位原生宿主就绪 · 扫描目录或加载 .vst3 插件即可实时渲染与交互";
 
 	[ObservableProperty]
 	private double timbreBass;
@@ -611,7 +611,8 @@ public class DspViewModel : ObservableObject
 		TimbreSoundstage = appSettings.TimbreSoundstage;
 		EqPresetName = "自定义";
 		Vst3Folders = new ObservableCollection<string>((appSettings.Vst3ScanFolders != null && appSettings.Vst3ScanFolders.Count > 0) ? appSettings.Vst3ScanFolders : Vst3Manager.DefaultScanFolders.ToList());
-		Vst3Plugins = new ObservableCollection<Vst3PluginState>(appSettings.Vst3Plugins ?? new List<Vst3PluginState>());
+		List<Vst3PluginState> initialPlugins = Vst3Manager.Merge(appSettings.Vst3Plugins ?? new List<Vst3PluginState>(), Enumerable.Empty<string>());
+		Vst3Plugins = new ObservableCollection<Vst3PluginState>(initialPlugins);
 		_engine.SetVst3(Vst3Plugins.ToList());
 
 		// Load ECHO Audio DSP settings
@@ -785,6 +786,53 @@ public class DspViewModel : ObservableObject
 	{
 		ApplyVst3ToEngine();
 		SaveVst3State();
+	}
+
+	public Vst3PluginState? AddOrSelectVst3PluginFile(string? filePath)
+	{
+		if (string.IsNullOrWhiteSpace(filePath) || !Vst3Manager.IsValidVst3Path(filePath))
+		{
+			Vst3StatusText = "无效的 VST3 插件路径：" + (filePath ?? string.Empty);
+			return null;
+		}
+		Vst3PluginState created = Vst3Manager.CreateState(filePath);
+		Vst3PluginState? existing = Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && string.Equals(p.Path, created.Path, StringComparison.OrdinalIgnoreCase));
+		if (existing != null)
+		{
+			if (string.IsNullOrWhiteSpace(existing.Vendor) || existing.Vendor.Contains("未知"))
+			{
+				existing.Vendor = created.Vendor;
+			}
+			Vst3StatusText = $"已选中插件：{existing.Name} ({existing.Vendor})";
+			return existing;
+		}
+		Vst3Plugins.Insert(0, created);
+		SaveVst3State();
+		Vst3StatusText = $"已加载插件文件：{created.Name} ({created.Vendor})";
+		return created;
+	}
+
+	public int RestoreDefaultVst3Folders()
+	{
+		int added = 0;
+		foreach (string defFolder in Vst3Manager.DefaultScanFolders)
+		{
+			if (!Vst3Folders.Any((string f) => string.Equals(f, defFolder, StringComparison.OrdinalIgnoreCase)))
+			{
+				Vst3Folders.Add(defFolder);
+				added++;
+			}
+		}
+		if (added > 0)
+		{
+			SaveVst3State();
+			Vst3StatusText = $"已恢复 {added} 个默认系统 VST3 扫描目录";
+		}
+		else
+		{
+			Vst3StatusText = "默认系统 VST3 扫描目录均已存在";
+		}
+		return added;
 	}
 
 	private void ApplyVst3ToEngine()

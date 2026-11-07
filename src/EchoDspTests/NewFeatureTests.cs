@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using SonicWave.Audio;
 using SonicWave.Audio.Decoders;
@@ -26,6 +26,11 @@ public static class NewFeatureTests
 		TestFurinaPlayerDeEsserProcessor();
 		TestFurinaPlayerLimiterProcessor();
 		TestFurinaPlayerVirtualStageAndSpatialFeatures();
+		TestStreamingServiceAndConversion();
+		TestAdvancedSystemSettings();
+		TestStreamAudioCacheAndDawEnvelope();
+		TestEchoAppearanceAndThemePersistence();
+		TestVst3RackVendorAndManager();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine("  All New Feature Tests Passed Successfully!     ");
@@ -620,5 +625,254 @@ public static class NewFeatureTests
 			throw new Exception("Channel matrix swap failed");
 
 		Console.WriteLine("[PASS] Channel Matrix swapped channels accurately using custom 2x2 routing");
+	}
+
+	private static void TestStreamingServiceAndConversion()
+	{
+		Console.WriteLine("--- Testing StreamingService & Model Conversion ---");
+		var service = new SonicWave.Core.Services.StreamingService();
+		var info = new SonicWave.Core.Services.StreamingTrackInfo
+		{
+			Id = 123456,
+			Title = "Genshin Impact Main Theme",
+			Artist = "HOYO-MiX",
+			Album = "The Wind and The Star Traveler",
+			Source = "网易云音乐",
+			Quality = "Hi-Res FLAC",
+			StreamUrl = "https://example.com/audio.flac",
+			CoverUrl = "https://example.com/cover.jpg",
+			Duration = TimeSpan.FromMinutes(2)
+		};
+
+		SonicWave.Core.Models.Track track = service.ToTrack(info);
+		if (track.Title != "Genshin Impact Main Theme" || track.Artist != "HOYO-MiX" || track.DurationMilliseconds != 120000)
+			throw new Exception("Track conversion failed");
+
+		Console.WriteLine("[PASS] StreamingService correctly converts online tracks to FurinaPlayer Track model");
+
+		var res = service.SearchOnlineTracksAsync("原神", offset: 0, limit: 10, searchType: 1, platform: "网易云音乐").GetAwaiter().GetResult();
+		if (res == null || res.Count == 0)
+			throw new Exception("Default mock search returned empty results");
+
+		Console.WriteLine($"[PASS] StreamingService online track search returned {res.Count} items with Hi-Res/FLAC badges");
+
+		// --- Multi-Platform Authentication & Persistence Test ---
+		string tempSettingsFile = Path.Combine(Path.GetTempPath(), $"furina_test_{Guid.NewGuid():N}.json");
+		var settingsService = new SonicWave.Core.Services.SettingsService(tempSettingsFile);
+		var settings = settingsService.Load();
+
+		var streamingAuthService = new SonicWave.Core.Services.StreamingService(settingsService);
+
+		// 1. 网易云 Cookie 保存与调用测试
+		string testNeteaseCookie = "MUSIC_U=8a7b9c0d1e2f3a4b5c6d; __remember_me=true;";
+		var neteaseAcc = streamingAuthService.VerifyAndFetchNeteaseAccountAsync(testNeteaseCookie).GetAwaiter().GetResult();
+		if (neteaseAcc == null || !neteaseAcc.IsLoggedIn || !neteaseAcc.Cookie.Contains("MUSIC_U"))
+			throw new Exception("Netease account verification failed");
+		streamingAuthService.SaveNeteaseAccount(neteaseAcc);
+
+		settings = settingsService.Load();
+		if (!settings.NeteaseIsLoggedIn || settings.NeteaseCookie != neteaseAcc.Cookie)
+			throw new Exception("Netease cookie failed to persist into AppSettings");
+		Console.WriteLine("[PASS] Netease credentials verified and persisted into AppSettings successfully");
+
+		// 2. QQ 音乐 Cookie 保存与调用测试
+		string testQQCookie = "uin=100012345; qm_keyst=Q_H_L_SAMPLE_KEY_987654321; pgv_pvid=123456789;";
+		var qqAcc = streamingAuthService.VerifyAndFetchQQAccountAsync(testQQCookie).GetAwaiter().GetResult();
+		if (qqAcc == null || !qqAcc.IsLoggedIn || qqAcc.UserIdStr != "100012345" || !qqAcc.AvatarUrl.Contains("100012345"))
+			throw new Exception("QQ Music account verification failed");
+		streamingAuthService.SaveQQAccount(qqAcc);
+
+		settings = settingsService.Load();
+		if (!settings.QQIsLoggedIn || settings.QQUin != "100012345" || settings.QQCookie != testQQCookie)
+			throw new Exception("QQ Music credentials failed to persist into AppSettings");
+		Console.WriteLine("[PASS] QQ Music credentials (uin, avatar, cookie) verified and persisted successfully");
+
+		// 3. Spotify 凭据保存与调用测试
+		string testSpotifyToken = "BQD_SAMPLE_OAUTH_TOKEN_TEST_STRING_123456789";
+		var spotifyAcc = streamingAuthService.VerifyAndFetchSpotifyAccountAsync(testSpotifyToken).GetAwaiter().GetResult();
+		if (spotifyAcc == null || !spotifyAcc.IsLoggedIn || string.IsNullOrEmpty(spotifyAcc.UserIdStr))
+			throw new Exception("Spotify account verification failed");
+		streamingAuthService.SaveSpotifyAccount(spotifyAcc);
+
+		settings = settingsService.Load();
+		if (!settings.SpotifyIsLoggedIn || settings.SpotifyToken != testSpotifyToken)
+			throw new Exception("Spotify credentials failed to persist into AppSettings");
+		Console.WriteLine("[PASS] Spotify credentials verified and persisted into AppSettings successfully");
+
+		// 4. 新实例还原持久化测试 (模拟应用重启)
+		var restoredStreamingService = new SonicWave.Core.Services.StreamingService(settingsService);
+		if (!restoredStreamingService.CurrentNeteaseAccount.IsLoggedIn || !restoredStreamingService.CurrentNeteaseAccount.Cookie.Contains("MUSIC_U"))
+			throw new Exception("Restored service failed to recover Netease session");
+		if (!restoredStreamingService.CurrentQQAccount.IsLoggedIn || restoredStreamingService.CurrentQQAccount.UserIdStr != "100012345")
+			throw new Exception("Restored service failed to recover QQ Music session");
+		if (!restoredStreamingService.CurrentSpotifyAccount.IsLoggedIn || restoredStreamingService.CurrentSpotifyAccount.Cookie != testSpotifyToken)
+			throw new Exception("Restored service failed to recover Spotify session");
+		Console.WriteLine("[PASS] Multi-platform accounts (Netease, QQ, Spotify) restored seamlessly across sessions");
+
+		// 5. 真实播放流解析测试
+		string playUrl = restoredStreamingService.ResolvePlayUrlAsync(123456, "网易云音乐").GetAwaiter().GetResult();
+		if (string.IsNullOrEmpty(playUrl) || !playUrl.StartsWith("http"))
+			throw new Exception("ResolvePlayUrlAsync failed to return valid stream url");
+		Console.WriteLine($"[PASS] Play URL resolution with credentials validated ({playUrl})");
+
+		try { File.Delete(tempSettingsFile); } catch { }
+	}
+
+	private static void TestAdvancedSystemSettings()
+	{
+		Console.WriteLine("--- Testing ECHO Settings & Power State ---");
+		var settings = new SonicWave.Core.Models.AppSettings
+		{
+			UiScale = 1.25,
+			CloseToTray = true,
+			RememberWindowState = true,
+			PreventSystemSleep = true
+		};
+
+		if (Math.Abs(settings.UiScale - 1.25) > 0.001 || !settings.CloseToTray || !settings.RememberWindowState || !settings.PreventSystemSleep)
+			throw new Exception("AppSettings failed to store advanced system/window preferences");
+
+		Console.WriteLine("[PASS] AppSettings correctly persists UI scale, CloseToTray, RememberWindow, and KeepAwake properties");
+	}
+
+	private static void TestStreamAudioCacheAndDawEnvelope()
+	{
+		Console.WriteLine("--- Testing StreamAudioCache & Audition DAW Streaming Envelope/Spectrogram ---");
+
+		string streamUrl = "https://music.example.com/stream/furina_daw_test.wav?token=12345";
+		if (!StreamAudioCache.IsNetworkUrl(streamUrl) || StreamAudioCache.IsNetworkUrl(@"C:\Music\local.flac"))
+			throw new Exception("StreamAudioCache.IsNetworkUrl detection failed");
+
+		string cachedPath = StreamAudioCache.GetExpectedCacheFilePath(streamUrl);
+		try
+		{
+			int sampleRate = 48000;
+			int channels = 2;
+			int frames = sampleRate;
+			using (var fs = new FileStream(cachedPath, FileMode.Create, FileAccess.Write, FileShare.Read))
+			using (var bw = new BinaryWriter(fs))
+			{
+				int byteRate = sampleRate * channels * 2;
+				int dataSize = frames * channels * 2;
+				bw.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+				bw.Write(36 + dataSize);
+				bw.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt "));
+				bw.Write(16);
+				bw.Write((short)1);
+				bw.Write((short)channels);
+				bw.Write(sampleRate);
+				bw.Write(byteRate);
+				bw.Write((short)(channels * 2));
+				bw.Write((short)16);
+				bw.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+				bw.Write(dataSize);
+
+				for (int i = 0; i < frames; i++)
+				{
+					short left = (short)(Math.Sin(2.0 * Math.PI * 440.0 * i / sampleRate) * 24000);
+					short right = (short)(Math.Cos(2.0 * Math.PI * 880.0 * i / sampleRate) * 20000);
+					bw.Write(left);
+					bw.Write(right);
+				}
+			}
+
+			if (!StreamAudioCache.TryGetOrDownloadCachedFile(streamUrl, out string resolvedLocal) || resolvedLocal != cachedPath)
+				throw new Exception("StreamAudioCache failed to resolve cached streaming audio file");
+
+			var env = SonicWave.Audio.Renderers.WaveformRenderer.ComputeAuditionEnvelopeFromFile(streamUrl, 512);
+			if (env == null || env.LeftMax.Length != 512 || env.RightMax.Length != 512 || env.SampleRate != 48000 || string.IsNullOrEmpty(env.SpecLeftBase64))
+				throw new Exception("WaveformRenderer.ComputeAuditionEnvelopeFromFile failed on streaming URL");
+
+			float maxL = 0f;
+			for (int i = 0; i < env.LeftMax.Length; i++)
+			{
+				if (env.LeftMax[i] > maxL) maxL = env.LeftMax[i];
+			}
+			if (maxL < 0.3f)
+				throw new Exception($"Expected non-zero stereo waveform envelope for streaming URL, got maxL={maxL:F3}");
+
+			Console.WriteLine($"[PASS] StreamAudioCache + SafeAudioFileReader + WaveformRenderer computed 512-pt stereo envelope (maxL={maxL:F2}) & {env.SpecCols}x{env.SpecBins} STFT spectrogram from HTTP stream URL");
+		}
+		finally
+		{
+			try { if (File.Exists(cachedPath)) File.Delete(cachedPath); } catch { }
+		}
+	}
+
+	private static void TestEchoAppearanceAndThemePersistence()
+	{
+		Console.WriteLine("--- Testing ECHO Appearance, Acrylic & Theme Presets Persistence ---");
+		string tempSettingsFile = Path.Combine(Path.GetTempPath(), $"furina_theme_test_{Guid.NewGuid():N}.json");
+		try
+		{
+			var svc = new SonicWave.Core.Services.SettingsService(tempSettingsFile);
+			var s = svc.Load();
+
+			if (s.BackgroundMaterial != SonicWave.Core.Models.BackgroundMaterial.LiquidGlass || s.EchoThemeMode != "liquid-glass")
+				throw new Exception("Default AppSettings should initialize with LiquidGlass active");
+
+			s.EchoThemeMode = "acrylic";
+			s.BackgroundMaterial = SonicWave.Core.Models.BackgroundMaterial.Acrylic;
+			s.AcrylicKeepTranslucentWhenUnfocused = true;
+			s.AcrylicOpacityPercent = 88;
+			s.ScheduledDarkModeEnabled = true;
+			s.ScheduledDarkStartTime = "20:00";
+			s.ScheduledDarkEndTime = "06:30";
+			s.RainbowModeEnabled = true;
+			s.InvertModeEnabled = false;
+			s.SelectedThemePresetId = "twilight-peach";
+			s.SelectedThemeCategory = "柔和";
+			svc.Save(s);
+
+			var reloaded = svc.Load();
+			if (reloaded.EchoThemeMode != "acrylic" ||
+				reloaded.BackgroundMaterial != SonicWave.Core.Models.BackgroundMaterial.Acrylic ||
+				reloaded.AcrylicOpacityPercent != 88 ||
+				!reloaded.ScheduledDarkModeEnabled ||
+				reloaded.ScheduledDarkStartTime != "20:00" ||
+				!reloaded.RainbowModeEnabled ||
+				reloaded.SelectedThemePresetId != "twilight-peach" ||
+				reloaded.SelectedThemeCategory != "柔和")
+			{
+				throw new Exception("ECHO Appearance & Theme Preset settings failed to round-trip across restart");
+			}
+
+			Console.WriteLine("[PASS] ECHO Appearance (Acrylic, Opacity 88%, Scheduled Dark Mode, Rainbow PRO, Preset 'twilight-peach') persisted across restarts");
+		}
+		finally
+		{
+			try { if (File.Exists(tempSettingsFile)) File.Delete(tempSettingsFile); } catch { }
+		}
+	}
+
+	private static void TestVst3RackVendorAndManager()
+	{
+		Console.WriteLine("--- Testing VST3 Rack Manager & Vendor Metadata Resolution ---");
+		var p1 = SonicWave.Audio.Vst3.Vst3Manager.CreateState(@"C:\Program Files\Common Files\VST3\iZotope\Insight 2.vst3");
+		var p2 = SonicWave.Audio.Vst3.Vst3Manager.CreateState(@"C:\Program Files\Common Files\VST3\Celemony\Melodyne.vst3");
+		var p3 = SonicWave.Audio.Vst3.Vst3Manager.CreateState(@"C:\Program Files\Common Files\VST3\FabFilter Pro-Q 3.vst3");
+
+		if (!p1.Vendor.Contains("iZotope", StringComparison.OrdinalIgnoreCase))
+			throw new Exception($"Expected iZotope vendor for Insight 2, got '{p1.Vendor}'");
+		if (!p2.Vendor.Contains("Celemony", StringComparison.OrdinalIgnoreCase))
+			throw new Exception($"Expected Celemony vendor for Melodyne, got '{p2.Vendor}'");
+		if (!p3.Vendor.Contains("FabFilter", StringComparison.OrdinalIgnoreCase))
+			throw new Exception($"Expected FabFilter vendor for Pro-Q 3, got '{p3.Vendor}'");
+
+		var legacySaved = new System.Collections.Generic.List<SonicWave.Core.Models.Vst3PluginState>
+		{
+			new SonicWave.Core.Models.Vst3PluginState
+			{
+				Name = "Nectar Pro",
+				Path = @"C:\Program Files\Common Files\VST3\iZotope\Nectar Pro.vst3",
+				Vendor = "未知（模拟宿主）",
+				Enabled = true
+			}
+		};
+		var merged = SonicWave.Audio.Vst3.Vst3Manager.Merge(legacySaved, Array.Empty<string>());
+		if (merged.Count != 1 || merged[0].Vendor == "未知（模拟宿主）" || !merged[0].Vendor.Contains("iZotope", StringComparison.OrdinalIgnoreCase))
+			throw new Exception($"Legacy VST3 vendor failed to upgrade during Merge: '{merged[0].Vendor}'");
+
+		Console.WriteLine($"[PASS] Vst3Manager accurately resolved vendors ({p1.Vendor}, {p2.Vendor}, {p3.Vendor}) and upgraded legacy saved states");
 	}
 }

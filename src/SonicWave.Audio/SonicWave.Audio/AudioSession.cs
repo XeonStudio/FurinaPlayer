@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SonicWave.Audio.Backends;
 using SonicWave.Audio.Core;
+using SonicWave.Audio.Decoders;
 using SonicWave.Audio.Dsp;
 using SonicWave.Audio.Output;
 using SonicWave.Audio.Vst3;
@@ -89,7 +90,7 @@ internal sealed class AudioSession : IDisposable
 
 	private readonly PlaybackClock _clock = new PlaybackClock();
 
-	private readonly PlaybackWatchdog _watchdog = new PlaybackWatchdog(TimeSpan.FromMilliseconds(250.0), 6);
+	private readonly PlaybackWatchdog _watchdog = new PlaybackWatchdog(TimeSpan.FromSeconds(5.0), TimeSpan.FromSeconds(3.0));
 
 	private int _recoveryCount;
 
@@ -333,7 +334,7 @@ internal sealed class AudioSession : IDisposable
 
 	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation, float[] VectorPoints) GetLiveAudioMeters()
 	{
-		if (_naudioBackend is NaudioAudioBackend naudio)
+		if (!_useVlc && _naudioBackend is NaudioAudioBackend naudio)
 		{
 			var dsp = naudio.Decoder.Dsp;
 			if (dsp != null && State == PlaybackState.Playing)
@@ -352,8 +353,18 @@ internal sealed class AudioSession : IDisposable
 		{
 			try
 			{
-				string ext = System.IO.Path.GetExtension(track.FilePath).TrimStart('.').ToUpperInvariant();
-				codec = string.IsNullOrEmpty(ext) ? "PCM" : ext;
+				string cleanPath = track.FilePath;
+				int qIdx = cleanPath.IndexOf('?');
+				if (qIdx >= 0)
+				{
+					cleanPath = cleanPath[..qIdx];
+				}
+				if (Uri.TryCreate(cleanPath, UriKind.Absolute, out Uri? uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps))
+				{
+					cleanPath = uri.AbsolutePath;
+				}
+				string ext = System.IO.Path.GetExtension(cleanPath).TrimStart('.').ToUpperInvariant();
+				codec = string.IsNullOrEmpty(ext) ? (IsNetworkUrl(track.FilePath) ? "MP3" : "PCM") : ext;
 			}
 			catch
 			{
@@ -365,7 +376,7 @@ internal sealed class AudioSession : IDisposable
 		int bits = 0;
 		int ch = 2;
 
-		if (_naudioBackend is NaudioAudioBackend naudio)
+		if (!_useVlc && _naudioBackend is NaudioAudioBackend naudio)
 		{
 			sr = naudio.Decoder.SampleRate;
 			bits = naudio.Decoder.BitsPerSample;
@@ -437,6 +448,14 @@ internal sealed class AudioSession : IDisposable
 		_index = num;
 		_restorePending = false;
 		CancelRender();
+
+		// 如果当前暂停的曲目正是所选曲目，直接恢复播放，避免重置进度到开头
+		if (CurrentTrack != null && CurrentTrack.Id == track.Id && State == PlaybackState.Paused && _activeTrackId == track.Id)
+		{
+			Play();
+			return;
+		}
+
 		_activeTrackId = -1L;
 		Play();
 	}
@@ -448,18 +467,27 @@ internal sealed class AudioSession : IDisposable
 		{
 			return false;
 		}
+		if (IsNetworkUrl(track.FilePath))
+		{
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(track.FilePath, out string cachedFile) && File.Exists(cachedFile))
+			{
+				track.FilePath = cachedFile;
+			}
+		}
 		_restorePending = false;
 		_positionTimer.Change(-1, -1);
 		_restorePosition = position;
-		bool flag;
-		if (_useVlc)
+		bool flag = OpenWithNaudio(track.FilePath);
+		if (!flag && IsVlcAvailable)
 		{
+			Trace("NAudio failed to open file, falling back to VLC: " + track.FilePath);
 			flag = _vlcBackend.Open(track.FilePath, startPaused: false);
 			if (flag)
 			{
 				flag = _vlcBackend.WaitUntilReady(2000);
 				if (flag)
 				{
+					_useVlc = true;
 					_vlcBackend.Speed = _speed;
 					_vlcBackend.Seek(position);
 					_vlcBackend.Pause();
@@ -469,36 +497,10 @@ internal sealed class AudioSession : IDisposable
 					_vlcBackend.Stop();
 				}
 			}
-			if (!flag)
-			{
-				_useVlc = false;
-				_vlcBackend.Stop();
-				flag = OpenWithNaudio(track.FilePath);
-			}
 		}
-		else
+		if (flag && track.DurationMilliseconds <= 0 && CurrentBackend.Duration.TotalMilliseconds > 0)
 		{
-			flag = OpenWithNaudio(track.FilePath);
-			if (!flag && IsVlcAvailable)
-			{
-				Trace("NAudio failed to open file, falling back to VLC: " + track.FilePath);
-				flag = _vlcBackend.Open(track.FilePath, startPaused: false);
-				if (flag)
-				{
-					flag = _vlcBackend.WaitUntilReady(2000);
-					if (flag)
-					{
-						_useVlc = true;
-						_vlcBackend.Speed = _speed;
-						_vlcBackend.Seek(position);
-						_vlcBackend.Pause();
-					}
-					else
-					{
-						_vlcBackend.Stop();
-					}
-				}
-			}
+			track.DurationMilliseconds = (long)CurrentBackend.Duration.TotalMilliseconds;
 		}
 		SafeRaise(() =>
 		{
@@ -530,6 +532,7 @@ internal sealed class AudioSession : IDisposable
 
 	public void Play()
 	{
+		_recoveryCount = 0;
 		if (CurrentTrack == null)
 		{
 			if (_queue.Count > 0)
@@ -566,14 +569,10 @@ internal sealed class AudioSession : IDisposable
 			if (flag)
 			{
 				CurrentBackend.Play();
-				if (IsDecoderActuallyPlaying())
-				{
-					SetState(PlaybackState.Playing);
-					_watchdog.Reset(Position);
-					Trace("Play: resumed from pause");
-					return;
-				}
-				Trace("Play: resume failed, reopening current");
+				SetState(PlaybackState.Playing);
+				_watchdog.Reset(Position);
+				Trace("Play: resumed from pause (" + (_useVlc ? "vlc" : "naudio") + ")");
+				return;
 			}
 			else
 			{
@@ -685,6 +684,7 @@ internal sealed class AudioSession : IDisposable
 
 	public void Stop()
 	{
+		_recoveryCount = 0;
 		_runToken++;
 		_vlcEnd.Reset();
 		_watchdog.Reset(TimeSpan.Zero);
@@ -799,7 +799,8 @@ internal sealed class AudioSession : IDisposable
 	{
 		try
 		{
-			CurrentBackend.Volume = _volume;
+			int effectiveVol = _volume > 0 ? _volume : 80;
+			CurrentBackend.Volume = effectiveVol;
 		}
 		catch
 		{
@@ -1617,6 +1618,7 @@ internal sealed class AudioSession : IDisposable
 
 	private bool OpenCurrent()
 	{
+		_recoveryCount = 0;
 		Track track = CurrentTrack;
 		if (track == null)
 		{
@@ -1625,52 +1627,33 @@ internal sealed class AudioSession : IDisposable
 		_vlcEnd.Reset();
 		_clock.Reset(TimeSpan.Zero);
 		string filePath = _renderedWavPath ?? track.FilePath;
-		bool flag;
 		if (IsNetworkUrl(filePath))
 		{
-			_useVlc = true;
-			flag = _vlcBackend.Open(filePath, startPaused: false);
-			if (flag)
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(filePath, out string cachedFile) && File.Exists(cachedFile))
 			{
-				_vlcBackend.Speed = _speed;
-				_vlcBackend.Volume = _volume;
+				track.FilePath = cachedFile;
+				filePath = cachedFile;
 			}
-			return flag;
 		}
-
-		if (_useVlc)
+		bool flag = OpenWithNaudio(filePath, _renderedWavPath == null);
+		if (!flag && IsVlcAvailable)
 		{
+			Trace("NAudio failed to open file in OpenCurrent, falling back to VLC: " + filePath);
 			flag = _vlcBackend.Open(filePath, startPaused: false);
 			if (flag)
 			{
+				_useVlc = true;
 				_vlcBackend.Speed = _speed;
-				_vlcBackend.Volume = _volume;
+				_vlcBackend.Volume = _volume > 0 ? _volume : 80;
 			}
-			if (!flag)
+			else
 			{
-				_useVlc = false;
 				_vlcBackend.Stop();
-				flag = OpenWithNaudio(filePath, _renderedWavPath == null);
 			}
 		}
-		else
+		if (flag && track.DurationMilliseconds <= 0 && CurrentBackend.Duration.TotalMilliseconds > 0)
 		{
-			flag = OpenWithNaudio(filePath, _renderedWavPath == null);
-			if (!flag && IsVlcAvailable)
-			{
-				Trace("NAudio failed to open file in OpenCurrent, falling back to VLC: " + filePath);
-				flag = _vlcBackend.Open(filePath, startPaused: false);
-				if (flag)
-				{
-					_useVlc = true;
-					_vlcBackend.Speed = _speed;
-					_vlcBackend.Volume = _volume;
-				}
-				else
-				{
-					_vlcBackend.Stop();
-				}
-			}
+			track.DurationMilliseconds = (long)CurrentBackend.Duration.TotalMilliseconds;
 		}
 		SafeRaise(() =>
 		{
@@ -1694,11 +1677,19 @@ internal sealed class AudioSession : IDisposable
 
 	private bool OpenWithNaudio(string filePath, bool applyDsp = true)
 	{
+		if (IsNetworkUrl(filePath))
+		{
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(filePath, out string cachedFile) && File.Exists(cachedFile))
+			{
+				filePath = cachedFile;
+			}
+		}
 		_naudioBackend.SetApplyDspOnOpen(applyDsp);
 		_naudioBackend.SetDspState(_eqGains, _reverbEnabled, _reverbMix, _reverbPreset, _spatialWidth, _spatialModulation, _spatialPredelayMs, _timbre, _vst3);
 		bool flag = _naudioBackend.Open(filePath, startPaused: false);
 		if (flag)
 		{
+			_useVlc = false;
 			ApplyVolume();
 		}
 		return flag;
@@ -1906,12 +1897,16 @@ internal sealed class AudioSession : IDisposable
 			bool isActuallyPlaying2 = CurrentBackend.IsActuallyPlaying;
 			TimeSpan position2 = CurrentBackend.Position;
 			TimeSpan duration2 = CurrentBackend.Duration;
-			if (isActuallyPlaying2 && duration2 > TimeSpan.FromSeconds(3.0) && position2 < duration2 - TimeSpan.FromSeconds(3.0))
+			if (isActuallyPlaying2 && duration2 > TimeSpan.FromSeconds(6.0) && position2 >= TimeSpan.FromSeconds(3.0) && position2 < duration2 - TimeSpan.FromSeconds(3.0))
 			{
 				if (_watchdog.CheckStalled(position2))
 				{
 					Trace("watchdog stall detected @" + position2);
 					RecoverFromStall(position2);
+				}
+				else if (_recoveryCount > 0)
+				{
+					_recoveryCount = 0;
 				}
 			}
 			else
@@ -1926,7 +1921,7 @@ internal sealed class AudioSession : IDisposable
 
 	private void RecoverFromStall(TimeSpan pos)
 	{
-		if (_recoveryCount >= 2)
+		if (_recoveryCount >= 3)
 		{
 			FailCurrent(PlaybackErrorKind.System, "播放停滞且自动恢复失败，请重新播放或检查音频输出设备。");
 			return;
@@ -1940,36 +1935,37 @@ internal sealed class AudioSession : IDisposable
 		Trace("watchdog recovery #" + _recoveryCount + " @" + pos.ToString() + " " + currentTrack.FilePath);
 		_runToken++;
 		_positionTimer.Change(-1, -1);
-		if (_useVlc)
+		if (IsNetworkUrl(currentTrack.FilePath))
 		{
-			_useVlc = false;
-			_vlcBackend.Stop();
-			if (OpenWithNaudio(currentTrack.FilePath))
+			if (StreamAudioCache.TryGetOrDownloadCachedFile(currentTrack.FilePath, out string cachedFile) && File.Exists(cachedFile))
 			{
-				_naudioBackend.Seek(pos);
-				_naudioBackend.Play();
-				_activeTrackId = currentTrack.Id;
-				SetState(PlaybackState.Playing);
-				_positionTimer.Change(0, 500);
-				_watchdog.Reset(pos);
-				Trace("watchdog recovered via naudio @" + pos);
-				return;
+				currentTrack.FilePath = cachedFile;
 			}
 		}
-		else
+		_vlcBackend.Stop();
+		_naudioBackend.Stop();
+		if (OpenWithNaudio(currentTrack.FilePath))
 		{
-			_naudioBackend.Stop();
-			if (OpenWithNaudio(currentTrack.FilePath))
-			{
-				_naudioBackend.Seek(pos);
-				_naudioBackend.Play();
-				_activeTrackId = currentTrack.Id;
-				SetState(PlaybackState.Playing);
-				_positionTimer.Change(0, 500);
-				_watchdog.Reset(pos);
-				Trace("watchdog recovered via reopen @" + pos);
-				return;
-			}
+			_naudioBackend.Seek(pos);
+			_naudioBackend.Play();
+			_activeTrackId = currentTrack.Id;
+			SetState(PlaybackState.Playing);
+			_positionTimer.Change(0, 500);
+			_watchdog.Reset(pos);
+			Trace("watchdog recovered via naudio @" + pos);
+			return;
+		}
+		if (IsVlcAvailable && _vlcBackend.Open(currentTrack.FilePath, startPaused: false))
+		{
+			_useVlc = true;
+			_vlcBackend.Seek(pos);
+			_vlcBackend.Play();
+			_activeTrackId = currentTrack.Id;
+			SetState(PlaybackState.Playing);
+			_positionTimer.Change(0, 500);
+			_watchdog.Reset(pos);
+			Trace("watchdog recovered via vlc @" + pos);
+			return;
 		}
 		FailCurrent(PlaybackErrorKind.System, "播放停滞且自动恢复失败：无法重新打开音频文件。");
 	}

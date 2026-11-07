@@ -193,13 +193,43 @@ public class LyricService
 		}
 	}
 
+	public async Task<LyricDocument?> GetNeteaseLyricByIdAsync(long songId, CancellationToken ct = default(CancellationToken))
+	{
+		try
+		{
+			using HttpResponseMessage lyricResp = await Http.GetAsync("https://music.163.com/api/song/lyric?id=" + songId + "&lv=1&kv=1&tv=-1", ct).ConfigureAwait(continueOnCapturedContext: false);
+			if (!lyricResp.IsSuccessStatusCode)
+			{
+				return null;
+			}
+			using JsonDocument jsonDocument = JsonDocument.Parse(await lyricResp.Content.ReadAsStringAsync(ct).ConfigureAwait(continueOnCapturedContext: false));
+			if (jsonDocument.RootElement.TryGetProperty("lrc", out var value7) && value7.TryGetProperty("lyric", out var value8))
+			{
+				string? text2 = value8.GetString();
+				if (!string.IsNullOrWhiteSpace(text2))
+				{
+					LyricDocument lyricDocument = ParseLrc(text2);
+					if (lyricDocument.Lines.Count > 0)
+					{
+						lyricDocument.Source = "netease";
+						return lyricDocument;
+					}
+				}
+			}
+			return null;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
 	public async Task<LyricDocument?> SearchNeteaseAsync(string title, string artist, CancellationToken ct = default(CancellationToken))
 	{
-		_ = 3;
 		try
 		{
 			string text = Uri.EscapeDataString((title + " " + artist).Trim());
-			using HttpResponseMessage searchResp = await Http.GetAsync("https://music.163.com/api/search/get/web?s=" + text + "&type=1&limit=5", ct).ConfigureAwait(continueOnCapturedContext: false);
+			using HttpResponseMessage searchResp = await Http.GetAsync("https://music.163.com/api/cloudsearch/pc?s=" + text + "&type=1&limit=5", ct).ConfigureAwait(continueOnCapturedContext: false);
 			if (!searchResp.IsSuccessStatusCode)
 			{
 				return null;
@@ -216,11 +246,26 @@ public class LyricService
 				{
 					continue;
 				}
-				if (item.TryGetProperty("artists", out var value5) && value5.ValueKind == JsonValueKind.Array)
+				if (item.TryGetProperty("ar", out var value5) && value5.ValueKind == JsonValueKind.Array)
 				{
 					foreach (JsonElement item2 in value5.EnumerateArray())
 					{
 						if (item2.TryGetProperty("name", out var value6) && string.Equals(Normalize(value6.GetString() ?? ""), Normalize(artist), StringComparison.OrdinalIgnoreCase))
+						{
+							num = value4;
+							break;
+						}
+					}
+					if (num > 0)
+					{
+						break;
+					}
+				}
+				if (item.TryGetProperty("artists", out var valueOldAr) && valueOldAr.ValueKind == JsonValueKind.Array)
+				{
+					foreach (JsonElement itemOld in valueOldAr.EnumerateArray())
+					{
+						if (itemOld.TryGetProperty("name", out var nameProp) && string.Equals(Normalize(nameProp.GetString() ?? ""), Normalize(artist), StringComparison.OrdinalIgnoreCase))
 						{
 							num = value4;
 							break;
@@ -240,29 +285,13 @@ public class LyricService
 			{
 				return null;
 			}
-			using HttpResponseMessage lyricResp = await Http.GetAsync("https://music.163.com/api/song/lyric?id=" + num + "&lv=1&kv=1&tv=-1", ct).ConfigureAwait(continueOnCapturedContext: false);
-			if (!lyricResp.IsSuccessStatusCode)
+			LyricDocument? doc = await GetNeteaseLyricByIdAsync(num, ct).ConfigureAwait(continueOnCapturedContext: false);
+			if (doc != null)
 			{
-				return null;
+				doc.Title = title;
+				doc.Artist = artist;
 			}
-			using JsonDocument jsonDocument = JsonDocument.Parse(await lyricResp.Content.ReadAsStringAsync(ct).ConfigureAwait(continueOnCapturedContext: false));
-			if (jsonDocument.RootElement.TryGetProperty("lrc", out var value7) && value7.TryGetProperty("lyric", out var value8))
-			{
-				string text2 = value8.GetString();
-				if (text2 != null && text2.Length > 0)
-				{
-					LyricDocument lyricDocument = ParseLrc(text2);
-					if (lyricDocument.Lines.Count == 0)
-					{
-						return null;
-					}
-					lyricDocument.Source = "netease";
-					lyricDocument.Title = title;
-					lyricDocument.Artist = artist;
-					return lyricDocument;
-				}
-			}
-			return null;
+			return doc;
 		}
 		catch
 		{
