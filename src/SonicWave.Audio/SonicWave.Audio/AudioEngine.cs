@@ -235,11 +235,29 @@ public sealed class AudioEngine : IDisposable
 	public void SetEchoCrossfeed(bool enabled, float amount, float cutoffHz)
 		=> _session.SetEchoCrossfeed(enabled, amount, cutoffHz);
 
+	public void SetFurinaCrossfeed(bool enabled, float amount, float cutoffHz)
+		=> _session.SetFurinaCrossfeed(enabled, amount, cutoffHz);
+
 	public void SetEchoStereoField(bool enabled, float width, float centerGainDb, float sideGainDb)
 		=> _session.SetEchoStereoField(enabled, width, centerGainDb, sideGainDb);
 
+	public void SetFurinaStereoField(bool enabled, float width, float midGainDb, float sideGainDb)
+		=> _session.SetFurinaStereoField(enabled, width, midGainDb, sideGainDb);
+
 	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
 		=> _session.SetEchoChannelMatrix(preset);
+
+	public void SetFurinaChannelMatrixDirect(bool enabled, float l2l, float r2l, float l2r, float r2r)
+		=> _session.SetFurinaChannelMatrixDirect(enabled, l2l, r2l, l2r, r2r);
+
+	public void SetFurinaVirtualStage(bool enabled, float strength, float azimuth, float reflection, bool hrtf, string hrtfPreset)
+		=> _session.SetFurinaVirtualStage(enabled, strength, azimuth, reflection, hrtf, hrtfPreset);
+
+	public void SetFurinaDeEsser(bool enabled, float freqHz, float q, float threshDb, float ratio, float kneeDb, float maxRedDb, float attackMs, float releaseMs, float mix, bool auditionBand)
+		=> _session.SetFurinaDeEsser(enabled, freqHz, q, threshDb, ratio, kneeDb, maxRedDb, attackMs, releaseMs, mix, auditionBand);
+
+	public void SetFurinaLimiter(bool enabled, bool autoCeiling, float manualCeilingDb, float releaseMs)
+		=> _session.SetFurinaLimiter(enabled, autoCeiling, manualCeilingDb, releaseMs);
 
 	public void SetFurinaChannelTool(
 		bool enabled,

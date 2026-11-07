@@ -1224,6 +1224,7 @@ public class DspViewModel : ObservableObject
 	public double EchoConvolutionTrimDb { get; set; } = 0.0;
 
 	public bool EchoResamplerEnabled { get; set; } = false;
+	public bool EchoSrcUpsamplingEnabled { get => EchoResamplerEnabled; set => EchoResamplerEnabled = value; }
 	public int EchoResamplerTargetRate { get; set; } = 192000;
 	public string FurinaSrcMode { get; set; } = "off";
 	public string FurinaSrcQuality { get; set; } = "transparent";

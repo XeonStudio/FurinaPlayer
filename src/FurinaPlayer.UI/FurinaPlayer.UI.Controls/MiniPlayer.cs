@@ -8,8 +8,13 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
+using SkiaSharp;
+using SkiaSharp.Views.Windows;
 using SonicWave.Core.Models;
 using WinRT;
+using Windows.Foundation;
+using Windows.UI;
 
 namespace FurinaPlayer.UI.Controls;
 
@@ -33,6 +38,10 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	private UIElement? _coverBorder;
 	private bool _isDraggingSlider;
 	private NowPlayingViewModel? _currentVm;
+	private SKXamlCanvas? _glassCanvas;
+	private Point _pointerNorm = new Point(0.25, 0.2);
+	private bool _isPointerOver;
+	private bool _pointerEventsHooked;
 
 	public static event Action? OpenNowPlayingRequested;
 	public event Action? NavigateToPlayingRequested;
@@ -45,6 +54,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		Loaded += OnLoaded;
 		Unloaded += OnUnloaded;
 		DataContextChanged += OnDataContextChanged;
+		ActualThemeChanged += (FrameworkElement _, object _) => ApplyFloatingCapsuleLiquidGlass();
 	}
 
 	public void RequestOpenNowPlaying()
@@ -112,11 +122,186 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
 		HookViewModel(ViewModel);
+		ApplyFloatingCapsuleLiquidGlass();
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		UpdateModeButtonFluentIcon();
 		UpdateTimes();
 		AttachOpenNowPlayingGesture(_trackInfoPanel ?? FindName("TrackInfoPanel") as UIElement ?? FindElementByName(this, "TrackInfoPanel"));
 		AttachOpenNowPlayingGesture(_coverBorder ?? FindName("CoverBorder") as UIElement ?? FindElementByName(this, "CoverBorder"));
+	}
+
+	private void ApplyFloatingCapsuleLiquidGlass()
+	{
+		try
+		{
+			bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+			FrameworkElement? rootContainer = Content as FrameworkElement;
+			if (rootContainer == null && VisualTreeHelper.GetChildrenCount(this) > 0)
+			{
+				rootContainer = VisualTreeHelper.GetChild(this, 0) as FrameworkElement;
+			}
+
+			Border? rootBorder = rootContainer as Border;
+			Grid? rootGrid = rootContainer as Grid ?? (rootBorder?.Child as Grid);
+
+			if (rootBorder != null)
+			{
+				rootBorder.CornerRadius = new CornerRadius(18);
+				rootBorder.BorderThickness = new Thickness(1);
+				rootBorder.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
+				rootBorder.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootBorder, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: true);
+			}
+			else if (rootGrid != null)
+			{
+				rootGrid.CornerRadius = new CornerRadius(18);
+				rootGrid.BorderThickness = new Thickness(1);
+				rootGrid.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
+				rootGrid.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootGrid, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: true);
+			}
+
+			if (rootGrid != null && _glassCanvas == null)
+			{
+				_glassCanvas = new SKXamlCanvas
+				{
+					IsHitTestVisible = false,
+					HorizontalAlignment = HorizontalAlignment.Stretch,
+					VerticalAlignment = VerticalAlignment.Stretch
+				};
+				Grid.SetRowSpan(_glassCanvas, 8);
+				Grid.SetColumnSpan(_glassCanvas, 8);
+				_glassCanvas.PaintSurface += OnMiniPlayerGlassPaint;
+				rootGrid.Children.Insert(0, _glassCanvas);
+			}
+
+			if (!_pointerEventsHooked)
+			{
+				_pointerEventsHooked = true;
+				PointerEntered += OnBarPointerEntered;
+				PointerMoved += OnBarPointerMoved;
+				PointerExited += OnBarPointerExited;
+			}
+
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+			_glassCanvas?.Invalidate();
+		}
+		catch (Exception ex)
+		{
+			Debug.WriteLine($"ApplyFloatingCapsuleLiquidGlass error: {ex.Message}");
+		}
+	}
+
+	private void UpdateRootBarBrushes()
+	{
+		bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+		FrameworkElement? rootContainer = Content as FrameworkElement;
+		if (rootContainer is Border rootBorder)
+		{
+			rootBorder.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
+			rootBorder.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
+		}
+		else if (rootContainer is Grid rootGrid)
+		{
+			rootGrid.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
+			rootGrid.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
+		}
+	}
+
+	private void OnBarPointerEntered(object sender, PointerRoutedEventArgs e)
+	{
+		_isPointerOver = true;
+		if (ActualWidth > 0 && ActualHeight > 0)
+		{
+			var pt = e.GetCurrentPoint(this).Position;
+			_pointerNorm = new Point(
+				Math.Clamp(pt.X / ActualWidth, 0.0, 1.0),
+				Math.Clamp(pt.Y / ActualHeight, 0.0, 1.0));
+		}
+		UpdateRootBarBrushes();
+		_glassCanvas?.Invalidate();
+	}
+
+	private void OnBarPointerMoved(object sender, PointerRoutedEventArgs e)
+	{
+		if (ActualWidth <= 0 || ActualHeight <= 0) return;
+		var pt = e.GetCurrentPoint(this).Position;
+		double nx = Math.Clamp(pt.X / ActualWidth, 0.0, 1.0);
+		double ny = Math.Clamp(pt.Y / ActualHeight, 0.0, 1.0);
+		if (Math.Abs(nx - _pointerNorm.X) > 0.01 || Math.Abs(ny - _pointerNorm.Y) > 0.01)
+		{
+			_pointerNorm = new Point(nx, ny);
+			UpdateRootBarBrushes();
+			_glassCanvas?.Invalidate();
+		}
+	}
+
+	private void OnBarPointerExited(object sender, PointerRoutedEventArgs e)
+	{
+		_isPointerOver = false;
+		_pointerNorm = new Point(0.25, 0.2);
+		UpdateRootBarBrushes();
+		_glassCanvas?.Invalidate();
+	}
+
+	private void OnMiniPlayerGlassPaint(object? sender, SKPaintSurfaceEventArgs e)
+	{
+		var canvas = e.Surface.Canvas;
+		canvas.Clear(SKColors.Transparent);
+		float w = e.Info.Width;
+		float h = e.Info.Height;
+		if (w <= 4f || h <= 4f) return;
+
+		bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+		float px = (float)_pointerNorm.X * w;
+		float py = (float)_pointerNorm.Y * h;
+
+		// 1. 胶囊顶部镜面折射高光弧线 (Top Specular Lensing Arc)
+		using (var topArcShader = SKShader.CreateLinearGradient(
+			new SKPoint(0, 0),
+			new SKPoint(w, 0),
+			new SKColor[]
+			{
+				new SKColor(255, 255, 255, 0),
+				new SKColor(255, 255, 255, isDark ? (byte)110 : (byte)230),
+				new SKColor(165, 215, 255, isDark ? (byte)125 : (byte)240),
+				new SKColor(255, 255, 255, 0)
+			},
+			new float[] { 0f, 0.22f, 0.78f, 1f },
+			SKShaderTileMode.Clamp))
+		using (var topArcPaint = new SKPaint
+		{
+			Shader = topArcShader,
+			IsAntialias = true,
+			Style = SKPaintStyle.Stroke,
+			StrokeWidth = 1.5f
+		})
+		{
+			canvas.DrawLine(18f, 1f, w - 18f, 1f, topArcPaint);
+		}
+
+		// 2. 指针跟随流体聚光折射晕 (Interactive Pointer Specular Glint)
+		float glintRadius = Math.Max(w * 0.28f, 160f);
+		byte glintAlpha = _isPointerOver ? (isDark ? (byte)42 : (byte)95) : (isDark ? (byte)18 : (byte)45);
+		using (var glintShader = SKShader.CreateRadialGradient(
+			new SKPoint(px, py),
+			glintRadius,
+			new SKColor[]
+			{
+				isDark ? new SKColor(125, 211, 252, glintAlpha) : new SKColor(255, 255, 255, glintAlpha),
+				isDark ? new SKColor(99, 102, 241, (byte)(glintAlpha / 3)) : new SKColor(186, 230, 253, (byte)(glintAlpha / 2)),
+				SKColors.Transparent
+			},
+			new float[] { 0f, 0.5f, 1f },
+			SKShaderTileMode.Clamp))
+		using (var glintPaint = new SKPaint
+		{
+			Shader = glintShader,
+			IsAntialias = true
+		})
+		{
+			canvas.DrawCircle(px, py, glintRadius, glintPaint);
+		}
 	}
 
 	private void OnUnloaded(object sender, RoutedEventArgs e)

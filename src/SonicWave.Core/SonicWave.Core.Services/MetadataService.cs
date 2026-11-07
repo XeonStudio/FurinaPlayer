@@ -66,7 +66,12 @@ public class MetadataService
 
 	public string? ExtractCoverToFile(string filePath, string cacheDir)
 	{
-		byte[] array = ExtractCover(filePath);
+		byte[]? array = ExtractCover(filePath);
+		if (array == null || array.Length == 0)
+		{
+			// Check if folder contains cover images (cover.jpg, folder.jpg, front.jpg, [trackname].jpg, etc.)
+			array = FindFolderCoverBytes(filePath);
+		}
 		if (array == null || array.Length == 0)
 		{
 			return null;
@@ -87,6 +92,45 @@ public class MetadataService
 		{
 			return null;
 		}
+	}
+
+	private static byte[]? FindFolderCoverBytes(string filePath)
+	{
+		try
+		{
+			string? dir = Path.GetDirectoryName(filePath);
+			if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+
+			string[] candidates = { "cover.jpg", "cover.png", "folder.jpg", "folder.png", "front.jpg", "front.png", "album.jpg", "album.png", "Cover.jpg", "Folder.jpg", "Front.jpg" };
+			foreach (var name in candidates)
+			{
+				string p = Path.Combine(dir, name);
+				if (File.Exists(p))
+				{
+					return File.ReadAllBytes(p);
+				}
+			}
+
+			string sameBaseJpg = Path.ChangeExtension(filePath, ".jpg");
+			if (File.Exists(sameBaseJpg)) return File.ReadAllBytes(sameBaseJpg);
+			string sameBasePng = Path.ChangeExtension(filePath, ".png");
+			if (File.Exists(sameBasePng)) return File.ReadAllBytes(sameBasePng);
+
+			// Look for any image in directory
+			var files = Directory.GetFiles(dir, "*.*");
+			foreach (var f in files)
+			{
+				string ext = Path.GetExtension(f).ToLowerInvariant();
+				if (ext == ".jpg" || ext == ".png" || ext == ".jpeg" || ext == ".webp")
+				{
+					return File.ReadAllBytes(f);
+				}
+			}
+		}
+		catch
+		{
+		}
+		return null;
 	}
 
 	private static string DetectImageExtension(byte[] bytes)

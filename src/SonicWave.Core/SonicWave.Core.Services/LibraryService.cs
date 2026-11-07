@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -46,31 +46,45 @@ public class LibraryService : IDisposable
 
 	private async Task RepairCoverPathsAsync()
 	{
-		_ = 1;
 		try
 		{
-			List<Track> list = await _db.Tracks.Where((Track t) => t.CoverPath != null && t.CoverPath != "").ToListAsync();
+			List<Track> list = await _db.Tracks.ToListAsync();
 			bool flag = false;
 			foreach (Track item in list)
 			{
-				if (File.Exists(item.CoverPath))
+				if (!string.IsNullOrEmpty(item.CoverPath) && File.Exists(item.CoverPath))
 				{
 					continue;
 				}
-				string fileName = Path.GetFileName(item.CoverPath);
-				if (string.IsNullOrWhiteSpace(fileName))
+
+				if (!string.IsNullOrEmpty(item.CoverPath))
 				{
-					item.CoverPath = null;
-					flag = true;
-					continue;
+					string fileName = Path.GetFileName(item.CoverPath);
+					if (!string.IsNullOrWhiteSpace(fileName))
+					{
+						string text = Path.Combine(_coverDir, fileName);
+						if (File.Exists(text))
+						{
+							item.CoverPath = text;
+							flag = true;
+							continue;
+						}
+					}
 				}
-				string text = Path.Combine(_coverDir, fileName);
-				if (File.Exists(text))
+
+				// If CoverPath is missing or broken, try extracting from file / same folder
+				if (!string.IsNullOrEmpty(item.FilePath) && File.Exists(item.FilePath))
 				{
-					item.CoverPath = text;
-					flag = true;
+					string? extracted = _metadata.ExtractCoverToFile(item.FilePath, _coverDir);
+					if (!string.IsNullOrEmpty(extracted) && File.Exists(extracted))
+					{
+						item.CoverPath = extracted;
+						flag = true;
+						continue;
+					}
 				}
-				else
+
+				if (item.CoverPath != null)
 				{
 					item.CoverPath = null;
 					flag = true;
@@ -85,7 +99,6 @@ public class LibraryService : IDisposable
 		{
 		}
 	}
-
 	public async Task<(int Added, int Updated, int Failed)> ScanFolderAsync(string folder, IProgress<(string file, int total)>? progress = null, CancellationToken ct = default(CancellationToken))
 	{
 		if (!Directory.Exists(folder))

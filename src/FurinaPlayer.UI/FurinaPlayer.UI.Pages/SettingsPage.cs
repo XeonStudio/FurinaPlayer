@@ -7,11 +7,14 @@ using System.Linq;
 using System.Reflection;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using SkiaSharp.Views.Windows;
 using SonicWave.Audio.Output;
 using SonicWave.Core.Models;
 using WinRT;
@@ -30,7 +33,33 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private bool _handlersAttached;
 
+	private SKXamlCanvas? _ambientCausticCanvas;
+
+	private Grid? _rootStageGrid;
+
+	private ScrollViewer? _settingsScrollViewer;
+
 	private Button? _fetchAlbumArtButton;
+
+	private Button? _openCrashFolderButton;
+
+	private Button? _addFolderButton;
+
+	private Button? _removeFolderButton;
+
+	private Button? _scanNowButton;
+
+	private Button? _importLyricFontButton;
+
+	private Button? _resetLyricFontButton;
+
+	private Button? _pickWallpaperButton;
+
+	private Button? _saveButton;
+
+	private Button? _restoreDefaultsButton;
+
+	private Button? _refreshDevicesButton;
 
 	private static readonly string[] SystemFontOptions = new string[35]
 	{
@@ -118,7 +147,9 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		InitializeComponent();
 		Loaded += OnLoaded;
+		ActualThemeChanged += (s, e) => ApplySettingsLiquidGlass();
 		SizeChanged += OnSizeChanged;
+		ApplySettingsLiquidGlass();
 	}
 
 	public SettingsPage(SettingsViewModel viewModel)
@@ -139,24 +170,265 @@ public sealed class SettingsPage : Page, IComponentConnector
 			}
 		}
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
+		ApplySettingsLiquidGlass();
 		UpdateResponsiveLayout(ActualWidth);
 	}
 
 	private void OnSizeChanged(object sender, SizeChangedEventArgs e)
 	{
+		_ambientCausticCanvas?.Invalidate();
 		UpdateResponsiveLayout(e.NewSize.Width);
+	}
+
+	private ScrollViewer? ResolveSettingsScrollViewer()
+	{
+		if (_settingsScrollViewer != null)
+		{
+			return _settingsScrollViewer;
+		}
+		if (Content is ScrollViewer sv)
+		{
+			_settingsScrollViewer = sv;
+			return sv;
+		}
+		if (Content is Grid rootGrid)
+		{
+			foreach (UIElement child in rootGrid.Children)
+			{
+				if (child is ScrollViewer innerSv)
+				{
+					_settingsScrollViewer = innerSv;
+					return innerSv;
+				}
+			}
+		}
+		return null;
+	}
+
+	private void ApplySettingsLiquidGlass()
+	{
+		try
+		{
+			bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+			Background = new SolidColorBrush(Colors.Transparent);
+
+			if (_ambientCausticCanvas == null)
+			{
+				_ambientCausticCanvas = LiquidGlassEngine.CreateAmbientCausticCanvas(() => LiquidGlassEngine.IsElementDarkTheme(this));
+				Grid.SetRow(_ambientCausticCanvas, 0);
+				Grid.SetColumn(_ambientCausticCanvas, 0);
+				Grid.SetRowSpan(_ambientCausticCanvas, 12);
+				Grid.SetColumnSpan(_ambientCausticCanvas, 12);
+				Canvas.SetZIndex(_ambientCausticCanvas, -10);
+			}
+
+			if (Content is ScrollViewer sv)
+			{
+				_settingsScrollViewer = sv;
+				sv.Background = new SolidColorBrush(Colors.Transparent);
+				_rootStageGrid = new Grid
+				{
+					Background = new SolidColorBrush(Colors.Transparent)
+				};
+				Content = null;
+				_rootStageGrid.Children.Insert(0, _ambientCausticCanvas);
+				_rootStageGrid.Children.Add(sv);
+				Content = _rootStageGrid;
+			}
+			else if (Content is Grid existingRootGrid)
+			{
+				_rootStageGrid = existingRootGrid;
+				existingRootGrid.Background = new SolidColorBrush(Colors.Transparent);
+				if (!existingRootGrid.Children.Contains(_ambientCausticCanvas))
+				{
+					existingRootGrid.Children.Insert(0, _ambientCausticCanvas);
+				}
+				else if (existingRootGrid.Children.IndexOf(_ambientCausticCanvas) != 0)
+				{
+					existingRootGrid.Children.Remove(_ambientCausticCanvas);
+					existingRootGrid.Children.Insert(0, _ambientCausticCanvas);
+				}
+			}
+
+			_ambientCausticCanvas.Invalidate();
+
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+
+			ScrollViewer? targetSv = ResolveSettingsScrollViewer();
+			if (targetSv?.Content is Grid settingsGrid)
+			{
+				settingsGrid.Background = new SolidColorBrush(Colors.Transparent);
+				foreach (UIElement child in settingsGrid.Children)
+				{
+					if (child is Border cardBorder)
+					{
+						if (cardBorder.CornerRadius == default)
+						{
+							cardBorder.CornerRadius = new CornerRadius(16);
+						}
+						LiquidGlassEngine.AttachInteractiveLiquidGlass(cardBorder, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+					}
+					else if (child is LiquidGlassBorder lgBorder)
+					{
+						lgBorder.Variant = LiquidGlassVariant.Regular;
+						lgBorder.GlassOpacity = 0.84;
+						lgBorder.HighlightOpacity = 0.72;
+					}
+					else if (child is Panel columnPanel)
+					{
+						foreach (UIElement subChild in columnPanel.Children)
+						{
+							if (subChild is Border subCardBorder)
+							{
+								if (subCardBorder.CornerRadius == default)
+								{
+									subCardBorder.CornerRadius = new CornerRadius(16);
+								}
+								LiquidGlassEngine.AttachInteractiveLiquidGlass(subCardBorder, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+							}
+							else if (subChild is LiquidGlassBorder subLgBorder)
+							{
+								subLgBorder.Variant = LiquidGlassVariant.Regular;
+								subLgBorder.GlassOpacity = 0.84;
+								subLgBorder.HighlightOpacity = 0.72;
+							}
+						}
+					}
+				}
+			}
+
+			ComboBox?[] combos = new ComboBox?[]
+			{
+				ThemeCombo,
+				MaterialCombo,
+				WallpaperCombo,
+				OutputModeCombo,
+				WasapiDeviceCombo,
+				AsioDeviceCombo
+			};
+			foreach (ComboBox? combo in combos)
+			{
+				if (combo != null)
+				{
+					if (combo.CornerRadius == default)
+					{
+						combo.CornerRadius = new CornerRadius(10);
+					}
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(combo, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+				}
+			}
+
+			Button?[] primaryButtons = new Button?[]
+			{
+				_saveButton,
+				_scanNowButton,
+				_fetchAlbumArtButton
+			};
+			foreach (Button? btn in primaryButtons)
+			{
+				if (btn != null)
+				{
+					if (btn.CornerRadius == default)
+					{
+						btn.CornerRadius = new CornerRadius(10);
+					}
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: true);
+				}
+			}
+
+			Button?[] secondaryButtons = new Button?[]
+			{
+				LyricFontButton,
+				_openCrashFolderButton,
+				_addFolderButton,
+				_removeFolderButton,
+				_importLyricFontButton,
+				_resetLyricFontButton,
+				_pickWallpaperButton,
+				_restoreDefaultsButton,
+				_refreshDevicesButton
+			};
+			foreach (Button? btn in secondaryButtons)
+			{
+				if (btn != null)
+				{
+					if (btn.CornerRadius == default)
+					{
+						btn.CornerRadius = new CornerRadius(10);
+					}
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+				}
+			}
+
+			UpgradeSettingsVisualTreeNodes(this, isDark);
+		}
+		catch
+		{
+		}
+	}
+
+	private void UpgradeSettingsVisualTreeNodes(DependencyObject root, bool isDark)
+	{
+		if (root == null) return;
+
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			DependencyObject child = VisualTreeHelper.GetChild(root, i);
+			if (child is LiquidGlassBorder lgBorder)
+			{
+				lgBorder.Variant = LiquidGlassVariant.Regular;
+				lgBorder.GlassOpacity = 0.84;
+				lgBorder.HighlightOpacity = 0.72;
+			}
+			else if (child is ComboBox combo)
+			{
+				if (combo.CornerRadius == default)
+				{
+					combo.CornerRadius = new CornerRadius(10);
+				}
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(combo, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+			}
+			else if (child is ToggleSwitch toggle)
+			{
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(toggle, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+			}
+			else if (child is Button btn && btn != _saveButton && btn != _scanNowButton && btn != _fetchAlbumArtButton)
+			{
+				if (btn.CornerRadius == default)
+				{
+					btn.CornerRadius = new CornerRadius(10);
+				}
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+			}
+			else if (child is Border border && border.CornerRadius.TopLeft >= 10 && border.ActualWidth > 60 && border.ActualHeight > 32)
+			{
+				var variant = border.CornerRadius.TopLeft >= 14 ? LiquidGlassVariant.Regular : LiquidGlassVariant.Clear;
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(border, variant, isDark, enablePointerTracking: true);
+			}
+
+			UpgradeSettingsVisualTreeNodes(child, isDark);
+		}
 	}
 
 	private void UpdateResponsiveLayout(double width)
 	{
 		try
 		{
-			if (Content is ScrollViewer sv && sv.Content is Grid settingsGrid && settingsGrid.Children.Count >= 3)
+			ScrollViewer? sv = ResolveSettingsScrollViewer();
+			if (sv != null && sv.Content is Grid settingsGrid)
 			{
-				if (settingsGrid.Children[0] is FrameworkElement panel0 &&
-				    settingsGrid.Children[1] is FrameworkElement panel1 &&
-				    settingsGrid.Children[2] is FrameworkElement panel2)
+				List<FrameworkElement> panels = settingsGrid.Children
+					.OfType<FrameworkElement>()
+					.Where(c => c is not SKXamlCanvas)
+					.ToList();
+
+				if (panels.Count >= 3)
 				{
+					FrameworkElement panel0 = panels[0];
+					FrameworkElement panel1 = panels[1];
+					FrameworkElement panel2 = panels[2];
+
 					if (width < 980.0)
 					{
 						settingsGrid.ColumnDefinitions.Clear();
@@ -307,6 +579,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			_fetchAlbumArtButton.IsEnabled = ViewModel.CanFetchAlbumArt;
 		}
+		ApplySettingsLiquidGlass();
 	}
 
 	protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -647,7 +920,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 			VersionText = target.As<TextBlock>();
 			break;
 		case 3:
-			target.As<Button>().Click += OnOpenCrashFolderClick;
+			_openCrashFolderButton = target.As<Button>();
+			_openCrashFolderButton.Click += OnOpenCrashFolderClick;
 			break;
 		case 4:
 			OssList = target.As<StackPanel>();
@@ -659,6 +933,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		case 6:
 		{
 			Button b6 = target.As<Button>();
+			_addFolderButton = b6;
 			b6.Padding = new Thickness(8, 5, 8, 5);
 			b6.Click += OnAddFolderClick;
 			break;
@@ -666,6 +941,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		case 7:
 		{
 			Button b7 = target.As<Button>();
+			_removeFolderButton = b7;
 			b7.Padding = new Thickness(8, 5, 8, 5);
 			b7.Click += OnRemoveFolderClick;
 			break;
@@ -673,6 +949,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		case 8:
 		{
 			Button b8 = target.As<Button>();
+			_scanNowButton = b8;
 			b8.Padding = new Thickness(8, 5, 8, 5);
 			b8.Click += OnScanNowClick;
 			break;
@@ -696,10 +973,12 @@ public sealed class SettingsPage : Page, IComponentConnector
 			LyricFontInfoText = target.As<TextBlock>();
 			break;
 		case 15:
-			target.As<Button>().Click += OnImportLyricFontClick;
+			_importLyricFontButton = target.As<Button>();
+			_importLyricFontButton.Click += OnImportLyricFontClick;
 			break;
 		case 16:
-			target.As<Button>().Click += OnResetLyricFontClick;
+			_resetLyricFontButton = target.As<Button>();
+			_resetLyricFontButton.Click += OnResetLyricFontClick;
 			break;
 		case 17:
 			LyricFontFlyout = target.As<Flyout>();
@@ -712,16 +991,19 @@ public sealed class SettingsPage : Page, IComponentConnector
 			LyricFontButtonText = target.As<TextBlock>();
 			break;
 		case 21:
-			target.As<Button>().Click += OnPickWallpaperClick;
+			_pickWallpaperButton = target.As<Button>();
+			_pickWallpaperButton.Click += OnPickWallpaperClick;
 			break;
 		case 22:
 			WallpaperPathText = target.As<TextBlock>();
 			break;
 		case 23:
-			target.As<Button>().Click += OnSaveClick;
+			_saveButton = target.As<Button>();
+			_saveButton.Click += OnSaveClick;
 			break;
 		case 24:
-			target.As<Button>().Click += OnRestoreDefaultsClick;
+			_restoreDefaultsButton = target.As<Button>();
+			_restoreDefaultsButton.Click += OnRestoreDefaultsClick;
 			break;
 		case 25:
 			OutputModeCombo = target.As<ComboBox>();
@@ -733,7 +1015,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 			AsioDeviceCombo = target.As<ComboBox>();
 			break;
 		case 28:
-			target.As<Button>().Click += OnRefreshDevicesClick;
+			_refreshDevicesButton = target.As<Button>();
+			_refreshDevicesButton.Click += OnRefreshDevicesClick;
 			break;
 		}
 		_contentLoaded = true;

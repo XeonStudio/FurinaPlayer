@@ -148,10 +148,10 @@ public class App : Application, IXamlMetadataProvider
 				}
 			};
 			Log("audio configured");
-			HomeViewModel homeViewModel = new HomeViewModel(_library, _audioEngine, _settingsService);
+			_albumArtService = new AlbumArtService(_library, _library.CoverDirectory);
+			HomeViewModel homeViewModel = new HomeViewModel(_library, _audioEngine, _settingsService, _albumArtService);
 			_nowPlayingVm = new NowPlayingViewModel(_audioEngine, _lyricService, _library, _settingsService);
 			EditorViewModel editorVm = (_editorVm = new EditorViewModel(_audioEngine, _settingsService));
-			_albumArtService = new AlbumArtService(_library, _library.CoverDirectory);
 			_settingsVm = new SettingsViewModel(_settingsService, _albumArtService);
 			_dspVm = new DspViewModel(_audioEngine, _settingsService);
 			_settingsVm.ThemeChanged += (ThemeMode t) =>

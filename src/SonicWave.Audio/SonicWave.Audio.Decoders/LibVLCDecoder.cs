@@ -158,7 +158,10 @@ public sealed class LibVLCDecoder : IDisposable
 		try
 		{
 			_media?.Dispose();
-			_media = new Media(_libVlc, filePath, FromType.FromPath);
+			bool isNetworkUrl = Uri.TryCreate(filePath, UriKind.Absolute, out Uri? uri) 
+				&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "rtsp" || uri.Scheme == "rtmp");
+			FromType fromType = isNetworkUrl ? FromType.FromLocation : FromType.FromPath;
+			_media = new Media(_libVlc, filePath, fromType);
 			if (_lastEqGains != null)
 			{
 				SetEqGains(_lastEqGains);

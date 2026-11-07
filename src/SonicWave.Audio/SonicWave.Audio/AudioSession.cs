@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -444,7 +444,7 @@ internal sealed class AudioSession : IDisposable
 	public bool PrepareRestore(TimeSpan position)
 	{
 		Track track = CurrentTrack;
-		if (track == null || !File.Exists(track.FilePath))
+		if (track == null || (!File.Exists(track.FilePath) && !IsNetworkUrl(track.FilePath)))
 		{
 			return false;
 		}
@@ -962,6 +962,11 @@ internal sealed class AudioSession : IDisposable
 		}
 	}
 
+	public void SetFurinaCrossfeed(bool enabled, float amount, float cutoffHz)
+	{
+		SetEchoCrossfeed(enabled, amount, cutoffHz);
+	}
+
 	public void SetEchoCrossfeed(bool enabled, float amount, float cutoffHz)
 	{
 		var chain = DspChain;
@@ -985,12 +990,73 @@ internal sealed class AudioSession : IDisposable
 		}
 	}
 
+	public void SetFurinaStereoField(bool enabled, float width, float midGainDb, float sideGainDb)
+		=> SetEchoStereoField(enabled, width, midGainDb, sideGainDb);
+
 	public void SetEchoChannelMatrix(ChannelMatrixPreset preset)
 	{
 		var chain = DspChain;
 		if (chain != null)
 		{
 			chain.Spatial.SetMatrixPreset(preset);
+		}
+	}
+
+	public void SetFurinaChannelMatrixDirect(bool enabled, float l2l, float r2l, float l2r, float r2r)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.ChannelMatrixEnabled = enabled;
+			chain.Spatial.MatrixLeftToLeft = l2l;
+			chain.Spatial.MatrixRightToLeft = r2l;
+			chain.Spatial.MatrixLeftToRight = l2r;
+			chain.Spatial.MatrixRightToRight = r2r;
+		}
+	}
+
+	public void SetFurinaVirtualStage(bool enabled, float strength, float azimuth, float reflection, bool hrtf, string hrtfPreset)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Spatial.VirtualStageEnabled = enabled;
+			chain.Spatial.VirtualStageStrength = strength;
+			chain.Spatial.VirtualStageAzimuth = azimuth;
+			chain.Spatial.VirtualStageReflection = reflection;
+			chain.Spatial.VirtualStageHrtf = hrtf;
+			chain.Spatial.VirtualStageHrtfPreset = hrtfPreset;
+		}
+	}
+
+	public void SetFurinaDeEsser(bool enabled, float freqHz, float q, float threshDb, float ratio, float kneeDb, float maxRedDb, float attackMs, float releaseMs, float mix, bool auditionBand)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.DeEsser.Enabled = enabled;
+			chain.DeEsser.FrequencyHz = freqHz;
+			chain.DeEsser.Q = q;
+			chain.DeEsser.ThresholdDb = threshDb;
+			chain.DeEsser.Ratio = ratio;
+			chain.DeEsser.KneeDb = kneeDb;
+			chain.DeEsser.MaxReductionDb = maxRedDb;
+			chain.DeEsser.AttackMs = attackMs;
+			chain.DeEsser.ReleaseMs = releaseMs;
+			chain.DeEsser.Mix = mix;
+			chain.DeEsser.AuditionBand = auditionBand;
+		}
+	}
+
+	public void SetFurinaLimiter(bool enabled, bool autoCeiling, float manualCeilingDb, float releaseMs)
+	{
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.Limiter.Enabled = enabled;
+			chain.Limiter.AutoCeiling = autoCeiling;
+			chain.Limiter.ManualCeilingDb = manualCeilingDb;
+			chain.Limiter.ReleaseMs = releaseMs;
 		}
 	}
 
@@ -1560,6 +1626,18 @@ internal sealed class AudioSession : IDisposable
 		_clock.Reset(TimeSpan.Zero);
 		string filePath = _renderedWavPath ?? track.FilePath;
 		bool flag;
+		if (IsNetworkUrl(filePath))
+		{
+			_useVlc = true;
+			flag = _vlcBackend.Open(filePath, startPaused: false);
+			if (flag)
+			{
+				_vlcBackend.Speed = _speed;
+				_vlcBackend.Volume = _volume;
+			}
+			return flag;
+		}
+
 		if (_useVlc)
 		{
 			flag = _vlcBackend.Open(filePath, startPaused: false);
@@ -1626,9 +1704,15 @@ internal sealed class AudioSession : IDisposable
 		return flag;
 	}
 
+	private static bool IsNetworkUrl(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path)) return false;
+		return Uri.TryCreate(path, UriKind.Absolute, out Uri? uri) 
+			&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "rtsp" || uri.Scheme == "rtmp");
+	}
 	private (PlaybackErrorKind Kind, string Message) BuildOpenError(Track track)
 	{
-		if (!File.Exists(track.FilePath))
+		if (!File.Exists(track.FilePath) && !IsNetworkUrl(track.FilePath))
 		{
 			return (Kind: PlaybackErrorKind.FileNotFound, Message: "文件不存在或已被移动：" + track.FilePath);
 		}

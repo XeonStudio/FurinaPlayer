@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -26,6 +26,9 @@ public class HomeViewModel : ObservableObject
 	private readonly AudioEngine _engine;
 
 	private readonly SettingsService? _settingsService;
+	private readonly AlbumArtService? _albumArtService;
+	private readonly StreamingService _streamingService = new();
+	private Microsoft.UI.Dispatching.DispatcherQueue? _dispatcherQueue;
 
 	[ObservableProperty]
 	private double albumColumnWidth = 140.0;
@@ -422,11 +425,38 @@ public class HomeViewModel : ObservableObject
 	[ExcludeFromCodeCoverage]
 	public IAsyncRelayCommand<Track?> ToggleFavoriteCommand => toggleFavoriteCommand ?? (toggleFavoriteCommand = new AsyncRelayCommand<Track>(ToggleFavoriteAsync));
 
-	public HomeViewModel(LibraryService library, AudioEngine engine, SettingsService? settingsService = null)
+	public HomeViewModel(LibraryService library, AudioEngine engine, SettingsService? settingsService = null, AlbumArtService? albumArtService = null)
 	{
 		_library = library;
 		_engine = engine;
 		_settingsService = settingsService;
+		_albumArtService = albumArtService;
+		_dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+		if (_albumArtService != null)
+		{
+			_albumArtService.CoverUpdated += (updatedTrack) =>
+			{
+				_dispatcherQueue?.TryEnqueue(() =>
+				{
+					var t = Tracks.FirstOrDefault(x => x.Id == updatedTrack.Id);
+					if (t != null) t.CoverPath = updatedTrack.CoverPath;
+					var vt = VisibleTracks.FirstOrDefault(x => x.Id == updatedTrack.Id);
+					if (vt != null) vt.CoverPath = updatedTrack.CoverPath;
+					if (!string.IsNullOrEmpty(updatedTrack.Album))
+					{
+						var alb = Albums.FirstOrDefault(a => a.Name == updatedTrack.Album);
+						if (alb != null && (string.IsNullOrEmpty(alb.CoverPath) || !File.Exists(alb.CoverPath)))
+						{
+							alb.CoverPath = updatedTrack.CoverPath;
+						}
+					}
+				});
+			};
+		}
+
+
+
+
 		AppSettings appSettings = _settingsService?.Load();
 		if (appSettings != null && appSettings.AlbumColumnWidth >= 80.0 && appSettings.AlbumColumnWidth <= 400.0)
 		{
@@ -454,6 +484,13 @@ public class HomeViewModel : ObservableObject
 		RecentTracks = new ObservableCollection<Track>(await _library.GetRecentAsync(20));
 		ApplyAlbumFilter();
 		StatusText = $"共 {Tracks.Count} 首歌曲 · {Albums.Count} 张专辑";
+		_ = Task.Run(async () =>
+		{
+			if (_albumArtService != null && Tracks != null && Tracks.Count > 0)
+			{
+				_albumArtService.QueueAutoMatchMissingCovers();
+			}
+		});
 	}
 
 	[RelayCommand]
@@ -670,5 +707,41 @@ public class HomeViewModel : ObservableObject
 		catch
 		{
 		}
+	}
+
+	public async Task PlayStreamUrlAsync(string url, string? title = null, string? artist = null, string? album = null)
+	{
+		if (string.IsNullOrWhiteSpace(url)) return;
+		Track track = _streamingService.CreateTrackFromDirectUrl(url, title, artist, album);
+		_engine.PlayTrack(track);
+		await Task.CompletedTask;
+	}
+
+	public async Task<List<StreamingTrackInfo>> SearchStreamingTracksAsync(string query)
+	{
+		return await _streamingService.SearchOnlineTracksAsync(query);
+	}
+
+	public async Task PlayStreamingTrackAsync(StreamingTrackInfo info)
+	{
+		if (info == null) return;
+		Track track = _streamingService.ToTrack(info);
+		_engine.PlayTrack(track);
+		if (!string.IsNullOrEmpty(info.CoverUrl) && _albumArtService != null)
+		{
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+					var bytes = await hc.GetByteArrayAsync(info.CoverUrl);
+					string coverPath = Path.Combine(_library.CoverDirectory, $"net_{Math.Abs(info.Id)}.jpg");
+					await File.WriteAllBytesAsync(coverPath, bytes);
+					track.CoverPath = coverPath;
+				}
+				catch { }
+			});
+		}
+		await Task.CompletedTask;
 	}
 }

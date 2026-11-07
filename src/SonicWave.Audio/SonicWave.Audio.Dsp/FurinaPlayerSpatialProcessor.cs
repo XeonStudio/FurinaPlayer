@@ -38,6 +38,19 @@ public class FurinaPlayerSpatialProcessor
 	private float _leftToRight = 0.0f;
 	private float _rightToRight = 1.0f;
 
+	// --- 5. Virtual Stage (两耳时间差、频率衰减与短反射模拟音箱空间感) ---
+	private bool _virtualStageEnabled = false;
+	private float _virtualStageStrength = 0.45f;
+	private float _virtualStageAzimuth = 30.0f; // 15° ~ 75°
+	private float _virtualStageReflection = 1.0f; // 0% ~ 100%
+	private bool _virtualStageHrtf = false;
+	private string _virtualStageHrtfPreset = "SADIE II · 标准";
+	private float[] _vsDelayRingL = new float[DelayBufferSize];
+	private float[] _vsDelayRingR = new float[DelayBufferSize];
+	private int _vsWritePos = 0;
+	private float _vsLowpassL = 0.0f;
+	private float _vsLowpassR = 0.0f;
+
 	// --- 4. Channel Tool Core Parameters ---
 	private bool _channelToolEnabled = false;
 	private bool _compareBypassed = false;
@@ -85,7 +98,30 @@ public class FurinaPlayerSpatialProcessor
 
 	#region Public Properties - Crossfeed & Stereo Field & Matrix
 
-	public bool CrossfeedEnabled { get => _crossfeedEnabled; set => _crossfeedEnabled = value; }
+	public bool CrossfeedEnabled
+	{
+		get => _crossfeedEnabled;
+		set
+		{
+			_crossfeedEnabled = value;
+			if (value) _virtualStageEnabled = false; // 互斥
+		}
+	}
+
+	public bool VirtualStageEnabled
+	{
+		get => _virtualStageEnabled;
+		set
+		{
+			_virtualStageEnabled = value;
+			if (value) _crossfeedEnabled = false; // 互斥
+		}
+	}
+	public float VirtualStageStrength { get => _virtualStageStrength; set => _virtualStageStrength = Math.Clamp(value, 0.0f, 1.0f); }
+	public float VirtualStageAzimuth { get => _virtualStageAzimuth; set => _virtualStageAzimuth = Math.Clamp(value, 15.0f, 75.0f); }
+	public float VirtualStageReflection { get => _virtualStageReflection; set => _virtualStageReflection = Math.Clamp(value, 0.0f, 1.0f); }
+	public bool VirtualStageHrtf { get => _virtualStageHrtf; set => _virtualStageHrtf = value; }
+	public string VirtualStageHrtfPreset { get => _virtualStageHrtfPreset; set => _virtualStageHrtfPreset = value ?? "SADIE II · 标准"; }
 	public float CrossfeedAmount { get => _crossfeedAmount; set => _crossfeedAmount = Math.Clamp(value, 0.0f, 1.0f); }
 	public float CrossfeedCutoffHz { get => _crossfeedCutoffHz; set => _crossfeedCutoffHz = Math.Clamp(value, 100.0f, 4000.0f); }
 
@@ -468,6 +504,55 @@ public class FurinaPlayerSpatialProcessor
 		_filterHighR.GainDb = _highRightGainDb;
 		_filterHighR.Enabled = Math.Abs(_highRightGainDb) > 0.001;
 		_filterHighR.UpdateCoefficients(_sampleRate);
+	}
+
+	public void ProcessVirtualStage(float[] buffer, int offset, int count, int channels)
+	{
+		if (!_virtualStageEnabled || count <= 0 || channels < 2) return;
+
+		double thetaRad = _virtualStageAzimuth * Math.PI / 180.0;
+		double r_head = 0.0875;
+		double speed_sound = 343.0;
+		double itdSec = (r_head / speed_sound) * (Math.Sin(thetaRad) + thetaRad);
+		int itdSamples = Math.Clamp((int)Math.Round(itdSec * _sampleRate), 1, DelayBufferSize - 100);
+
+		float lpCoeff = (float)(1.0 - Math.Exp(-2.0 * Math.PI * 2800.0 / _sampleRate));
+		int refl1 = Math.Clamp((int)(0.005 * _sampleRate), 1, DelayBufferSize - 1);
+		int refl2 = Math.Clamp((int)(0.012 * _sampleRate), 1, DelayBufferSize - 1);
+		int refl3 = Math.Clamp((int)(0.019 * _sampleRate), 1, DelayBufferSize - 1);
+		float reflGain = _virtualStageReflection * 0.12f * _virtualStageStrength;
+
+		int frames = count / channels;
+		for (int frame = 0; frame < frames; frame++)
+		{
+			int idx = offset + frame * channels;
+			float l = buffer[idx];
+			float r = buffer[idx + 1];
+
+			_vsDelayRingL[_vsWritePos] = l;
+			_vsDelayRingR[_vsWritePos] = r;
+
+			int readPos = (_vsWritePos - itdSamples + DelayBufferSize) % DelayBufferSize;
+			float delayedL = _vsDelayRingL[readPos];
+			float delayedR = _vsDelayRingR[readPos];
+
+			_vsLowpassL += lpCoeff * (delayedR - _vsLowpassL);
+			_vsLowpassR += lpCoeff * (delayedL - _vsLowpassR);
+
+			int r1Pos = (_vsWritePos - refl1 + DelayBufferSize) % DelayBufferSize;
+			int r2Pos = (_vsWritePos - refl2 + DelayBufferSize) % DelayBufferSize;
+			int r3Pos = (_vsWritePos - refl3 + DelayBufferSize) % DelayBufferSize;
+			float refLL = (_vsDelayRingL[r1Pos] * 0.5f + _vsDelayRingR[r2Pos] * 0.3f + _vsDelayRingL[r3Pos] * 0.2f) * reflGain;
+			float refRR = (_vsDelayRingR[r1Pos] * 0.5f + _vsDelayRingL[r2Pos] * 0.3f + _vsDelayRingR[r3Pos] * 0.2f) * reflGain;
+
+			_vsWritePos = (_vsWritePos + 1) % DelayBufferSize;
+
+			float outL = l + _virtualStageStrength * (0.35f * _vsLowpassL + refLL);
+			float outR = r + _virtualStageStrength * (0.35f * _vsLowpassR + refRR);
+
+			buffer[idx] = outL;
+			buffer[idx + 1] = outR;
+		}
 	}
 
 	public void ProcessCrossfeed(float[] buffer, int offset, int count, int channels)

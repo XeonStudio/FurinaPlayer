@@ -51,6 +51,7 @@ class Program
 		TestFurinaPlayerPcmResamplerAdvancedModes();
 
 		NewFeatureTests.RunAll();
+		OpraDeepVerification.Run();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine($"Tests Completed: {s_passCount + s_failCount} | Passed: {s_passCount} | Failed: {s_failCount}");

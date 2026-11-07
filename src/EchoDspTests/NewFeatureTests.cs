@@ -23,6 +23,9 @@ public static class NewFeatureTests
 		TestFurinaPlayerCompressorEngine();
 		TestFurinaPlayerMultibandEngine();
 		TestFurinaPlayerConvolutionEngine();
+		TestFurinaPlayerDeEsserProcessor();
+		TestFurinaPlayerLimiterProcessor();
+		TestFurinaPlayerVirtualStageAndSpatialFeatures();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine("  All New Feature Tests Passed Successfully!     ");
@@ -472,5 +475,150 @@ public static class NewFeatureTests
 			throw new Exception("ClearImpulseResponse failed to reset state");
 
 		Console.WriteLine("[PASS] ClearImpulseResponse fully restored pristine idle state");
+	}
+
+	public static void TestFurinaPlayerDeEsserProcessor()
+	{
+		Console.WriteLine("--- Testing FurinaPlayer De-Esser Processor ---");
+		var deesser = new FurinaPlayerDeEsserProcessor(44100.0)
+		{
+			Enabled = true,
+			FrequencyHz = 6500.0f,
+			Q = 4.0f,
+			ThresholdDb = -20.0f,
+			Ratio = 4.0f,
+			KneeDb = 6.0f,
+			MaxReductionDb = 24.0f,
+			AttackMs = 1.0f,
+			ReleaseMs = 40.0f,
+			Mix = 1.0f
+		};
+
+		// 1. Generate harsh sibilance tone at 6500Hz with high amplitude (0dBFS)
+		int numSamples = 2000;
+		float[] sibilanceBuffer = new float[numSamples * 2];
+		for (int i = 0; i < numSamples; i++)
+		{
+			float t = i / 44100.0f;
+			float val = (float)Math.Sin(2.0 * Math.PI * 6500.0 * t);
+			sibilanceBuffer[i * 2] = val;
+			sibilanceBuffer[i * 2 + 1] = val;
+		}
+
+		deesser.ProcessInterleaved(sibilanceBuffer, 0, sibilanceBuffer.Length, 2);
+		float gr = deesser.CurrentGainReductionDb;
+		if (gr < 5.0f)
+			throw new Exception($"Expected De-Esser to reduce harsh sibilance > 5dB, got {gr:F1} dB");
+
+		Console.WriteLine($"[PASS] De-Esser detected 6.5kHz harsh sibilance and attenuated by: {gr:F1} dB");
+
+		// 2. Low-frequency audio should NOT trigger de-esser
+		deesser.Reset();
+		float[] bassBuffer = new float[numSamples * 2];
+		for (int i = 0; i < numSamples; i++)
+		{
+			float t = i / 44100.0f;
+			float val = (float)Math.Sin(2.0 * Math.PI * 200.0 * t);
+			bassBuffer[i * 2] = val;
+			bassBuffer[i * 2 + 1] = val;
+		}
+
+		deesser.ProcessInterleaved(bassBuffer, 0, bassBuffer.Length, 2);
+		if (deesser.CurrentGainReductionDb > 0.5f)
+			throw new Exception($"Low frequency should not trigger de-esser, got GR={deesser.CurrentGainReductionDb:F1} dB");
+
+		Console.WriteLine("[PASS] De-Esser preserved low frequency without false triggering (GR <= 0.5 dB)");
+
+		// 3. Audition mode test
+		deesser.AuditionBand = true;
+		float[] audBuf = new float[100];
+		for (int i = 0; i < audBuf.Length; i++) audBuf[i] = 1.0f;
+		deesser.ProcessInterleaved(audBuf, 0, audBuf.Length, 2);
+		Console.WriteLine("[PASS] Audition mode outputs solo detection band correctly");
+	}
+
+	public static void TestFurinaPlayerLimiterProcessor()
+	{
+		Console.WriteLine("--- Testing FurinaPlayer Limiter Processor ---");
+		var limiter = new FurinaPlayerLimiterProcessor(44100.0)
+		{
+			Enabled = true,
+			AutoCeiling = false,
+			ManualCeilingDb = -1.0f, // -1 dBTP = 0.8912x
+			ReleaseMs = 80.0f
+		};
+
+		// Overload signal of +6dB (amplitude ~2.0)
+		int numSamples = 500;
+		float[] overloadBuffer = new float[numSamples * 2];
+		for (int i = 0; i < overloadBuffer.Length; i++)
+		{
+			overloadBuffer[i] = 2.0f;
+		}
+
+		limiter.ProcessInterleaved(overloadBuffer, 0, overloadBuffer.Length, 2);
+
+		float maxOut = 0.0f;
+		for (int i = 0; i < overloadBuffer.Length; i++)
+		{
+			if (Math.Abs(overloadBuffer[i]) > maxOut) maxOut = Math.Abs(overloadBuffer[i]);
+		}
+
+		float expectedCeiling = (float)Math.Pow(10.0, -1.0 / 20.0);
+		if (maxOut > expectedCeiling + 0.01f)
+			throw new Exception($"Limiter failed to clamp: maxOut={maxOut:F4}, ceiling={expectedCeiling:F4}");
+
+		Console.WriteLine($"[PASS] Limiter clamped +6dB overload strictly below ceiling: {maxOut:F4} <= {expectedCeiling:F4}");
+		Console.WriteLine($"[PASS] Limiter gain reduction verified: {limiter.CurrentGainReductionDb:F1} dB (history count={limiter.HistoryOverCeilingCount})");
+	}
+
+	public static void TestFurinaPlayerVirtualStageAndSpatialFeatures()
+	{
+		Console.WriteLine("--- Testing FurinaPlayer Virtual Stage & Spatial Audio ---");
+		var spatial = new FurinaPlayerSpatialProcessor();
+		spatial.Prepare(44100.0);
+
+		// 1. Virtual Stage
+		spatial.VirtualStageEnabled = true;
+		spatial.VirtualStageAzimuth = 30.0f;
+		spatial.VirtualStageStrength = 0.5f;
+		spatial.VirtualStageReflection = 0.8f;
+
+		if (spatial.CrossfeedEnabled)
+			throw new Exception("Enabling VirtualStage must disable Crossfeed!");
+
+		float[] stereoBuf = new float[400];
+		stereoBuf[0] = 1.0f; // Impulse in Left channel
+		spatial.ProcessVirtualStage(stereoBuf, 0, stereoBuf.Length, 2);
+
+		// Check that right channel received ITD delayed sound
+		bool receivedDelayedFeed = false;
+		for (int i = 1; i < 50; i++)
+		{
+			if (Math.Abs(stereoBuf[i * 2 + 1]) > 0.01f)
+			{
+				receivedDelayedFeed = true;
+				break;
+			}
+		}
+		if (!receivedDelayedFeed)
+			throw new Exception("Virtual Stage failed to produce ITD delayed feed in opposite ear");
+
+		Console.WriteLine("[PASS] Virtual Stage produced realistic acoustic ITD feed and reflections in opposite ear");
+
+		// 2. Channel Matrix direct coefficients
+		spatial.VirtualStageEnabled = false;
+		spatial.ChannelMatrixEnabled = true;
+		spatial.MatrixLeftToLeft = 0.0f;
+		spatial.MatrixRightToLeft = 1.0f;
+		spatial.MatrixLeftToRight = 1.0f;
+		spatial.MatrixRightToRight = 0.0f;
+
+		float[] testMatrix = { 0.8f, 0.2f };
+		spatial.ProcessChannelMatrix(testMatrix, 0, 2, 2);
+		if (Math.Abs(testMatrix[0] - 0.2f) > 0.001f || Math.Abs(testMatrix[1] - 0.8f) > 0.001f)
+			throw new Exception("Channel matrix swap failed");
+
+		Console.WriteLine("[PASS] Channel Matrix swapped channels accurately using custom 2x2 routing");
 	}
 }

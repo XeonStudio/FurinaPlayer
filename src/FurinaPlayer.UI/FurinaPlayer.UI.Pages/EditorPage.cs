@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Helpers;
 using FurinaPlayer.UI.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -14,6 +15,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using SkiaSharp.Views.Windows;
 using SonicWave.Core.Models;
 using WinRT;
 using WinRT.Interop;
@@ -37,6 +39,8 @@ public sealed class EditorPage : Page, IComponentConnector
 	private long _lastAnalysisMs = -1L;
 
 	private Vst3EditorWindow? _editorVstWindow;
+
+	private SKXamlCanvas? _ambientCausticCanvas;
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private Canvas PanelCanvas;
@@ -160,7 +164,13 @@ public sealed class EditorPage : Page, IComponentConnector
 			Interval = TimeSpan.FromMilliseconds(33.0)
 		};
 		_previewTimer.Tick += OnPreviewTick;
-		Loaded += (s, e) => FluentIconFactory.UpgradeButtonsInVisualTree(this);
+		ApplyEditorLiquidGlass();
+		Loaded += (s, e) =>
+		{
+			FluentIconFactory.UpgradeButtonsInVisualTree(this);
+			ApplyEditorLiquidGlass();
+		};
+		ActualThemeChanged += (s, e) => ApplyEditorLiquidGlass();
 		Unloaded += (object _, RoutedEventArgs _) =>
 		{
 			_previewTimer.Stop();
@@ -208,6 +218,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		EditorEq.Gains = ViewModel.Equalizer.Gains;
 		SetupEditorVstListStyling();
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
+		ApplyEditorLiquidGlass();
 		RestoreLayouts();
 		ReverbPresetCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 		{
@@ -608,11 +619,83 @@ public sealed class EditorPage : Page, IComponentConnector
 		EditorVstList.ContainerContentChanging += OnEditorVstContainerChanging;
 	}
 
+	private void ApplyEditorLiquidGlass()
+	{
+		bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+
+		if (Content is Grid rootGrid)
+		{
+			rootGrid.Background = new SolidColorBrush(Colors.Transparent);
+			if (_ambientCausticCanvas == null)
+			{
+				_ambientCausticCanvas = LiquidGlassEngine.CreateAmbientCausticCanvas(() => LiquidGlassEngine.IsElementDarkTheme(this));
+				Grid.SetRowSpan(_ambientCausticCanvas, 8);
+				Grid.SetColumnSpan(_ambientCausticCanvas, 8);
+				Canvas.SetZIndex(_ambientCausticCanvas, -10);
+			}
+			if (!rootGrid.Children.Contains(_ambientCausticCanvas))
+			{
+				rootGrid.Children.Insert(0, _ambientCausticCanvas);
+			}
+			_ambientCausticCanvas.Invalidate();
+		}
+
+		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+
+		Border?[] floatingPanels = new Border?[]
+		{
+			SpectrumPanel,
+			PhasePanel,
+			InfoPanel,
+			EqPanel,
+			EffectsPanel,
+			FadePanel,
+			VstPanel
+		};
+		foreach (Border? panel in floatingPanels)
+		{
+			if (panel != null)
+			{
+				panel.CornerRadius = new CornerRadius(16.0);
+				panel.BorderThickness = new Thickness(1.2);
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(panel, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: true);
+			}
+		}
+
+		Grid?[] panelHeaders = new Grid?[]
+		{
+			SpectrumHeader,
+			PhaseHeader,
+			InfoHeader,
+			EqHeader,
+			EffectsHeader,
+			FadeHeader,
+			VstHeader
+		};
+		foreach (Grid? header in panelHeaders)
+		{
+			if (header != null)
+			{
+				header.CornerRadius = new CornerRadius(15.0, 15.0, 0.0, 0.0);
+				header.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.55);
+				header.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Clear, isDark);
+				header.BorderThickness = new Thickness(0.0, 0.0, 0.0, 1.0);
+			}
+		}
+
+		if (PreviewPlayButton != null)
+		{
+			PreviewPlayButton.CornerRadius = new CornerRadius(14.0);
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(PreviewPlayButton, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: true);
+		}
+	}
+
 	private void OnEditorVstContainerChanging(ListViewBase sender, ContainerContentChangingEventArgs args)
 	{
 		if (args.ItemContainer != null)
 		{
 			FormatVstItemVisuals(args.ItemContainer);
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(args.ItemContainer, LiquidGlassEngine.IsElementDarkTheme(this));
 		}
 	}
 

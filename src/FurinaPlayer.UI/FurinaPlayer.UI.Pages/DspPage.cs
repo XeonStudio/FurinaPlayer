@@ -428,38 +428,27 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 	public static Brush CreateWhiteAcrylicBrush(double tintOpacity = 0.75, byte fallbackAlpha = 210)
 	{
-		try
-		{
-			return new AcrylicBrush
-			{
-				TintColor = Windows.UI.Color.FromArgb(255, 255, 255, 255),
-				TintOpacity = tintOpacity,
-				TintLuminosityOpacity = 0.85,
-				FallbackColor = Windows.UI.Color.FromArgb(fallbackAlpha, 250, 252, 255)
-			};
-		}
-		catch
-		{
-			return new SolidColorBrush(Windows.UI.Color.FromArgb(fallbackAlpha, 250, 252, 255));
-		}
+		return LiquidGlassEngine.CreateSurfaceBrush(
+			LiquidGlassVariant.Clear,
+			isDark: false,
+			opacityScale: Math.Clamp(tintOpacity / 0.85, 0.55, 1.0));
 	}
 
 	public static Brush CreateAcrylicCardBrush(double tintOpacity = 0.88, byte fallbackAlpha = 235)
 	{
-		try
-		{
-			return new AcrylicBrush
-			{
-				TintColor = Windows.UI.Color.FromArgb(255, 255, 255, 255),
-				TintOpacity = tintOpacity,
-				TintLuminosityOpacity = 0.90,
-				FallbackColor = Windows.UI.Color.FromArgb(fallbackAlpha, 255, 255, 255)
-			};
-		}
-		catch
-		{
-			return new SolidColorBrush(Windows.UI.Color.FromArgb(fallbackAlpha, 255, 255, 255));
-		}
+		return LiquidGlassEngine.CreateSurfaceBrush(
+			LiquidGlassVariant.Regular,
+			isDark: false,
+			opacityScale: Math.Clamp(tintOpacity / 0.90, 0.72, 1.05));
+	}
+
+	public static Brush CreateLiquidGlassRimBrush(bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: false,
+			isHovered: isHovered,
+			isSelected: isSelected);
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
@@ -488,7 +477,6 @@ public sealed partial class DspPage : Page, IComponentConnector
 		_layout.RegisterResizeHandle(Vst3ResizeHandle, Vst3Panel);
 
 		InitializeEchoDspPanels();
-		Loaded += (s, e) => FluentIconFactory.UpgradeButtonsInVisualTree(this);
 
 		PanelLayoutController layout = _layout;
 		layout.LayoutChanged = (Action)Delegate.Combine(layout.LayoutChanged, new Action(SaveLayouts));
@@ -521,7 +509,6 @@ public sealed partial class DspPage : Page, IComponentConnector
 		DrawEqCurve(ViewModel.EqGains);
 		RestoreLayouts();
 		OptimizeVst3PanelLayout();
-		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		if (_currentDspCategory != "free")
 		{
 			SetDspViewCategory(_currentDspCategory);
@@ -926,10 +913,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Height = height,
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(12),
-			Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"],
-			BorderBrush = (Brush)Application.Current.Resources["CardStrokeColorDefaultBrush"],
+			Background = CreateAcrylicCardBrush(),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(panel, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
 
 		var mainGrid = new Grid { RowSpacing = 10 };
 		mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1359,11 +1347,15 @@ public sealed partial class DspPage : Page, IComponentConnector
 			rootGrid.RowDefinitions.Clear();
 			rootGrid.ColumnDefinitions.Clear();
 			rootGrid.Padding = new Thickness(0);
-			rootGrid.Background = CreateWhiteAcrylicBrush(0.70, 190);
+			rootGrid.Background = new SolidColorBrush(Colors.Transparent);
 
 			// 2-column layout: Col 0 = Left Sidebar (240px), Col 1 = Main Workbench (*)
 			rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240, GridUnitType.Pixel) });
 			rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+			var causticBackdrop = LiquidGlassEngine.CreateAmbientCausticCanvas(() => false);
+			Grid.SetColumnSpan(causticBackdrop, 2);
+			rootGrid.Children.Add(causticBackdrop);
 
 			var sidebar = CreateEchoSidebar();
 			Grid.SetColumn(sidebar, 0);
@@ -1371,7 +1363,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 			_workbenchHost = new Grid
 			{
-				Background = CreateWhiteAcrylicBrush(0.72, 195)
+				Background = new SolidColorBrush(Colors.Transparent)
 			};
 			Grid.SetColumn(_workbenchHost, 1);
 			rootGrid.Children.Add(_workbenchHost);
@@ -1391,11 +1383,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var border = new Border
 		{
 			Width = 240,
-			Background = CreateWhiteAcrylicBrush(0.82, 225),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 226, 232, 240)),
-			BorderThickness = new Thickness(0, 0, 1, 0),
+			BorderThickness = new Thickness(0, 0, 1.2, 0),
 			Padding = new Thickness(12, 16, 12, 12)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(border, LiquidGlassVariant.FloatingBar, isDark: false, enablePointerTracking: true);
 
 		var sidebarGrid = new Grid();
 		sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Brand Header
@@ -1535,6 +1526,24 @@ public sealed partial class DspPage : Page, IComponentConnector
 			}
 
 			btn.Content = rowGrid;
+			btn.PointerEntered += (s, e) =>
+			{
+				if (s is Button b && b.Tag is string cat && cat != _currentDspCategory)
+				{
+					b.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: false, 0.72);
+					b.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Clear, isDark: false, isHovered: true, isSelected: false);
+					b.BorderThickness = new Thickness(1);
+				}
+			};
+			btn.PointerExited += (s, e) =>
+			{
+				if (s is Button b && b.Tag is string cat && cat != _currentDspCategory)
+				{
+					b.Background = new SolidColorBrush(Colors.Transparent);
+					b.BorderBrush = new SolidColorBrush(Colors.Transparent);
+					b.BorderThickness = new Thickness(0);
+				}
+			};
 			btn.Click += (s, e) =>
 			{
 				if (s is Button b && b.Tag is string cat)
@@ -1560,26 +1569,67 @@ public sealed partial class DspPage : Page, IComponentConnector
 		AddNavSectionHeader("音色");
 		itemsStack.Children.Add(CreateNavButton("param_eq", "\uE995", "参数 EQ", "已启用 · 10频段", hasCheck: true));
 		itemsStack.Children.Add(CreateNavButton("headphone", "\uE7F5", "耳机校正", "已旁路"));
-
 		AddNavSectionHeader("空间与输出");
 		itemsStack.Children.Add(CreateNavButton("room", "\uE7BE", "房间校正", "无 IR"));
 		itemsStack.Children.Add(CreateNavButton("channel", "\uE768", "声道工具", "立体声直通"));
 		itemsStack.Children.Add(CreateNavButton("safety", "\uE72E", "输出安全", "待命"));
 
-		AddNavSectionHeader("高级设置");
-		itemsStack.Children.Add(CreateNavButton("compressor", "\uE9D9", "压缩器", "已旁路"));
-		itemsStack.Children.Add(CreateNavButton("multiband", "\uE994", "三频段压缩", "已旁路"));
-		itemsStack.Children.Add(CreateNavButton("deesser", "\uE74F", "去齿音", "已旁路"));
-		itemsStack.Children.Add(CreateNavButton("limiter", "\uE71A", "限幅", "自动上限", hasCheck: true));
-		itemsStack.Children.Add(CreateNavButton("crossfeed", "\uE895", "交叉馈送", "双耳互馈"));
-		itemsStack.Children.Add(CreateNavButton("vst3", "\uE8B8", "VST3 机架", "扩展机架"));
+		// 高级设置 (含折叠/展开指示与状态)
+		var advHeaderGrid = new Grid { Margin = new Thickness(8, 12, 8, 4) };
+		advHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		advHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
+		var advTitle = new TextBlock
+		{
+			Text = "高级设置",
+			FontSize = 11,
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+		};
+		Grid.SetColumn(advTitle, 0);
+		advHeaderGrid.Children.Add(advTitle);
+
+		var advChevron = new FontIcon
+		{
+			Glyph = "\uE70D",
+			FontSize = 10,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+		};
+		Grid.SetColumn(advChevron, 1);
+		advHeaderGrid.Children.Add(advChevron);
+
+		var advPanel = new StackPanel { Spacing = 2, Visibility = Visibility.Visible };
+		advHeaderGrid.Tapped += (s, e) =>
+		{
+			if (advPanel.Visibility == Visibility.Visible)
+			{
+				advPanel.Visibility = Visibility.Collapsed;
+				advChevron.Glyph = "\uE70E";
+			}
+			else
+			{
+				advPanel.Visibility = Visibility.Visible;
+				advChevron.Glyph = "\uE70D";
+			}
+		};
+		itemsStack.Children.Add(advHeaderGrid);
+
+		advPanel.Children.Add(CreateNavButton("compressor", "\uE9D9", "压缩器", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("multiband", "\uE994", "三频段压缩", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("deesser", "\uE74F", "去齿音", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("limiter", "\uE71A", "限幅", "自动上限", hasCheck: true));
+		advPanel.Children.Add(CreateNavButton("crossfeed", "\uE7F5", "交叉馈送", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("virtual_stage", "\uE995", "虚拟声场", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("stereo_field", "\uE7BE", "立体声场", "132%", hasCheck: true));
+		advPanel.Children.Add(CreateNavButton("channel_matrix", "\uE8AB", "声道矩阵", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("vst3", "\uE8B8", "VST3 机架", "扩展机架"));
+		itemsStack.Children.Add(advPanel);
 		sv.Content = itemsStack;
 		Grid.SetRow(sv, 1);
 		sidebarGrid.Children.Add(sv);
 
 		// 3. Footer device
-		var footerBtn = CreateNavButton("device", "\uE7F6", "音频输出设备", "WASAPI · 独占/共享");
+		var footerBtn = CreateNavButton("device", "\uE774", "系统输出", "自动 · 共享模式");
 		footerBtn.Margin = new Thickness(0, 10, 0, 0);
 		Grid.SetRow(footerBtn, 2);
 		sidebarGrid.Children.Add(footerBtn);
@@ -3539,10 +3589,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				bool isSelected = (key == category);
 				btn.Background = isSelected
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)) // Indigo 50 (#EEF2FF)
+					? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: false, 0.95)
 					: new SolidColorBrush(Colors.Transparent);
 				btn.BorderBrush = isSelected
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) // Indigo 500 (#6366F1)
+					? LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.AccentLensed, isDark: false, isHovered: true, isSelected: true)
 					: new SolidColorBrush(Colors.Transparent);
 				btn.BorderThickness = new Thickness(isSelected ? 1 : 0);
 
@@ -3575,26 +3625,35 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		if (_workbenchHost == null) return;
 		_workbenchHost.Children.Clear();
-
 		FrameworkElement activeView = category switch
 		{
+			"listening_plan" or "listeningPlan" => _listeningPlanWorkbench ?? CreateListeningPlanWorkbench(),
 			"param_eq" => _parametricEqWorkbench ?? CreateParametricEqWorkbench(),
 			"headphone" => _headphoneCorrectionWorkbench ?? CreateHeadphoneCorrectionWorkbench(),
 			"level_gain" => _volumeEqualizationWorkbench ?? CreateVolumeEqualizationWorkbench(),
 			"headroom" => _headroomWorkbench ?? CreateHeadroomWorkbench(),
 			"channel" => _channelToolWorkbench ?? CreateChannelToolWorkbench(),
 			"room" or "convolution" => _roomCorrectionWorkbench ?? CreateRoomCorrectionWorkbench(),
-			"crossfeed" or "spatial" => CreateWrappedCard("交叉馈送与空间声场", "\uE895", _spatialCrossfeedPanel ?? CreateSpatialCrossfeedPanel()),
+			"crossfeed" => _crossfeedWorkbench ?? CreateCrossfeedWorkbench(),
+			"virtual_stage" or "virtualStage" => _virtualStageWorkbench ?? CreateVirtualStageWorkbench(),
+			"stereo_field" or "stereoField" => _stereoFieldWorkbench ?? CreateStereoFieldWorkbench(),
+			"channel_matrix" or "channelMatrix" => _channelMatrixWorkbench ?? CreateChannelMatrixWorkbench(),
+			"deesser" or "de_esser" => _deEsserWorkbench ?? CreateDeEsserWorkbench(),
+			"limiter" => _limiterWorkbench ?? CreateLimiterWorkbench(),
+			"spatial" => _virtualStageWorkbench ?? CreateVirtualStageWorkbench(),
 			"compressor" or "dynamics" => _compressorWorkbench ?? CreateCompressorWorkbench(),
 			"multiband" => _multibandCompressorWorkbench ?? CreateMultibandCompressorWorkbench(),
 			"resampler" or "src" => _srcUpsamplingWorkbench ?? CreateSrcUpsamplingWorkbench(),
 			"dsd" or "sdm" => _sdmDsdWorkbench ?? CreateSdmDsdWorkbench(),
+			"safety" => _outputSafetyWorkbench ?? CreateOutputSafetyWorkbench(),
+			"device" => _audioDeviceWorkbench ?? CreateAudioDeviceWorkbench(),
 			"vst3" => CreateWrappedCard("VST3 扩展机架", "\uE8B8", Vst3Panel),
 			_ => _parametricEqWorkbench ?? CreateParametricEqWorkbench()
 		};
 
 		Grid.SetRow(activeView, 0);
 		Grid.SetColumn(activeView, 0);
+		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(activeView, isDark: false);
 		_workbenchHost.Children.Add(activeView);
 	}
 
@@ -3603,14 +3662,22 @@ public sealed partial class DspPage : Page, IComponentConnector
 		SelectDspCategory(category);
 	}
 
+	private FrameworkElement? _vst3WrappedWorkbench;
+
 	private FrameworkElement CreateWrappedCard(string title, string glyph, Border? innerCard)
 	{
 		if (innerCard == null) return new Grid();
-		if (innerCard.Parent is Border parentBorder)
+		if (ReferenceEquals(innerCard, Vst3Panel) && _vst3WrappedWorkbench != null)
+		{
+			return _vst3WrappedWorkbench;
+		}
+		try { PanelCanvas?.Children.Remove(innerCard); } catch { }
+		DependencyObject? parent = innerCard.Parent ?? VisualTreeHelper.GetParent(innerCard);
+		if (parent is Border parentBorder)
 		{
 			parentBorder.Child = null;
 		}
-		else if (innerCard.Parent is Panel parentPanel)
+		else if (parent is Panel parentPanel)
 		{
 			parentPanel.Children.Remove(innerCard);
 		}
@@ -3619,16 +3686,18 @@ public sealed partial class DspPage : Page, IComponentConnector
 		innerCard.Width = double.NaN;
 		innerCard.Height = double.NaN;
 		innerCard.Background = CreateAcrylicCardBrush(0.88, 235);
-		innerCard.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240));
+		innerCard.BorderBrush = CreateLiquidGlassRimBrush();
 		innerCard.BorderThickness = new Thickness(1);
 		innerCard.CornerRadius = new CornerRadius(12);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(innerCard, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
 
 		var card = new Border
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
+			Background = new SolidColorBrush(Colors.Transparent),
 			Padding = new Thickness(24, 20, 24, 20),
 			Child = innerCard
 		};
+		if (ReferenceEquals(innerCard, Vst3Panel)) _vst3WrappedWorkbench = card;
 		return card;
 	}
 

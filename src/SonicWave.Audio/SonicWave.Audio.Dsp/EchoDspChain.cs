@@ -15,6 +15,8 @@ public sealed class EchoDspChain
 	public FurinaPlayerReplayGainProcessor ReplayGain { get; }
 	public FurinaPlayerCompressorProcessor Compressor { get; }
 	public FurinaPlayerMultibandProcessor Multiband { get; }
+	public FurinaPlayerDeEsserProcessor DeEsser { get; }
+	public FurinaPlayerLimiterProcessor Limiter { get; }
 	public EchoSpatialProcessor Spatial { get; }
 	public EchoHeadroomProcessor Headroom { get; }
 	public EchoPcmResampler Resampler { get; }
@@ -36,6 +38,8 @@ public sealed class EchoDspChain
 		ReplayGain = new FurinaPlayerReplayGainProcessor();
 		Compressor = new FurinaPlayerCompressorProcessor();
 		Multiband = new FurinaPlayerMultibandProcessor(sampleRate);
+		DeEsser = new FurinaPlayerDeEsserProcessor(sampleRate);
+		Limiter = new FurinaPlayerLimiterProcessor(sampleRate);
 		Spatial = new EchoSpatialProcessor();
 		Headroom = new EchoHeadroomProcessor();
 		Resampler = new EchoPcmResampler();
@@ -53,6 +57,8 @@ public sealed class EchoDspChain
 		ReplayGain.Prepare(_sampleRate);
 		Compressor.Prepare(_sampleRate);
 		Multiband.Prepare(_sampleRate);
+		DeEsser.Prepare(_sampleRate);
+		Limiter.Prepare(_sampleRate);
 		Spatial.Prepare(_sampleRate);
 		Headroom.Prepare(_sampleRate);
 		Resampler.Prepare((int)_sampleRate);
@@ -66,6 +72,8 @@ public sealed class EchoDspChain
 		ReplayGain.Reset();
 		Compressor.Reset();
 		Multiband.Reset();
+		DeEsser.Reset();
+		Limiter.Reset();
 		Spatial.Reset();
 		Headroom.Reset();
 		Resampler.Reset();
@@ -99,8 +107,12 @@ public sealed class EchoDspChain
 				case DspRackModuleId.MultibandCompressor:
 					Multiband.ProcessInterleaved(buffer, offset, count, channels);
 					break;
+				case DspRackModuleId.DeEsser:
+					DeEsser.ProcessInterleaved(buffer, offset, count, channels);
+					break;
 				case DspRackModuleId.Crossfeed:
 					Spatial.ProcessCrossfeed(buffer, offset, count, channels);
+					Spatial.ProcessVirtualStage(buffer, offset, count, channels);
 					break;
 				case DspRackModuleId.StereoField:
 					Spatial.ProcessStereoField(buffer, offset, count, channels);
@@ -117,6 +129,9 @@ public sealed class EchoDspChain
 					break;
 				case DspRackModuleId.SdmModulator:
 					// SDM engages for DSD streaming mode
+					break;
+				case DspRackModuleId.Limiter:
+					Limiter.ProcessInterleaved(buffer, offset, count, channels);
 					break;
 			}
 		}

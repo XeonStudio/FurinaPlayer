@@ -1539,6 +1539,10 @@ public static class FluentIconFactory
     private static void TryUpgradeButton(ButtonBase btn)
     {
         if (btn.Tag is string tagStr && tagStr == "__fluent_upgraded") return;
+        // Never touch navigation buttons or complex composite layout buttons
+        if (btn.Tag is string customTag && !string.IsNullOrEmpty(customTag) && customTag != "__fluent_upgraded") return;
+        if (btn.Content is Grid or Canvas) return;
+        if (btn.Content is StackPanel spCheck && spCheck.Children.Count > 2) return;
 
         string? text = ExtractButtonText(btn.Content);
         string? glyph = ExtractFontIconGlyph(btn.Content);

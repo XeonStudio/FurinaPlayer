@@ -9,14 +9,17 @@ using System.Threading.Tasks;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Pages;
 using FurinaPlayer.UI.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Navigation;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
 using SonicWave.Audio;
@@ -48,6 +51,14 @@ public sealed class MainWindow : Window, IComponentConnector
 	private bool _placementRestored;
 
 	private BackgroundMaterial _currentMaterial;
+
+	private bool _isDarkTheme;
+
+	private float _pointerNormX = 0.5f;
+
+	private float _pointerNormY = 0.25f;
+
+	private string _currentNavTag = "home";
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private Grid RootGrid;
@@ -130,6 +141,17 @@ public sealed class MainWindow : Window, IComponentConnector
 		{
 			RootGrid.Margin = new Thickness(0);
 			RootGrid.Padding = new Thickness(0);
+			RootGrid.PointerMoved -= OnRootGridPointerMoved;
+			RootGrid.PointerMoved += OnRootGridPointerMoved;
+			RootGrid.Loaded += (object _, RoutedEventArgs _) =>
+			{
+				ApplyWindowBackdrop();
+			};
+		}
+		if (ContentFrame != null)
+		{
+			ContentFrame.Navigated -= OnContentFrameNavigated;
+			ContentFrame.Navigated += OnContentFrameNavigated;
 		}
 		if (MinButton != null) MinButton.Visibility = Visibility.Collapsed;
 		if (MaxButton != null) MaxButton.Visibility = Visibility.Collapsed;
@@ -142,6 +164,7 @@ public sealed class MainWindow : Window, IComponentConnector
 			Vst3NativeHost.Instance.Unload();
 		};
 		ApplyFluentWindowIcons();
+		ApplyWindowBackdrop();
 		Nav.SelectedItem = Nav.MenuItems[0];
 		UpdateMaxIcon();
 		// Auto capture sequence is managed by App.CapturePagesAsync to avoid dual-runner conflict
@@ -372,6 +395,12 @@ public sealed class MainWindow : Window, IComponentConnector
 			ThemeMode.Light => ElementTheme.Light, 
 			_ => ElementTheme.Default, 
 		};
+		_isDarkTheme = mode switch
+		{
+			ThemeMode.Dark => true,
+			ThemeMode.Light => false,
+			_ => LiquidGlassEngine.IsElementDarkTheme(rootGrid)
+		};
 		UpdateTitleBarButtonColors(rootGrid.RequestedTheme);
 		ApplyMaterial(_currentMaterial);
 	}
@@ -383,6 +412,7 @@ public sealed class MainWindow : Window, IComponentConnector
 		{
 			var tb = AppWindow.TitleBar;
 			bool isDark = theme == ElementTheme.Dark || (theme == ElementTheme.Default && Application.Current.RequestedTheme == ApplicationTheme.Dark);
+			_isDarkTheme = isDark;
 			if (isDark)
 			{
 				tb.ButtonForegroundColor = Windows.UI.Color.FromArgb(255, 230, 235, 245);
@@ -401,11 +431,63 @@ public sealed class MainWindow : Window, IComponentConnector
 		}
 	}
 
+	private void ApplyWindowBackdrop()
+	{
+		try
+		{
+			if (RootGrid != null && RootGrid.RequestedTheme != ElementTheme.Default)
+			{
+				_isDarkTheme = RootGrid.RequestedTheme == ElementTheme.Dark;
+			}
+			else
+			{
+				_isDarkTheme = LiquidGlassEngine.IsElementDarkTheme(RootGrid);
+			}
+
+			if (TitleBar != null)
+			{
+				TitleBar.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, _isDarkTheme, 0.45);
+			}
+			if (Nav != null)
+			{
+				Nav.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, _isDarkTheme, 0.45);
+			}
+		}
+		catch
+		{
+		}
+	}
+
+	private void OnRootGridPointerMoved(object sender, PointerRoutedEventArgs e)
+	{
+		if (RootGrid == null || RootGrid.ActualWidth <= 0 || RootGrid.ActualHeight <= 0)
+		{
+			return;
+		}
+		if (_currentNavTag == "playing")
+		{
+			return;
+		}
+		var pt = e.GetCurrentPoint(RootGrid).Position;
+		float nx = (float)Math.Clamp(pt.X / RootGrid.ActualWidth, 0.0, 1.0);
+		float ny = (float)Math.Clamp(pt.Y / RootGrid.ActualHeight, 0.0, 1.0);
+		if (Math.Abs(nx - _pointerNormX) > 0.008f || Math.Abs(ny - _pointerNormY) > 0.008f)
+		{
+			_pointerNormX = nx;
+			_pointerNormY = ny;
+			if (GlassSkiaCanvas != null && GlassSkiaCanvas.Visibility == Visibility.Visible)
+			{
+				GlassSkiaCanvas.Invalidate();
+			}
+		}
+	}
+
 	public void ApplyMaterial(BackgroundMaterial material)
 	{
 		_currentMaterial = material;
 		nint windowHandle = WindowNative.GetWindowHandle(this);
 		DwmGlass.RemoveBorderColor(windowHandle);
+		DwmGlass.SetImmersiveDarkMode(windowHandle, _isDarkTheme);
 		try
 		{
 			if (material == BackgroundMaterial.LiquidGlassDwm)
@@ -429,30 +511,31 @@ public sealed class MainWindow : Window, IComponentConnector
 			{
 			}
 		}
+		ApplyWindowBackdrop();
 		if (RootGrid != null)
 		{
-			if (material == BackgroundMaterial.LiquidGlass || material == BackgroundMaterial.LiquidGlassDwm)
+			RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+		}
+		if (_currentNavTag == "playing")
+		{
+			if (LiquidGlassOverlay != null)
 			{
-				RootGrid.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(80, 20, 22, 30));
+				LiquidGlassOverlay.Visibility = Visibility.Collapsed;
 			}
-			else if (material == BackgroundMaterial.Acrylic)
+			if (GlassSkiaCanvas != null)
 			{
-				RootGrid.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 24, 26, 34));
-			}
-			else
-			{
-				RootGrid.Background = null;
+				GlassSkiaCanvas.Visibility = Visibility.Collapsed;
 			}
 		}
-		if (LiquidGlassOverlay != null)
+		else
 		{
-			LiquidGlassOverlay.Visibility = ((material != BackgroundMaterial.LiquidGlass) ? Visibility.Collapsed : Visibility.Visible);
-		}
-		if (GlassSkiaCanvas != null)
-		{
-			GlassSkiaCanvas.Visibility = ((material != BackgroundMaterial.LiquidGlassDwm) ? Visibility.Collapsed : Visibility.Visible);
-			if (GlassSkiaCanvas.Visibility == Visibility.Visible)
+			if (LiquidGlassOverlay != null)
 			{
+				LiquidGlassOverlay.Visibility = Visibility.Visible;
+			}
+			if (GlassSkiaCanvas != null)
+			{
+				GlassSkiaCanvas.Visibility = Visibility.Visible;
 				GlassSkiaCanvas.Invalidate();
 			}
 		}
@@ -460,62 +543,25 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	private void OnGlassSkiaPaint(object? sender, SKPaintSurfaceEventArgs e)
 	{
-		SKCanvas canvas = e.Surface.Canvas;
-		canvas.Clear(SKColors.Transparent);
-		float num = e.Info.Width;
-		float num2 = e.Info.Height;
-		if (num <= 0f || num2 <= 0f)
-		{
-			return;
-		}
-		using (SKPaint sKPaint = new SKPaint
-		{
-			IsAntialias = true,
-			Style = SKPaintStyle.Stroke,
-			StrokeWidth = 1.5f
-		})
-		{
-			sKPaint.Shader = SKShader.CreateLinearGradient(new SKPoint(0f, 0f), new SKPoint(num, 0f), new SKColor[3]
-			{
-				new SKColor(16777215u),
-				new SKColor(3019898879u),
-				new SKColor(16777215u)
-			}, null, SKShaderTileMode.Clamp);
-			canvas.DrawLine(0f, 1f, num, 1f, sKPaint);
-		}
-		using (SKPaint sKPaint2 = new SKPaint())
-		{
-			float num3 = Math.Min(140f, num2 * 0.18f);
-			sKPaint2.Shader = SKShader.CreateLinearGradient(new SKPoint(0f, 0f), new SKPoint(0f, num3), new SKColor[3]
-			{
-				new SKColor(1560281087u),
-				new SKColor(452984831u),
-				new SKColor(16777215u)
-			}, null, SKShaderTileMode.Clamp);
-			canvas.DrawRect(new SKRect(0f, 0f, num, num3), sKPaint2);
-		}
-		using SKPaint sKPaint3 = new SKPaint
-		{
-			IsAntialias = true,
-			Style = SKPaintStyle.Stroke,
-			StrokeWidth = 1f
-		};
-		sKPaint3.Shader = SKShader.CreateLinearGradient(new SKPoint(0f, 0f), new SKPoint(num, 0f), new SKColor[3]
-		{
-			new SKColor(16777215u),
-			new SKColor(1308622847u),
-			new SKColor(16777215u)
-		}, null, SKShaderTileMode.Clamp);
-		canvas.DrawLine(0f, num2 - 1f, num, num2 - 1f, sKPaint3);
+		LiquidGlassEngine.RenderAmbientCausticStage(
+			e.Surface.Canvas,
+			e.Info.Width,
+			e.Info.Height,
+			isDark: _isDarkTheme,
+			_pointerNormX,
+			_pointerNormY);
 	}
 
 	public void ApplyWallpaper(string? imagePath, bool solid)
 	{
 		try
 		{
-			if (solid)
+			if (_currentNavTag == "playing" || solid)
 			{
-				RootGrid.Background = new SolidColorBrush(Color.FromArgb(byte.MaxValue, 28, 30, 38));
+				if (RootGrid != null)
+				{
+					RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+				}
 				return;
 			}
 			if (!string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath))
@@ -534,7 +580,57 @@ public sealed class MainWindow : Window, IComponentConnector
 		catch
 		{
 		}
-		RootGrid.Background = null;
+		if (RootGrid != null)
+		{
+			RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+		}
+	}
+
+	private void OnContentFrameNavigated(object sender, NavigationEventArgs e)
+	{
+		string tag = e.SourcePageType == typeof(NowPlayingPage) ? "playing"
+			: e.SourcePageType == typeof(EditorPage) ? "editor"
+			: e.SourcePageType == typeof(DspPage) ? "dsp"
+			: e.SourcePageType == typeof(SettingsPage) ? "settings"
+			: "home";
+		ApplyStageGlassByTag(tag);
+	}
+
+	private void ApplyStageGlassByTag(string tag)
+	{
+		_currentNavTag = tag;
+		ApplyWindowBackdrop();
+		if (tag == "playing")
+		{
+			if (LiquidGlassOverlay != null)
+			{
+				LiquidGlassOverlay.Visibility = Visibility.Collapsed;
+			}
+			if (GlassSkiaCanvas != null)
+			{
+				GlassSkiaCanvas.Visibility = Visibility.Collapsed;
+			}
+			if (RootGrid != null)
+			{
+				RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+			}
+		}
+		else
+		{
+			if (LiquidGlassOverlay != null)
+			{
+				LiquidGlassOverlay.Visibility = Visibility.Visible;
+			}
+			if (GlassSkiaCanvas != null)
+			{
+				GlassSkiaCanvas.Visibility = Visibility.Visible;
+				GlassSkiaCanvas.Invalidate();
+			}
+			if (RootGrid != null)
+			{
+				RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+			}
+		}
 	}
 
 	private void OnNavSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -546,6 +642,7 @@ public sealed class MainWindow : Window, IComponentConnector
 				return;
 			}
 			Log("navigate: " + tag);
+			ApplyStageGlassByTag(tag);
 			switch (tag)
 			{
 			case "home":
@@ -598,6 +695,39 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		try
 		{
+			if (tag == "playing")
+			{
+				if (LiquidGlassOverlay != null)
+				{
+					LiquidGlassOverlay.Visibility = Visibility.Collapsed;
+				}
+				if (GlassSkiaCanvas != null)
+				{
+					GlassSkiaCanvas.Visibility = Visibility.Collapsed;
+				}
+				if (RootGrid != null)
+				{
+					RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+				}
+			}
+			else
+			{
+				if (LiquidGlassOverlay != null)
+				{
+					LiquidGlassOverlay.Visibility = Visibility.Visible;
+				}
+				if (GlassSkiaCanvas != null)
+				{
+					GlassSkiaCanvas.Visibility = Visibility.Visible;
+					GlassSkiaCanvas.Invalidate();
+				}
+				if (RootGrid != null)
+				{
+					RootGrid.Background = new SolidColorBrush(Colors.Transparent);
+				}
+			}
+			ApplyStageGlassByTag(tag);
+
 			if (Nav != null && Nav.MenuItems != null)
 			{
 				foreach (var item in Nav.MenuItems)
