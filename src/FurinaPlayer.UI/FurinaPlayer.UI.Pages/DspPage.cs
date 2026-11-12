@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Helpers;
 using FurinaPlayer.UI.ViewModels;
@@ -16,8 +17,10 @@ using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
+using SkiaSharp;
 using SonicWave.Audio.Dsp;
 using SonicWave.Core.Models;
+using SonicWave.Core.Services;
 using WinRT;
 using WinRT.Interop;
 using Windows.Foundation;
@@ -401,23 +404,41 @@ public sealed partial class DspPage : Page, IComponentConnector
 	private string _currentDspCategory = "param_eq";
 	private readonly List<Button> _categoryTabButtons = new();
 	private Border? _parametricEqWorkbench;
-	private ParametricEqCurveControl? _eqCurveControl;
-	private StackPanel? _eqBandPillsStack;
-	private ComboBox? _filterTypeCombo;
-	private Slider? _freqSlider;
-	private TextBlock? _freqValueTb;
-	private Slider? _gainSlider;
-	private TextBlock? _gainValueTb;
-	private Slider? _qSlider;
-	private TextBlock? _qValueTb;
-	private Slider? _preampSlider;
-	private TextBlock? _preampValueTb;
-	private CheckBox? _bandEnableCb;
-	private TextBlock? _bandIndexBadge;
+	private ParametricEqWorkbenchControl? _eqWorkbenchControl;
+	private DispatcherQueueTimer? _eqSpectrumTimer;
+	private DispatcherQueueTimer? _mixAssistantLearnTimer;
+	private bool _isAnalyzingTrackForMixAssistant;
 	private Grid? _workbenchHost;
+	private Border? _sidebarBorder;
+	private TextBlock? _sidebarDspBadgeTb;
+	private TextBlock? _sidebarBrandTitleTb;
+	private TextBlock? _sidebarSubtitleTb;
 	private readonly List<Button> _sidebarNavButtons = new();
+	private readonly List<TextBlock> _sidebarSectionHeaders = new();
+	private TextBlock? _sidebarAdvTitle;
+	private FontIcon? _sidebarAdvChevron;
 	private Border? _headroomWorkbench;
 	private TextBlock? _headroomNavSubTb;
+	private static string? _cachedWallpaperPath;
+	private static DateTime _cachedWallpaperWriteUtc;
+	private static bool _cachedWallpaperIsDark;
+
+	// Headroom Real-time Budget & Monitoring Elements
+	private TextBlock? _headroomStreamInfoTb;
+	private Border? _headroomInMeterFill;
+	private TextBlock? _headroomInMeterValTb;
+	private Border? _headroomOutMeterFill;
+	private TextBlock? _headroomOutMeterValTb;
+	private Border? _headroomTpMeterFill;
+	private TextBlock? _headroomTpMeterValTb;
+	private TextBlock? _headroomProtectStatusTb;
+	private TextBlock? _headroomClipCountTb;
+	private TextBlock? _headroomLastClipTb;
+	private TextBlock? _headroomTruePeakTb;
+	private TextBlock? _headroomMarginTb;
+	private int _headroomClipCount = 0;
+	private DateTime? _headroomLastClipTime = null;
+	private double _headroomAvgMarginDb = 0.0;
 	private ToggleSwitch? _headroomPowerSwitch;
 	private TextBlock? _headroomGainBigTb;
 	private TextBlock? _headroomAmpRatioTb;
@@ -426,29 +447,430 @@ public sealed partial class DspPage : Page, IComponentConnector
 	private Button? _headroomAuditionBtn;
 	private readonly List<Button> _headroomPresetButtons = new();
 
-	public static Brush CreateWhiteAcrylicBrush(double tintOpacity = 0.75, byte fallbackAlpha = 210)
+	public Brush CreateWhiteAcrylicBrush(double tintOpacity = 0.75, byte fallbackAlpha = 210)
 	{
 		return LiquidGlassEngine.CreateSurfaceBrush(
 			LiquidGlassVariant.Clear,
-			isDark: false,
+			isDark: IsDspDark,
 			opacityScale: Math.Clamp(tintOpacity / 0.85, 0.55, 1.0));
 	}
 
-	public static Brush CreateAcrylicCardBrush(double tintOpacity = 0.88, byte fallbackAlpha = 235)
+	public Brush CreateAcrylicCardBrush(double tintOpacity = 0.88, byte fallbackAlpha = 235)
 	{
 		return LiquidGlassEngine.CreateSurfaceBrush(
 			LiquidGlassVariant.Regular,
-			isDark: false,
+			isDark: IsDspDark,
 			opacityScale: Math.Clamp(tintOpacity / 0.90, 0.72, 1.05));
 	}
 
-	public static Brush CreateLiquidGlassRimBrush(bool isHovered = false, bool isSelected = false)
+	public Brush CreateLiquidGlassRimBrush(bool isHovered = false, bool isSelected = false)
 	{
 		return LiquidGlassEngine.CreateSpecularRimBrush(
 			LiquidGlassVariant.Regular,
-			isDark: false,
+			isDark: IsDspDark,
 			isHovered: isHovered,
 			isSelected: isSelected);
+	}
+
+	public bool IsDspDark => ResolveIsDspDark();
+
+	private bool ResolveIsDspDark()
+	{
+		try
+		{
+			AppSettings? settings = null;
+			try
+			{
+				settings = (ViewModel?.SettingsService ?? new SettingsService()).Load();
+			}
+			catch
+			{
+			}
+
+			if (settings?.ScheduledDarkModeEnabled == true && IsLoaded && ActualTheme != ElementTheme.Default)
+			{
+				return ActualTheme == ElementTheme.Dark;
+			}
+
+			bool invert = LiquidGlassEngine.InvertModeEnabled;
+			string mode = settings?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+
+			if (string.Equals(mode, "dark", StringComparison.OrdinalIgnoreCase))
+			{
+				return !invert;
+			}
+			if (string.Equals(mode, "light", StringComparison.OrdinalIgnoreCase))
+			{
+				return invert;
+			}
+
+			if (mode == "ambient" || mode == "acrylic" || mode == "liquid-glass")
+			{
+				bool baseDark = LiquidGlassEngine.ActivePreset?.IsDark ?? false;
+				if (!baseDark && settings != null)
+				{
+					if (settings.Theme == ThemeMode.Dark)
+					{
+						baseDark = true;
+					}
+					else if (settings.WallpaperSource == WallpaperSource.LocalImage
+						&& !string.IsNullOrWhiteSpace(settings.LocalWallpaperPath)
+						&& LiquidGlassEngine.AcrylicOpacityScale >= 0.35
+						&& IsWallpaperDarkCached(settings.LocalWallpaperPath))
+					{
+						baseDark = true;
+					}
+				}
+				return invert ? !baseDark : baseDark;
+			}
+
+			if (IsLoaded && ActualTheme != ElementTheme.Default)
+			{
+				return ActualTheme == ElementTheme.Dark;
+			}
+
+			return LiquidGlassEngine.IsElementDarkTheme(null);
+		}
+		catch
+		{
+			return IsLoaded && ActualTheme == ElementTheme.Dark;
+		}
+	}
+
+	private static bool IsWallpaperDarkCached(string path)
+	{
+		try
+		{
+			if (!System.IO.File.Exists(path)) return false;
+			DateTime writeUtc = System.IO.File.GetLastWriteTimeUtc(path);
+			if (string.Equals(_cachedWallpaperPath, path, StringComparison.OrdinalIgnoreCase)
+				&& _cachedWallpaperWriteUtc == writeUtc)
+			{
+				return _cachedWallpaperIsDark;
+			}
+
+			using var codec = SKCodec.Create(path);
+			if (codec == null) return false;
+
+			int maxDim = Math.Max(1, Math.Max(codec.Info.Width, codec.Info.Height));
+			var scaled = codec.GetScaledDimensions(Math.Min(1.0f, 64.0f / maxDim));
+			var info = new SKImageInfo(Math.Max(1, scaled.Width), Math.Max(1, scaled.Height), SKColorType.Bgra8888, SKAlphaType.Premul);
+			using var bmp = new SKBitmap(info);
+			var result = codec.GetPixels(info, bmp.GetPixels());
+			if (result != SKCodecResult.Success && result != SKCodecResult.IncompleteInput)
+			{
+				return false;
+			}
+
+			double totalLum = 0;
+			int count = 0;
+			for (int y = 0; y < bmp.Height; y++)
+			{
+				for (int x = 0; x < bmp.Width; x++)
+				{
+					var c = bmp.GetPixel(x, y);
+					totalLum += (0.2126 * c.Red + 0.7152 * c.Green + 0.0722 * c.Blue) / 255.0;
+					count++;
+				}
+			}
+
+			bool isDark = count > 0 && (totalLum / count) < 0.45;
+			_cachedWallpaperPath = path;
+			_cachedWallpaperWriteUtc = writeUtc;
+			_cachedWallpaperIsDark = isDark;
+			return isDark;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	public Brush DspTextPrimaryBrush => new SolidColorBrush(IsDspDark
+		? Colors.White                                     // #FFFFFF
+		: Windows.UI.Color.FromArgb(255, 15, 23, 42));     // #0F172A
+
+	public Brush DspTextSecondaryBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(255, 248, 250, 252)    // #F8FAFC
+		: Windows.UI.Color.FromArgb(255, 51, 65, 85));     // #334155
+
+	public Brush DspTextSubHeaderBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(255, 226, 232, 240)    // #E2E8F0
+		: Windows.UI.Color.FromArgb(255, 71, 85, 105));    // #475569
+
+	public Brush DspTextMutedBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(255, 203, 213, 225)    // #CBD5E1
+		: Windows.UI.Color.FromArgb(255, 100, 116, 139));  // #64748B
+
+	public Brush DspCardBgBrush => CreateAcrylicCardBrush(0.88, 235);
+	public Brush DspCardBorderBrush => CreateLiquidGlassRimBrush();
+	public Brush DspSoftSurfaceBrush => IsDspDark
+		? CreateWhiteAcrylicBrush(0.14, 42)
+		: new SolidColorBrush(Windows.UI.Color.FromArgb(220, 241, 245, 249));
+	public Brush DspAccentSoftBgBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(85, 99, 102, 241)
+		: Windows.UI.Color.FromArgb(255, 238, 242, 255));
+	public Brush DspAccentSoftBorderBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(180, 129, 140, 248)
+		: Windows.UI.Color.FromArgb(255, 199, 210, 254));
+	public Brush DspAccentSoftTextBrush => new SolidColorBrush(IsDspDark
+		? Windows.UI.Color.FromArgb(255, 199, 210, 254)
+		: Windows.UI.Color.FromArgb(255, 79, 70, 229));
+
+	private void RefreshInitializedWorkbenchesTheme(bool isDark)
+	{
+		if (_eqWorkbenchControl != null) _eqWorkbenchControl.UpdateTheme(isDark);
+		if (_roomCorrectionWorkbench != null) RefreshRoomCorrectionTheme(isDark);
+		if (_headphoneCorrectionWorkbench != null) RefreshHeadphoneCorrectionTheme(isDark);
+		if (_channelToolWorkbench != null) RefreshChannelToolTheme(isDark);
+		if (_compressorWorkbench != null) RefreshCompressorTheme(isDark);
+		if (_multibandCompressorWorkbench != null) RefreshMultibandTheme(isDark);
+		if (_deEsserWorkbench != null) RefreshDeEsserTheme(isDark);
+		if (_crossfeedWorkbench != null) RefreshCrossfeedTheme(isDark);
+		if (_stereoFieldWorkbench != null) RefreshStereoFieldTheme(isDark);
+	}
+
+	private void RefreshWorkbenchThemeByView(FrameworkElement view, bool isDark)
+	{
+		if (ReferenceEquals(view, _parametricEqWorkbench)) _eqWorkbenchControl?.UpdateTheme(isDark);
+		else if (ReferenceEquals(view, _roomCorrectionWorkbench)) RefreshRoomCorrectionTheme(isDark);
+		else if (ReferenceEquals(view, _headphoneCorrectionWorkbench)) RefreshHeadphoneCorrectionTheme(isDark);
+		else if (ReferenceEquals(view, _channelToolWorkbench)) RefreshChannelToolTheme(isDark);
+		else if (ReferenceEquals(view, _compressorWorkbench)) RefreshCompressorTheme(isDark);
+		else if (ReferenceEquals(view, _multibandCompressorWorkbench)) RefreshMultibandTheme(isDark);
+		else if (ReferenceEquals(view, _deEsserWorkbench)) RefreshDeEsserTheme(isDark);
+		else if (ReferenceEquals(view, _crossfeedWorkbench)) RefreshCrossfeedTheme(isDark);
+		else if (ReferenceEquals(view, _stereoFieldWorkbench)) RefreshStereoFieldTheme(isDark);
+	}
+
+	public void ApplyDspLiquidGlass()
+	{
+		bool isDark = IsDspDark;
+		Background = CreateWhiteAcrylicBrush(0.65, 185);
+		RefreshSidebarVisuals();
+		RefreshInitializedWorkbenchesTheme(isDark);
+		if (_workbenchHost != null)
+		{
+			if (!ReferenceEquals(_workbenchHost.Children.FirstOrDefault(), _parametricEqWorkbench))
+			{
+				LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(_workbenchHost, isDark);
+			}
+			RefreshWorkbenchTextContrast(_workbenchHost, isDark);
+		}
+		else
+		{
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+			RefreshWorkbenchTextContrast(this, isDark);
+		}
+	}
+
+	private void UpgradeAndRefreshWorkbenchVisuals(FrameworkElement view, bool isDark)
+	{
+		if (!ReferenceEquals(view, _parametricEqWorkbench))
+		{
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(view, isDark: isDark);
+			RefreshWorkbenchTextContrast(view, isDark);
+		}
+
+		if (view.IsLoaded) return;
+
+		void OnViewLoaded(object s, RoutedEventArgs e)
+		{
+			view.Loaded -= OnViewLoaded;
+			bool currentDark = IsDspDark;
+			RefreshWorkbenchThemeByView(view, currentDark);
+			if (!ReferenceEquals(view, _parametricEqWorkbench))
+			{
+				LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(view, isDark: currentDark);
+				RefreshWorkbenchTextContrast(view, currentDark);
+			}
+		}
+
+		view.Loaded += OnViewLoaded;
+	}
+
+	private void RefreshWorkbenchTextContrast(DependencyObject? root, bool isDark, bool parentHasLightSolidBg = false)
+	{
+		if (root == null || root is ParametricEqWorkbenchControl) return;
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is ParametricEqWorkbenchControl)
+			{
+				continue;
+			}
+			bool childHasLightBg = parentHasLightSolidBg;
+			if (child is Border b && b.Background is SolidColorBrush bScb && bScb.Color.A >= 160)
+			{
+				double lum = 0.2126 * bScb.Color.R + 0.7152 * bScb.Color.G + 0.0722 * bScb.Color.B;
+				childHasLightBg = lum > 165.0;
+			}
+			else if (child is Border bClear && bClear.Background is LinearGradientBrush)
+			{
+				// LiquidGlass gradient surface follows isDark
+				childHasLightBg = !isDark;
+			}
+
+			bool effectiveDark = isDark && !childHasLightBg;
+
+			if (child is TextBlock tb)
+			{
+				tb.Foreground = RemapNeutralBrush(tb.Foreground, effectiveDark, tb.FontSize >= 14 || tb.FontWeight.Weight >= 600);
+			}
+			else if (child is FontIcon fi)
+			{
+				fi.Foreground = RemapNeutralBrush(fi.Foreground, effectiveDark, isPrimary: false);
+			}
+			else if (child is Control ctrl && child is not TextBox)
+			{
+				if (ctrl.Background is SolidColorBrush bgScb && bgScb.Color.A >= 160)
+				{
+					double lum = 0.2126 * bgScb.Color.R + 0.7152 * bgScb.Color.G + 0.0722 * bgScb.Color.B;
+					childHasLightBg = lum > 165.0;
+					bool isColoredAccent = Math.Max(bgScb.Color.R, Math.Max(bgScb.Color.G, bgScb.Color.B)) - Math.Min(bgScb.Color.R, Math.Min(bgScb.Color.G, bgScb.Color.B)) > 35;
+					if (!isColoredAccent)
+					{
+						ctrl.Foreground = RemapNeutralBrush(ctrl.Foreground, isDark && !childHasLightBg, isPrimary: false);
+					}
+					else if (!childHasLightBg)
+					{
+						// Preserve white/light text inside dark colored accent buttons (e.g. indigo/green primary actions).
+						continue;
+					}
+				}
+				else
+				{
+					if (ctrl.Background is LinearGradientBrush)
+					{
+						childHasLightBg = !isDark;
+					}
+					ctrl.Foreground = RemapNeutralBrush(ctrl.Foreground, isDark && !childHasLightBg, isPrimary: false);
+				}
+			}
+			RefreshWorkbenchTextContrast(child, isDark, childHasLightBg);
+		}
+	}
+
+	private Brush RemapNeutralBrush(Brush? brush, bool isDark, bool isPrimary)
+	{
+		if (brush is not SolidColorBrush scb) return brush!;
+		var c = scb.Color;
+		if (c.A < 200) return brush;
+
+		if (isDark)
+		{
+			// Remap dark slate or dim grey neutral colors to crisp high-contrast dark-mode brushes
+			if (c.R == 15 && c.G == 23 && c.B == 42) return DspTextPrimaryBrush;
+			if (c.R == 30 && c.G == 41 && c.B == 59) return isPrimary ? DspTextPrimaryBrush : DspTextSecondaryBrush;
+			if (c.R == 51 && c.G == 65 && c.B == 85) return DspTextSecondaryBrush;
+			if (c.R == 71 && c.G == 85 && c.B == 105) return DspTextSubHeaderBrush;
+			if (c.R == 100 && c.G == 116 && c.B == 139) return DspTextMutedBrush;
+			if (c.R == 148 && c.G == 163 && c.B == 184) return DspTextMutedBrush;
+			// Any other dark neutral grey/black text on dark glass
+			if (c.R <= 90 && c.G <= 105 && c.B <= 125 && Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B)) <= 45)
+			{
+				return isPrimary ? DspTextPrimaryBrush : DspTextSubHeaderBrush;
+			}
+		}
+		else
+		{
+			if (c.R == 255 && c.G == 255 && c.B == 255) return DspTextPrimaryBrush;
+			if (c.R == 248 && c.G == 250 && c.B == 252) return DspTextPrimaryBrush;
+			if (c.R == 241 && c.G == 245 && c.B == 249) return DspTextSecondaryBrush;
+			if (c.R == 226 && c.G == 232 && c.B == 240) return DspTextSubHeaderBrush;
+			if (c.R == 203 && c.G == 213 && c.B == 225) return DspTextMutedBrush;
+		}
+		return brush;
+	}
+
+	private void RefreshSidebarVisuals()
+	{
+		bool isDark = IsDspDark;
+		if (_sidebarBorder != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_sidebarBorder, LiquidGlassVariant.FloatingBar, isDark: isDark, enablePointerTracking: true);
+		}
+		if (_sidebarDspBadgeTb != null)
+		{
+			_sidebarDspBadgeTb.Foreground = new SolidColorBrush(isDark
+				? Windows.UI.Color.FromArgb(255, 165, 180, 252)
+				: Windows.UI.Color.FromArgb(255, 99, 102, 241));
+		}
+		if (_sidebarBrandTitleTb != null)
+		{
+			_sidebarBrandTitleTb.Foreground = DspTextPrimaryBrush;
+		}
+		if (_sidebarSubtitleTb != null)
+		{
+			_sidebarSubtitleTb.Foreground = DspTextSubHeaderBrush;
+		}
+		Brush sectionBrush = DspTextSubHeaderBrush;
+		foreach (var header in _sidebarSectionHeaders)
+		{
+			header.Foreground = sectionBrush;
+		}
+		if (_sidebarAdvTitle != null)
+		{
+			_sidebarAdvTitle.Foreground = sectionBrush;
+		}
+		if (_sidebarAdvChevron != null)
+		{
+			_sidebarAdvChevron.Foreground = DspTextMutedBrush;
+		}
+		UpdateSidebarNavButtonColors();
+	}
+
+	private void UpdateSidebarNavButtonColors()
+	{
+		bool isDark = IsDspDark;
+		foreach (var btn in _sidebarNavButtons)
+		{
+			bool isSelected = (btn.Tag as string) == _currentDspCategory;
+			if (isSelected)
+			{
+				btn.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: isDark, 0.95);
+				btn.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.AccentLensed, isDark: isDark, isHovered: true, isSelected: true);
+				btn.BorderThickness = new Thickness(1);
+			}
+			else
+			{
+				btn.Background = new SolidColorBrush(Colors.Transparent);
+				btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				btn.BorderThickness = new Thickness(0);
+			}
+
+			if (btn.Content is Grid g)
+			{
+				if (g.Children.Count > 0 && g.Children[0] is FontIcon ic)
+				{
+					ic.Foreground = isSelected
+						? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 224, 231, 255) : Windows.UI.Color.FromArgb(255, 79, 70, 229))
+						: DspTextMutedBrush;
+				}
+				if (g.Children.Count > 1 && g.Children[1] is StackPanel sp)
+				{
+					if (sp.Children.Count > 0 && sp.Children[0] is TextBlock t1)
+					{
+						t1.Foreground = isSelected
+							? new SolidColorBrush(isDark ? Colors.White : Windows.UI.Color.FromArgb(255, 67, 56, 202))
+							: (isDark ? DspTextPrimaryBrush : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)));
+					}
+					if (sp.Children.Count > 1 && sp.Children[1] is TextBlock t2)
+					{
+						t2.Foreground = isSelected
+							? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 224, 231, 255) : Windows.UI.Color.FromArgb(255, 79, 70, 229))
+							: DspTextMutedBrush;
+					}
+				}
+				if (g.Children.Count > 2 && g.Children[2] is FontIcon checkIc)
+				{
+					checkIc.Foreground = new SolidColorBrush(isDark
+						? Windows.UI.Color.FromArgb(255, 74, 222, 128)
+						: Windows.UI.Color.FromArgb(255, 22, 163, 74));
+				}
+			}
+		}
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
@@ -480,9 +902,21 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		PanelLayoutController layout = _layout;
 		layout.LayoutChanged = (Action)Delegate.Combine(layout.LayoutChanged, new Action(SaveLayouts));
+		ActualThemeChanged += (s, e) => ApplyDspLiquidGlass();
+		Loaded += (object _, RoutedEventArgs _) =>
+		{
+			StartDspMeterTimer();
+			if (_currentDspCategory == "param_eq")
+			{
+				StartEqSpectrumTimer();
+			}
+			ApplyDspLiquidGlass();
+		};
 		Unloaded += (object _, RoutedEventArgs _) =>
 		{
 			StopDspMeterTimer();
+			StopEqSpectrumTimer();
+			StopMixAssistantLearnTimer(finalizeIfLearning: true);
 			PanelLayoutController layout2 = _layout;
 			layout2.LayoutChanged = (Action)Delegate.Remove(layout2.LayoutChanged, new Action(SaveLayouts));
 		};
@@ -493,6 +927,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 	{
 		ViewModel = viewModel;
 		DataContext = viewModel;
+		SyncParametricEqWorkbenchFromViewModel();
 	}
 
 	protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -503,16 +938,23 @@ public sealed partial class DspPage : Page, IComponentConnector
 			ViewModel = dspViewModel;
 			DataContext = dspViewModel;
 		}
+		StartDspMeterTimer();
 		DspEq.Gains = ViewModel.EqGains;
 		EqPresetCombo.SelectedIndex = Math.Max(0, Array.IndexOf(PresetNames, ViewModel.EqPresetName));
 		ReverbPresetCombo.SelectedIndex = Math.Max(0, Array.IndexOf(ReverbNames, ViewModel.ReverbPreset));
 		DrawEqCurve(ViewModel.EqGains);
+		SyncParametricEqWorkbenchFromViewModel();
 		RestoreLayouts();
 		UpdateVst3SidebarSubtitle();
 		if (_currentDspCategory != "free")
 		{
 			SetDspViewCategory(_currentDspCategory);
 		}
+		if (_currentDspCategory == "param_eq")
+		{
+			StartEqSpectrumTimer();
+		}
+		ApplyDspLiquidGlass();
 	}
 
 	private void RestoreLayouts(bool forceReset = false)
@@ -737,6 +1179,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 	protected override void OnNavigatedFrom(NavigationEventArgs e)
 	{
 		base.OnNavigatedFrom(e);
+		StopDspMeterTimer();
+		StopEqSpectrumTimer();
+		StopMixAssistantLearnTimer(finalizeIfLearning: true);
 		CloseVst3Editor();
 	}
 
@@ -797,9 +1242,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Vst3PluginState vst3PluginState = ViewModel.Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && string.Equals(p.Path, w.PluginPath, StringComparison.OrdinalIgnoreCase));
 			if (vst3PluginState != null && vst3PluginState.IsActive)
 			{
-				// Keep plugin audio processing active in rack when GUI window is closed
-				vst3PluginState.Bypass = false;
-				ViewModel.ApplyVst3Command.Execute(null);
+				// Keep plugin audio processing active in rack when GUI window is closed without interrupting playback
 				ViewModel.Vst3StatusText = "已关闭《" + vst3PluginState.Name + "》原生窗口：插件仍在机架后台实时处理音频（可随时重新打开界面或停用）";
 				RefreshVst3RackUi();
 			}
@@ -821,7 +1264,6 @@ public sealed partial class DspPage : Page, IComponentConnector
 		catch
 		{
 		}
-		OnVst3EditorClosed(vst3EditorWindow);
 	}
 
 	private void DrawEqCurve(double[] gains)
@@ -918,7 +1360,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(panel, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(panel, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 		var mainGrid = new Grid { RowSpacing = 10 };
 		mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -1354,7 +1796,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240, GridUnitType.Pixel) });
 			rootGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-			var causticBackdrop = LiquidGlassEngine.CreateAmbientCausticCanvas(() => false);
+			var causticBackdrop = LiquidGlassEngine.CreateAmbientCausticCanvas(() => IsDspDark, enablePointLights: false);
 			Grid.SetColumnSpan(causticBackdrop, 2);
 			rootGrid.Children.Add(causticBackdrop);
 
@@ -1387,7 +1829,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(0, 0, 1.2, 0),
 			Padding = new Thickness(12, 16, 12, 12)
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(border, LiquidGlassVariant.FloatingBar, isDark: false, enablePointerTracking: true);
+		_sidebarBorder = border;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(border, LiquidGlassVariant.FloatingBar, isDark: IsDspDark, enablePointerTracking: true);
 
 		var sidebarGrid = new Grid();
 		sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Brand Header
@@ -1396,26 +1839,31 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		// 1. Logo Header
 		var headerStack = new StackPanel { Spacing = 2, Margin = new Thickness(6, 0, 0, 14) };
-		headerStack.Children.Add(new TextBlock
+		_sidebarDspBadgeTb = new TextBlock
 		{
 			Text = "DSP",
 			FontSize = 10,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
-		});
-		headerStack.Children.Add(new TextBlock
+			Foreground = new SolidColorBrush(IsDspDark
+				? Windows.UI.Color.FromArgb(255, 165, 180, 252)
+				: Windows.UI.Color.FromArgb(255, 99, 102, 241))
+		};
+		headerStack.Children.Add(_sidebarDspBadgeTb);
+		_sidebarBrandTitleTb = new TextBlock
 		{
 			Text = "FurinaPlayer",
 			FontSize = 20,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
-		});
-		headerStack.Children.Add(new TextBlock
+			Foreground = DspTextPrimaryBrush
+		};
+		headerStack.Children.Add(_sidebarBrandTitleTb);
+		_sidebarSubtitleTb = new TextBlock
 		{
 			Text = "信号控制",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
-		});
+			Foreground = DspTextSubHeaderBrush
+		};
+		headerStack.Children.Add(_sidebarSubtitleTb);
 		Grid.SetRow(headerStack, 0);
 		sidebarGrid.Children.Add(headerStack);
 
@@ -1429,16 +1877,19 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var itemsStack = new StackPanel { Spacing = 4 };
 		_sidebarNavButtons.Clear();
 
+		_sidebarSectionHeaders.Clear();
 		void AddNavSectionHeader(string title)
 		{
-			itemsStack.Children.Add(new TextBlock
+			var headerTb = new TextBlock
 			{
 				Text = title,
 				FontSize = 11,
 				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
+				Foreground = DspTextSubHeaderBrush,
 				Margin = new Thickness(8, 12, 0, 4)
-			});
+			};
+			_sidebarSectionHeaders.Add(headerTb);
+			itemsStack.Children.Add(headerTb);
 		}
 
 		Button CreateNavButton(string key, string iconGlyph, string title, string subtitle, bool hasCheck = false)
@@ -1464,7 +1915,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				Glyph = iconGlyph,
 				FontSize = 16,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+				Foreground = DspTextMutedBrush,
 				VerticalAlignment = VerticalAlignment.Center
 			};
 			Grid.SetColumn(icon, 0);
@@ -1476,13 +1927,13 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Text = title,
 				FontSize = 13,
 				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+				Foreground = IsDspDark ? DspTextPrimaryBrush : DspTextSecondaryBrush
 			};
 			var subTb = new TextBlock
 			{
 				Text = subtitle,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+				Foreground = DspTextMutedBrush
 			};
 			if (key == "headroom")
 			{
@@ -1524,7 +1975,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 				{
 					Glyph = "\uE73E",
 					FontSize = 12,
-					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)),
+					Foreground = new SolidColorBrush(IsDspDark
+						? Windows.UI.Color.FromArgb(255, 74, 222, 128)
+						: Windows.UI.Color.FromArgb(255, 22, 163, 74)),
 					VerticalAlignment = VerticalAlignment.Center
 				};
 				Grid.SetColumn(checkIcon, 2);
@@ -1536,8 +1989,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				if (s is Button b && b.Tag is string cat && cat != _currentDspCategory)
 				{
-					b.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: false, 0.72);
-					b.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Clear, isDark: false, isHovered: true, isSelected: false);
+					b.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: IsDspDark, 0.72);
+					b.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Clear, isDark: IsDspDark, isHovered: true, isSelected: false);
 					b.BorderThickness = new Thickness(1);
 				}
 			};
@@ -1592,8 +2045,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "高级设置",
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
+		_sidebarAdvTitle = advTitle;
 		Grid.SetColumn(advTitle, 0);
 		advHeaderGrid.Children.Add(advTitle);
 
@@ -1601,8 +2055,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			Glyph = "\uE70D",
 			FontSize = 10,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_sidebarAdvChevron = advChevron;
 		Grid.SetColumn(advChevron, 1);
 		advHeaderGrid.Children.Add(advChevron);
 
@@ -1686,72 +2141,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "Headroom",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 		Grid.SetRow(headerGrid, 0);
 		root.Children.Add(headerGrid);
 
@@ -1767,8 +2161,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var safetyStack = new StackPanel { Spacing = 10 };
 
 		var safetyTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
-		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
+		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
+		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
 		safetyStack.Children.Add(safetyTitleSp);
 
 		var indGrid3 = new Grid { ColumnSpacing = 16 };
@@ -1776,9 +2170,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
-		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
-		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = DspTextSubHeaderBrush };
+		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = DspTextSubHeaderBrush };
+		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = DspTextSubHeaderBrush };
 		Grid.SetColumn(ind1, 0); indGrid3.Children.Add(ind1);
 		Grid.SetColumn(ind2, 1); indGrid3.Children.Add(ind2);
 		Grid.SetColumn(ind3, 2); indGrid3.Children.Add(ind3);
@@ -1793,8 +2187,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		StackPanel MakeMetricBox(string label, string val)
 		{
 			var box = new StackPanel { Spacing = 2 };
-			box.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
+			box.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush });
+			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
 			return box;
 		}
 		var m1 = MakeMetricBox("限幅前", "未知");
@@ -1811,7 +2205,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只需覆盖所报告的阶段。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -1828,8 +2222,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var foldContent = new Border
 		{
 			Visibility = Visibility.Collapsed,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = DspCardBorderBrush,
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 10, 12, 10),
@@ -1837,7 +2231,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				Text = "在 32 位浮点架构下，DSP 信号链内部可保留大于 0 dBFS 的电平余量，不会发生数字硬削波截断。Headroom 控制位于主输出级，可在进入声卡 DAC 之前预留安全的采样间真实峰值 (True Peak) 余量，结合限幅器确保无失真高保真还原。",
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)),
+				Foreground = DspTextSecondaryBrush,
 				TextWrapping = TextWrapping.Wrap
 			}
 		};
@@ -1879,7 +2273,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "动态等响补偿",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(dynLoudTitleTb, 0);
@@ -1938,7 +2332,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "增益",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 
@@ -1960,7 +2354,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = $"{ViewModel?.EchoHeadroomDb ?? -3.0:0.#}",
 			FontSize = 54,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
 		var unitTb = new TextBlock
@@ -1968,7 +2362,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "dB",
 			FontSize = 26,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(0, 0, 0, 8)
 		};
@@ -1982,7 +2376,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			Text = $"×{initRatio:F3}  {initRatio * 100.0:F1}% amplitude",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(2, 0, 0, 10)
 		};
 		gainStack.Children.Add(_headroomAmpRatioTb);
@@ -2003,10 +2397,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Padding = new Thickness(0),
 			HorizontalContentAlignment = HorizontalAlignment.Center,
 			VerticalContentAlignment = VerticalAlignment.Center,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnMinus, "减少 Headroom 增益 0.5 dB");
 		ToolTipService.SetToolTip(btnMinus, "步进减少 0.5 dB (下限 -12 dB)");
@@ -2033,14 +2427,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		scaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		scaleGrid.Children.Add(new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left });
-		var sc2 = new TextBlock { Text = "-6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		scaleGrid.Children.Add(new TextBlock { Text = "-12 dB", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Left });
+		var sc2 = new TextBlock { Text = "-6 dB", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc2, 1); scaleGrid.Children.Add(sc2);
-		var sc3 = new TextBlock { Text = "0 dB", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Center };
+		var sc3 = new TextBlock { Text = "0 dB", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc3, 2); scaleGrid.Children.Add(sc3);
-		var sc4 = new TextBlock { Text = "+6 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		var sc4 = new TextBlock { Text = "+6 dB", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(sc4, 3); scaleGrid.Children.Add(sc4);
-		var sc5 = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Right };
+		var sc5 = new TextBlock { Text = "+12 dB", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Right };
 		Grid.SetColumn(sc5, 4); scaleGrid.Children.Add(sc5);
 		sliderColSp.Children.Add(scaleGrid);
 
@@ -2058,10 +2452,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Padding = new Thickness(0),
 			HorizontalContentAlignment = HorizontalAlignment.Center,
 			VerticalContentAlignment = VerticalAlignment.Center,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnPlus, "增加 Headroom 增益 0.5 dB");
 		ToolTipService.SetToolTip(btnPlus, "步进增加 0.5 dB (上限 +12 dB)");
@@ -2082,14 +2476,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Padding = new Thickness(14, 6, 14, 6),
 				CornerRadius = new CornerRadius(8),
 				BorderThickness = new Thickness(1),
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225))
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225))
 			};
 			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pillBtn, $"快速应用 {label} {targetDb:+0;-0;0} dB");
 			ToolTipService.SetToolTip(pillBtn, $"快速切换至 {label} {targetDb:+0;-0;0} dB");
 			var contentSp = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
-			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center });
-			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Center });
+			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center });
+			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, HorizontalAlignment = HorizontalAlignment.Center });
 			pillBtn.Content = contentSp;
 			pillBtn.Click += (s, e) =>
 			{
@@ -2112,14 +2506,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE7F6", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) }
+					new FontIcon { Glyph = "\uE7F6", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) },
+					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush }
 				}
 			},
 			Padding = new Thickness(14, 8, 14, 8),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1)
 		};
 		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomAuditionBtn, "按住临时直通试听");
@@ -2160,7 +2554,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			Text = "向右提高增益会直接加大音量。还没有峰值读数，安全范围先按不超过 0 dB。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 10, 0, 0)
 		});
 
@@ -2184,7 +2578,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "实时余量",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 
 		rightStack.Children.Add(new TextBlock
@@ -2192,20 +2586,20 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "-- --",
 			FontSize = 38,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			Margin = new Thickness(0, 4, 0, 2)
 		});
 
 		var lampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) };
+		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94)) };
 		lampSp.Children.Add(lampDot);
-		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = DspTextMutedBrush });
 		rightStack.Children.Add(lampSp);
 
 		var recoCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(140, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(160, 248, 250, 252)),
+			BorderBrush = DspCardBorderBrush,
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(16, 14, 16, 14),
@@ -2214,8 +2608,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var recoStack = new StackPanel { Spacing = 8 };
 
 		var recoHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) });
+		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = DspTextSubHeaderBrush });
 		recoStack.Children.Add(recoHeadSp);
 
 		recoStack.Children.Add(new TextBlock
@@ -2223,13 +2617,13 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Text = "保持待命",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		recoStack.Children.Add(new TextBlock
 		{
 			Text = "有 DSP 模块开启，但暂未检测到风险。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -2250,10 +2644,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var btnSetNeg6 = new Button
 		{
 			Content = "设为 -6 dB",
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+			Foreground = DspTextSecondaryBrush,
 			Padding = new Thickness(14, 7, 14, 7),
 			CornerRadius = new CornerRadius(8)
 		};
@@ -2291,25 +2685,61 @@ public sealed partial class DspPage : Page, IComponentConnector
 		budgetHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var budgetHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
-		budgetHeadSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
+		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		_headroomStreamInfoTb = new TextBlock { Text = "等待当前音乐流数据", FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center };
+		budgetHeadSp.Children.Add(_headroomStreamInfoTb);
 		Grid.SetColumn(budgetHeadSp, 0);
 		budgetHeadGrid.Children.Add(budgetHeadSp);
 
 		var btnRefreshBudget = new Button
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) }, new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) } } },
+			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = DspTextMutedBrush }, new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = DspTextSecondaryBrush } } },
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
+		};
+		void UpdateHeadroomTelemetry()
+		{
+			if (_headroomClipCountTb != null)
+			{
+				_headroomClipCountTb.Text = $"{_headroomClipCount} 次";
+				_headroomClipCountTb.Foreground = new SolidColorBrush(_headroomClipCount == 0
+					? Windows.UI.Color.FromArgb(255, 34, 197, 94)
+					: Windows.UI.Color.FromArgb(255, 239, 68, 68));
+			}
+			if (_headroomLastClipTb != null)
+			{
+				_headroomLastClipTb.Text = _headroomLastClipTime.HasValue ? _headroomLastClipTime.Value.ToString("HH:mm:ss") : "无记录";
+				_headroomLastClipTb.Foreground = DspTextSecondaryBrush;
+			}
+			if (_headroomMarginTb != null)
+			{
+				_headroomMarginTb.Text = _headroomAvgMarginDb != 0.0 ? $"{_headroomAvgMarginDb:+0.0;-0.0;0.0} dB" : "--";
+				_headroomMarginTb.Foreground = DspTextSecondaryBrush;
+			}
+			if (_headroomProtectStatusTb != null)
+			{
+				_headroomProtectStatusTb.Text = _headroomClipCount == 0 ? "待命" : "曾削波";
+				_headroomProtectStatusTb.Foreground = new SolidColorBrush(_headroomClipCount == 0
+					? Windows.UI.Color.FromArgb(255, 34, 197, 94)
+					: Windows.UI.Color.FromArgb(255, 239, 68, 68));
+			}
+		}
+
+		btnRefreshBudget.Click += (s, e) =>
+		{
+			_headroomClipCount = 0;
+			_headroomLastClipTime = null;
+			_headroomAvgMarginDb = 0.0;
+			UpdateHeadroomTelemetry();
 		};
 		Grid.SetColumn(btnRefreshBudget, 1);
 		budgetHeadGrid.Children.Add(btnRefreshBudget);
 		budgetStack.Children.Add(budgetHeadGrid);
 
-		var meterScaleGrid = new Grid { Margin = new Thickness(80, 0, 50, 0) };
+		var meterScaleGrid = new Grid { Margin = new Thickness(80, 0, 60, 0) };
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -2317,53 +2747,75 @@ public sealed partial class DspPage : Page, IComponentConnector
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		meterScaleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		meterScaleGrid.Children.Add(new TextBlock { Text = "-24", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left });
-		var ms1 = new TextBlock { Text = "-18", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		meterScaleGrid.Children.Add(new TextBlock { Text = "-24", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Left });
+		var ms1 = new TextBlock { Text = "-18", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms1, 1); meterScaleGrid.Children.Add(ms1);
-		var ms2 = new TextBlock { Text = "-12", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms2 = new TextBlock { Text = "-12", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms2, 2); meterScaleGrid.Children.Add(ms2);
-		var ms3 = new TextBlock { Text = "-6", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms3 = new TextBlock { Text = "-6", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms3, 3); meterScaleGrid.Children.Add(ms3);
-		var ms4 = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
+		var ms4 = new TextBlock { Text = "0", FontSize = 10, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
 		Grid.SetColumn(ms4, 4); meterScaleGrid.Children.Add(ms4);
-		var msUnit = new TextBlock { Text = "dBFS", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), Margin = new Thickness(8, 0, 0, 0) };
+		var msUnit = new TextBlock { Text = "dBFS", FontSize = 10, Foreground = DspTextMutedBrush, Margin = new Thickness(8, 0, 0, 0) };
 		Grid.SetColumn(msUnit, 5); meterScaleGrid.Children.Add(msUnit);
 		budgetStack.Children.Add(meterScaleGrid);
 
-		Grid CreateLedMeterRow(string label)
+		Grid CreateLedMeterRow(string label, out Border fillBar, out TextBlock valTb)
 		{
-			var row = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 2, 0, 2) };
+			var row = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 3, 0, 3) };
 			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80, GridUnitType.Pixel) });
 			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50, GridUnitType.Pixel) });
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60, GridUnitType.Pixel) });
 
-			var lblTb = new TextBlock { Text = label, FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)), VerticalAlignment = VerticalAlignment.Center };
+			var lblTb = new TextBlock { Text = label, FontSize = 12, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 			Grid.SetColumn(lblTb, 0); row.Children.Add(lblTb);
 
-			var segSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-			for (int i = 0; i < 36; i++)
+			var trackContainer = new Grid
 			{
-				var seg = new Border
-				{
-					Width = 8,
-					Height = 14,
-					CornerRadius = new CornerRadius(1),
-					Background = (i == 0)
-						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240))
-				};
-				segSp.Children.Add(seg);
-			}
-			Grid.SetColumn(segSp, 1); row.Children.Add(segSp);
+				Height = 12,
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				VerticalAlignment = VerticalAlignment.Center
+			};
+			var trackBg = new Border
+			{
+				Height = 10,
+				CornerRadius = new CornerRadius(5),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				HorizontalAlignment = HorizontalAlignment.Stretch
+			};
+			trackContainer.Children.Add(trackBg);
 
-			var valTb = new TextBlock { Text = "--", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-			Grid.SetColumn(valTb, 2); row.Children.Add(valTb);
+			var fill = new Border
+			{
+				Height = 10,
+				CornerRadius = new CornerRadius(5),
+				HorizontalAlignment = HorizontalAlignment.Left,
+				Width = 0,
+				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+			};
+			trackContainer.Children.Add(fill);
+			fillBar = fill;
+
+			Grid.SetColumn(trackContainer, 1); row.Children.Add(trackContainer);
+
+			var val = new TextBlock
+			{
+				Text = "--",
+				FontSize = 12,
+				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+				Foreground = DspTextSecondaryBrush,
+				HorizontalAlignment = HorizontalAlignment.Right,
+				VerticalAlignment = VerticalAlignment.Center
+			};
+			Grid.SetColumn(val, 2); row.Children.Add(val);
+			valTb = val;
+
 			return row;
 		}
 
-		budgetStack.Children.Add(CreateLedMeterRow("输入峰值"));
-		budgetStack.Children.Add(CreateLedMeterRow("输出估算"));
-		budgetStack.Children.Add(CreateLedMeterRow("True Peak"));
+		budgetStack.Children.Add(CreateLedMeterRow("输入峰值", out _headroomInMeterFill, out _headroomInMeterValTb));
+		budgetStack.Children.Add(CreateLedMeterRow("输出估算", out _headroomOutMeterFill, out _headroomOutMeterValTb));
+		budgetStack.Children.Add(CreateLedMeterRow("True Peak", out _headroomTpMeterFill, out _headroomTpMeterValTb));
 
 		var statusFoldBtn = new Button
 		{
@@ -2372,7 +2824,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 6, 0, 2),
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium
 		};
 		var statusFoldContent = new Grid { Margin = new Thickness(0, 4, 0, 0), ColumnSpacing = 16 };
@@ -2382,18 +2834,20 @@ public sealed partial class DspPage : Page, IComponentConnector
 		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		statusFoldContent.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		StackPanel MakeStatusStat(string statTitle, string statVal, Windows.UI.Color? col = null)
+		StackPanel MakeStatusStat(string statTitle, string statVal, out TextBlock valOutTb, Windows.UI.Color? col = null)
 		{
 			var sp = new StackPanel { Spacing = 2 };
-			sp.Children.Add(new TextBlock { Text = statTitle, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-			sp.Children.Add(new TextBlock { Text = statVal, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(col ?? Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
+			sp.Children.Add(new TextBlock { Text = statTitle, FontSize = 11, Foreground = DspTextMutedBrush });
+			var valBlock = new TextBlock { Text = statVal, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = col.HasValue ? new SolidColorBrush(col.Value) : DspTextPrimaryBrush };
+			sp.Children.Add(valBlock);
+			valOutTb = valBlock;
 			return sp;
 		}
-		var st1 = MakeStatusStat("保护状态", "待命", Windows.UI.Color.FromArgb(255, 22, 163, 74));
-		var st2 = MakeStatusStat("削波次数", "0 次", Windows.UI.Color.FromArgb(255, 22, 163, 74));
-		var st3 = MakeStatusStat("最近削波", "无记录");
-		var st4 = MakeStatusStat("True Peak", "--");
-		var st5 = MakeStatusStat("实时余量", "--");
+		var st1 = MakeStatusStat("保护状态", "待命", out _headroomProtectStatusTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
+		var st2 = MakeStatusStat("削波次数", "0 次", out _headroomClipCountTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
+		var st3 = MakeStatusStat("最近削波", "无记录", out _headroomLastClipTb);
+		var st4 = MakeStatusStat("True Peak", "--", out _headroomTruePeakTb);
+		var st5 = MakeStatusStat("实时余量", "--", out _headroomMarginTb);
 		Grid.SetColumn(st1, 0); statusFoldContent.Children.Add(st1);
 		Grid.SetColumn(st2, 1); statusFoldContent.Children.Add(st2);
 		Grid.SetColumn(st3, 2); statusFoldContent.Children.Add(st3);
@@ -2437,15 +2891,18 @@ public sealed partial class DspPage : Page, IComponentConnector
 				{
 					bool isMatch = Math.Abs(targetDb - db) < 0.1;
 					btn.Background = isMatch
-						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
+						? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(50, 79, 70, 229)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)))
+						: (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)));
 					btn.BorderBrush = isMatch
 						? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-						: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225));
+						: (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)));
 					if (btn.Content is StackPanel sp && sp.Children.Count >= 2)
 					{
-						if (sp.Children[0] is TextBlock t1) t1.Foreground = new SolidColorBrush(isMatch ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 100, 116, 139));
-						if (sp.Children[1] is TextBlock t2) t2.Foreground = new SolidColorBrush(isMatch ? Windows.UI.Color.FromArgb(255, 79, 70, 229) : Windows.UI.Color.FromArgb(255, 15, 23, 42));
+						var activeMatchBrush = new SolidColorBrush(IsDspDark
+							? Windows.UI.Color.FromArgb(255, 199, 210, 254)
+							: Windows.UI.Color.FromArgb(255, 79, 70, 229));
+						if (sp.Children[0] is TextBlock t1) t1.Foreground = isMatch ? activeMatchBrush : DspTextMutedBrush;
+						if (sp.Children[1] is TextBlock t2) t2.Foreground = isMatch ? activeMatchBrush : DspTextPrimaryBrush;
 					}
 				}
 			}
@@ -2493,1060 +2950,316 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 	private FrameworkElement CreateParametricEqWorkbench()
 	{
-		var root = new Grid
+		_eqWorkbenchControl = new ParametricEqWorkbenchControl
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
-			Padding = new Thickness(24, 20, 24, 20),
-			RowSpacing = 14
+			ShowApplyOfflineDspButton = false,
+			ShowAnalyzeTrackButton = true
 		};
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top title & controls
-		root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) }); // 1: Scrollable workbench body
+		_eqWorkbenchControl.UpdateTheme(IsDspDark);
 
-		// --- 0. Top Title & Quick Actions Row (matching Image 3) ---
-		var topBar = new Grid { ColumnSpacing = 16 };
-		topBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Title + Power
-		topBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Middle spacer / options
-		topBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Preset & Tools & Scale
+		SyncParametricEqWorkbenchFromViewModel();
 
-		var leftTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, VerticalAlignment = VerticalAlignment.Center };
-		var titleTb = new TextBlock
+		_eqWorkbenchControl.BandsChanged += (IReadOnlyList<EchoBiquadFilter> bands) =>
 		{
-			Text = "参数 EQ",
-			FontSize = 22,
-			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), // Slate 900
-			VerticalAlignment = VerticalAlignment.Center
+			if (ViewModel == null || _eqWorkbenchControl == null) return;
+			ViewModel.ApplyParametricEqState(bands, _eqWorkbenchControl.PreampDb, _eqWorkbenchControl.IsEqEnabled, save: true);
+			SyncLegacyFreeEqUiFromViewModel();
 		};
-		leftTitleSp.Children.Add(titleTb);
 
-		var powerSwitch = new ToggleSwitch
+		_eqWorkbenchControl.BandChanged += (int idx, EchoBiquadFilter band) =>
 		{
-			IsOn = ViewModel?.EchoEqEnabled ?? true,
-			OnContent = "",
-			OffContent = "",
-			VerticalAlignment = VerticalAlignment.Center
+			if (ViewModel == null) return;
+			ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
+			ViewModel.SyncEchoEqBand(idx, band, save: true);
+			SyncLegacyFreeEqUiFromViewModel();
 		};
-		powerSwitch.Toggled += (s, e) =>
-		{
-			if (ViewModel != null)
-			{
-				ViewModel.EchoEqEnabled = powerSwitch.IsOn;
-				ViewModel.Engine?.SetEchoEqEnabled(powerSwitch.IsOn);
-			}
-		};
-		leftTitleSp.Children.Add(powerSwitch);
-		Grid.SetColumn(leftTitleSp, 0);
-		topBar.Children.Add(leftTitleSp);
 
-		var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+		_eqWorkbenchControl.PreampChanged += (double db) =>
+		{
+			if (ViewModel == null) return;
+			ViewModel.EchoEqPreampDb = db;
+			ViewModel.Engine?.SetEchoEqPreamp(db);
+			ViewModel.SaveEchoSettings();
+		};
 
-		// Simple / Pro segmented button (White Acrylic styled)
-		var modeBorder = new Border
+		_eqWorkbenchControl.EnabledChanged += (bool en) =>
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(2)
+			if (ViewModel == null) return;
+			ViewModel.EchoEqEnabled = en;
+			ViewModel.Engine?.SetEchoEqEnabled(en);
+			ViewModel.SaveEchoSettings();
 		};
-		var modeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-		var btnSimple = new Button
-		{
-			Content = "Simple",
-			Padding = new Thickness(12, 3, 12, 3),
-			CornerRadius = new CornerRadius(12),
-			FontSize = 12,
-			Background = new SolidColorBrush(Colors.Transparent),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), // Slate 500
-			BorderThickness = new Thickness(0)
-		};
-		var btnPro = new Button
-		{
-			Content = "Pro",
-			Padding = new Thickness(12, 3, 12, 3),
-			CornerRadius = new CornerRadius(12),
-			FontSize = 12,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255)),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), // Slate 900
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			BorderThickness = new Thickness(0)
-		};
-		btnSimple.Click += (s, e) =>
-		{
-			btnSimple.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
-			btnSimple.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42));
-			btnSimple.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-			btnPro.Background = new SolidColorBrush(Colors.Transparent);
-			btnPro.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
-			btnPro.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
-		};
-		btnPro.Click += (s, e) =>
-		{
-			btnPro.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255));
-			btnPro.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42));
-			btnPro.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
-			btnSimple.Background = new SolidColorBrush(Colors.Transparent);
-			btnSimple.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
-			btnSimple.FontWeight = Microsoft.UI.Text.FontWeights.Normal;
-		};
-		modeSp.Children.Add(btnSimple);
-		modeSp.Children.Add(btnPro);
-		modeBorder.Child = modeSp;
-		rightSp.Children.Add(modeBorder);
 
-		// Preset Dropdown (Translucent White Acrylic)
-		var presetCombo = new ComboBox
+		_eqWorkbenchControl.ImportAutoEqRequested += () => _ = ImportAutoEqFileAsync();
+		_eqWorkbenchControl.MixAssistantLearnRequested += OnMixAssistantLearnRequested;
+		_eqWorkbenchControl.MixAssistantAnalyzeAudioRequested += () => _ = OnMixAssistantAnalyzeAudioRequestedAsync();
+		_eqWorkbenchControl.SaveUserPresetRequested += (string name, IReadOnlyList<EchoBiquadFilter> bands, double preampDb) =>
 		{
-			MinWidth = 240,
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			if (ViewModel == null || _eqWorkbenchControl == null) return;
+			ViewModel.ApplyParametricEqState(bands, preampDb, _eqWorkbenchControl.IsEqEnabled, save: true);
+			ViewModel.EqPresetName = name;
+			ViewModel.StatusText = $"已保存自定义 EQ 预设：{name}";
 		};
-		string[] presets = {
-			"平坦 (Flat)",
-			"耳机校正 - Moondrop / Parameter (哈曼目标)",
-			"耳机校正 - Sennheiser HD600 (弥散场优化)",
-			"耳机校正 - Sony WH-1000XM5 (下潜饱满)",
-			"哈曼目标曲线 Harman Target 2019",
-			"低频重低音增强 (Sub-Bass Boost +6dB)",
-			"高频通透空气感 (High Air Brilliance)",
-			"暖声人声突出 (Warm Vocal Presence)",
-			"开阔立体声场 (Open Soundstage)"
-		};
-		foreach (var p in presets) presetCombo.Items.Add(new ComboBoxItem { Content = p });
-		presetCombo.SelectedIndex = 1;
-		presetCombo.SelectionChanged += (s, e) =>
-		{
-			if (presetCombo.SelectedIndex >= 0)
-			{
-				ApplyEqBuiltinPreset(presetCombo.SelectedIndex);
-			}
-		};
-		rightSp.Children.Add(presetCombo);
 
-		// Spectrum button (White Acrylic)
-		var btnSpectrum = new Button
+		_parametricEqWorkbench = new Border
 		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children = { new FontIcon { Glyph = "\uE9D9", FontSize = 14 }, new TextBlock { Text = "频谱", FontSize = 12, VerticalAlignment = VerticalAlignment.Center } }
-			},
-			Padding = new Thickness(10, 4, 10, 4),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+			Child = _eqWorkbenchControl
 		};
-		btnSpectrum.Click += (s, e) =>
-		{
-			if (_eqCurveControl != null)
-			{
-				_eqCurveControl.ShowSpectrum = !_eqCurveControl.ShowSpectrum;
-				btnSpectrum.Background = _eqCurveControl.ShowSpectrum
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(235, 238, 242, 255))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255));
-				btnSpectrum.BorderBrush = _eqCurveControl.ShowSpectrum
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240));
-				btnSpectrum.Foreground = _eqCurveControl.ShowSpectrum
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85));
-			}
-		};
-		rightSp.Children.Add(btnSpectrum);
-
-		// Undo / Redo / Reset buttons
-		var btnUndo = new Button
-		{
-			Content = new FontIcon { Glyph = "\uE7A7", FontSize = 13 },
-			Padding = new Thickness(8, 4, 8, 4),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
-		};
-		var btnRedo = new Button
-		{
-			Content = new FontIcon { Glyph = "\uE7A6", FontSize = 13 },
-			Padding = new Thickness(8, 4, 8, 4),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
-		};
-		var btnResetCurve = new Button
-		{
-			Content = new FontIcon { Glyph = "\uE72C", FontSize = 13 },
-			Padding = new Thickness(8, 4, 8, 4),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
-		};
-		btnResetCurve.Click += (s, e) => ResetEqBandsToFlat();
-		rightSp.Children.Add(btnUndo);
-		rightSp.Children.Add(btnRedo);
-		rightSp.Children.Add(btnResetCurve);
-
-		// Scale Controls: + ±12 dB - | 自动
-		var scaleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
-		var btnZoomIn = new Button
-		{
-			Content = "+",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 12,
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		var tbScale = new TextBlock
-		{
-			Text = "±12 dB",
-			FontSize = 12,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			VerticalAlignment = VerticalAlignment.Center,
-			Margin = new Thickness(6, 0, 6, 0),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) // Slate 900
-		};
-		var btnZoomOut = new Button
-		{
-			Content = "-",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 12,
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		var btnAuto = new Button
-		{
-			Content = "自动",
-			Padding = new Thickness(10, 2, 10, 2),
-			FontSize = 12,
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnZoomIn.Click += (s, e) =>
-		{
-			if (_eqCurveControl != null && _eqCurveControl.DbRange > 6.0)
-			{
-				_eqCurveControl.DbRange -= 6.0;
-				tbScale.Text = $"±{_eqCurveControl.DbRange:F0} dB";
-			}
-		};
-		btnZoomOut.Click += (s, e) =>
-		{
-			if (_eqCurveControl != null && _eqCurveControl.DbRange < 30.0)
-			{
-				_eqCurveControl.DbRange += 6.0;
-				tbScale.Text = $"±{_eqCurveControl.DbRange:F0} dB";
-			}
-		};
-		scaleSp.Children.Add(btnZoomIn);
-		scaleSp.Children.Add(tbScale);
-		scaleSp.Children.Add(btnZoomOut);
-		scaleSp.Children.Add(btnAuto);
-		rightSp.Children.Add(scaleSp);
-
-		Grid.SetColumn(rightSp, 2);
-		topBar.Children.Add(rightSp);
-		Grid.SetRow(topBar, 0);
-		root.Children.Add(topBar);
-
-		// --- 1. Main Workbench Scrollable Content ---
-		var svBody = new ScrollViewer
-		{
-			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
-		};
-		var bodyStack = new StackPanel { Spacing = 14 };
-
-		// A. Large Interactive EQ Curve Display (ParametricEqCurveControl) wrapped in White Acrylic Border
-		_eqCurveControl = new ParametricEqCurveControl
-		{
-			Height = 330,
-			HorizontalAlignment = HorizontalAlignment.Stretch
-		};
-		var curveCard = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(2),
-			Child = _eqCurveControl
-		};
-		if (ViewModel != null)
-		{
-			ViewModel.InitializeEchoEqBands();
-			_eqCurveControl.SetBands(ViewModel.EchoEqBands, 0);
-		}
-		_eqCurveControl.BandSelected += (idx) => SelectEqBand(idx);
-		_eqCurveControl.BandChanged += (idx, freq, gain) => OnCurveBandMoved(idx, freq, gain);
-		bodyStack.Children.Add(curveCard);
-
-		// B. Band Carousel / Horizontal Pill List Row (White Acrylic)
-		var carouselCard = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(16, 12, 16, 12)
-		};
-		var carouselGrid = new Grid();
-		carouselGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Status text & compare
-		carouselGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Horizontal band pills
-
-		var statusRow = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-		statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		statusRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-		var statusLeftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		statusLeftSp.Children.Add(new TextBlock
-		{
-			Text = "● 待确认 余量 -0.0 dB",
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), // Green 600
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-		});
-		statusLeftSp.Children.Add(new TextBlock
-		{
-			Text = "待改前",
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) // Slate 500
-		});
-		statusLeftSp.Children.Add(new TextBlock
-		{
-			Text = "待改后",
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) // Slate 500
-		});
-		Grid.SetColumn(statusLeftSp, 0);
-		statusRow.Children.Add(statusLeftSp);
-
-		var compareRightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
-		var btnAb = new Button
-		{
-			Content = "⇄ A/B 对比",
-			Padding = new Thickness(10, 4, 10, 4),
-			FontSize = 11,
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		var btnLoudness = new Button
-		{
-			Content = "实时等响对比",
-			Padding = new Thickness(10, 4, 10, 4),
-			FontSize = 11,
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		compareRightSp.Children.Add(btnAb);
-		compareRightSp.Children.Add(btnLoudness);
-		Grid.SetColumn(compareRightSp, 1);
-		statusRow.Children.Add(compareRightSp);
-		Grid.SetRow(statusRow, 0);
-		carouselGrid.Children.Add(statusRow);
-
-		// Band Pills
-		var pillsSv = new ScrollViewer { HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalScrollBarVisibility = ScrollBarVisibility.Disabled };
-		_eqBandPillsStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		RefreshBandPills();
-		pillsSv.Content = _eqBandPillsStack;
-		Grid.SetRow(pillsSv, 1);
-		carouselGrid.Children.Add(pillsSv);
-
-		carouselCard.Child = carouselGrid;
-		bodyStack.Children.Add(carouselCard);
-
-		// C. Selected Band Inspector Panel
-		bodyStack.Children.Add(CreateBandInspectorCard());
-
-		// D. Bottom Action Toolbar
-		bodyStack.Children.Add(CreateEqBottomToolbar());
-
-		svBody.Content = bodyStack;
-		Grid.SetRow(svBody, 1);
-		root.Children.Add(svBody);
-
-		_parametricEqWorkbench = new Border { Child = root };
 		return _parametricEqWorkbench;
 	}
 
-	private FrameworkElement CreateBandInspectorCard()
+	private void SyncParametricEqWorkbenchFromViewModel()
 	{
-		var card = new Border
+		if (ViewModel == null || _eqWorkbenchControl == null) return;
+		ViewModel.InitializeEchoEqBands();
+		_eqWorkbenchControl.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+	}
+
+	private void SyncLegacyFreeEqUiFromViewModel()
+	{
+		if (ViewModel == null) return;
+		if (DspEq != null)
 		{
-			Background = CreateAcrylicCardBrush(0.90, 240),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)), // Slate 200 (#E2E8F0)
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 16, 18, 16)
-		};
+			DspEq.Gains = ViewModel.EqGains;
+		}
+		DrawEqCurve(ViewModel.EqGains);
+	}
 
-		var stack = new StackPanel { Spacing = 14 };
-
-		// Row 1: Band badge, Filter Type ComboBox, Enable checkbox, Reset, Delete
-		var row1 = new Grid { ColumnSpacing = 12 };
-		row1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Badge
-		row1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Type combo
-		row1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Spacer
-		row1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Enable & Buttons
-
-		_bandIndexBadge = new TextBlock
+	private float[]? GetLiveSpectrumBands()
+	{
+		try
 		{
-			Text = "01",
-			FontSize = 13,
-			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600
-			VerticalAlignment = VerticalAlignment.Center,
-			HorizontalAlignment = HorizontalAlignment.Center
-		};
-		var badgeBorder = new Border
+			return ViewModel?.Engine?.Session?.GetLiveAudioMeters().Bands;
+		}
+		catch
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)), // Indigo 50 (#EEF2FF)
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), // Indigo 500 (#6366F1)
-			BorderThickness = new Thickness(1.2),
-			CornerRadius = new CornerRadius(14),
-			Width = 32,
-			Height = 32,
-			Child = _bandIndexBadge
-		};
-		Grid.SetColumn(badgeBorder, 0);
-		row1.Children.Add(badgeBorder);
+			return null;
+		}
+	}
 
-		_filterTypeCombo = new ComboBox
+	private void StartEqSpectrumTimer()
+	{
+		if (_currentDspCategory != "param_eq" || _eqWorkbenchControl == null || DispatcherQueue == null)
 		{
-			MinWidth = 150,
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), // Slate 300
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
-		};
-		string[] typeNames = { "低架 (Low Shelf)", "峰值 (Peaking)", "高架 (High Shelf)", "低通 (Low Pass)", "高通 (High Pass)", "带通 (Band Pass)", "陷波 (Notch)" };
-		foreach (var t in typeNames) _filterTypeCombo.Items.Add(new ComboBoxItem { Content = t });
-		_filterTypeCombo.SelectedIndex = 1;
-		_filterTypeCombo.SelectionChanged += OnInspectorFilterTypeChanged;
-		Grid.SetColumn(_filterTypeCombo, 1);
-		row1.Children.Add(_filterTypeCombo);
-
-		var row1RightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		_bandEnableCb = new CheckBox
+			return;
+		}
+		if (_eqSpectrumTimer == null)
 		{
-			Content = "启用此段",
-			IsChecked = true,
-			FontSize = 13,
-			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
-		};
-		_bandEnableCb.Checked += (s, e) => OnInspectorBandEnabledChanged(true);
-		_bandEnableCb.Unchecked += (s, e) => OnInspectorBandEnabledChanged(false);
-		row1RightSp.Children.Add(_bandEnableCb);
-
-		var btnResetBand = new Button
+			_eqSpectrumTimer = DispatcherQueue.CreateTimer();
+			_eqSpectrumTimer.Interval = TimeSpan.FromMilliseconds(50);
+			_eqSpectrumTimer.Tick += OnEqSpectrumTick;
+		}
+		if (!_eqSpectrumTimer.IsRunning)
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "重置此段", FontSize = 12 } } },
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnResetBand.Click += (s, e) => ResetCurrentBand();
-		row1RightSp.Children.Add(btnResetBand);
+			_eqSpectrumTimer.Start();
+		}
+	}
 
-		var btnDeleteBand = new Button
+	private void StopEqSpectrumTimer()
+	{
+		if (_eqSpectrumTimer != null && _eqSpectrumTimer.IsRunning)
 		{
-			Content = new FontIcon { Glyph = "\uE74D", FontSize = 13 },
-			Padding = new Thickness(8, 5, 8, 5),
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 254, 202, 202)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38))
-		};
-		btnDeleteBand.Click += (s, e) => ZeroCurrentBandGain();
-		row1RightSp.Children.Add(btnDeleteBand);
+			_eqSpectrumTimer.Stop();
+		}
+	}
 
-		Grid.SetColumn(row1RightSp, 3);
-		row1.Children.Add(row1RightSp);
-		stack.Children.Add(row1);
-
-		// Row 2: Frequency, Gain, Q Sliders in 3 columns
-		var slidersGrid = new Grid { ColumnSpacing = 24 };
-		slidersGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Freq
-		slidersGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Gain
-		slidersGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Q
-
-		// Freq Column
-		var freqCol = new StackPanel { Spacing = 4 };
-		var freqHead = new Grid();
-		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		freqHead.Children.Add(new TextBlock { Text = "频率 Frequency", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
-		_freqValueTb = new TextBlock { Text = "1000 Hz", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 2, 132, 199)) }; // Sky 600
-		Grid.SetColumn(_freqValueTb, 1);
-		freqHead.Children.Add(_freqValueTb);
-		freqCol.Children.Add(freqHead);
-
-		_freqSlider = new Slider { Minimum = 0, Maximum = 1000, StepFrequency = 1, Value = 500 };
-		_freqSlider.ValueChanged += OnInspectorFreqSliderChanged;
-		freqCol.Children.Add(_freqSlider);
-		Grid.SetColumn(freqCol, 0);
-		slidersGrid.Children.Add(freqCol);
-
-		// Gain Column
-		var gainCol = new StackPanel { Spacing = 4 };
-		var gainHead = new Grid();
-		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		gainHead.Children.Add(new TextBlock { Text = "增益 Gain", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
-		_gainValueTb = new TextBlock { Text = "0.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 88, 12)) }; // Orange 600
-		Grid.SetColumn(_gainValueTb, 1);
-		gainHead.Children.Add(_gainValueTb);
-		gainCol.Children.Add(gainHead);
-
-		_gainSlider = new Slider { Minimum = -18.0, Maximum = 18.0, StepFrequency = 0.1, Value = 0.0 };
-		_gainSlider.ValueChanged += OnInspectorGainSliderChanged;
-		gainCol.Children.Add(_gainSlider);
-		Grid.SetColumn(gainCol, 1);
-		slidersGrid.Children.Add(gainCol);
-
-		// Q Column
-		var qCol = new StackPanel { Spacing = 4 };
-		var qHead = new Grid();
-		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		qHead.Children.Add(new TextBlock { Text = "品质因数 Q", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
-		_qValueTb = new TextBlock { Text = "1.41", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 124, 58, 237)) }; // Violet 600
-		Grid.SetColumn(_qValueTb, 1);
-		qHead.Children.Add(_qValueTb);
-		qCol.Children.Add(qHead);
-
-		_qSlider = new Slider { Minimum = 0.1, Maximum = 10.0, StepFrequency = 0.05, Value = 1.41 };
-		_qSlider.ValueChanged += OnInspectorQSliderChanged;
-		qCol.Children.Add(_qSlider);
-
-		var qTagsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
-		var btnWide = new Button
+	private void OnEqSpectrumTick(DispatcherQueueTimer sender, object args)
+	{
+		if (_currentDspCategory != "param_eq" || _eqWorkbenchControl == null)
 		{
-			Content = "宽 (0.5)",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 10,
-			CornerRadius = new CornerRadius(4),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnWide.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 0.5; };
-		var btnStd = new Button
+			StopEqSpectrumTimer();
+			return;
+		}
+		if (_mixAssistantLearnTimer?.IsRunning == true)
 		{
-			Content = "标准 (1.4)",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 10,
-			CornerRadius = new CornerRadius(4),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnStd.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 1.41; };
-		var btnNarrow = new Button
+			return;
+		}
+		float[]? bands = GetLiveSpectrumBands();
+		if (bands != null && bands.Length > 0)
 		{
-			Content = "窄 (3.0)",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 10,
-			CornerRadius = new CornerRadius(4),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnNarrow.Click += (s, e) => { if (_qSlider != null) _qSlider.Value = 3.0; };
-		qTagsSp.Children.Add(btnWide);
-		qTagsSp.Children.Add(btnStd);
-		qTagsSp.Children.Add(btnNarrow);
-		qCol.Children.Add(qTagsSp);
+			_eqWorkbenchControl.UpdateSpectrum(bands);
+		}
+	}
 
-		Grid.SetColumn(qCol, 2);
-		slidersGrid.Children.Add(qCol);
-		stack.Children.Add(slidersGrid);
+	private void OnMixAssistantLearnRequested(bool isLearning)
+	{
+		if (_eqWorkbenchControl == null) return;
 
-		// Row 3: Preamp, Scope, Snap
-		var row3 = new Grid { ColumnSpacing = 16 };
-		row3.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Snap & Scope
-		row3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Preamp slider
-
-		var scopeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var cbSnap = new CheckBox
+		if (isLearning)
 		{
-			Content = "吸附到标准频点",
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		scopeSp.Children.Add(cbSnap);
-
-		var scopeBorder = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(8),
-			Padding = new Thickness(4, 2, 4, 2)
-		};
-		var scopeInnerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		scopeInnerSp.Children.Add(new TextBlock { Text = "作用域:", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
-		scopeInnerSp.Children.Add(new Button
-		{
-			Content = "立体声",
-			Padding = new Thickness(8, 2, 8, 2),
-			FontSize = 11,
-			CornerRadius = new CornerRadius(4),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600
-			Foreground = new SolidColorBrush(Colors.White),
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-		});
-		scopeInnerSp.Children.Add(new Button { Content = "左", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
-		scopeInnerSp.Children.Add(new Button { Content = "右", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
-		scopeInnerSp.Children.Add(new Button { Content = "中 (M)", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
-		scopeInnerSp.Children.Add(new Button { Content = "侧 (S)", Padding = new Thickness(8, 2, 8, 2), FontSize = 11, CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)), BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)), BorderThickness = new Thickness(1), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
-		scopeBorder.Child = scopeInnerSp;
-		scopeSp.Children.Add(scopeBorder);
-
-		Grid.SetColumn(scopeSp, 0);
-		row3.Children.Add(scopeSp);
-
-		// Preamp controls
-		var preampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
-		preampSp.Children.Add(new TextBlock { Text = "EQ 前级增益:", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
-		_preampSlider = new Slider { Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = ViewModel?.EchoEqPreampDb ?? 0.0, Width = 140, VerticalAlignment = VerticalAlignment.Center };
-		_preampSlider.ValueChanged += (s, e) =>
-		{
-			if (ViewModel != null)
+			if (!_eqWorkbenchControl.MixAssistant.IsLearning)
 			{
-				ViewModel.EchoEqPreampDb = e.NewValue;
-				ViewModel.Engine?.SetEchoEqPreamp(e.NewValue);
-				if (_preampValueTb != null) _preampValueTb.Text = $"{e.NewValue:+0.0;-0.0;0.0} dB";
-				if (_eqCurveControl != null) _eqCurveControl.PreampDb = e.NewValue;
+				_eqWorkbenchControl.MixAssistant.BeginLearning();
 			}
-		};
-		preampSp.Children.Add(_preampSlider);
-		_preampValueTb = new TextBlock { Text = $"{_preampSlider.Value:+0.0;-0.0;0.0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Width = 55, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)), VerticalAlignment = VerticalAlignment.Center };
-		preampSp.Children.Add(_preampValueTb);
-		preampSp.Children.Add(new TextBlock { Text = "合成响应 -0.0 dB (自动补偿提升)", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), VerticalAlignment = VerticalAlignment.Center });
-
-		Grid.SetColumn(preampSp, 1);
-		row3.Children.Add(preampSp);
-		stack.Children.Add(row3);
-
-		card.Child = stack;
-		return card;
+			if (_mixAssistantLearnTimer == null && DispatcherQueue != null)
+			{
+				_mixAssistantLearnTimer = DispatcherQueue.CreateTimer();
+				_mixAssistantLearnTimer.Interval = TimeSpan.FromMilliseconds(60);
+				_mixAssistantLearnTimer.Tick += OnMixAssistantLearnTick;
+			}
+			if (_mixAssistantLearnTimer != null && !_mixAssistantLearnTimer.IsRunning)
+			{
+				_mixAssistantLearnTimer.Start();
+			}
+		}
+		else
+		{
+			StopMixAssistantLearnTimer(finalizeIfLearning: true);
+		}
 	}
 
-	private FrameworkElement CreateEqBottomToolbar()
+	private void OnMixAssistantLearnTick(DispatcherQueueTimer sender, object args)
 	{
-		var bar = new Grid { Margin = new Thickness(0, 4, 0, 0) };
-		bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // Left preset actions
-		bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Right utilities
-
-		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		var btnSaveMod = new Button
+		if (_eqWorkbenchControl == null || !_eqWorkbenchControl.MixAssistant.IsLearning)
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { new FontIcon { Glyph = "\uE74E", FontSize = 13 }, new TextBlock { Text = "保存修改", FontWeight = Microsoft.UI.Text.FontWeights.SemiBold } } },
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), // Indigo 600 (#4F46E5)
-			Foreground = new SolidColorBrush(Colors.White),
-			Padding = new Thickness(16, 6, 16, 6),
-			CornerRadius = new CornerRadius(8)
-		};
-		leftSp.Children.Add(btnSaveMod);
-
-		var tbPresetName = new TextBox
+			StopMixAssistantLearnTimer(finalizeIfLearning: false);
+			return;
+		}
+		float[]? bands = GetLiveSpectrumBands();
+		if (bands != null && bands.Length > 0)
 		{
-			PlaceholderText = "保存为用户预设名称...",
-			Width = 220,
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
-		};
-		leftSp.Children.Add(tbPresetName);
-
-		var btnSavePreset = new Button
-		{
-			Content = "保存到预设",
-			Padding = new Thickness(14, 6, 14, 6),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		leftSp.Children.Add(btnSavePreset);
-		Grid.SetColumn(leftSp, 0);
-		bar.Children.Add(leftSp);
-
-		var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		Button CreateToolBtn(string text) => new Button
-		{
-			Content = text,
-			Padding = new Thickness(10, 6, 10, 6),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-
-		rightSp.Children.Add(CreateToolBtn("🎧 输出配置"));
-		rightSp.Children.Add(CreateToolBtn("❓"));
-		rightSp.Children.Add(CreateToolBtn("🔗 分享曲线"));
-		rightSp.Children.Add(CreateToolBtn("📥 导入分享码"));
-		var btnResetAll = CreateToolBtn("🔄 重置曲线");
-		btnResetAll.Click += (s, e) => ResetEqBandsToFlat();
-		rightSp.Children.Add(btnResetAll);
-
-		var btnImportApo = CreateToolBtn("📁 导入预设 / APO");
-		btnImportApo.Click += OnAutoEqImportClick;
-		rightSp.Children.Add(btnImportApo);
-
-		rightSp.Children.Add(CreateToolBtn("更多工具 ▾"));
-		Grid.SetColumn(rightSp, 1);
-		bar.Children.Add(rightSp);
-
-		return bar;
+			_eqWorkbenchControl.UpdateSpectrum(bands);
+			_eqWorkbenchControl.SetMixAssistantProgress(
+				isLearning: true,
+				progress01: _eqWorkbenchControl.MixAssistant.LearningProgress01,
+				statusText: $"正在学习音频频谱平衡... ({_eqWorkbenchControl.MixAssistant.LearnedFrames} 帧)");
+		}
 	}
 
-	private void RefreshBandPills()
+	private void StopMixAssistantLearnTimer(bool finalizeIfLearning)
 	{
-		if (_eqBandPillsStack == null || ViewModel == null) return;
-		_eqBandPillsStack.Children.Clear();
-
-		var bands = ViewModel.EchoEqBands;
-		int activeIdx = _eqCurveControl?.SelectedBandIndex ?? 0;
-
-		Windows.UI.Color[] pillColors = {
-			Windows.UI.Color.FromArgb(255, 14, 165, 233), // 01 sky
-			Windows.UI.Color.FromArgb(255, 22, 163, 74),  // 02 green
-			Windows.UI.Color.FromArgb(255, 147, 51, 234), // 03 purple
-			Windows.UI.Color.FromArgb(255, 225, 29, 72),  // 04 rose
-			Windows.UI.Color.FromArgb(255, 234, 88, 12),  // 05 orange
-			Windows.UI.Color.FromArgb(255, 202, 138, 4),  // 06 amber
-			Windows.UI.Color.FromArgb(255, 13, 148, 136), // 07 teal
-			Windows.UI.Color.FromArgb(255, 37, 99, 235),  // 08 blue
-			Windows.UI.Color.FromArgb(255, 192, 38, 211), // 09 fuchsia
-			Windows.UI.Color.FromArgb(255, 220, 38, 38)   // 10 red
-		};
-
-		for (int i = 0; i < bands.Count; i++)
+		if (_mixAssistantLearnTimer != null && _mixAssistantLearnTimer.IsRunning)
 		{
-			int bandIndex = i;
-			var band = bands[i];
-			bool isSelected = (bandIndex == activeIdx);
-			var color = pillColors[bandIndex % pillColors.Length];
+			_mixAssistantLearnTimer.Stop();
+		}
+		if (finalizeIfLearning && _eqWorkbenchControl != null && _eqWorkbenchControl.MixAssistant.IsLearning)
+		{
+			MixAssistantProfile profile = _eqWorkbenchControl.MixAssistant.EndLearning();
+			_eqWorkbenchControl.SetMixAssistantProfile(profile, autoApply: true);
+		}
+	}
 
-			var pill = new Button
-			{
-				Tag = bandIndex,
-				Padding = new Thickness(8, 4, 10, 4),
-				CornerRadius = new CornerRadius(16),
-				Background = isSelected
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(45, color.R, color.G, color.B))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-				BorderBrush = isSelected
-					? new SolidColorBrush(color)
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-				BorderThickness = new Thickness(isSelected ? 1.5 : 1)
-			};
+	private async Task OnMixAssistantAnalyzeAudioRequestedAsync()
+	{
+		if (_eqWorkbenchControl == null || _isAnalyzingTrackForMixAssistant)
+		{
+			return;
+		}
 
-			var pillSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-			// Number pill
-			var numBorder = new Border
+		string? filePath = ViewModel?.Engine?.CurrentTrack?.FilePath;
+		if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
+		{
+			_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, "请先加载或播放本地音轨后再进行分析");
+			return;
+		}
+
+		StopMixAssistantLearnTimer(finalizeIfLearning: false);
+		_isAnalyzingTrackForMixAssistant = true;
+		_eqWorkbenchControl.SetMixAssistantProgress(false, 0.12, "正在后台解码并分析当前音轨频谱...");
+
+		try
+		{
+			MixAssistantEngine assistant = _eqWorkbenchControl.MixAssistant;
+			MixAssistantProfile? profile = await Task.Run(() =>
 			{
-				Background = new SolidColorBrush(color),
-				CornerRadius = new CornerRadius(10),
-				Width = 20,
-				Height = 20,
-				Child = new TextBlock
+				using var reader = new SonicWave.Audio.Decoders.SafeAudioFileReader(filePath);
+				int sampleRate = Math.Max(8000, reader.WaveFormat.SampleRate);
+				int channels = Math.Max(1, reader.WaveFormat.Channels);
+				int maxFrames = Math.Min(sampleRate * 45, 2_000_000);
+				int maxSamples = maxFrames * channels;
+				float[] buffer = new float[maxSamples];
+				int totalRead = 0;
+				while (totalRead < maxSamples)
 				{
-					Text = $"{bandIndex + 1:D2}",
-					FontSize = 10,
-					FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-					Foreground = new SolidColorBrush(Colors.White),
-					HorizontalAlignment = HorizontalAlignment.Center,
-					VerticalAlignment = VerticalAlignment.Center
+					int read = reader.Read(buffer, totalRead, maxSamples - totalRead);
+					if (read <= 0) break;
+					totalRead += read;
 				}
-			};
-			pillSp.Children.Add(numBorder);
 
-			string freqText = band.FrequencyHz >= 1000 ? $"{band.FrequencyHz / 1000.0:F1}k" : $"{band.FrequencyHz:F0}";
-			string gainText = $"{band.GainDb:+0.0;-0.0;0.0}";
-			pillSp.Children.Add(new TextBlock
-			{
-				Text = $"{freqText} Hz  {gainText} dB",
-				FontSize = 11,
-				FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Normal,
-				Foreground = new SolidColorBrush(isSelected ? Windows.UI.Color.FromArgb(255, 15, 23, 42) : Windows.UI.Color.FromArgb(255, 51, 65, 85)),
-				VerticalAlignment = VerticalAlignment.Center
+				int alignedSamples = totalRead - (totalRead % channels);
+				if (alignedSamples <= 0)
+				{
+					return (MixAssistantProfile?)null;
+				}
+
+				float[] analyzedSamples = alignedSamples == buffer.Length ? buffer : buffer[..alignedSamples];
+				return assistant.AnalyzeSamples(analyzedSamples, channels, sampleRate);
 			});
 
-			pill.Content = pillSp;
-			pill.Click += (s, e) => SelectEqBand(bandIndex);
-			_eqBandPillsStack.Children.Add(pill);
-		}
+			if (_eqWorkbenchControl == null) return;
 
-		// Add "+" button
-		var btnAddBand = new Button
-		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = "添加频段", FontSize = 11 } } },
-			Padding = new Thickness(8, 4, 10, 4),
-			CornerRadius = new CornerRadius(16),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
-		};
-		btnAddBand.Click += (s, e) => AddNewEqBand();
-		_eqBandPillsStack.Children.Add(btnAddBand);
-	}
-
-	private void SelectEqBand(int idx)
-	{
-		if (ViewModel == null || idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-		if (_eqCurveControl != null)
-		{
-			_eqCurveControl.SelectedBandIndex = idx;
-		}
-
-		UpdateSelectedBandInspector(idx);
-		RefreshBandPills();
-	}
-
-	private void UpdateSelectedBandInspector(int idx)
-	{
-		if (ViewModel == null || idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-		var band = ViewModel.EchoEqBands[idx];
-
-		if (_bandIndexBadge != null) _bandIndexBadge.Text = $"{idx + 1:D2}";
-		if (_bandEnableCb != null) _bandEnableCb.IsChecked = band.Enabled;
-		if (_filterTypeCombo != null) _filterTypeCombo.SelectedIndex = Math.Clamp((int)band.FilterType, 0, 6);
-
-		// Frequency mapping (logarithmic 20 ~ 20000 Hz)
-		if (_freqSlider != null)
-		{
-			double logMin = Math.Log10(20.0);
-			double logMax = Math.Log10(20000.0);
-			double logCur = Math.Log10(Math.Clamp(band.FrequencyHz, 20.0, 20000.0));
-			double sliderVal = ((logCur - logMin) / (logMax - logMin)) * 1000.0;
-			_freqSlider.Value = sliderVal;
-		}
-		if (_freqValueTb != null)
-		{
-			_freqValueTb.Text = band.FrequencyHz >= 1000 ? $"{band.FrequencyHz / 1000.0:F2} kHz" : $"{band.FrequencyHz:F0} Hz";
-		}
-
-		if (_gainSlider != null) _gainSlider.Value = band.GainDb;
-		if (_gainValueTb != null) _gainValueTb.Text = $"{band.GainDb:+0.0;-0.0;0.0} dB";
-
-		if (_qSlider != null) _qSlider.Value = band.Q;
-		if (_qValueTb != null) _qValueTb.Text = $"{band.Q:F2}";
-	}
-
-	private void OnInspectorFreqSliderChanged(object sender, RangeBaseValueChangedEventArgs e)
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		double logMin = Math.Log10(20.0);
-		double logMax = Math.Log10(20000.0);
-		double freq = Math.Pow(10.0, logMin + (e.NewValue / 1000.0) * (logMax - logMin));
-		freq = Math.Clamp(freq, 20.0, 20000.0);
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.FrequencyHz = freq;
-		band.UpdateCoefficients(48000.0);
-
-		if (_freqValueTb != null)
-		{
-			_freqValueTb.Text = freq >= 1000 ? $"{freq / 1000.0:F2} kHz" : $"{freq:F0} Hz";
-		}
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
-	private void OnInspectorGainSliderChanged(object sender, RangeBaseValueChangedEventArgs e)
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.GainDb = e.NewValue;
-		band.UpdateCoefficients(48000.0);
-
-		if (_gainValueTb != null) _gainValueTb.Text = $"{band.GainDb:+0.0;-0.0;0.0} dB";
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
-	private void OnInspectorQSliderChanged(object sender, RangeBaseValueChangedEventArgs e)
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.Q = e.NewValue;
-		band.UpdateCoefficients(48000.0);
-
-		if (_qValueTb != null) _qValueTb.Text = $"{band.Q:F2}";
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-	}
-
-	private void OnInspectorFilterTypeChanged(object sender, SelectionChangedEventArgs e)
-	{
-		if (ViewModel == null || _eqCurveControl == null || _filterTypeCombo == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		int sel = _filterTypeCombo.SelectedIndex;
-		if (sel >= 0 && sel <= 6)
-		{
-			var band = ViewModel.EchoEqBands[idx];
-			band.FilterType = (EchoFilterType)sel;
-			band.UpdateCoefficients(48000.0);
-			_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-			ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		}
-	}
-
-	private void OnInspectorBandEnabledChanged(bool enabled)
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.Enabled = enabled;
-		band.UpdateCoefficients(48000.0);
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
-	private void ResetCurrentBand()
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.GainDb = 0.0;
-		band.Q = 1.414;
-		band.Enabled = true;
-		band.UpdateCoefficients(48000.0);
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		UpdateSelectedBandInspector(idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
-	private void ZeroCurrentBandGain()
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		int idx = _eqCurveControl.SelectedBandIndex;
-		if (idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-
-		var band = ViewModel.EchoEqBands[idx];
-		band.GainDb = 0.0;
-		band.UpdateCoefficients(48000.0);
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, idx);
-		UpdateSelectedBandInspector(idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
-	private void AddNewEqBand()
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		double nextFreq = 1000.0;
-		if (ViewModel.EchoEqBands.Count > 0)
-		{
-			var last = ViewModel.EchoEqBands[^1];
-			nextFreq = Math.Clamp(last.FrequencyHz * 1.5, 20.0, 20000.0);
-		}
-		var newBand = new EchoBiquadFilter
-		{
-			FilterType = EchoFilterType.Peaking,
-			FrequencyHz = nextFreq,
-			GainDb = 0.0,
-			Q = 1.414,
-			Enabled = true
-		};
-		newBand.UpdateCoefficients(48000.0);
-		ViewModel.EchoEqBands.Add(newBand);
-
-		int newIdx = ViewModel.EchoEqBands.Count - 1;
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, newIdx);
-		SelectEqBand(newIdx);
-	}
-
-	private void ResetEqBandsToFlat()
-	{
-		if (ViewModel == null || _eqCurveControl == null) return;
-		foreach (var b in ViewModel.EchoEqBands)
-		{
-			b.GainDb = 0.0;
-			b.Enabled = true;
-			b.UpdateCoefficients(48000.0);
-		}
-		if (ViewModel.Engine != null)
-		{
-			for (int i = 0; i < ViewModel.EchoEqBands.Count; i++)
+			if (profile != null)
 			{
-				var b = ViewModel.EchoEqBands[i];
-				ViewModel.Engine.SetEchoEqBand(i, b.FilterType, b.FrequencyHz, b.GainDb, b.Q, b.Enabled);
+				_eqWorkbenchControl.SetMixAssistantProfile(profile, autoApply: true);
+			}
+			else
+			{
+				_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, "未能从当前音轨读取有效的音频采样数据");
 			}
 		}
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, _eqCurveControl.SelectedBandIndex);
-		UpdateSelectedBandInspector(_eqCurveControl.SelectedBandIndex);
-		RefreshBandPills();
+		catch (Exception ex)
+		{
+			_eqWorkbenchControl?.SetMixAssistantProgress(false, 0.0, $"音轨分析失败：{ex.Message}");
+		}
+		finally
+		{
+			_isAnalyzingTrackForMixAssistant = false;
+		}
+	}
+
+	private async Task ImportAutoEqFileAsync()
+	{
+		try
+		{
+			if (ViewModel == null) return;
+
+			var picker = new FileOpenPicker
+			{
+				FileTypeFilter = { ".txt", ".csv" },
+				SuggestedStartLocation = PickerLocationId.ComputerFolder
+			};
+			nint windowHandle = WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
+			InitializeWithWindow.Initialize(picker, windowHandle);
+			var file = await picker.PickSingleFileAsync();
+			if (file != null)
+			{
+				string text = await FileIO.ReadTextAsync(file);
+				bool ok = ViewModel.ImportAutoEqText(text);
+				if (ok)
+				{
+					_eqWorkbenchControl?.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+					SyncLegacyFreeEqUiFromViewModel();
+					await new ContentDialog
+					{
+						Title = "AutoEq 耳机校准曲线载入成功",
+						Content = $"已从 {file.Name} 成功导入并解析 {ViewModel.EchoEqBands.Count} 段 ParametricEQ 滤波器（前级增益 {ViewModel.EchoEqPreampDb:F1} dB）。",
+						CloseButtonText = "好",
+						XamlRoot = XamlRoot
+					}.ShowAsync();
+				}
+				else
+				{
+					await new ContentDialog
+					{
+						Title = "导入未完全匹配",
+						Content = "文件未包含标准 AutoEq 参数，请确认是否为包含 Preamp / Filter 的 ParametricEQ 文本。",
+						CloseButtonText = "知道了",
+						XamlRoot = XamlRoot
+					}.ShowAsync();
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Debug.WriteLine("AutoEq import error: " + ex.Message);
+		}
 	}
 
 	private void ApplyEqBuiltinPreset(int presetIdx)
 	{
-		if (ViewModel == null || _eqCurveControl == null) return;
+		if (ViewModel == null) return;
 		ViewModel.InitializeEchoEqBands();
-		var bands = ViewModel.EchoEqBands;
 
-		// Standard 10 band gains for presets
 		double[] gains = presetIdx switch
 		{
 			1 => new double[] { 5.5, 4.8, 1.5, -0.5, 0.0, 0.5, 2.5, 4.0, 1.0, -2.0 }, // Moondrop / Harman Target
@@ -3560,76 +3273,30 @@ public sealed partial class DspPage : Page, IComponentConnector
 			_ => new double[10] // Flat
 		};
 
-		for (int i = 0; i < Math.Min(bands.Count, gains.Length); i++)
+		var updatedBands = new List<EchoBiquadFilter>(ViewModel.EchoEqBands.Count);
+		for (int i = 0; i < ViewModel.EchoEqBands.Count; i++)
 		{
-			bands[i].GainDb = gains[i];
-			bands[i].Enabled = true;
-			bands[i].UpdateCoefficients(48000.0);
-			ViewModel.Engine?.SetEchoEqBand(i, bands[i].FilterType, bands[i].FrequencyHz, bands[i].GainDb, bands[i].Q, bands[i].Enabled);
+			EchoBiquadFilter src = ViewModel.EchoEqBands[i];
+			updatedBands.Add(new EchoBiquadFilter
+			{
+				FilterType = src.FilterType,
+				FrequencyHz = src.FrequencyHz,
+				GainDb = i < gains.Length ? gains[i] : src.GainDb,
+				Q = src.Q,
+				Enabled = true
+			});
 		}
 
-		_eqCurveControl.SetBands(ViewModel.EchoEqBands, _eqCurveControl.SelectedBandIndex);
-		UpdateSelectedBandInspector(_eqCurveControl.SelectedBandIndex);
-		RefreshBandPills();
+		ViewModel.ApplyParametricEqState(updatedBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled, save: true);
+		_eqWorkbenchControl?.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+		SyncLegacyFreeEqUiFromViewModel();
 	}
-
-	private void OnCurveBandMoved(int idx, double freq, double gain)
-	{
-		if (ViewModel == null || idx < 0 || idx >= ViewModel.EchoEqBands.Count) return;
-		var band = ViewModel.EchoEqBands[idx];
-		band.FrequencyHz = freq;
-		band.GainDb = gain;
-		band.UpdateCoefficients(48000.0);
-
-		UpdateSelectedBandInspector(idx);
-		ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-		RefreshBandPills();
-	}
-
 	public void SelectDspCategory(string category)
 	{
 		_currentDspCategory = category;
 
 		// Highlight matching button in sidebar
-		foreach (var btn in _sidebarNavButtons)
-		{
-			if (btn.Tag is string key)
-			{
-				bool isSelected = (key == category);
-				btn.Background = isSelected
-					? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: false, 0.95)
-					: new SolidColorBrush(Colors.Transparent);
-				btn.BorderBrush = isSelected
-					? LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.AccentLensed, isDark: false, isHovered: true, isSelected: true)
-					: new SolidColorBrush(Colors.Transparent);
-				btn.BorderThickness = new Thickness(isSelected ? 1 : 0);
-
-				if (btn.Content is Grid g)
-				{
-					if (g.Children.Count > 0 && g.Children[0] is FontIcon ic)
-					{
-						ic.Foreground = isSelected
-							? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) // Indigo 600
-							: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)); // Slate 500
-					}
-					if (g.Children.Count > 1 && g.Children[1] is StackPanel sp)
-					{
-						if (sp.Children.Count > 0 && sp.Children[0] is TextBlock t1)
-						{
-							t1.Foreground = isSelected
-								? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-								: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)); // Slate 800
-						}
-						if (sp.Children.Count > 1 && sp.Children[1] is TextBlock t2)
-						{
-							t2.Foreground = isSelected
-								? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241))
-								: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
-						}
-					}
-				}
-			}
-		}
+		UpdateSidebarNavButtonColors();
 
 		if (_workbenchHost == null) return;
 		_workbenchHost.Children.Clear();
@@ -3661,8 +3328,21 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		Grid.SetRow(activeView, 0);
 		Grid.SetColumn(activeView, 0);
-		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(activeView, isDark: false);
 		_workbenchHost.Children.Add(activeView);
+
+		bool isDark = IsDspDark;
+		RefreshWorkbenchThemeByView(activeView, isDark);
+		UpgradeAndRefreshWorkbenchVisuals(activeView, isDark);
+		if (ReferenceEquals(activeView, _parametricEqWorkbench))
+		{
+			SyncParametricEqWorkbenchFromViewModel();
+			StartEqSpectrumTimer();
+		}
+		else
+		{
+			StopEqSpectrumTimer();
+			StopMixAssistantLearnTimer(finalizeIfLearning: true);
+		}
 		if (category == "vst3")
 		{
 			RefreshVst3RackUi();
@@ -3701,7 +3381,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		innerCard.BorderBrush = CreateLiquidGlassRimBrush();
 		innerCard.BorderThickness = new Thickness(1);
 		innerCard.CornerRadius = new CornerRadius(12);
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(innerCard, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(innerCard, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 		var card = new Border
 		{
@@ -3726,7 +3406,19 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (Vst3PluginsList != null)
 			{
 				Vst3PluginsList.MinWidth = 650;
+				Vst3PluginsList.Height = double.NaN;
+				Vst3PluginsList.MaxHeight = double.PositiveInfinity;
+				Vst3PluginsList.MinHeight = 240;
+				Vst3PluginsList.VerticalAlignment = VerticalAlignment.Stretch;
 				Vst3PluginsList.Padding = new Thickness(0, 0, 16, 0);
+				if (VisualTreeHelper.GetParent(Vst3PluginsList) is Grid parentGrid && parentGrid.RowDefinitions.Count > 0)
+				{
+					int row = Grid.GetRow(Vst3PluginsList);
+					if (row >= 0 && row < parentGrid.RowDefinitions.Count)
+					{
+						parentGrid.RowDefinitions[row].Height = new GridLength(1.0, GridUnitType.Star);
+					}
+				}
 				Vst3PluginsList.ContainerContentChanging -= OnVst3PluginsContainerContentChanging;
 				Vst3PluginsList.ContainerContentChanging += OnVst3PluginsContainerContentChanging;
 			}
@@ -3847,52 +3539,185 @@ public sealed partial class DspPage : Page, IComponentConnector
 			}
 		}
 		catch {}
+
+		UpdateHeadroomTelemetry();
+	}
+
+	private void UpdateHeadroomTelemetry()
+	{
+		try
+		{
+			var session = SonicWave.Audio.AudioSession.Instance;
+			var engine = ViewModel?.AudioEngine ?? ViewModel?.Engine;
+			var track = session?.CurrentTrack ?? engine?.CurrentTrack;
+
+			// 1. Current Track Path & Title
+			if (track != null && !string.IsNullOrWhiteSpace(track.FilePath))
+			{
+				string fileName = System.IO.Path.GetFileName(track.FilePath);
+				string title = !string.IsNullOrWhiteSpace(track.DisplayTitle)
+					? track.DisplayTitle
+					: (!string.IsNullOrWhiteSpace(track.Title) ? track.Title : fileName);
+
+				if (_headroomStreamInfoTb != null)
+				{
+					_headroomStreamInfoTb.Text = $"{title}  ·  {fileName}";
+				}
+			}
+			else
+			{
+				if (_headroomStreamInfoTb != null)
+				{
+					_headroomStreamInfoTb.Text = "等待当前音乐流数据";
+				}
+			}
+
+			// 2. Playback state
+			bool isPlaying = (session?.State == SonicWave.Audio.PlaybackState.Playing) ||
+			                 (engine?.State == SonicWave.Audio.PlaybackState.Playing);
+
+			if (!isPlaying)
+			{
+				UpdateHeadroomMeterRow(_headroomInMeterFill, _headroomInMeterValTb, -90.0);
+				UpdateHeadroomMeterRow(_headroomOutMeterFill, _headroomOutMeterValTb, -90.0);
+				UpdateHeadroomMeterRow(_headroomTpMeterFill, _headroomTpMeterValTb, -90.0);
+				if (_headroomTruePeakTb != null) _headroomTruePeakTb.Text = "--";
+				if (_headroomMarginTb != null) _headroomMarginTb.Text = "--";
+				if (_headroomProtectStatusTb != null)
+				{
+					_headroomProtectStatusTb.Text = "待命";
+					_headroomProtectStatusTb.Foreground = DspTextMutedBrush;
+				}
+				return;
+			}
+
+			// 3. Audio Meters from AudioSession.Instance or Engine
+			var meters = session?.GetLiveAudioMeters() ?? engine?.GetLiveAudioMeters() ?? (-90.0, -90.0, Array.Empty<float>(), 0f, 1f, Array.Empty<float>());
+
+			double inPeak = session?.LatestInputPeakDb ?? engine?.LatestInputPeakDb ?? meters.PeakDb;
+			double outPeak = meters.PeakDb;
+			double truePeak = session?.LatestTruePeakDb ?? engine?.LatestTruePeakDb ?? (outPeak > -60.0 ? outPeak + 0.3 : -90.0);
+
+			if (inPeak <= -60.0 && outPeak > -60.0) inPeak = outPeak;
+
+			// Update 3 dB Progress Bars (Fill width & text)
+			UpdateHeadroomMeterRow(_headroomInMeterFill, _headroomInMeterValTb, inPeak);
+			UpdateHeadroomMeterRow(_headroomOutMeterFill, _headroomOutMeterValTb, outPeak);
+			UpdateHeadroomMeterRow(_headroomTpMeterFill, _headroomTpMeterValTb, truePeak);
+
+			// 4. Overload / Clipping detection
+			if (outPeak >= -0.05 || truePeak >= -0.05)
+			{
+				_headroomClipCount++;
+				_headroomLastClipTime = DateTime.Now;
+			}
+
+			// 5. Margin & Average Margin
+			double peakForMargin = Math.Max(outPeak, truePeak);
+			double margin = peakForMargin > -60.0 ? -peakForMargin : 0.0;
+			if (margin < 0.0) margin = 0.0;
+			_headroomAvgMarginDb = _headroomAvgMarginDb <= 0.0 ? margin : (_headroomAvgMarginDb * 0.9 + margin * 0.1);
+
+			bool headroomEnabled = ViewModel?.EchoHeadroomEnabled ?? true;
+
+			// 6. Update Status Foldout Stats
+			if (_headroomClipCountTb != null)
+			{
+				_headroomClipCountTb.Text = $"{_headroomClipCount} 次";
+				_headroomClipCountTb.Foreground = _headroomClipCount > 0
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68))
+					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74));
+			}
+
+			if (_headroomLastClipTb != null)
+			{
+				_headroomLastClipTb.Text = _headroomLastClipTime.HasValue
+					? _headroomLastClipTime.Value.ToString("HH:mm:ss")
+					: "无记录";
+			}
+
+			if (_headroomTruePeakTb != null)
+			{
+				_headroomTruePeakTb.Text = truePeak > -60.0 ? $"{truePeak:F1} dBTP" : "--";
+				_headroomTruePeakTb.Foreground = truePeak >= 0.0
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68))
+					: (truePeak >= -1.0 ? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11)) : DspTextPrimaryBrush);
+			}
+
+			if (_headroomMarginTb != null)
+			{
+				_headroomMarginTb.Text = outPeak > -60.0 ? $"{_headroomAvgMarginDb:F1} dB" : "--";
+				_headroomMarginTb.Foreground = _headroomAvgMarginDb < 1.0
+					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11))
+					: DspTextPrimaryBrush;
+			}
+
+			if (_headroomProtectStatusTb != null)
+			{
+				if (!headroomEnabled)
+				{
+					_headroomProtectStatusTb.Text = "已旁路";
+					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11));
+				}
+				else if (_headroomClipCount > 0)
+				{
+					_headroomProtectStatusTb.Text = "检测到过载";
+					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68));
+				}
+				else
+				{
+					_headroomProtectStatusTb.Text = "运行正常";
+					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94));
+				}
+			}
+		}
+		catch
+		{
+		}
+	}
+
+	private void UpdateHeadroomMeterRow(Border? fillBar, TextBlock? valTb, double peakDb)
+	{
+		if (fillBar == null || valTb == null) return;
+
+		if (peakDb <= -60.0)
+		{
+			fillBar.Width = 0;
+			valTb.Text = "--";
+			valTb.Foreground = DspTextMutedBrush;
+			return;
+		}
+
+		valTb.Text = $"{peakDb:+0.0;-0.0;0.0} dB";
+
+		// Scale from -24.0 dBFS to 0.0 dBFS
+		double ratio = Math.Clamp((peakDb - (-24.0)) / 24.0, 0.0, 1.0);
+		double containerW = (fillBar.Parent is FrameworkElement parent && parent.ActualWidth > 0)
+			? parent.ActualWidth
+			: 360.0;
+
+		fillBar.Width = Math.Max(0, ratio * containerW);
+
+		if (peakDb >= 0.0)
+		{
+			fillBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68)); // Red (Clip)
+			valTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38));
+		}
+		else if (peakDb >= -3.0)
+		{
+			fillBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11)); // Amber (Hot)
+			valTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 217, 119, 6));
+		}
+		else
+		{
+			fillBar.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)); // Indigo (Normal)
+			valTb.Foreground = DspTextPrimaryBrush;
+		}
 	}
 
 	private async void OnAutoEqImportClick(object sender, RoutedEventArgs e)
 	{
-		try
-		{
-			var picker = new FileOpenPicker
-			{
-				FileTypeFilter = { ".txt", ".csv" },
-				SuggestedStartLocation = PickerLocationId.ComputerFolder
-			};
-			nint windowHandle = WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
-			InitializeWithWindow.Initialize(picker, windowHandle);
-			var file = await picker.PickSingleFileAsync();
-			if (file != null)
-			{
-				string text = await FileIO.ReadTextAsync(file);
-				bool ok = ViewModel.ImportAutoEqText(text);
-				if (ok)
-				{
-					DspEq.Gains = ViewModel.EqGains;
-					DrawEqCurve(ViewModel.EqGains);
-					await new ContentDialog
-					{
-						Title = "AutoEq 耳机校准曲线载入成功",
-						Content = $"已从 {file.Name} 成功导入并解析 ParametricEQ 参数，10段专业均衡器已完成耳机频响修正！",
-						CloseButtonText = "好",
-						XamlRoot = XamlRoot
-					}.ShowAsync();
-				}
-				else
-				{
-					await new ContentDialog
-					{
-						Title = "导入未完全匹配",
-						Content = "文件未包含标准 AutoEq 参数，请确认是否为包含 Preamp / Filter 的 ParametricEQ 文本。",
-						CloseButtonText = "知道了",
-						XamlRoot = XamlRoot
-					}.ShowAsync();
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			Debug.WriteLine("AutoEq import error: " + ex.Message);
-		}
+		await ImportAutoEqFileAsync();
 	}
 
 	private async void OnConvolutionImportClick(object sender, RoutedEventArgs e)

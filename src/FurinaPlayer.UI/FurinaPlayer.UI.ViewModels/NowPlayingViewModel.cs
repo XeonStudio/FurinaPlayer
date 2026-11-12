@@ -32,7 +32,11 @@ public class NowPlayingViewModel : ObservableObject
 
 	private readonly SettingsService? _settingsService;
 
-	private readonly DispatcherQueue? _uiDispatcher;
+	private static readonly System.Net.Http.HttpClient s_coverHttp = new() { Timeout = TimeSpan.FromSeconds(10) };
+
+	private long _lastDurationProbeTicks;
+
+	private DispatcherQueue? _uiDispatcher;
 
 	private bool _positionSliderDragging;
 
@@ -678,7 +682,14 @@ public class NowPlayingViewModel : ObservableObject
 		}
 		_uiDispatcher.TryEnqueue(() =>
 		{
-			action();
+			try
+			{
+				action();
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"NowPlayingViewModel RunOnUiThread error: {ex.Message}");
+			}
 		});
 	}
 
@@ -734,26 +745,7 @@ public class NowPlayingViewModel : ObservableObject
 
 	public void Initialize()
 	{
-		IsVlcAvailable = _engine.IsVlcAvailable;
-		Volume = _engine.Volume;
-		IsPlaying = _engine.State == PlaybackState.Playing;
-		ModeText = _engine.Mode switch
-		{
-			PlaybackMode.Sequential => "顺序播放", 
-			PlaybackMode.RepeatOne => "单曲循环", 
-			PlaybackMode.RepeatAll => "列表循环", 
-			PlaybackMode.Shuffle => "随机播放", 
-			_ => "顺序播放", 
-		};
-		if (CurrentTrack == null && _engine.CurrentTrack != null)
-		{
-			OnTrackChanged(_engine.CurrentTrack);
-			Position = _engine.Position;
-			if (Duration.TotalSeconds > 0.0)
-			{
-				PositionPercent = Position.TotalSeconds / Duration.TotalSeconds * 100.0;
-			}
-		}
+		SyncWithEngine();
 		if (!string.IsNullOrEmpty(StatusMessage))
 		{
 			return;
@@ -779,11 +771,94 @@ public class NowPlayingViewModel : ObservableObject
 		}
 	}
 
+	/// <summary>
+	/// Synchronizes ViewModel track, state, and position properties with the underlying audio engine.
+	/// </summary>
+	public void SyncWithEngine()
+	{
+		DispatcherQueue? currentDispatcher = DispatcherQueue.GetForCurrentThread();
+		if (_uiDispatcher == null && currentDispatcher != null)
+		{
+			_uiDispatcher = currentDispatcher;
+		}
+
+		IsVlcAvailable = _engine.IsVlcAvailable;
+		Volume = _engine.Volume;
+		IsPlaying = _engine.State == PlaybackState.Playing;
+		ModeText = _engine.Mode switch
+		{
+			PlaybackMode.Sequential => "顺序播放", 
+			PlaybackMode.RepeatOne => "单曲循环", 
+			PlaybackMode.RepeatAll => "列表循环", 
+			PlaybackMode.Shuffle => "随机播放", 
+			_ => "顺序播放", 
+		};
+
+		Track? engineTrack = _engine.CurrentTrack;
+		bool trackMismatch = engineTrack != null && (CurrentTrack == null ||
+			CurrentTrack.Id != engineTrack.Id ||
+			!string.Equals(CurrentTrack.FilePath, engineTrack.FilePath, StringComparison.Ordinal));
+		if (trackMismatch)
+		{
+			OnTrackChanged(engineTrack);
+		}
+		else if (engineTrack == null && CurrentTrack != null)
+		{
+			OnTrackChanged(null);
+		}
+		else if (engineTrack != null)
+		{
+			if (Duration <= TimeSpan.Zero && _engine.Duration > TimeSpan.Zero)
+			{
+				Duration = _engine.Duration;
+			}
+			else if (Duration <= TimeSpan.Zero && engineTrack.DurationMilliseconds > 0)
+			{
+				Duration = TimeSpan.FromMilliseconds(engineTrack.DurationMilliseconds);
+			}
+			if (!string.IsNullOrEmpty(engineTrack.CoverPath) &&
+			    !string.Equals(CoverPath, engineTrack.CoverPath, StringComparison.Ordinal))
+			{
+				CoverPath = engineTrack.CoverPath;
+			}
+			if (string.IsNullOrEmpty(Title) && !string.IsNullOrEmpty(engineTrack.DisplayTitle))
+			{
+				Title = engineTrack.DisplayTitle;
+			}
+			if (string.IsNullOrEmpty(Artist) && !string.IsNullOrEmpty(engineTrack.Artist))
+			{
+				Artist = engineTrack.Artist;
+			}
+			if (string.IsNullOrEmpty(Album) && !string.IsNullOrEmpty(engineTrack.Album))
+			{
+				Album = engineTrack.Album;
+			}
+		}
+
+		if (engineTrack != null)
+		{
+			Position = _engine.Position;
+			if (Duration.TotalSeconds > 0.0)
+			{
+				PositionPercent = Position.TotalSeconds / Duration.TotalSeconds * 100.0;
+			}
+		}
+	}
+
 	private void OnTrackChanged(Track? track)
 	{
 		RunOnUiThread(() =>
 		{
-			bool isSameTrack = track != null && CurrentTrack != null && CurrentTrack.Id == track.Id;
+			Track? authoritative = _engine.CurrentTrack;
+			if (authoritative != null && (track == null || authoritative.Id != track.Id ||
+			    !string.Equals(authoritative.FilePath, track.FilePath, StringComparison.Ordinal)))
+			{
+				track = authoritative;
+			}
+
+			bool isSameTrack = track != null && CurrentTrack != null &&
+				CurrentTrack.Id == track.Id &&
+				string.Equals(CurrentTrack.FilePath, track.FilePath, StringComparison.Ordinal);
 			bool wasReferenceEqual = ReferenceEquals(currentTrack, track);
 			if (track != null && track.DurationMilliseconds <= 0 && _engine.Duration.TotalMilliseconds > 0)
 			{
@@ -864,8 +939,7 @@ public class NowPlayingViewModel : ObservableObject
 			{
 				try
 				{
-					using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-					var bytes = await hc.GetByteArrayAsync(onlineUrl);
+					var bytes = await s_coverHttp.GetByteArrayAsync(onlineUrl);
 					if (bytes != null && bytes.Length > 0)
 					{
 						await File.WriteAllBytesAsync(streamCacheFile, bytes);
@@ -891,9 +965,10 @@ public class NowPlayingViewModel : ObservableObject
 			{
 				try
 				{
-					using var hc = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-					hc.DefaultRequestHeaders.Referrer = new Uri("http://music.163.com/");
-					string detailJson = await hc.GetStringAsync($"http://music.163.com/api/song/detail/?id={absId}&ids=[{absId}]");
+					using var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, $"http://music.163.com/api/song/detail/?id={absId}&ids=[{absId}]");
+					req.Headers.Referrer = new Uri("http://music.163.com/");
+					using var resp = await s_coverHttp.SendAsync(req);
+					string detailJson = await resp.Content.ReadAsStringAsync();
 					using var doc = System.Text.Json.JsonDocument.Parse(detailJson);
 					if (doc.RootElement.TryGetProperty("songs", out var songsArr) && songsArr.GetArrayLength() > 0)
 					{
@@ -914,7 +989,7 @@ public class NowPlayingViewModel : ObservableObject
 							{
 								fetchedPic = "https://" + fetchedPic[7..];
 							}
-							var imgBytes = await hc.GetByteArrayAsync(fetchedPic);
+							var imgBytes = await s_coverHttp.GetByteArrayAsync(fetchedPic);
 							if (imgBytes != null && imgBytes.Length > 0)
 							{
 								await File.WriteAllBytesAsync(streamCacheFile, imgBytes);
@@ -1002,14 +1077,23 @@ public class NowPlayingViewModel : ObservableObject
 	{
 		RunOnUiThread(() =>
 		{
-			if (Duration <= TimeSpan.Zero && _engine.Duration > TimeSpan.Zero)
+			if (Duration <= TimeSpan.Zero)
 			{
-				Duration = _engine.Duration;
-				if (CurrentTrack != null && CurrentTrack.DurationMilliseconds <= 0)
+				long nowTicks = Environment.TickCount64;
+				if (nowTicks - _lastDurationProbeTicks >= 500)
 				{
-					CurrentTrack.DurationMilliseconds = (long)_engine.Duration.TotalMilliseconds;
+					_lastDurationProbeTicks = nowTicks;
+					TimeSpan engDur = _engine.Duration;
+					if (engDur > TimeSpan.Zero)
+					{
+						Duration = engDur;
+						if (CurrentTrack != null && CurrentTrack.DurationMilliseconds <= 0)
+						{
+							CurrentTrack.DurationMilliseconds = (long)engDur.TotalMilliseconds;
+						}
+						OnPropertyChanged(__KnownINotifyPropertyChangedArgs.CurrentTrack);
+					}
 				}
-				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.CurrentTrack);
 			}
 			if (!_positionSliderDragging)
 			{
@@ -1325,17 +1409,25 @@ public class NowPlayingViewModel : ObservableObject
 
 	private (int Cur, int Next) LyricIndices(TimeSpan pos)
 	{
+		int count = LyricLines.Count;
+		int lo = 0;
+		int hi = count - 1;
 		int item = -1;
-		for (int i = 0; i < LyricLines.Count; i++)
+		while (lo <= hi)
 		{
-			if (LyricLines[i].Time <= pos)
+			int mid = lo + ((hi - lo) >> 1);
+			if (LyricLines[mid].Time <= pos)
 			{
-				item = i;
-				continue;
+				item = mid;
+				lo = mid + 1;
 			}
-			return (Cur: item, Next: i);
+			else
+			{
+				hi = mid - 1;
+			}
 		}
-		return (Cur: item, Next: -1);
+		int next = (item + 1 < count) ? (item + 1) : -1;
+		return (Cur: item, Next: next);
 	}
 
 	public void Dispose()

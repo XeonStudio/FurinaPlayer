@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using FurinaPlayer.UI.Controls;
@@ -39,8 +39,8 @@ public sealed partial class DspPage
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon { Glyph = "\uE81E", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Child = new FontIcon { Glyph = "\uE81E", FontSize = 18, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
 		};
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
@@ -48,7 +48,7 @@ public sealed partial class DspPage
 			Text = "听音方案",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -56,8 +56,8 @@ public sealed partial class DspPage
 
 		var pill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 74, 222, 128)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -67,8 +67,8 @@ public sealed partial class DspPage
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "当前方案生效中", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
+					new TextBlock { Text = "当前方案生效中", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -82,7 +82,7 @@ public sealed partial class DspPage
 		{
 			Text = "听音方案一站式整合参数 EQ、目标频响曲线、数字余量 Headroom 与双耳空间互馈，适配不同耳机设备与听音偏好。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		Grid.SetRow(descTb, 1);
 		root.Children.Add(descTb);
@@ -114,16 +114,16 @@ public sealed partial class DspPage
 				BorderBrush = CreateLiquidGlassRimBrush(),
 				BorderThickness = new Thickness(1)
 			};
-			LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 			var cGrid = new Grid { ColumnSpacing = 14 };
 			cGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 			cGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 			var textSp = new StackPanel { Spacing = 3 };
-			textSp.Children.Add(new TextBlock { Text = p.Title, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
-			textSp.Children.Add(new TextBlock { Text = p.Target, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) });
-			textSp.Children.Add(new TextBlock { Text = p.Desc, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), TextWrapping = TextWrapping.Wrap });
+			textSp.Children.Add(new TextBlock { Text = p.Title, FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+			textSp.Children.Add(new TextBlock { Text = p.Target, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 99, 102, 241)) });
+			textSp.Children.Add(new TextBlock { Text = p.Desc, FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap });
 			Grid.SetColumn(textSp, 0);
 			cGrid.Children.Add(textSp);
 
@@ -132,9 +132,9 @@ public sealed partial class DspPage
 				Content = "应用方案",
 				Padding = new Thickness(14, 6, 14, 6),
 				CornerRadius = new CornerRadius(10),
-				Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: false),
-				BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.AccentLensed, isDark: false, isHovered: true, isSelected: true),
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+				Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: IsDspDark),
+				BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.AccentLensed, isDark: IsDspDark, isHovered: true, isSelected: true),
+				Foreground = DspTextPrimaryBrush,
 				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 				VerticalAlignment = VerticalAlignment.Center
 			};
@@ -181,8 +181,8 @@ public sealed partial class DspPage
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon { Glyph = "\uE72E", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Child = new FontIcon { Glyph = "\uE72E", FontSize = 18, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
 		};
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
@@ -190,7 +190,7 @@ public sealed partial class DspPage
 			Text = "输出安全",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -198,8 +198,8 @@ public sealed partial class DspPage
 
 		var readyPill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 74, 222, 128)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -209,8 +209,8 @@ public sealed partial class DspPage
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "待命 · 实时防护生效中", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
+					new TextBlock { Text = "待命 · 实时防护生效中", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -241,20 +241,20 @@ public sealed partial class DspPage
 				BorderBrush = CreateLiquidGlassRimBrush(),
 				BorderThickness = new Thickness(1)
 			};
-			LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 			var cGrid = new Grid { ColumnSpacing = 14 };
 			cGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 			cGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 			var textSp = new StackPanel { Spacing = 3 };
-			textSp.Children.Add(new TextBlock { Text = g.Title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
-			textSp.Children.Add(new TextBlock { Text = g.Status, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
-			textSp.Children.Add(new TextBlock { Text = g.Desc, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), TextWrapping = TextWrapping.Wrap });
+			textSp.Children.Add(new TextBlock { Text = g.Title, FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+			textSp.Children.Add(new TextBlock { Text = g.Status, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
+			textSp.Children.Add(new TextBlock { Text = g.Desc, FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap });
 			Grid.SetColumn(textSp, 0);
 			cGrid.Children.Add(textSp);
 
-			var settingTb = new TextBlock { Text = g.Setting, FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center };
+			var settingTb = new TextBlock { Text = g.Setting, FontSize = 12, Foreground = DspTextSubHeaderBrush, VerticalAlignment = VerticalAlignment.Center };
 			Grid.SetColumn(settingTb, 1);
 			cGrid.Children.Add(settingTb);
 
@@ -292,8 +292,8 @@ public sealed partial class DspPage
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon { Glyph = "\uE774", FontSize = 18, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Child = new FontIcon { Glyph = "\uE774", FontSize = 18, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 99, 102, 241)), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
 		};
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
@@ -301,7 +301,7 @@ public sealed partial class DspPage
 			Text = "系统输出与音频设备",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -309,12 +309,12 @@ public sealed partial class DspPage
 
 		var statusPill = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(45, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 165, 180, 252)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
-			Child = new TextBlock { Text = "自动 · 共享模式 (低延迟)", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+			Child = new TextBlock { Text = "自动 · 共享模式 (低延迟)", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 199, 210, 254) : Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 		};
 		Grid.SetColumn(statusPill, 1);
 		headerGrid.Children.Add(statusPill);
@@ -333,10 +333,10 @@ public sealed partial class DspPage
 			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 		var cardStack = new StackPanel { Spacing = 14 };
-		cardStack.Children.Add(new TextBlock { Text = "输出驱动与模式配置", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
+		cardStack.Children.Add(new TextBlock { Text = "输出驱动与模式配置", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
 
 		var modeCombo = new ComboBox { Header = "音频驱动输出架构", MinWidth = 320, CornerRadius = new CornerRadius(8) };
 		modeCombo.Items.Add(new ComboBoxItem { Content = "WASAPI 共享模式 (默认 · 支持系统并存与音效)" });
@@ -352,7 +352,7 @@ public sealed partial class DspPage
 		{
 			Text = "FurinaPlayer 音频内核自动检测声卡最佳原生采样率（最高支持 384 kHz / 32-bit Float），配合 DSP 链路实时精密运算，杜绝采样率转换抖动。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 

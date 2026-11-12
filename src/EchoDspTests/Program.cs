@@ -51,6 +51,11 @@ class Program
 		TestFurinaPlayerPcmResamplerAdvancedModes();
 
 		NewFeatureTests.RunAll();
+		NewFeatureTests.TestLibVlcTranscoderAndOggWaveform(Assert);
+		NewFeatureTests.TestAudioSessionSwitchAndMeterInvariants(Assert);
+		NewFeatureTests.TestMixAssistantAndParametricOfflineRender(Assert);
+		NewFeatureTests.TestInsightProAnalyzerPrecision(Assert);
+		NewFeatureTests.TestStreamingNonBlockingAndCancellation(Assert);
 		OpraDeepVerification.Run();
 
 		Console.WriteLine("=================================================");

@@ -25,8 +25,6 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	private IReadOnlyList<Vst3PluginState> _vst3 = Array.Empty<Vst3PluginState>();
 
-	private Vst3PluginState? _exclusiveVst3;
-
 	private float[] _scratch = Array.Empty<float>();
 
 	public WaveFormat WaveFormat { get; }
@@ -40,6 +38,10 @@ public sealed class DspSampleProvider : ISampleProvider
 	public float OutputVolume { get; set; } = 1.0f;
 
 	public double LatestPeakDb { get; private set; } = -60.0;
+
+	public double LatestInputPeakDb { get; private set; } = -60.0;
+
+	public double LatestTruePeakDb { get; private set; } = -60.0;
 
 	public double LatestRmsDb { get; private set; } = -60.0;
 
@@ -94,17 +96,30 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{
-		_vst3 = plugins ?? Array.Empty<Vst3PluginState>();
-		Vst3PluginState exclusiveVst = null;
-		foreach (Vst3PluginState item in _vst3)
+		Vst3PluginState[] snapshot;
+		if (plugins == null || plugins.Count == 0)
 		{
-			if (item != null && item.IsActive)
+			snapshot = Array.Empty<Vst3PluginState>();
+		}
+		else
+		{
+			snapshot = new Vst3PluginState[plugins.Count];
+			for (int i = 0; i < plugins.Count; i++)
 			{
-				exclusiveVst = item;
-				break;
+				snapshot[i] = plugins[i];
 			}
 		}
-		_exclusiveVst3 = exclusiveVst;
+		_vst3 = snapshot;
+		if (WaveFormat.SampleRate > 0)
+		{
+			try
+			{
+				Vst3NativeHost.Instance.EnsureChainLoaded(snapshot, WaveFormat.SampleRate, WaveFormat.Channels, unloadPrimaryWhenEmpty: false);
+			}
+			catch
+			{
+			}
+		}
 	}
 
 	public void SetSpatialAudio(bool enabled, double mix, string preset, double width, double modulation, double predelayMs)
@@ -143,19 +158,25 @@ public sealed class DspSampleProvider : ISampleProvider
 		Span<float> destination = buffer.AsSpan(offset, num);
 		float[] scratch = _scratch;
 		destination.CopyTo(scratch);
+
+		// Measure input peak before DSP processing
+		float inMax = 0f;
+		for (int i = 0; i < num; i++)
+		{
+			float abs = Math.Abs(scratch[i]);
+			if (abs > inMax) inMax = abs;
+		}
+		LatestInputPeakDb = (inMax > 0.00001f) ? Math.Max(-60.0, 20.0 * Math.Log10(inMax)) : -60.0;
+
 		_equalizer.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_timbreEqualizer.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_widener.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_spatial.ProcessInterleaved(scratch, WaveFormat.Channels);
 		_dspChain.ProcessBlock(scratch, 0, num, WaveFormat.Channels);
-		Vst3PluginState exclusiveVst = _exclusiveVst3;
-		if (exclusiveVst != null && Vst3NativeHost.Instance.IsLoadedFor(exclusiveVst.Path))
+		IReadOnlyList<Vst3PluginState> vst3 = _vst3;
+		if (vst3.Count > 0)
 		{
-			Vst3NativeHost.Instance.Process(scratch, WaveFormat.Channels);
-		}
-		else
-		{
-			ApplyVst3(scratch);
+			Vst3NativeHost.Instance.ProcessPlugins(scratch, WaveFormat.Channels, WaveFormat.SampleRate, vst3);
 		}
 		// Real-time meters & FFT spectrum for mastering analyzers (Pre-Fader true signal level)
 		float maxVal = 0f;
@@ -193,6 +214,17 @@ public sealed class DspSampleProvider : ISampleProvider
 		double rms = Math.Sqrt(sumSq / frameCount);
 		LatestPeakDb = (maxVal > 0.00001f) ? Math.Max(-60.0, 20.0 * Math.Log10(maxVal)) : -60.0;
 		LatestRmsDb = (rms > 0.00001) ? Math.Max(-60.0, 20.0 * Math.Log10(rms)) : -60.0;
+
+		// Calculate True Peak estimation (intersample oversampling peak)
+		float truePeakLinear = maxVal;
+		for (int i = 1; i < num; i++)
+		{
+			float s0 = Math.Abs(scratch[i - 1]);
+			float s1 = Math.Abs(scratch[i]);
+			float estInter = 0.5f * (s0 + s1) + 0.125f * Math.Abs(s1 - s0);
+			if (estInter > truePeakLinear) truePeakLinear = estInter;
+		}
+		LatestTruePeakDb = (truePeakLinear > 0.00001f) ? Math.Max(-60.0, 20.0 * Math.Log10(truePeakLinear)) : -60.0;
 
 		double denom = Math.Sqrt(sumSqL * sumSqR);
 		float instCorr = (float)Math.Clamp(denom > 1e-9 ? (sumDotLR / denom) : 1.0, -1.0, 1.0);
@@ -360,21 +392,6 @@ public sealed class DspSampleProvider : ISampleProvider
 					wr = wr * wpr - wi * wpi;
 					wi = wtemp * wpi + wi * wpr;
 				}
-			}
-		}
-	}
-
-	private void ApplyVst3(float[] buffer)
-	{
-		if (_vst3 == null || _vst3.Count == 0)
-		{
-			return;
-		}
-		foreach (Vst3PluginState item in _vst3)
-		{
-			if (item != null && item.IsActive)
-			{
-				Vst3SimulatedProcessor.Process(buffer, WaveFormat.Channels, new Vst3Parameters(item.Drive, item.Tone, item.Mix));
 			}
 		}
 	}

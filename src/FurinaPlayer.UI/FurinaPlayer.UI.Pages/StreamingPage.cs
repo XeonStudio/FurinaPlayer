@@ -14,6 +14,9 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Web.WebView2.Core;
+using SkiaSharp;
+using SonicWave.Core.Models;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI;
@@ -22,8 +25,46 @@ namespace FurinaPlayer.UI.Pages;
 
 public sealed partial class StreamingPage : Page
 {
+	private static string? _cachedWallpaperPath;
+	private static DateTime _cachedWallpaperWriteUtc;
+	private static bool _cachedWallpaperIsDark;
+
 	public StreamingViewModel? ViewModel { get; set; }
 
+	public bool IsStreamingDark => ResolveIsStreamingDark();
+
+	public Brush StreamingTextPrimaryBrush => new SolidColorBrush(IsStreamingDark
+		? Colors.White                          // #FFFFFF
+		: Color.FromArgb(255, 15, 23, 42));     // #0F172A
+
+	public Brush StreamingTextSecondaryBrush => new SolidColorBrush(IsStreamingDark
+		? Color.FromArgb(255, 241, 245, 249)   // #F1F5F9
+		: Color.FromArgb(255, 51, 65, 85));     // #334155
+
+	public Brush StreamingTextSubHeaderBrush => new SolidColorBrush(IsStreamingDark
+		? Color.FromArgb(255, 226, 232, 240)   // #E2E8F0
+		: Color.FromArgb(255, 71, 85, 105));    // #475569
+
+	public Brush StreamingTextMutedBrush => new SolidColorBrush(IsStreamingDark
+		? Color.FromArgb(255, 203, 213, 225)   // #CBD5E1
+		: Color.FromArgb(255, 100, 116, 139));  // #64748B
+
+	private Border? _sidebarBorder;
+	private Border? _sidebarDivider;
+	private ScrollViewer? _mainAreaScroll;
+	private StackPanel? _mainAreaStack;
+	private TextBlock? _pageTitleTb;
+	private TextBlock? _platformHeaderTb;
+	private Border? _platformCountBadge;
+	private TextBlock? _platformCountTb;
+	private TextBlock? _recentHeaderTb;
+	private Border? _recentBadgeBorder;
+	private TextBlock? _recentBadgeTb;
+	private Button? _clearRecentBtn;
+	private Border? _searchBarBorder;
+	private FontIcon? _searchIcon;
+	private TextBlock? _tableTitleHeaderTb;
+	private readonly List<TextBlock> _tableHeaderCells = new();
 	private TextBox? _searchTextBox;
 	private Button? _loginBtn;
 	private StackPanel? _accountCardContainer;
@@ -34,10 +75,255 @@ public sealed partial class StreamingPage : Page
 	private TextBlock? _statusNoticeTb;
 	private Button? _loadMoreBtn;
 	private ComboBox? _qualityCombo;
+	private bool _refreshResultsQueued;
+	private StreamingViewModel? _boundViewModel;
 
 	public StreamingPage()
 	{
 		BuildLayout();
+		Loaded += (s, e) => ApplyStreamingLiquidGlass();
+		ActualThemeChanged += (s, e) => ApplyStreamingLiquidGlass();
+		SizeChanged += (s, e) => SyncMainAreaWidth();
+	}
+
+	private bool ResolveIsStreamingDark()
+	{
+		try
+		{
+			if (IsLoaded && ActualTheme == ElementTheme.Dark)
+			{
+				return true;
+			}
+
+			var settings = ViewModel?.GetCurrentSettings();
+			if (settings?.ScheduledDarkModeEnabled == true && IsLoaded && ActualTheme != ElementTheme.Default)
+			{
+				return ActualTheme == ElementTheme.Dark;
+			}
+
+			bool invert = LiquidGlassEngine.InvertModeEnabled;
+			string mode = settings?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+
+			if (string.Equals(mode, "dark", StringComparison.OrdinalIgnoreCase))
+			{
+				return !invert;
+			}
+			if (string.Equals(mode, "light", StringComparison.OrdinalIgnoreCase))
+			{
+				return invert;
+			}
+
+			if (mode == "ambient" || mode == "acrylic" || mode == "liquid-glass")
+			{
+				bool baseDark = LiquidGlassEngine.ActivePreset?.IsDark ?? false;
+				if (!baseDark && settings != null)
+				{
+					if (settings.Theme == ThemeMode.Dark)
+					{
+						baseDark = true;
+					}
+					else if (settings.WallpaperSource == WallpaperSource.LocalImage
+						&& !string.IsNullOrWhiteSpace(settings.LocalWallpaperPath)
+						&& LiquidGlassEngine.AcrylicOpacityScale >= 0.35
+						&& IsWallpaperDarkCached(settings.LocalWallpaperPath))
+					{
+						baseDark = true;
+					}
+				}
+				return invert ? !baseDark : baseDark;
+			}
+
+			if (settings != null)
+			{
+				if (settings.Theme == ThemeMode.Dark)
+				{
+					return !invert;
+				}
+				if (settings.Theme == ThemeMode.Light)
+				{
+					return invert;
+				}
+			}
+
+			if (IsLoaded && ActualTheme != ElementTheme.Default)
+			{
+				return ActualTheme == ElementTheme.Dark;
+			}
+
+			return LiquidGlassEngine.IsElementDarkTheme(this);
+		}
+		catch
+		{
+			return IsLoaded && ActualTheme == ElementTheme.Dark;
+		}
+	}
+
+	private static bool IsWallpaperDarkCached(string path)
+	{
+		try
+		{
+			if (!File.Exists(path)) return false;
+			DateTime writeUtc = File.GetLastWriteTimeUtc(path);
+			if (string.Equals(_cachedWallpaperPath, path, StringComparison.OrdinalIgnoreCase)
+				&& _cachedWallpaperWriteUtc == writeUtc)
+			{
+				return _cachedWallpaperIsDark;
+			}
+
+			using var codec = SKCodec.Create(path);
+			if (codec == null) return false;
+
+			int maxDim = Math.Max(1, Math.Max(codec.Info.Width, codec.Info.Height));
+			var scaled = codec.GetScaledDimensions(Math.Min(1.0f, 64.0f / maxDim));
+			var info = new SKImageInfo(Math.Max(1, scaled.Width), Math.Max(1, scaled.Height), SKColorType.Bgra8888, SKAlphaType.Premul);
+			using var bmp = new SKBitmap(info);
+			var result = codec.GetPixels(info, bmp.GetPixels());
+			if (result != SKCodecResult.Success && result != SKCodecResult.IncompleteInput)
+			{
+				return false;
+			}
+
+			double totalLum = 0;
+			int count = 0;
+			for (int y = 0; y < bmp.Height; y++)
+			{
+				for (int x = 0; x < bmp.Width; x++)
+				{
+					var c = bmp.GetPixel(x, y);
+					totalLum += (0.2126 * c.Red + 0.7152 * c.Green + 0.0722 * c.Blue) / 255.0;
+					count++;
+				}
+			}
+
+			bool isDark = count > 0 && (totalLum / count) < 0.45;
+			_cachedWallpaperPath = path;
+			_cachedWallpaperWriteUtc = writeUtc;
+			_cachedWallpaperIsDark = isDark;
+			return isDark;
+		}
+		catch
+		{
+			return false;
+		}
+	}
+
+	public void ApplyStreamingLiquidGlass()
+	{
+		bool isDark = IsStreamingDark;
+		var primaryBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var secondaryBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 241, 245, 249) : Color.FromArgb(255, 51, 65, 85));
+		var subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+		var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+
+		if (_sidebarBorder != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_sidebarBorder, LiquidGlassVariant.FloatingBar, isDark: isDark, enablePointerTracking: true);
+		}
+		if (_searchBarBorder != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_searchBarBorder, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: true);
+		}
+		if (_qualityCombo != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_qualityCombo, LiquidGlassVariant.Clear, isDark: isDark, enablePointerTracking: false);
+		}
+		if (_loadMoreBtn != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_loadMoreBtn, LiquidGlassVariant.AccentLensed, isDark: isDark, enablePointerTracking: true);
+		}
+		LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+
+		if (_sidebarDivider != null)
+		{
+			_sidebarDivider.Background = new SolidColorBrush(isDark ? Color.FromArgb(45, 255, 255, 255) : Color.FromArgb(25, 148, 163, 184));
+		}
+		if (_pageTitleTb != null)
+		{
+			_pageTitleTb.Foreground = primaryBrush;
+		}
+		if (_platformHeaderTb != null)
+		{
+			_platformHeaderTb.Foreground = subHeaderBrush;
+		}
+		if (_platformCountBadge != null)
+		{
+			_platformCountBadge.Background = new SolidColorBrush(isDark ? Color.FromArgb(70, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+		}
+		if (_platformCountTb != null)
+		{
+			_platformCountTb.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 99, 102, 241));
+		}
+		if (_recentHeaderTb != null)
+		{
+			_recentHeaderTb.Foreground = subHeaderBrush;
+		}
+		if (_recentBadgeBorder != null)
+		{
+			_recentBadgeBorder.Background = new SolidColorBrush(isDark ? Color.FromArgb(52, 255, 255, 255) : Color.FromArgb(255, 241, 245, 249));
+		}
+		if (_recentBadgeTb != null)
+		{
+			_recentBadgeTb.Foreground = isDark ? subHeaderBrush : mutedBrush;
+		}
+		if (_clearRecentBtn != null)
+		{
+			_clearRecentBtn.Foreground = mutedBrush;
+			ApplyInteractiveButtonResources(
+				_clearRecentBtn,
+				normalBg: Colors.Transparent,
+				hoverBg: isDark ? Color.FromArgb(28, 255, 255, 255) : Color.FromArgb(16, 15, 23, 42),
+				pressedBg: isDark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(28, 15, 23, 42),
+				normalBorder: Colors.Transparent,
+				hoverBorder: Colors.Transparent,
+				pressedBorder: Colors.Transparent,
+				normalFg: mutedBrush,
+				hoverFg: primaryBrush,
+				pressedFg: primaryBrush);
+		}
+		if (_searchIcon != null)
+		{
+			_searchIcon.Foreground = mutedBrush;
+		}
+		if (_searchTextBox != null)
+		{
+			_searchTextBox.Foreground = primaryBrush;
+			_searchTextBox.PlaceholderForeground = mutedBrush;
+			_searchTextBox.Resources["TextControlForeground"] = primaryBrush;
+			_searchTextBox.Resources["TextControlForegroundPointerOver"] = primaryBrush;
+			_searchTextBox.Resources["TextControlForegroundFocused"] = primaryBrush;
+			_searchTextBox.Resources["TextControlPlaceholderForeground"] = mutedBrush;
+			_searchTextBox.Resources["TextControlPlaceholderForegroundPointerOver"] = mutedBrush;
+			_searchTextBox.Resources["TextControlPlaceholderForegroundFocused"] = mutedBrush;
+		}
+		if (_qualityCombo != null)
+		{
+			_qualityCombo.Foreground = primaryBrush;
+		}
+		if (_loadMoreBtn != null)
+		{
+			_loadMoreBtn.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 99, 102, 241));
+		}
+		if (_statusNoticeTb != null)
+		{
+			_statusNoticeTb.Foreground = mutedBrush;
+		}
+		foreach (var cell in _tableHeaderCells)
+		{
+			cell.Foreground = subHeaderBrush;
+		}
+		if (ViewModel != null)
+		{
+			UpdateTabHighlights(ViewModel.SelectedTab);
+			RefreshPlatformsUi();
+			UpdateLoginButtonUi();
+			RefreshAccountCardUi();
+			RefreshRecentSearchesUi();
+			RefreshResultsUi();
+		}
+		else
+		{
+			UpdateLoginButtonUi();
+		}
 	}
 
 	public StreamingPage(StreamingViewModel viewModel) : this()
@@ -56,6 +342,7 @@ public sealed partial class StreamingPage : Page
 			DataContext = vm;
 			BindViewModel();
 		}
+		ApplyStreamingLiquidGlass();
 	}
 
 	private void BuildLayout()
@@ -73,7 +360,8 @@ public sealed partial class StreamingPage : Page
 			BorderBrush = new SolidColorBrush(Color.FromArgb(35, 148, 163, 184)),
 			Padding = new Thickness(14, 16, 14, 16)
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(sidebarBorder, LiquidGlassVariant.FloatingBar, isDark: false, enablePointerTracking: true);
+		_sidebarBorder = sidebarBorder;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(sidebarBorder, LiquidGlassVariant.FloatingBar, isDark: IsStreamingDark, enablePointerTracking: true);
 
 		var sidebarStack = new StackPanel { Spacing = 14 };
 
@@ -83,21 +371,29 @@ public sealed partial class StreamingPage : Page
 		platformHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var platTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		platTitleSp.Children.Add(new TextBlock
+		_platformHeaderTb = new TextBlock
 		{
 			Text = "流媒体平台",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
-		});
-		var badge5 = new Border
+			Foreground = StreamingTextSubHeaderBrush
+		};
+		platTitleSp.Children.Add(_platformHeaderTb);
+		_platformCountTb = new TextBlock
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+			Text = "5",
+			FontSize = 10,
+			FontWeight = FontWeights.Bold,
+			Foreground = new SolidColorBrush(IsStreamingDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 99, 102, 241))
+		};
+		_platformCountBadge = new Border
+		{
+			Background = new SolidColorBrush(IsStreamingDark ? Color.FromArgb(70, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255)),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(6, 1, 6, 1),
-			Child = new TextBlock { Text = "5", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) }
+			Child = _platformCountTb
 		};
-		platTitleSp.Children.Add(badge5);
+		platTitleSp.Children.Add(_platformCountBadge);
 		Grid.SetColumn(platTitleSp, 0);
 		platformHeaderGrid.Children.Add(platTitleSp);
 
@@ -134,7 +430,13 @@ public sealed partial class StreamingPage : Page
 		sidebarStack.Children.Add(_platformListPanel);
 
 		// 1.4 分割线
-		sidebarStack.Children.Add(new Border { Height = 1, Background = new SolidColorBrush(Color.FromArgb(25, 148, 163, 184)), Margin = new Thickness(0, 6, 0, 6) });
+		_sidebarDivider = new Border
+		{
+			Height = 1,
+			Background = new SolidColorBrush(IsStreamingDark ? Color.FromArgb(45, 255, 255, 255) : Color.FromArgb(25, 148, 163, 184)),
+			Margin = new Thickness(0, 6, 0, 6)
+		};
+		sidebarStack.Children.Add(_sidebarDivider);
 
 		// 1.5 最近搜索头部
 		var recentHeaderGrid = new Grid();
@@ -142,36 +444,44 @@ public sealed partial class StreamingPage : Page
 		recentHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var recTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		recTitleSp.Children.Add(new TextBlock
+		_recentHeaderTb = new TextBlock
 		{
 			Text = "最近搜索",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
-		});
-		var badgeRec = new Border
+			Foreground = StreamingTextSubHeaderBrush
+		};
+		recTitleSp.Children.Add(_recentHeaderTb);
+		_recentBadgeTb = new TextBlock
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
+			Text = "7",
+			FontSize = 10,
+			FontWeight = FontWeights.Bold,
+			Foreground = IsStreamingDark ? StreamingTextSubHeaderBrush : StreamingTextMutedBrush
+		};
+		_recentBadgeBorder = new Border
+		{
+			Background = IsStreamingDark ? new SolidColorBrush(Color.FromArgb(52, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(6, 1, 6, 1),
-			Child = new TextBlock { Text = "7", FontSize = 10, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+			Child = _recentBadgeTb
 		};
-		recTitleSp.Children.Add(badgeRec);
+		recTitleSp.Children.Add(_recentBadgeBorder);
 		Grid.SetColumn(recTitleSp, 0);
 		recentHeaderGrid.Children.Add(recTitleSp);
 
-		var clearBtn = new Button
+		_clearRecentBtn = new Button
 		{
 			Content = "清空",
 			FontSize = 11,
 			Padding = new Thickness(6, 2, 6, 2),
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = StreamingTextMutedBrush
 		};
-		clearBtn.Click += (s, e) => ViewModel?.ClearRecentSearchesCommand.Execute(null);
-		Grid.SetColumn(clearBtn, 1);
-		recentHeaderGrid.Children.Add(clearBtn);
+		_clearRecentBtn.Click += (s, e) => ViewModel?.ClearRecentSearchesCommand.Execute(null);
+		Grid.SetColumn(_clearRecentBtn, 1);
+		recentHeaderGrid.Children.Add(_clearRecentBtn);
 		sidebarStack.Children.Add(recentHeaderGrid);
 
 		// 1.6 最近搜索项列表
@@ -184,50 +494,57 @@ public sealed partial class StreamingPage : Page
 		mainGrid.Children.Add(sidebarBorder);
 
 		// ==================== 2. 右侧主工作区 ====================
-		var mainAreaScroll = new ScrollViewer
+		_mainAreaScroll = new ScrollViewer
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-			Padding = new Thickness(28, 20, 28, 28)
+			HorizontalScrollMode = ScrollMode.Disabled,
+			Padding = new Thickness(18, 16, 18, 24),
+			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
+		_mainAreaScroll.Loaded += (s, e) => SyncMainAreaWidth();
+		_mainAreaScroll.SizeChanged += (s, e) => SyncMainAreaWidth();
 
-		var mainAreaStack = new StackPanel { Spacing = 16, MaxWidth = 1400 };
+		var mainAreaStack = new StackPanel { Spacing = 16, MaxWidth = 1040, HorizontalAlignment = HorizontalAlignment.Center, MinWidth = 0 };
+		_mainAreaStack = mainAreaStack;
 
 		// 2.1 主标题
-		mainAreaStack.Children.Add(new TextBlock
+		_pageTitleTb = new TextBlock
 		{
 			Text = "流媒体音乐",
 			FontSize = 22,
 			FontWeight = FontWeights.ExtraBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = StreamingTextPrimaryBrush
+		};
+		mainAreaStack.Children.Add(_pageTitleTb);
 
 		// 2.2 大搜索框条 (Liquid Glass 质感)
-		var searchBarBorder = new Border
+		_searchBarBorder = new Border
 		{
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(12, 4, 8, 4),
-			Background = new SolidColorBrush(Color.FromArgb(170, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)),
-			BorderThickness = new Thickness(1.2)
+			Background = IsStreamingDark ? new SolidColorBrush(Color.FromArgb(90, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(170, 255, 255, 255)),
+			BorderBrush = IsStreamingDark ? new SolidColorBrush(Color.FromArgb(50, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)),
+			BorderThickness = new Thickness(1.2),
+			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(searchBarBorder, LiquidGlassVariant.Regular, isDark: false, enablePointerTracking: true);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(_searchBarBorder, LiquidGlassVariant.Regular, isDark: IsStreamingDark, enablePointerTracking: true);
 
 		var searchBarGrid = new Grid();
 		searchBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		searchBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		searchBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		var searchIcon = new FontIcon
+		_searchIcon = new FontIcon
 		{
 			Glyph = "\uE721",
 			FontSize = 16,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = StreamingTextMutedBrush,
 			Margin = new Thickness(4, 0, 10, 0),
 			VerticalAlignment = VerticalAlignment.Center
 		};
-		Grid.SetColumn(searchIcon, 0);
-		searchBarGrid.Children.Add(searchIcon);
+		Grid.SetColumn(_searchIcon, 0);
+		searchBarGrid.Children.Add(_searchIcon);
 
 		_searchTextBox = new TextBox
 		{
@@ -236,6 +553,10 @@ public sealed partial class StreamingPage : Page
 			FontSize = 14,
 			BorderThickness = new Thickness(0),
 			Background = new SolidColorBrush(Colors.Transparent),
+			Foreground = StreamingTextPrimaryBrush,
+			PlaceholderForeground = StreamingTextMutedBrush,
+			MinWidth = 0,
+			HorizontalAlignment = HorizontalAlignment.Stretch,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_searchTextBox.KeyDown += (s, e) =>
@@ -266,15 +587,15 @@ public sealed partial class StreamingPage : Page
 		Grid.SetColumn(searchDoBtn, 2);
 		searchBarGrid.Children.Add(searchDoBtn);
 
-		searchBarBorder.Child = searchBarGrid;
-		mainAreaStack.Children.Add(searchBarBorder);
+		_searchBarBorder.Child = searchBarGrid;
+		mainAreaStack.Children.Add(_searchBarBorder);
 
 		// 2.3 分类 Tab + 音质选择
-		var filterBarGrid = new Grid();
+		var filterBarGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, ColumnSpacing = 8, MinWidth = 0 };
 		filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		_tabsPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24 };
+		_tabsPanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 0 };
 		var tabs = new[] { "歌曲", "专辑", "艺人", "歌单" };
 		foreach (var t in tabs)
 		{
@@ -287,9 +608,12 @@ public sealed partial class StreamingPage : Page
 		_qualityCombo = new ComboBox
 		{
 			CornerRadius = new CornerRadius(8),
-			Padding = new Thickness(10, 4, 10, 4),
+			Padding = new Thickness(8, 4, 8, 4),
 			FontSize = 12,
-			MinWidth = 120
+			MinWidth = 96,
+			Margin = new Thickness(0, 0, 2, 0),
+			HorizontalAlignment = HorizontalAlignment.Right,
+			VerticalAlignment = VerticalAlignment.Center
 		};
 		_qualityCombo.Items.Add(new ComboBoxItem { Content = "高音质" });
 		_qualityCombo.Items.Add(new ComboBoxItem { Content = "无损 FLAC" });
@@ -313,42 +637,47 @@ public sealed partial class StreamingPage : Page
 		{
 			Text = "已读取 10 个歌单，可同步全部或勾选后同步。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = StreamingTextMutedBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			TextWrapping = TextWrapping.NoWrap,
+			MaxLines = 1,
 			Margin = new Thickness(2, -4, 0, 0)
 		};
 		mainAreaStack.Children.Add(_statusNoticeTb);
 
 		// 2.5 歌曲列表表头
-		var tableHeaderGrid = new Grid { Padding = new Thickness(10, 8, 10, 8) };
-		tableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) }); // #
-		tableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // 歌曲
-		tableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) }); // 来源 / 音质
-		tableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // 时长
-		tableHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) }); // 操作
+		var tableHeaderGrid = new Grid { Padding = new Thickness(8, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+		ApplyResultTableColumns(tableHeaderGrid);
 
-		void AddHeaderCell(string text, int col, HorizontalAlignment align = HorizontalAlignment.Left)
+		_tableHeaderCells.Clear();
+		TextBlock AddHeaderCell(string text, int col, HorizontalAlignment align = HorizontalAlignment.Left)
 		{
 			var tb = new TextBlock
 			{
 				Text = text,
 				FontSize = 11,
 				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
-				HorizontalAlignment = align
+				Foreground = StreamingTextSubHeaderBrush,
+				HorizontalAlignment = align,
+				MinWidth = 0,
+				TextTrimming = TextTrimming.CharacterEllipsis
 			};
+			_tableHeaderCells.Add(tb);
 			Grid.SetColumn(tb, col);
 			tableHeaderGrid.Children.Add(tb);
+			return tb;
 		}
 
 		AddHeaderCell("#", 0);
-		AddHeaderCell("歌曲", 1);
+		_tableTitleHeaderTb = AddHeaderCell("歌曲", 1);
 		AddHeaderCell("来源 / 音质", 2);
 		AddHeaderCell("时长", 3, HorizontalAlignment.Right);
-		AddHeaderCell("操作", 4, HorizontalAlignment.Right);
+		var actionsHeaderTb = AddHeaderCell("操作", 4, HorizontalAlignment.Right);
+		actionsHeaderTb.Margin = new Thickness(0, 0, 4, 0);
 		mainAreaStack.Children.Add(tableHeaderGrid);
 
 		// 2.6 歌曲数据列表
-		_songListStackPanel = new StackPanel { Spacing = 2 };
+		_songListStackPanel = new StackPanel { Spacing = 2, HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
 		mainAreaStack.Children.Add(_songListStackPanel);
 
 		// 2.7 加载更多按钮
@@ -360,29 +689,58 @@ public sealed partial class StreamingPage : Page
 			Padding = new Thickness(28, 8, 28, 8),
 			CornerRadius = new CornerRadius(16),
 			Background = new SolidColorBrush(Color.FromArgb(25, 99, 102, 241)),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = new SolidColorBrush(IsStreamingDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 99, 102, 241)),
 			FontWeight = FontWeights.SemiBold
 		};
-		LiquidGlassEngine.AttachInteractiveLiquidGlass(_loadMoreBtn, LiquidGlassVariant.AccentLensed, isDark: false, enablePointerTracking: true);
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(_loadMoreBtn, LiquidGlassVariant.AccentLensed, isDark: IsStreamingDark, enablePointerTracking: true);
 		_loadMoreBtn.Click += (s, e) => ViewModel?.LoadMoreCommand.Execute(null);
 		mainAreaStack.Children.Add(_loadMoreBtn);
 
-		mainAreaScroll.Content = mainAreaStack;
-		Grid.SetColumn(mainAreaScroll, 1);
-		mainGrid.Children.Add(mainAreaScroll);
+		var mainAreaHostGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch };
+		mainAreaHostGrid.Children.Add(mainAreaStack);
+		_mainAreaScroll.Content = mainAreaHostGrid;
+		Grid.SetColumn(_mainAreaScroll, 1);
+		mainGrid.Children.Add(_mainAreaScroll);
 
 		Content = mainGrid;
 
 		UpdateLoginButtonUi();
 	}
 
-	private Button CreateTabButton(string tabName, bool isSelected)
+	private void SyncMainAreaWidth()
 	{
-		var btn = new Button
+		if (_mainAreaScroll == null || _mainAreaStack == null) return;
+		double hostW = _mainAreaScroll.ViewportWidth > 0 ? _mainAreaScroll.ViewportWidth : _mainAreaScroll.ActualWidth;
+		if (hostW > 60)
 		{
-			Padding = new Thickness(4, 4, 4, 8),
+			// Subtract horizontal Padding (18+18=36) + scrollbar gutter (8) so children NEVER overflow right at any DPI/width
+			double targetW = Math.Min(1040.0, Math.Max(220.0, hostW - 44.0));
+			_mainAreaStack.Width = targetW;
+		}
+	}
+
+	private static void ApplyResultTableColumns(Grid grid)
+	{
+		grid.ColumnSpacing = 6;
+		grid.ColumnDefinitions.Clear();
+		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) }); // #
+		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.8, GridUnitType.Star) }); // 歌曲 / 专辑 / 艺人 / 歌单
+		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.85, GridUnitType.Star), MaxWidth = 190 }); // 来源 / 音质
+		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(42) }); // 时长
+		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(96) }); // 操作
+	}
+
+	private Border CreateTabButton(string tabName, bool isSelected)
+	{
+		var tabContainer = new Border
+		{
+			MinWidth = 44,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			Padding = new Thickness(6, 4, 6, 6),
+			CornerRadius = new CornerRadius(8),
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
+			BorderBrush = new SolidColorBrush(Colors.Transparent),
 			Tag = tabName
 		};
 
@@ -391,28 +749,53 @@ public sealed partial class StreamingPage : Page
 		{
 			Text = tabName,
 			FontSize = 13,
+			TextAlignment = TextAlignment.Center,
+			HorizontalAlignment = HorizontalAlignment.Center,
 			FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
-			Foreground = isSelected ? new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = isSelected ? StreamingTextPrimaryBrush : StreamingTextMutedBrush
 		};
 		var indicator = new Border
 		{
 			Height = 2.5,
+			Width = 24,
 			CornerRadius = new CornerRadius(1.5),
+			HorizontalAlignment = HorizontalAlignment.Center,
 			Background = isSelected ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent)
 		};
 		sp.Children.Add(tb);
 		sp.Children.Add(indicator);
-		btn.Content = sp;
+		tabContainer.Child = sp;
 
-		btn.Click += (s, e) =>
+		tabContainer.PointerEntered += (s, e) =>
 		{
-			if (ViewModel != null)
+			if (s is Border b)
 			{
-				ViewModel.SelectTab(tabName);
-				UpdateTabHighlights(tabName);
+				b.Background = new SolidColorBrush(IsStreamingDark ? Color.FromArgb(24, 255, 255, 255) : Color.FromArgb(16, 15, 23, 42));
 			}
 		};
-		return btn;
+		tabContainer.PointerExited += (s, e) =>
+		{
+			if (s is Border b)
+			{
+				b.Background = new SolidColorBrush(Colors.Transparent);
+			}
+		};
+		tabContainer.Tapped += (s, e) => SelectSearchTab(tabName);
+		return tabContainer;
+	}
+
+	public void SelectSearchTab(string tabName)
+	{
+		if (ViewModel != null)
+		{
+			ViewModel.SelectTab(tabName);
+			UpdateTabHighlights(tabName);
+			if (_tableTitleHeaderTb != null)
+			{
+				_tableTitleHeaderTb.Text = tabName;
+			}
+			_mainAreaScroll?.ChangeView(null, 0, null, disableAnimation: true);
+		}
 	}
 
 	private void UpdateTabHighlights(string activeTab)
@@ -420,13 +803,13 @@ public sealed partial class StreamingPage : Page
 		if (_tabsPanel == null) return;
 		foreach (var child in _tabsPanel.Children)
 		{
-			if (child is Button b && b.Tag is string t && b.Content is StackPanel sp)
+			if (child is Border b && b.Tag is string t && b.Child is StackPanel sp)
 			{
 				bool isSel = (t == activeTab);
 				if (sp.Children[0] is TextBlock tb)
 				{
 					tb.FontWeight = isSel ? FontWeights.Bold : FontWeights.Normal;
-					tb.Foreground = isSel ? new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+					tb.Foreground = isSel ? StreamingTextPrimaryBrush : StreamingTextMutedBrush;
 				}
 				if (sp.Children[1] is Border ind)
 				{
@@ -450,63 +833,81 @@ public sealed partial class StreamingPage : Page
 	{
 		if (ViewModel == null) return;
 
-		// 账号登录与状态变动事件监听
-		ViewModel.AccountStateChanged += () =>
+		if (!ReferenceEquals(_boundViewModel, ViewModel))
 		{
-			DispatcherQueue.TryEnqueue(() =>
-			{
-				UpdateLoginButtonUi();
-				RefreshPlatformsUi();
-				RefreshAccountCardUi();
-			});
-		};
+			_boundViewModel = ViewModel;
 
-		// 监听 ViewModel 属性变化
-		ViewModel.PropertyChanged += (s, e) =>
-		{
-			DispatcherQueue.TryEnqueue(() =>
+			// 账号登录与状态变动事件监听
+			ViewModel.AccountStateChanged += () =>
 			{
-				if (e.PropertyName == nameof(ViewModel.StatusMessage) && _statusNoticeTb != null)
-				{
-					_statusNoticeTb.Text = ViewModel.StatusMessage;
-				}
-				else if (e.PropertyName == nameof(ViewModel.IsSearching))
-				{
-					if (_loadMoreBtn != null)
-					{
-						_loadMoreBtn.IsEnabled = !ViewModel.IsSearching;
-						_loadMoreBtn.Content = ViewModel.IsSearching ? "加载中..." : "加载更多";
-					}
-				}
-				else if (e.PropertyName == nameof(ViewModel.IsNeteaseLoggedIn) ||
-				         e.PropertyName == nameof(ViewModel.NeteaseNickname) ||
-				         e.PropertyName == nameof(ViewModel.NeteaseAvatarUrl))
+				DispatcherQueue.TryEnqueue(() =>
 				{
 					UpdateLoginButtonUi();
 					RefreshPlatformsUi();
 					RefreshAccountCardUi();
-				}
-			});
-		};
+				});
+			};
+
+			// 监听 ViewModel 属性变化
+			ViewModel.PropertyChanged += (s, e) =>
+			{
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					if (e.PropertyName == nameof(ViewModel.StatusMessage) && _statusNoticeTb != null)
+					{
+						_statusNoticeTb.Text = ViewModel.StatusMessage;
+					}
+					else if (e.PropertyName == nameof(ViewModel.IsSearching))
+					{
+						if (_loadMoreBtn != null)
+						{
+							_loadMoreBtn.IsEnabled = !ViewModel.IsSearching;
+							_loadMoreBtn.Content = ViewModel.IsSearching ? "加载中..." : "加载更多";
+						}
+					}
+					else if (e.PropertyName == nameof(ViewModel.IsNeteaseLoggedIn) ||
+					         e.PropertyName == nameof(ViewModel.NeteaseNickname) ||
+					         e.PropertyName == nameof(ViewModel.NeteaseAvatarUrl))
+					{
+						UpdateLoginButtonUi();
+						RefreshPlatformsUi();
+						RefreshAccountCardUi();
+					}
+				});
+			};
+
+			ViewModel.RecentSearches.CollectionChanged += (s, e) =>
+			{
+				DispatcherQueue.TryEnqueue(RefreshRecentSearchesUi);
+			};
+
+			ViewModel.Results.CollectionChanged += (s, e) =>
+			{
+				if (_refreshResultsQueued) return;
+				_refreshResultsQueued = true;
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					_refreshResultsQueued = false;
+					RefreshResultsUi();
+				});
+			};
+		}
 
 		// 初始刷新 UI
 		UpdateLoginButtonUi();
 		RefreshAccountCardUi();
 		RefreshPlatformsUi();
-
-		// 刷新最近搜索列表 UI
+		UpdateTabHighlights(ViewModel.SelectedTab);
+		if (_tableTitleHeaderTb != null)
+		{
+			_tableTitleHeaderTb.Text = ViewModel.SelectedTab;
+		}
+		if (_statusNoticeTb != null)
+		{
+			_statusNoticeTb.Text = ViewModel.StatusMessage;
+		}
 		RefreshRecentSearchesUi();
-		ViewModel.RecentSearches.CollectionChanged += (s, e) =>
-		{
-			DispatcherQueue.TryEnqueue(RefreshRecentSearchesUi);
-		};
-
-		// 刷新歌曲结果列表 UI
 		RefreshResultsUi();
-		ViewModel.Results.CollectionChanged += (s, e) =>
-		{
-			DispatcherQueue.TryEnqueue(RefreshResultsUi);
-		};
 	}
 
 	/// <summary>
@@ -515,6 +916,10 @@ public sealed partial class StreamingPage : Page
 	private void UpdateLoginButtonUi()
 	{
 		if (_loginBtn == null || ViewModel == null) return;
+
+		bool isDark = IsStreamingDark;
+		var primaryBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var secondaryBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 241, 245, 249) : Color.FromArgb(255, 51, 65, 85));
 
 		var acc = ViewModel.CurrentPlatformAccount;
 		if (acc.IsLoggedIn)
@@ -525,11 +930,21 @@ public sealed partial class StreamingPage : Page
 				"Spotify" => Color.FromArgb(255, 30, 215, 96),
 				_ => Color.FromArgb(255, 99, 102, 241)
 			};
+			Color iconColor = isDark && acc.Platform != "QQ 音乐" && acc.Platform != "QQ音乐" && acc.Platform != "Spotify"
+				? Color.FromArgb(255, 165, 180, 252)
+				: themeColor;
+
+			var normalBg = Color.FromArgb(isDark ? (byte)38 : (byte)22, themeColor.R, themeColor.G, themeColor.B);
+			var hoverBg = Color.FromArgb(isDark ? (byte)56 : (byte)34, themeColor.R, themeColor.G, themeColor.B);
+			var pressedBg = Color.FromArgb(isDark ? (byte)72 : (byte)48, themeColor.R, themeColor.G, themeColor.B);
+			var borderCol = Color.FromArgb(isDark ? (byte)85 : (byte)50, themeColor.R, themeColor.G, themeColor.B);
 
 			_loginBtn.Padding = new Thickness(6, 3, 8, 3);
-			_loginBtn.Background = new SolidColorBrush(Color.FromArgb(22, themeColor.R, themeColor.G, themeColor.B));
-			_loginBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(50, themeColor.R, themeColor.G, themeColor.B));
+			_loginBtn.Background = new SolidColorBrush(normalBg);
+			_loginBtn.BorderBrush = new SolidColorBrush(borderCol);
 			_loginBtn.BorderThickness = new Thickness(1);
+			_loginBtn.Foreground = primaryBrush;
+			ApplyInteractiveButtonResources(_loginBtn, normalBg, hoverBg, pressedBg, borderCol, borderCol, borderCol, primaryBrush, primaryBrush, primaryBrush);
 
 			var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
 
@@ -538,7 +953,7 @@ public sealed partial class StreamingPage : Page
 				Width = 20,
 				Height = 20,
 				CornerRadius = new CornerRadius(10),
-				Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+				Background = new SolidColorBrush(isDark ? Color.FromArgb(55, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255)),
 				Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 20, 20) }
 			};
 
@@ -550,12 +965,12 @@ public sealed partial class StreamingPage : Page
 				}
 				catch
 				{
-					avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 10, Foreground = new SolidColorBrush(themeColor) };
+					avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 10, Foreground = new SolidColorBrush(iconColor) };
 				}
 			}
 			else
 			{
-				avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 10, Foreground = new SolidColorBrush(themeColor) };
+				avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 10, Foreground = new SolidColorBrush(iconColor) };
 			}
 			sp.Children.Add(avatarBorder);
 
@@ -564,7 +979,7 @@ public sealed partial class StreamingPage : Page
 				Text = !string.IsNullOrEmpty(acc.Nickname) ? acc.Nickname : acc.UserIdStr,
 				FontSize = 11,
 				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+				Foreground = primaryBrush,
 				MaxWidth = 72,
 				TextTrimming = TextTrimming.CharacterEllipsis,
 				VerticalAlignment = VerticalAlignment.Center
@@ -574,7 +989,7 @@ public sealed partial class StreamingPage : Page
 			{
 				Glyph = "\uE70D",
 				FontSize = 8,
-				Foreground = new SolidColorBrush(themeColor),
+				Foreground = new SolidColorBrush(iconColor),
 				VerticalAlignment = VerticalAlignment.Center
 			});
 
@@ -584,11 +999,24 @@ public sealed partial class StreamingPage : Page
 		{
 			_loginBtn.Padding = new Thickness(6, 3, 6, 3);
 			_loginBtn.Background = new SolidColorBrush(Colors.Transparent);
+			_loginBtn.BorderBrush = new SolidColorBrush(Colors.Transparent);
 			_loginBtn.BorderThickness = new Thickness(0);
+			_loginBtn.Foreground = secondaryBrush;
+			ApplyInteractiveButtonResources(
+				_loginBtn,
+				normalBg: Colors.Transparent,
+				hoverBg: isDark ? Color.FromArgb(28, 255, 255, 255) : Color.FromArgb(16, 15, 23, 42),
+				pressedBg: isDark ? Color.FromArgb(46, 255, 255, 255) : Color.FromArgb(28, 15, 23, 42),
+				normalBorder: Colors.Transparent,
+				hoverBorder: Colors.Transparent,
+				pressedBorder: Colors.Transparent,
+				normalFg: secondaryBrush,
+				hoverFg: primaryBrush,
+				pressedFg: primaryBrush);
 
 			var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
-			sp.Children.Add(new FontIcon { Glyph = "\uE77B", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-			sp.Children.Add(new TextBlock { Text = $"登录 {ViewModel.SelectedPlatform}", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) });
+			sp.Children.Add(new FontIcon { Glyph = "\uE77B", FontSize = 11, Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241)) });
+			sp.Children.Add(new TextBlock { Text = $"登录 {ViewModel.SelectedPlatform}", FontSize = 11, Foreground = secondaryBrush });
 
 			_loginBtn.Content = sp;
 		}
@@ -602,6 +1030,10 @@ public sealed partial class StreamingPage : Page
 		if (_accountCardContainer == null || ViewModel == null) return;
 		_accountCardContainer.Children.Clear();
 
+		bool isDark = IsStreamingDark;
+		var primaryBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+
 		var acc = ViewModel.CurrentPlatformAccount;
 		if (acc.IsLoggedIn)
 		{
@@ -611,11 +1043,14 @@ public sealed partial class StreamingPage : Page
 				"Spotify" => Color.FromArgb(255, 30, 215, 96),
 				_ => Color.FromArgb(255, 99, 102, 241)
 			};
+			Color iconColor = isDark && acc.Platform != "QQ 音乐" && acc.Platform != "QQ音乐" && acc.Platform != "Spotify"
+				? Color.FromArgb(255, 165, 180, 252)
+				: themeColor;
 
 			var card = new Border
 			{
-				Background = new SolidColorBrush(Color.FromArgb(18, themeColor.R, themeColor.G, themeColor.B)),
-				BorderBrush = new SolidColorBrush(Color.FromArgb(40, themeColor.R, themeColor.G, themeColor.B)),
+				Background = new SolidColorBrush(Color.FromArgb(isDark ? (byte)36 : (byte)18, themeColor.R, themeColor.G, themeColor.B)),
+				BorderBrush = new SolidColorBrush(Color.FromArgb(isDark ? (byte)75 : (byte)40, themeColor.R, themeColor.G, themeColor.B)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(8),
 				Padding = new Thickness(8, 6, 8, 6),
@@ -632,7 +1067,7 @@ public sealed partial class StreamingPage : Page
 				Width = 28,
 				Height = 28,
 				CornerRadius = new CornerRadius(14),
-				Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+				Background = new SolidColorBrush(isDark ? Color.FromArgb(55, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255)),
 				Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 28, 28) }
 			};
 			if (!string.IsNullOrEmpty(acc.AvatarUrl) && Uri.TryCreate(acc.AvatarUrl, UriKind.Absolute, out var uri))
@@ -643,12 +1078,12 @@ public sealed partial class StreamingPage : Page
 				}
 				catch
 				{
-					av.Child = new FontIcon { Glyph = "\uE77B", FontSize = 12, Foreground = new SolidColorBrush(themeColor) };
+					av.Child = new FontIcon { Glyph = "\uE77B", FontSize = 12, Foreground = new SolidColorBrush(iconColor) };
 				}
 			}
 			else
 			{
-				av.Child = new FontIcon { Glyph = "\uE77B", FontSize = 12, Foreground = new SolidColorBrush(themeColor) };
+				av.Child = new FontIcon { Glyph = "\uE77B", FontSize = 12, Foreground = new SolidColorBrush(iconColor) };
 			}
 			Grid.SetColumn(av, 0);
 			g.Children.Add(av);
@@ -659,14 +1094,14 @@ public sealed partial class StreamingPage : Page
 				Text = !string.IsNullOrEmpty(acc.Nickname) ? acc.Nickname : acc.UserIdStr,
 				FontSize = 11.5,
 				FontWeight = FontWeights.Bold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+				Foreground = primaryBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis
 			});
 			info.Children.Add(new TextBlock
 			{
 				Text = $"{acc.Platform} · {acc.VipStatus} · 在线",
 				FontSize = 9.5,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
+				Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74))
 			});
 			Grid.SetColumn(info, 1);
 			g.Children.Add(info);
@@ -679,8 +1114,10 @@ public sealed partial class StreamingPage : Page
 				CornerRadius = new CornerRadius(12),
 				Background = new SolidColorBrush(Colors.Transparent),
 				BorderThickness = new Thickness(0),
-				Content = new FontIcon { Glyph = "\uE712", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+				BorderBrush = new SolidColorBrush(Colors.Transparent),
+				Content = new FontIcon { Glyph = "\uE712", FontSize = 11, Foreground = mutedBrush }
 			};
+			ApplyFlatActionButtonStyle(optBtn);
 			optBtn.Click += async (s, e) => await ShowAccountDetailsDialogAsync(acc.Platform);
 			Grid.SetColumn(optBtn, 2);
 			g.Children.Add(optBtn);
@@ -697,9 +1134,33 @@ public sealed partial class StreamingPage : Page
 	{
 		if (_platformListPanel == null || ViewModel == null) return;
 		_platformListPanel.Children.Clear();
+		if (_platformCountTb != null)
+		{
+			_platformCountTb.Text = ViewModel.Platforms.Count.ToString();
+		}
+
+		bool isDark = IsStreamingDark;
+		var unselectedTitleBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 15, 23, 42));
+		var selectedTitleBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+		var subtitleBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		var neutralBadgeFg = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 100, 116, 139));
 
 		foreach (var p in ViewModel.Platforms)
 		{
+			var normalBg = p.IsSelected
+				? Color.FromArgb(isDark ? (byte)52 : (byte)25, 99, 102, 241)
+				: Colors.Transparent;
+			var hoverBg = p.IsSelected
+				? Color.FromArgb(isDark ? (byte)68 : (byte)36, 99, 102, 241)
+				: (isDark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(14, 15, 23, 42));
+			var pressedBg = p.IsSelected
+				? Color.FromArgb(isDark ? (byte)84 : (byte)48, 99, 102, 241)
+				: (isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(24, 15, 23, 42));
+			var normalBorder = p.IsSelected
+				? Color.FromArgb(isDark ? (byte)110 : (byte)60, 129, 140, 248)
+				: Colors.Transparent;
+			var titleBrush = p.IsSelected ? selectedTitleBrush : unselectedTitleBrush;
+
 			var btn = new Button
 			{
 				HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -707,10 +1168,12 @@ public sealed partial class StreamingPage : Page
 				Padding = new Thickness(10, 7, 10, 7),
 				CornerRadius = new CornerRadius(8),
 				BorderThickness = new Thickness(p.IsSelected ? 1 : 0),
-				BorderBrush = p.IsSelected ? new SolidColorBrush(Color.FromArgb(60, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent),
-				Background = p.IsSelected ? new SolidColorBrush(Color.FromArgb(25, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent),
+				BorderBrush = new SolidColorBrush(normalBorder),
+				Background = new SolidColorBrush(normalBg),
+				Foreground = titleBrush,
 				Tag = p.Name
 			};
+			ApplyInteractiveButtonResources(btn, normalBg, hoverBg, pressedBg, normalBorder, normalBorder, normalBorder, titleBrush, titleBrush, titleBrush);
 
 			var rowGrid = new Grid { ColumnSpacing = 8 };
 			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // 状态圆点
@@ -726,7 +1189,7 @@ public sealed partial class StreamingPage : Page
 				CornerRadius = new CornerRadius(4),
 				Background = isGood
 					? new SolidColorBrush(Color.FromArgb(255, 34, 197, 94)) // 翠绿色
-					: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)), // 状态灰
+					: new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 148, 163, 184)),
 				VerticalAlignment = VerticalAlignment.Center
 			};
 			Grid.SetColumn(dot, 0);
@@ -738,13 +1201,13 @@ public sealed partial class StreamingPage : Page
 				Text = p.Name,
 				FontSize = 12,
 				FontWeight = p.IsSelected ? FontWeights.Bold : FontWeights.SemiBold,
-				Foreground = p.IsSelected ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+				Foreground = titleBrush
 			});
 			sp.Children.Add(new TextBlock
 			{
 				Text = p.Subtitle,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = subtitleBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis
 			});
 			Grid.SetColumn(sp, 1);
@@ -757,8 +1220,8 @@ public sealed partial class StreamingPage : Page
 				Padding = new Thickness(5, 2, 5, 2),
 				VerticalAlignment = VerticalAlignment.Center,
 				Background = isGood
-					? new SolidColorBrush(Color.FromArgb(255, 235, 253, 242)) // 浅绿
-					: new SolidColorBrush(Color.FromArgb(255, 241, 245, 249))  // 浅灰
+					? (isDark ? new SolidColorBrush(Color.FromArgb(65, 22, 163, 74)) : new SolidColorBrush(Color.FromArgb(255, 235, 253, 242)))
+					: (isDark ? new SolidColorBrush(Color.FromArgb(52, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)))
 			};
 			var badgeTb = new TextBlock
 			{
@@ -766,8 +1229,8 @@ public sealed partial class StreamingPage : Page
 				FontSize = 9.5,
 				FontWeight = FontWeights.SemiBold,
 				Foreground = isGood
-					? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) // 绿字
-					: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) // 灰字
+					? new SolidColorBrush(isDark ? Color.FromArgb(255, 134, 239, 172) : Color.FromArgb(255, 34, 197, 94))
+					: neutralBadgeFg
 			};
 			badgeBorder.Child = badgeTb;
 			Grid.SetColumn(badgeBorder, 2);
@@ -814,13 +1277,17 @@ public sealed partial class StreamingPage : Page
 			catch { }
 		};
 
-		var rootSp = new StackPanel { Width = 460, Spacing = 14 };
+		var rootSp = new StackPanel { Width = 480, Spacing = 14 };
+		bool isDark = IsStreamingDark;
+		var dialogPrimaryBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var dialogSubHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+		var dialogMutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
 
 		var introTb = new TextBlock
 		{
 			Text = "连接各大流媒体音乐平台账号，可同步个人收藏、导入专属歌单，并直通最高音质与 VIP 音源解析播放。凭证将自动加密保存在本地配置中。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = dialogMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		rootSp.Children.Add(introTb);
@@ -899,7 +1366,7 @@ public sealed partial class StreamingPage : Page
 			Text = "正在生成登录二维码...",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = dialogSubHeaderBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		qrStack.Children.Add(statusTb);
@@ -944,7 +1411,7 @@ public sealed partial class StreamingPage : Page
 		{
 			Text = "支持直接粘贴网易云音乐账号凭据中的 MUSIC_U 字段值或完整 Cookie 字符串：",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = dialogSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -1016,7 +1483,7 @@ public sealed partial class StreamingPage : Page
 		cookieTab.Content = cookieStack;
 		pivot.Items.Add(cookieTab);
 
-		// ==================== 3. QQ 音乐 Cookie 导入 ====================
+		// ==================== 3. QQ 音乐扫码登录 (WebView2 内嵌浏览器) ====================
 		var qqTab = new PivotItem
 		{
 			Header = new StackPanel
@@ -1025,31 +1492,115 @@ public sealed partial class StreamingPage : Page
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE8D6", FontSize = 12 },
-					new TextBlock { Text = "QQ音乐 Cookie", FontSize = 12 }
+					new FontIcon { Glyph = "\uE717", FontSize = 12 },
+					new TextBlock { Text = "QQ音乐 扫码登录", FontSize = 12 }
 				}
 			}
 		};
 
 		var qqStack = new StackPanel { Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
-		qqStack.Children.Add(new TextBlock
-		{
-			Text = "支持导入 QQ 音乐网页端 (y.qq.com) Cookie。需包含 uin (QQ号) 与 qm_keyst / qqmusic_key 凭证，用于登录认证与无损音频解析：",
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
-			TextWrapping = TextWrapping.Wrap
-		});
 
-		var qqCookieBox = new TextBox
+		// 头部提示与工具栏
+		var qqHeaderGrid = new Grid();
+		qqHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		qqHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var qqIntroSp = new StackPanel { Spacing = 2 };
+		qqIntroSp.Children.Add(new TextBlock
 		{
-			PlaceholderText = "粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie 字符串...",
-			AcceptsReturn = true,
-			TextWrapping = TextWrapping.Wrap,
-			Height = 85,
+			Text = "请使用手机 QQ 或微信扫描下方二维码登录：",
 			FontSize = 12,
-			CornerRadius = new CornerRadius(8)
+			FontWeight = FontWeights.SemiBold,
+			Foreground = dialogPrimaryBrush
+		});
+		qqIntroSp.Children.Add(new TextBlock
+		{
+			Text = "授权后自动拦截凭证并完成绿钻与 VIP 无损解析绑定",
+			FontSize = 11,
+			Foreground = dialogMutedBrush
+		});
+		Grid.SetColumn(qqIntroSp, 0);
+		qqHeaderGrid.Children.Add(qqIntroSp);
+
+		bool qqUseWeChatMode = false;
+		var qqToolsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		var qqModeBtn = new Button
+		{
+			Content = "QQ 扫码",
+			FontSize = 11,
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(6),
+			Background = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),
+			Foreground = new SolidColorBrush(Colors.White)
 		};
-		qqStack.Children.Add(qqCookieBox);
+		var wxModeBtn = new Button
+		{
+			Content = "微信扫码",
+			FontSize = 11,
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(6)
+		};
+		var qqRefreshBtn = new Button
+		{
+			Content = "刷新二维码",
+			FontSize = 11,
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(6)
+		};
+		var qqToggleManualBtn = new Button
+		{
+			Content = "手动 Cookie",
+			FontSize = 11,
+			Padding = new Thickness(8, 4, 8, 4),
+			CornerRadius = new CornerRadius(6)
+		};
+		qqToolsSp.Children.Add(qqModeBtn);
+		qqToolsSp.Children.Add(wxModeBtn);
+		qqToolsSp.Children.Add(qqRefreshBtn);
+		qqToolsSp.Children.Add(qqToggleManualBtn);
+		Grid.SetColumn(qqToolsSp, 1);
+		qqHeaderGrid.Children.Add(qqToolsSp);
+		qqStack.Children.Add(qqHeaderGrid);
+
+		// 内嵌 WebView2 容器
+		var qqWebContainer = new Grid
+		{
+			Width = 460,
+			Height = 360,
+			CornerRadius = new CornerRadius(10),
+			Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
+			HorizontalAlignment = HorizontalAlignment.Center
+		};
+
+		var qqWebView = new WebView2
+		{
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			VerticalAlignment = VerticalAlignment.Stretch
+		};
+		qqWebContainer.Children.Add(qqWebView);
+
+		// 加载遮罩
+		var qqLoadingOverlay = new Border
+		{
+			Background = new SolidColorBrush(Color.FromArgb(230, 248, 250, 252)),
+			CornerRadius = new CornerRadius(10),
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			VerticalAlignment = VerticalAlignment.Stretch
+		};
+		var qqLoadingSp = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Spacing = 8 };
+		var qqLoadingRing = new ProgressRing { IsActive = true, Width = 32, Height = 32 };
+		var qqLoadingTb = new TextBlock
+		{
+			Text = "正在加载 QQ 音乐扫码登录页面...",
+			FontSize = 12,
+			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+		};
+		qqLoadingSp.Children.Add(qqLoadingRing);
+		qqLoadingSp.Children.Add(qqLoadingTb);
+		qqLoadingOverlay.Child = qqLoadingSp;
+		qqWebContainer.Children.Add(qqLoadingOverlay);
+
+		qqStack.Children.Add(qqWebContainer);
 
 		var qqStatusTb = new TextBlock
 		{
@@ -1059,17 +1610,235 @@ public sealed partial class StreamingPage : Page
 		};
 		qqStack.Children.Add(qqStatusTb);
 
-		var qqLoginBtn = new Button
+		// 手动输入 Cookie 备用面板
+		var qqManualPanel = new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed };
+		qqManualPanel.Children.Add(new TextBlock
 		{
-			Content = "验证并登录 QQ 音乐",
+			Text = "备用方案：手动粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie：",
+			FontSize = 11.5,
+			Foreground = dialogMutedBrush
+		});
+		var qqCookieBox = new TextBox
+		{
+			PlaceholderText = "粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie 字符串...",
+			AcceptsReturn = true,
+			TextWrapping = TextWrapping.Wrap,
+			Height = 70,
+			FontSize = 11.5,
+			CornerRadius = new CornerRadius(6)
+		};
+		qqManualPanel.Children.Add(qqCookieBox);
+		var qqManualLoginBtn = new Button
+		{
+			Content = "验证并导入 Cookie",
 			Background = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = FontWeights.SemiBold,
-			CornerRadius = new CornerRadius(8),
-			Padding = new Thickness(24, 7, 24, 7),
+			CornerRadius = new CornerRadius(6),
+			Padding = new Thickness(16, 5, 16, 5),
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
-		qqLoginBtn.Click += async (s, e) =>
+		qqManualPanel.Children.Add(qqManualLoginBtn);
+		qqStack.Children.Add(qqManualPanel);
+
+		qqToggleManualBtn.Click += (s, e) =>
+		{
+			qqManualPanel.Visibility = qqManualPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+		};
+
+		var qqTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+		bool qqIsProcessing = false;
+		bool qqIsInitialized = false;
+
+		string GetQQAuthTargetUrl() => qqUseWeChatMode
+			? SonicWave.Core.Services.QQMusicAuthHelper.WeChatLoginQrUrl
+			: SonicWave.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl;
+
+		void UpdateQQModeButtonsUi()
+		{
+			var activeBg = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
+			var activeFg = new SolidColorBrush(Colors.White);
+			var inactiveBg = new SolidColorBrush(isDark ? Color.FromArgb(50, 255, 255, 255) : Color.FromArgb(255, 241, 245, 249));
+			var inactiveFg = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 51, 65, 85));
+			qqModeBtn.Background = qqUseWeChatMode ? inactiveBg : activeBg;
+			qqModeBtn.Foreground = qqUseWeChatMode ? inactiveFg : activeFg;
+			wxModeBtn.Background = qqUseWeChatMode ? activeBg : inactiveBg;
+			wxModeBtn.Foreground = qqUseWeChatMode ? activeFg : inactiveFg;
+		}
+
+		async Task ClearStaleQQWebCookiesAsync()
+		{
+			if (qqWebView.CoreWebView2 == null) return;
+			var cm = qqWebView.CoreWebView2.CookieManager;
+			foreach (string origin in SonicWave.Core.Services.QQMusicAuthHelper.CookieOrigins)
+			{
+				try
+				{
+					var list = await cm.GetCookiesAsync(origin);
+					if (list == null) continue;
+					foreach (var c in list)
+					{
+						cm.DeleteCookie(c);
+					}
+				}
+				catch { }
+			}
+		}
+
+		async Task NavigateQQAuthAsync(bool clearCookies)
+		{
+			if (qqWebView.CoreWebView2 == null) return;
+			qqLoadingOverlay.Visibility = Visibility.Visible;
+			qqLoadingTb.Text = qqUseWeChatMode ? "正在加载微信扫码登录页面..." : "正在加载 QQ 扫码登录页面...";
+			if (clearCookies)
+			{
+				await ClearStaleQQWebCookiesAsync();
+			}
+			qqWebView.CoreWebView2.Navigate(GetQQAuthTargetUrl());
+		}
+
+		async Task EnsureQQWebViewInitializedAsync()
+		{
+			if (qqIsInitialized) return;
+			qqIsInitialized = true;
+			try
+			{
+				qqLoadingOverlay.Visibility = Visibility.Visible;
+				qqLoadingTb.Text = "正在初始化安全内嵌浏览器...";
+				await qqWebView.EnsureCoreWebView2Async();
+				qqWebView.CoreWebView2.Settings.IsWebMessageEnabled = false;
+				qqWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+				qqWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+
+				qqWebView.CoreWebView2.NewWindowRequested += (s, args) =>
+				{
+					args.Handled = true;
+					if (!string.IsNullOrWhiteSpace(args.Uri))
+					{
+						qqWebView.CoreWebView2.Navigate(args.Uri);
+					}
+				};
+
+				qqWebView.CoreWebView2.NavigationCompleted += async (s, args) =>
+				{
+					qqLoadingOverlay.Visibility = Visibility.Collapsed;
+					string currentUrl = qqWebView.CoreWebView2?.Source ?? string.Empty;
+					if (currentUrl.Contains("graph.qq.com/oauth2.0/show", StringComparison.OrdinalIgnoreCase))
+					{
+						try
+						{
+							await qqWebView.CoreWebView2!.ExecuteScriptAsync(SonicWave.Core.Services.QQMusicAuthHelper.CompactOAuthLayoutScript);
+						}
+						catch { }
+					}
+					if (!qqIsProcessing) qqTimer.Start();
+				};
+
+				await NavigateQQAuthAsync(clearCookies: true);
+			}
+			catch (Exception ex)
+			{
+				qqLoadingOverlay.Visibility = Visibility.Collapsed;
+				qqStatusTb.Text = $"内嵌浏览器加载失败 ({ex.Message})，请使用手动 Cookie 导入。";
+				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+				qqStatusTb.Visibility = Visibility.Visible;
+				qqManualPanel.Visibility = Visibility.Visible;
+			}
+		}
+
+		qqModeBtn.Click += async (s, e) =>
+		{
+			qqUseWeChatMode = false;
+			UpdateQQModeButtonsUi();
+			if (qqWebView.CoreWebView2 != null) await NavigateQQAuthAsync(clearCookies: false);
+			else await EnsureQQWebViewInitializedAsync();
+		};
+
+		wxModeBtn.Click += async (s, e) =>
+		{
+			qqUseWeChatMode = true;
+			UpdateQQModeButtonsUi();
+			if (qqWebView.CoreWebView2 != null) await NavigateQQAuthAsync(clearCookies: false);
+			else await EnsureQQWebViewInitializedAsync();
+		};
+
+		qqRefreshBtn.Click += async (s, e) =>
+		{
+			if (qqWebView.CoreWebView2 != null)
+			{
+				await NavigateQQAuthAsync(clearCookies: true);
+			}
+			else
+			{
+				await EnsureQQWebViewInitializedAsync();
+			}
+		};
+
+		qqTimer.Tick += async (ts, te) =>
+		{
+			if (qqIsProcessing || cts.IsCancellationRequested || qqWebView.CoreWebView2 == null) return;
+
+			try
+			{
+				var cookieManager = qqWebView.CoreWebView2.CookieManager;
+				var cookieDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+				foreach (string origin in SonicWave.Core.Services.QQMusicAuthHelper.CookieOrigins)
+				{
+					try
+					{
+						var list = await cookieManager.GetCookiesAsync(origin);
+						if (list == null) continue;
+						foreach (var c in list)
+						{
+							if (!string.IsNullOrWhiteSpace(c.Name) && !string.IsNullOrWhiteSpace(c.Value))
+							{
+								cookieDict[c.Name] = c.Value;
+							}
+						}
+					}
+					catch { }
+				}
+
+				if (!SonicWave.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
+					cookieDict,
+					qqWebView.CoreWebView2.Source,
+					out string detectedUserId,
+					out string cookieHeader))
+				{
+					return;
+				}
+
+				qqIsProcessing = true;
+				qqTimer.Stop();
+
+				qqStatusTb.Text = $"检测到登录凭据 ({detectedUserId})，正在验证账号并保存配置...";
+				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
+				qqStatusTb.Visibility = Visibility.Visible;
+
+				var (ok, msg) = await ViewModel.LoginQQWithCookieAsync(cookieHeader);
+				if (ok)
+				{
+					qqStatusTb.Text = $"🎉 {msg} 登录成功，正在关闭...";
+					qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
+					await Task.Delay(1000);
+					dialog.Hide();
+				}
+				else
+				{
+					qqStatusTb.Text = msg;
+					qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+					qqIsProcessing = false;
+					qqTimer.Start();
+				}
+			}
+			catch (Exception ex)
+			{
+				System.Diagnostics.Debug.WriteLine($"QQ Cookie poll exception: {ex.Message}");
+			}
+		};
+
+		qqManualLoginBtn.Click += async (s, e) =>
 		{
 			string txt = qqCookieBox.Text.Trim();
 			if (string.IsNullOrEmpty(txt))
@@ -1080,15 +1849,15 @@ public sealed partial class StreamingPage : Page
 				return;
 			}
 
-			qqLoginBtn.IsEnabled = false;
-			qqLoginBtn.Content = "正在校验...";
+			qqManualLoginBtn.IsEnabled = false;
+			qqManualLoginBtn.Content = "正在校验...";
 			qqStatusTb.Text = "正在解析 QQ 音乐账号凭据...";
 			qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
 			qqStatusTb.Visibility = Visibility.Visible;
 
 			var (ok, msg) = await ViewModel.LoginQQWithCookieAsync(txt);
-			qqLoginBtn.IsEnabled = true;
-			qqLoginBtn.Content = "验证并登录 QQ 音乐";
+			qqManualLoginBtn.IsEnabled = true;
+			qqManualLoginBtn.Content = "验证并导入 Cookie";
 
 			if (ok)
 			{
@@ -1103,7 +1872,16 @@ public sealed partial class StreamingPage : Page
 				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 			}
 		};
-		qqStack.Children.Add(qqLoginBtn);
+
+		dialog.Closed += (s, e) =>
+		{
+			try
+			{
+				qqTimer.Stop();
+				qqWebView.Close();
+			}
+			catch { }
+		};
 
 		qqTab.Content = qqStack;
 		pivot.Items.Add(qqTab);
@@ -1128,7 +1906,7 @@ public sealed partial class StreamingPage : Page
 		{
 			Text = "支持导入 Spotify 官方 Access Token (BQD...) 或网页端 sp_dc 会话 Cookie，用于同步 Spotify 音乐账户：",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = dialogSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -1227,7 +2005,7 @@ public sealed partial class StreamingPage : Page
 			expiredOverlay.Visibility = Visibility.Collapsed;
 			qrLoadingRing.IsActive = true;
 			statusTb.Text = "正在向网易云请求登录二维码...";
-			statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			statusTb.Foreground = dialogSubHeaderBrush;
 
 			string? unikey = await ViewModel.RequestQrKeyAsync();
 			if (string.IsNullOrEmpty(unikey))
@@ -1269,7 +2047,7 @@ public sealed partial class StreamingPage : Page
 
 			qrLoadingRing.IsActive = false;
 			statusTb.Text = "请使用网易云音乐手机 App 扫码登录";
-			statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			statusTb.Foreground = dialogSubHeaderBrush;
 
 			_ = PollQrStatusAsync(unikey, cts.Token);
 		}
@@ -1320,12 +2098,42 @@ public sealed partial class StreamingPage : Page
 			}
 		};
 
+		pivot.SelectionChanged += async (s, e) =>
+		{
+			if (pivot.SelectedIndex == 0)
+			{
+				qqTimer.Stop();
+				if (string.IsNullOrEmpty(currentUnikey)) _ = LoadQrAsync();
+			}
+			else if (pivot.SelectedIndex == 2)
+			{
+				await EnsureQQWebViewInitializedAsync();
+				if (!qqIsProcessing) qqTimer.Start();
+			}
+			else
+			{
+				qqTimer.Stop();
+			}
+		};
+
 		if (pivot.SelectedIndex == 0)
 		{
 			_ = LoadQrAsync();
 		}
+		else if (pivot.SelectedIndex == 2)
+		{
+			_ = EnsureQQWebViewInitializedAsync();
+		}
 
 		await dialog.ShowAsync();
+	}
+
+	/// <summary>
+	/// 弹出 QQ 音乐内嵌 WebView2 扫码登录浮层/弹窗
+	/// </summary>
+	public async Task ShowQQWebLoginDialogAsync()
+	{
+		await ShowLoginDialogAsync("QQ 音乐");
 	}
 
 	/// <summary>
@@ -1354,12 +2162,18 @@ public sealed partial class StreamingPage : Page
 		};
 
 		var rootSp = new StackPanel { Width = 400, Spacing = 16 };
+		bool isDark = IsStreamingDark;
+		Color iconColor = isDark && platform != "QQ 音乐" && platform != "QQ音乐" && platform != "Spotify"
+			? Color.FromArgb(255, 165, 180, 252)
+			: themeColor;
+		var primaryBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
 
 		// 账号卡片
 		var cardBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(18, themeColor.R, themeColor.G, themeColor.B)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(40, themeColor.R, themeColor.G, themeColor.B)),
+			Background = new SolidColorBrush(Color.FromArgb(isDark ? (byte)36 : (byte)18, themeColor.R, themeColor.G, themeColor.B)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(isDark ? (byte)75 : (byte)40, themeColor.R, themeColor.G, themeColor.B)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(16)
@@ -1374,7 +2188,7 @@ public sealed partial class StreamingPage : Page
 			Width = 56,
 			Height = 56,
 			CornerRadius = new CornerRadius(28),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(55, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255)),
 			Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, 56, 56) }
 		};
 		if (!string.IsNullOrEmpty(acc.AvatarUrl) && Uri.TryCreate(acc.AvatarUrl, UriKind.Absolute, out var uri))
@@ -1385,12 +2199,12 @@ public sealed partial class StreamingPage : Page
 			}
 			catch
 			{
-				avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(themeColor) };
+				avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(iconColor) };
 			}
 		}
 		else
 		{
-			avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(themeColor) };
+			avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(iconColor) };
 		}
 		Grid.SetColumn(avatarBorder, 0);
 		cardGrid.Children.Add(avatarBorder);
@@ -1401,13 +2215,13 @@ public sealed partial class StreamingPage : Page
 			Text = !string.IsNullOrEmpty(acc.Nickname) ? acc.Nickname : (string.IsNullOrEmpty(acc.UserIdStr) ? "认证用户" : acc.UserIdStr),
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = primaryBrush
 		});
 
 		var tagSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		var vipBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(65, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255)),
 			CornerRadius = new CornerRadius(4),
 			Padding = new Thickness(6, 1, 6, 1),
 			Child = new TextBlock
@@ -1415,7 +2229,7 @@ public sealed partial class StreamingPage : Page
 				Text = acc.VipStatus,
 				FontSize = 10,
 				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(themeColor)
+				Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : themeColor)
 			}
 		};
 		tagSp.Children.Add(vipBadge);
@@ -1433,7 +2247,7 @@ public sealed partial class StreamingPage : Page
 			{
 				Text = idLabel,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = mutedBrush,
 				VerticalAlignment = VerticalAlignment.Center
 			});
 		}
@@ -1443,7 +2257,7 @@ public sealed partial class StreamingPage : Page
 		{
 			Text = "状态: 已通过认证 · 凭据已持久化",
 			FontSize = 10.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94))
+			Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 34, 197, 94))
 		});
 
 		// 凭证脱敏预览
@@ -1457,7 +2271,7 @@ public sealed partial class StreamingPage : Page
 			{
 				Text = $"凭证: {preview}",
 				FontSize = 9.5,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = mutedBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis
 			});
 		}
@@ -1518,23 +2332,51 @@ public sealed partial class StreamingPage : Page
 	{
 		if (_recentSearchesPanel == null || ViewModel == null) return;
 		_recentSearchesPanel.Children.Clear();
+		if (_recentBadgeTb != null)
+		{
+			_recentBadgeTb.Text = ViewModel.RecentSearches.Count.ToString();
+		}
+
+		bool isDark = IsStreamingDark;
+		var iconBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		var textBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 241, 245, 249) : Color.FromArgb(255, 51, 65, 85));
+		var hoverTextBrush = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var hoverBg = isDark ? Color.FromArgb(26, 255, 255, 255) : Color.FromArgb(14, 15, 23, 42);
+		var pressedBg = isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(24, 15, 23, 42);
 
 		foreach (var r in ViewModel.RecentSearches)
 		{
 			var btn = new Button
 			{
 				HorizontalAlignment = HorizontalAlignment.Stretch,
-				HorizontalContentAlignment = HorizontalAlignment.Left,
+				HorizontalContentAlignment = HorizontalAlignment.Stretch,
 				Padding = new Thickness(8, 4, 8, 4),
 				CornerRadius = new CornerRadius(6),
 				Background = new SolidColorBrush(Colors.Transparent),
 				BorderThickness = new Thickness(0),
+				BorderBrush = new SolidColorBrush(Colors.Transparent),
+				Foreground = textBrush,
 				Tag = r
 			};
+			ApplyInteractiveButtonResources(btn, Colors.Transparent, hoverBg, pressedBg, Colors.Transparent, Colors.Transparent, Colors.Transparent, textBrush, hoverTextBrush, hoverTextBrush);
 
-			var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-			sp.Children.Add(new FontIcon { Glyph = "\uE721", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)), VerticalAlignment = VerticalAlignment.Center });
-			sp.Children.Add(new TextBlock { Text = r, FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)), VerticalAlignment = VerticalAlignment.Center });
+			var sp = new Grid { ColumnSpacing = 8 };
+			sp.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			sp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+			var icon = new FontIcon { Glyph = "\uE721", FontSize = 11, Foreground = iconBrush, VerticalAlignment = VerticalAlignment.Center };
+			Grid.SetColumn(icon, 0);
+			sp.Children.Add(icon);
+			var termTb = new TextBlock
+			{
+				Text = r,
+				FontSize = 11,
+				Foreground = textBrush,
+				VerticalAlignment = VerticalAlignment.Center,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				MaxLines = 1
+			};
+			Grid.SetColumn(termTb, 1);
+			sp.Children.Add(termTb);
 
 			btn.Content = sp;
 			btn.Click += (s, e) =>
@@ -1554,21 +2396,35 @@ public sealed partial class StreamingPage : Page
 		if (_songListStackPanel == null || ViewModel == null) return;
 		_songListStackPanel.Children.Clear();
 
+		bool isDark = IsStreamingDark;
+		if (_tableTitleHeaderTb != null && !string.IsNullOrWhiteSpace(ViewModel.SelectedTab))
+		{
+			_tableTitleHeaderTb.Text = ViewModel.SelectedTab;
+		}
+
+		var titleBrush = isDark ? new SolidColorBrush(Colors.White) : StreamingTextPrimaryBrush;
+		var subtitleBrush = isDark ? new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)) : StreamingTextMutedBrush;
+		var sourceBrush = isDark ? new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)) : StreamingTextSubHeaderBrush;
+		var mutedBrush = StreamingTextMutedBrush;
+		var accentIconColor = isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241);
+
 		foreach (var item in ViewModel.Results)
 		{
 			var rowCard = new Border
 			{
 				CornerRadius = new CornerRadius(8),
-				Padding = new Thickness(10, 6, 10, 6),
+				Padding = new Thickness(8, 6, 8, 6),
 				Margin = new Thickness(0, 1, 0, 1),
-				Background = new SolidColorBrush(Colors.Transparent)
+				Background = new SolidColorBrush(Colors.Transparent),
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				MinWidth = 0
 			};
 
 			rowCard.PointerEntered += (s, e) =>
 			{
 				if (s is Border b)
 				{
-					b.Background = new SolidColorBrush(Color.FromArgb(25, 99, 102, 241));
+					b.Background = new SolidColorBrush(Color.FromArgb(isDark ? (byte)36 : (byte)25, 99, 102, 241));
 				}
 			};
 			rowCard.PointerExited += (s, e) =>
@@ -1579,32 +2435,32 @@ public sealed partial class StreamingPage : Page
 				}
 			};
 
-			var rowGrid = new Grid();
-			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) }); // #
-			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) }); // 歌曲
-			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) }); // 来源 / 音质
-			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) }); // 时长
-			rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) }); // 操作
+			var rowGrid = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+			ApplyResultTableColumns(rowGrid);
 
 			// 0. 序号
 			var idxTb = new TextBlock
 			{
 				Text = item.DisplayIndex.ToString(),
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = mutedBrush,
+				MinWidth = 0,
 				VerticalAlignment = VerticalAlignment.Center
 			};
 			Grid.SetColumn(idxTb, 0);
 			rowGrid.Children.Add(idxTb);
 
-			// 1. 歌曲 (封面 + 标题 + 歌手专辑)
-			var songInfoSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+			// 1. 歌曲 / 专辑 / 艺人 / 歌单 (使用 Grid Auto + 1* 约束，彻底杜绝长标题/长艺人列表撑破右侧列与筛选栏)
+			var songInfoGrid = new Grid { ColumnSpacing = 10, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+			songInfoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			songInfoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
 			var coverBorder = new Border
 			{
 				Width = 36,
 				Height = 36,
 				CornerRadius = new CornerRadius(6),
-				Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
+				Background = isDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
 			};
 			if (!string.IsNullOrEmpty(item.CoverUrl) && Uri.TryCreate(item.CoverUrl, UriKind.Absolute, out var coverUri))
 			{
@@ -1622,52 +2478,69 @@ public sealed partial class StreamingPage : Page
 				}
 				catch
 				{
-					coverBorder.Child = new FontIcon { Glyph = "\uE774", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) };
+					coverBorder.Child = new FontIcon { Glyph = "\uE774", FontSize = 14, Foreground = new SolidColorBrush(accentIconColor) };
 				}
 			}
 			else
 			{
-				coverBorder.Child = new FontIcon { Glyph = "\uE774", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) };
+				coverBorder.Child = new FontIcon { Glyph = "\uE774", FontSize = 14, Foreground = new SolidColorBrush(accentIconColor) };
 			}
-			songInfoSp.Children.Add(coverBorder);
+			Grid.SetColumn(coverBorder, 0);
+			songInfoGrid.Children.Add(coverBorder);
 
-			var titleStack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+			var titleStack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
 			titleStack.Children.Add(new TextBlock
 			{
 				Text = item.Title,
 				FontSize = 12.5,
-				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+				FontWeight = isDark ? FontWeights.Bold : FontWeights.SemiBold,
+				Foreground = titleBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis,
-				MaxWidth = 420
+				TextWrapping = TextWrapping.NoWrap,
+				MaxLines = 1,
+				MinWidth = 0,
+				HorizontalAlignment = HorizontalAlignment.Stretch
 			});
 			titleStack.Children.Add(new TextBlock
 			{
 				Text = item.ArtistAndAlbum,
 				FontSize = 10.5,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+				Foreground = subtitleBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis,
-				MaxWidth = 420
+				TextWrapping = TextWrapping.NoWrap,
+				MaxLines = 1,
+				MinWidth = 0,
+				HorizontalAlignment = HorizontalAlignment.Stretch
 			});
-			songInfoSp.Children.Add(titleStack);
-			Grid.SetColumn(songInfoSp, 1);
-			rowGrid.Children.Add(songInfoSp);
+			Grid.SetColumn(titleStack, 1);
+			songInfoGrid.Children.Add(titleStack);
+			Grid.SetColumn(songInfoGrid, 1);
+			rowGrid.Children.Add(songInfoGrid);
 
 			// 2. 来源 / 音质
-			var qualitySp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
+			var qualitySp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
 			qualitySp.Children.Add(new TextBlock
 			{
 				Text = item.RawInfo.Source,
 				FontSize = 11,
 				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+				Foreground = sourceBrush,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				TextWrapping = TextWrapping.NoWrap,
+				MaxLines = 1,
+				MinWidth = 0,
+				HorizontalAlignment = HorizontalAlignment.Stretch
 			});
 			qualitySp.Children.Add(new TextBlock
 			{
 				Text = item.SourceAndQuality,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
-				TextTrimming = TextTrimming.CharacterEllipsis
+				Foreground = mutedBrush,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				TextWrapping = TextWrapping.NoWrap,
+				MaxLines = 1,
+				MinWidth = 0,
+				HorizontalAlignment = HorizontalAlignment.Stretch
 			});
 			Grid.SetColumn(qualitySp, 2);
 			rowGrid.Children.Add(qualitySp);
@@ -1677,7 +2550,8 @@ public sealed partial class StreamingPage : Page
 			{
 				Text = item.DurationText,
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+				Foreground = mutedBrush,
+				MinWidth = 0,
 				HorizontalAlignment = HorizontalAlignment.Right,
 				VerticalAlignment = VerticalAlignment.Center
 			};
@@ -1685,7 +2559,7 @@ public sealed partial class StreamingPage : Page
 			rowGrid.Children.Add(durTb);
 
 			// 4. 操作按钮组
-			var actionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+			var actionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
 
 			var playBtn = new Button
 			{
@@ -1695,9 +2569,11 @@ public sealed partial class StreamingPage : Page
 				CornerRadius = new CornerRadius(14),
 				Background = new SolidColorBrush(Colors.Transparent),
 				BorderThickness = new Thickness(0),
-				Content = new FontIcon { Glyph = "\uE768", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) },
+				BorderBrush = new SolidColorBrush(Colors.Transparent),
+				Content = new FontIcon { Glyph = "\uE768", FontSize = 12, Foreground = new SolidColorBrush(accentIconColor) },
 				Tag = item
 			};
+			ApplyFlatActionButtonStyle(playBtn);
 			playBtn.Click += async (s, e) =>
 			{
 				if (s is Button b && b.Tag is StreamingItemViewModel m)
@@ -1715,9 +2591,11 @@ public sealed partial class StreamingPage : Page
 				CornerRadius = new CornerRadius(14),
 				Background = new SolidColorBrush(Colors.Transparent),
 				BorderThickness = new Thickness(0),
-				Content = new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
+				BorderBrush = new SolidColorBrush(Colors.Transparent),
+				Content = new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = mutedBrush },
 				Tag = item
 			};
+			ApplyFlatActionButtonStyle(queueBtn);
 			queueBtn.Click += async (s, e) =>
 			{
 				if (s is Button b && b.Tag is StreamingItemViewModel m)
@@ -1735,9 +2613,11 @@ public sealed partial class StreamingPage : Page
 				CornerRadius = new CornerRadius(14),
 				Background = new SolidColorBrush(Colors.Transparent),
 				BorderThickness = new Thickness(0),
-				Content = new FontIcon { Glyph = "\uE896", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
+				BorderBrush = new SolidColorBrush(Colors.Transparent),
+				Content = new FontIcon { Glyph = "\uE896", FontSize = 11, Foreground = mutedBrush },
 				Tag = item
 			};
+			ApplyFlatActionButtonStyle(downloadBtn);
 			downloadBtn.Click += async (s, e) =>
 			{
 				if (s is Button b && b.Tag is StreamingItemViewModel m)
@@ -1759,5 +2639,56 @@ public sealed partial class StreamingPage : Page
 
 			_songListStackPanel.Children.Add(rowCard);
 		}
+
+		SyncMainAreaWidth();
+	}
+
+	private static void ApplyInteractiveButtonResources(
+		Button btn,
+		Color normalBg,
+		Color hoverBg,
+		Color pressedBg,
+		Color normalBorder,
+		Color hoverBorder,
+		Color pressedBorder,
+		Brush normalFg,
+		Brush hoverFg,
+		Brush pressedFg)
+	{
+		btn.Resources["ButtonBackground"] = new SolidColorBrush(normalBg);
+		btn.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(hoverBg);
+		btn.Resources["ButtonBackgroundPressed"] = new SolidColorBrush(pressedBg);
+		btn.Resources["ButtonBorderBrush"] = new SolidColorBrush(normalBorder);
+		btn.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(hoverBorder);
+		btn.Resources["ButtonBorderBrushPressed"] = new SolidColorBrush(pressedBorder);
+		btn.Resources["ButtonForeground"] = normalFg;
+		btn.Resources["ButtonForegroundPointerOver"] = hoverFg;
+		btn.Resources["ButtonForegroundPressed"] = pressedFg;
+	}
+
+	private static void ApplyFlatActionButtonStyle(Button btn)
+	{
+		btn.Background = new SolidColorBrush(Colors.Transparent);
+		btn.BorderThickness = new Thickness(0);
+		btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+		btn.Resources["ButtonBorderThemeThickness"] = new Thickness(0);
+		btn.Resources["ButtonBorderBrush"] = new SolidColorBrush(Colors.Transparent);
+		btn.Resources["ButtonBorderBrushPointerOver"] = new SolidColorBrush(Colors.Transparent);
+		btn.Resources["ButtonBorderBrushPressed"] = new SolidColorBrush(Colors.Transparent);
+		btn.Resources["ButtonBackground"] = new SolidColorBrush(Colors.Transparent);
+		btn.Resources["ButtonBackgroundPointerOver"] = new SolidColorBrush(Color.FromArgb(20, 99, 102, 241));
+		btn.Resources["ButtonBackgroundPressed"] = new SolidColorBrush(Color.FromArgb(40, 99, 102, 241));
+		btn.PointerEntered += (s, e) =>
+		{
+			btn.Background = new SolidColorBrush(Color.FromArgb(20, 99, 102, 241));
+			btn.BorderThickness = new Thickness(0);
+			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+		};
+		btn.PointerExited += (s, e) =>
+		{
+			btn.Background = new SolidColorBrush(Colors.Transparent);
+			btn.BorderThickness = new Thickness(0);
+			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+		};
 	}
 }

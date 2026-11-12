@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using ABI.Microsoft.UI.Xaml.Markup;
 using WinRT;
 

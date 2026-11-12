@@ -1,5 +1,5 @@
 /**
- * Microsoft PowerPoint Theme for ECHO Workshop
+ * Microsoft PowerPoint Theme for FurinaPlayer Workshop
  * Presentation Skin - Fluent UI SVG Edition
  * v1.1.0
  */
@@ -388,7 +388,7 @@
       optThemeCard: '外观主题色彩', optToneLight: 'Office 经典明亮 (白/红)', optToneDark: 'Office 经典暗黑 (黑/红)',
       optOverlayCard: '幻灯片专辑底图白色遮罩', optOverlayHint: '调节专辑底图之上的白色遮罩不透明度，兼顾专辑艺术视觉与歌词排版对比度。',
       optVinylCard: '黑胶唱片机旋转选项', optTransCard: '歌词翻译与罗马音', optChkTrans: '开启双语翻译 / 罗马音副标题展示',
-      aboutTitle: '关于 Microsoft PowerPoint ECHO 创意工坊外观', aboutSub: '专为 ECHO 音乐播放器打造的 Microsoft PowerPoint 经典演示文稿主题界面。',
+      aboutTitle: '关于 Microsoft PowerPoint FurinaPlayer 创意工坊外观', aboutSub: '专为 FurinaPlayer 音乐播放器打造的 Microsoft PowerPoint 经典演示文稿主题界面。',
       aboutNameLbl: '插件名称：', aboutNameVal: 'Microsoft PowerPoint · 演示文稿外观主题',
       aboutIdLbl: '插件 ID：', aboutVerLbl: '当前版本：', aboutProtoLbl: '设计原型：',
       aboutProtoVal: 'PowerPoint Fluent Ribbon + 左侧缩略图队列 + 旋转黑胶 + 底图遮罩 + 动态歌词排版',
@@ -455,7 +455,7 @@
       optThemeCard: 'Appearance Theme Tone', optToneLight: 'Office Classic Light (White/Red)', optToneDark: 'Office Classic Dark (Black/Red)',
       optOverlayCard: 'Slide Cover White Mask Overlay', optOverlayHint: 'Adjust translucent mask opacity over album cover art for optimal lyric contrast.',
       optVinylCard: 'Vinyl Turntable Rotation Speed', optTransCard: 'Lyrics Translation & Romanization', optChkTrans: 'Show bilingual translation / romanized subtitle lines',
-      aboutTitle: 'About Microsoft PowerPoint ECHO Workshop Skin', aboutSub: 'Classic Microsoft PowerPoint presentation workspace skin built for ECHO Music Player.',
+      aboutTitle: 'About Microsoft PowerPoint FurinaPlayer Workshop Skin', aboutSub: 'Classic Microsoft PowerPoint presentation workspace skin built for FurinaPlayer Music Player.',
       aboutNameLbl: 'Plugin Name: ', aboutNameVal: 'Microsoft PowerPoint · Presentation Skin',
       aboutIdLbl: 'Plugin ID: ', aboutVerLbl: 'Version: ', aboutProtoLbl: 'Design Prototype: ',
       aboutProtoVal: 'PowerPoint Fluent Ribbon + Thumbnail Queue + Vinyl Turntable + Dynamic Lyrics',
@@ -479,7 +479,7 @@
       filterPlaylists: 'Filter playlists, albums, or tracks...', btnRefresh: 'Refresh Library', btnReturn: 'Return to Presentation',
       localAlbums: 'Local Albums', customPlaylists: 'Custom Playlists', albumUnit: 'albums',
       importAndPlay: 'Import All & Play', appendToQueue: 'Append to Queue', loadingPlaylists: 'Reading library, albums, and playlists...',
-      loadingTracks: 'Loading track list...', emptyPlaylist: 'Playlist is empty', emptyLibraryHint: 'No playlists or library tracks found. Add tracks in ECHO player first.',
+      loadingTracks: 'Loading track list...', emptyPlaylist: 'Playlist is empty', emptyLibraryHint: 'No playlists or library tracks found. Add tracks in FurinaPlayer first.',
       toastVstRack: 'VST3 Effects Rack toggled', toastVstMgr: 'Opening VST3 Plugin Manager...',
       toastImporting: 'Importing playlist and playing', toastAppended: 'Appended to queue',
       fontGroupCurated: 'Curated Fonts', fontGroupSystem: 'Installed System Fonts',
@@ -522,7 +522,7 @@
       optThemeCard: 'Couleur du thème', optToneLight: 'Office Clair (Blanc/Rouge)', optToneDark: 'Office Sombre (Noir/Rouge)',
       optOverlayCard: 'Masque blanc de diapositive', optOverlayHint: 'Ajustez l opacité du masque sur la pochette pour le contraste des paroles.',
       optVinylCard: 'Vitesse du vinyle', optTransCard: 'Traduction des paroles', optChkTrans: 'Afficher la traduction bilingue',
-      aboutTitle: 'À propos du thème Microsoft PowerPoint ECHO', aboutSub: 'Interface de présentation classique PowerPoint conçue pour ECHO.',
+      aboutTitle: 'À propos du thème Microsoft PowerPoint FurinaPlayer', aboutSub: 'Interface de présentation classique PowerPoint conçue pour FurinaPlayer.',
       aboutNameLbl: 'Nom du plugin : ', aboutNameVal: 'Microsoft PowerPoint · Thème de présentation',
       aboutIdLbl: 'ID du plugin : ', aboutVerLbl: 'Version : ', aboutProtoLbl: 'Prototype : ',
       aboutProtoVal: 'Ruban Fluent PowerPoint + File de vignettes + Platine vinyle + Paroles dynamiques',
@@ -589,7 +589,7 @@
       optThemeCard: 'Color del tema', optToneLight: 'Office Claro (Blanco/Rojo)', optToneDark: 'Office Oscuro (Negro/Rojo)',
       optOverlayCard: 'Máscara blanca de diapositiva', optOverlayHint: 'Ajuste la opacidad sobre la portada para mejorar el contraste.',
       optVinylCard: 'Rotación del tocadiscos', optTransCard: 'Traducción de letras', optChkTrans: 'Mostrar subtítulos bilingües',
-      aboutTitle: 'Acerca del tema Microsoft PowerPoint ECHO', aboutSub: 'Interfaz clásica de presentación PowerPoint creada para ECHO.',
+      aboutTitle: 'Acerca del tema Microsoft PowerPoint FurinaPlayer', aboutSub: 'Interfaz clásica de presentación PowerPoint creada para FurinaPlayer.',
       aboutNameLbl: 'Nombre del plugin: ', aboutNameVal: 'Microsoft PowerPoint · Tema de presentación',
       aboutIdLbl: 'ID del plugin: ', aboutVerLbl: 'Versión: ', aboutProtoLbl: 'Prototipo de diseño: ',
       aboutProtoVal: 'Cinta Fluent PowerPoint + Cola de miniaturas + Tocadiscos de vinilo + Letras dinámicas',
@@ -656,7 +656,7 @@
       optThemeCard: 'Цветовая тема оформления', optToneLight: 'Светлая Office (Белый/Красный)', optToneDark: 'Темная Office (Черный/Красный)',
       optOverlayCard: 'Белая маска фона слайда', optOverlayHint: 'Регулировка прозрачности маски поверх обложки альбома.',
       optVinylCard: 'Скорость вращения пластинки', optTransCard: 'Перевод и транскрипция', optChkTrans: 'Показывать перевод текста песен',
-      aboutTitle: 'О теме Microsoft PowerPoint ECHO', aboutSub: 'Классический интерфейс презентации PowerPoint для плеера ECHO.',
+      aboutTitle: 'О теме Microsoft PowerPoint FurinaPlayer', aboutSub: 'Классический интерфейс презентации PowerPoint для плеера FurinaPlayer.',
       aboutNameLbl: 'Название плагина: ', aboutNameVal: 'Microsoft PowerPoint · Тема презентации',
       aboutIdLbl: 'ID плагина: ', aboutVerLbl: 'Версия: ', aboutProtoLbl: 'Прототип дизайна: ',
       aboutProtoVal: 'Лента Fluent PowerPoint + Очередь миниатюр + Виниловый проигрыватель + Динамический текст',
@@ -723,7 +723,7 @@
       optThemeCard: 'لون السمة', optToneLight: 'Office فاتح (أبيض/أحمر)', optToneDark: 'Office داكن (أسود/أحمر)',
       optOverlayCard: 'قناع الخلفية الأبيض', optOverlayHint: 'ضبط شفافية القناع فوق صورة الغلاف لتباين الكلمات.',
       optVinylCard: 'خيارات دوران الأسطوانة', optTransCard: 'ترجمة الكلمات', optChkTrans: 'عرض الترجمة الثنائية تحت الكلمات',
-      aboutTitle: 'حول واجهة Microsoft PowerPoint ECHO', aboutSub: 'واجهة عرض تقديمي كلاسيكية مصممة لمشغل الموسيقى ECHO.',
+      aboutTitle: 'حول واجهة Microsoft PowerPoint FurinaPlayer', aboutSub: 'واجهة عرض تقديمي كلاسيكية مصممة لمشغل الموسيقى FurinaPlayer.',
       aboutNameLbl: 'اسم الإضافة: ', aboutNameVal: 'Microsoft PowerPoint · سمة العرض التقديمي',
       aboutIdLbl: 'معرف الإضافة: ', aboutVerLbl: 'الإصدار: ', aboutProtoLbl: 'نموذج التصميم: ',
       aboutProtoVal: 'شريط PowerPoint Fluent + قائمة الشرائح + مشغل أسطوانات + كلمات متزامنة',
@@ -790,7 +790,7 @@
       optThemeCard: '外観カラーテーマ', optToneLight: 'Office クラシックライト (白/赤)', optToneDark: 'Office クラシックダーク (黒/赤)',
       optOverlayCard: 'スライド背景ホワイトマスク', optOverlayHint: '背景カバー上の白マスク不透明度を調整し、歌詞の視認性を高めます。',
       optVinylCard: 'レコード回転オプション', optTransCard: '歌詞の翻訳とルビ表示', optChkTrans: '対訳・ローマ字サブタイトルを表示する',
-      aboutTitle: 'Microsoft PowerPoint ECHO ワークショップスキンについて', aboutSub: 'ECHO 音楽プレーヤー向けに設計された Microsoft PowerPoint プレゼンテーションテーマ。',
+      aboutTitle: 'Microsoft PowerPoint FurinaPlayer ワークショップスキンについて', aboutSub: 'FurinaPlayer 音楽プレーヤー向けに設計された Microsoft PowerPoint プレゼンテーションテーマ。',
       aboutNameLbl: 'プラグイン名：', aboutNameVal: 'Microsoft PowerPoint · プレゼンテーションテーマ',
       aboutIdLbl: 'プラグイン ID：', aboutVerLbl: 'バージョン：', aboutProtoLbl: 'デザインプロトタイプ：',
       aboutProtoVal: 'PowerPoint Fluent リボン + サムネイルキュー + レコードプレーヤー + 同期歌詞',
@@ -857,7 +857,7 @@
       optThemeCard: '테마 색상', optToneLight: 'Office 클래식 라이트 (화이트/레드)', optToneDark: 'Office 클래식 다크 (블랙/레드)',
       optOverlayCard: '슬라이드 배경 화이트 마스크', optOverlayHint: '앨범 아트워크 위의 마스크 투명도를 조절하여 가사 가독성을 높입니다.',
       optVinylCard: '턴테이블 회전 속도 옵션', optTransCard: '가사 번역 및 발음 표시', optChkTrans: '이중 언어 번역 / 로마자 부제 표시 켜기',
-      aboutTitle: 'Microsoft PowerPoint ECHO 워크샵 스킨 정보', aboutSub: 'ECHO 뮤직 플레이어를 위해 제작된 클래식 PowerPoint 프레젠테이션 테마입니다.',
+      aboutTitle: 'Microsoft PowerPoint FurinaPlayer 워크샵 스킨 정보', aboutSub: 'FurinaPlayer 뮤직 플레이어를 위해 제작된 클래식 PowerPoint 프레젠테이션 테마입니다.',
       aboutNameLbl: '플러그인 이름: ', aboutNameVal: 'Microsoft PowerPoint · 프레젠테이션 스킨',
       aboutIdLbl: '플러그인 ID: ', aboutVerLbl: '버전: ', aboutProtoLbl: '디자인 프로토타입: ',
       aboutProtoVal: 'PowerPoint Fluent 리본 + 슬라이드 대기열 + 바이닐 턴테이블 + 실시간 가사',
@@ -924,7 +924,7 @@
       optThemeCard: '外觀佈景主題色彩', optToneLight: 'Office 經典明亮 (白/紅)', optToneDark: 'Office 經典暗黑 (黑/紅)',
       optOverlayCard: '投影片專輯底圖白色遮罩', optOverlayHint: '調節專輯底圖之上的白色遮罩不透明度，兼顧專輯藝術視覺與歌詞排版對比度。',
       optVinylCard: '黑膠唱片機旋轉選項', optTransCard: '歌詞翻譯與羅馬音', optChkTrans: '開啟雙語翻譯 / 羅馬音副標題展示',
-      aboutTitle: '關於 Microsoft PowerPoint ECHO 工作坊外觀', aboutSub: '專為 ECHO 音樂播放器打造的 Microsoft PowerPoint 經典簡報佈景主題介面。',
+      aboutTitle: '關於 Microsoft PowerPoint FurinaPlayer 工作坊外觀', aboutSub: '專為 FurinaPlayer 音樂播放器打造的 Microsoft PowerPoint 經典簡報佈景主題介面。',
       aboutNameLbl: '外掛名稱：', aboutNameVal: 'Microsoft PowerPoint · 簡報外觀佈景主題',
       aboutIdLbl: '外掛 ID：', aboutVerLbl: '目前版本：', aboutProtoLbl: '設計原型：',
       aboutProtoVal: 'PowerPoint Fluent Ribbon + 左側縮圖佇列 + 旋轉黑膠 + 底圖遮罩 + 動態歌詞排版',
@@ -1437,7 +1437,7 @@
     const title = track.title || '等待播放歌曲';
     const artist = track.artist || '—';
     const album = track.album || '—';
-    const sourceText = track.source || (track.id && track.id.startsWith('streaming:') ? '网易云音乐' : 'ECHO 本地曲库');
+    const sourceText = track.source || (String(track.id ?? '').startsWith('streaming:') ? '网易云音乐' : 'FurinaPlayer 本地曲库');
     const metaSig = `${track.id || ''}|${title}|${artist}|${album}|${sourceText}`;
 
     if (metaSig !== lastMetadataSig) {
@@ -2668,7 +2668,7 @@
     if (els.mAudioBitdepth) els.mAudioBitdepth.textContent = state.audio.bitDepth || '24-bit';
     if (els.mAudioChannels) els.mAudioChannels.textContent = state.audio.channels || '双声道立体声';
     if (els.mAudioBitrate) els.mAudioBitrate.textContent = state.audio.bitrate || '1411 kbps';
-    if (els.mAudioBackend) els.mAudioBackend.textContent = state.audio.engine || 'ECHO Core Audio Engine';
+    if (els.mAudioBackend) els.mAudioBackend.textContent = state.audio.engine || 'FurinaPlayer Core Audio Engine';
 
     if (els.mPlayState) {
       els.mPlayState.textContent = state.playback.state === 'playing' ? (t('nowPlaying') || '正在播放') : (t('infoPlayStatePaused') || '已暂停');
@@ -3198,7 +3198,7 @@
       updateAudioLevels(peak, rms);
     }
     if (status.outputFacts?.delivery || status.outputDevice) {
-      state.audio.engine = status.outputDevice || (status.outputFacts?.delivery === 'local' ? 'ECHO Core Audio' : 'DirectSound');
+      state.audio.engine = status.outputDevice || (status.outputFacts?.delivery === 'local' ? 'FurinaPlayer Core Audio' : 'DirectSound');
       setTextIfDiff(els.propBackend, state.audio.engine);
     }
   }
@@ -3639,7 +3639,7 @@
     if (els.btnMultiSyncQueue) {
       els.btnMultiSyncQueue.addEventListener('click', () => {
         requestFullQueue(true);
-        showToast(t('btnSyncQueue') || '已同步 ECHO 播放列表队列');
+        showToast(t('btnSyncQueue') || '已同步 FurinaPlayer 播放列表队列');
       });
     }
     if (els.btnMultiRealtime) els.btnMultiRealtime.addEventListener('click', () => showToast('已开启 WASAPI 实时监听'));

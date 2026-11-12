@@ -126,11 +126,23 @@ public sealed class LibVLCDecoder : IDisposable
 
 		// Also check parent directories if running from bin/Release/net8.0/...
 		string? current = baseDirectory;
-		for (int i = 0; i < 4 && current != null; i++)
+		for (int i = 0; i < 8 && current != null; i++)
 		{
 			candidates.Add(Path.Combine(current, "libvlc", "win-x64"));
 			candidates.Add(Path.Combine(current, "libvlc"));
 			current = Directory.GetParent(current)?.FullName;
+		}
+		try
+		{
+			string cwd = Environment.CurrentDirectory;
+			if (!string.IsNullOrWhiteSpace(cwd))
+			{
+				candidates.Add(Path.Combine(cwd, "libvlc", "win-x64"));
+				candidates.Add(Path.Combine(cwd, "libvlc"));
+			}
+		}
+		catch
+		{
 		}
 
 		foreach (string text in candidates)
@@ -162,6 +174,10 @@ public sealed class LibVLCDecoder : IDisposable
 				&& (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "rtsp" || uri.Scheme == "rtmp");
 			FromType fromType = isNetworkUrl ? FromType.FromLocation : FromType.FromPath;
 			_media = new Media(_libVlc, filePath, fromType);
+			if (isNetworkUrl)
+			{
+				_media.AddOption(":network-caching=1200");
+			}
 			if (_lastEqGains != null)
 			{
 				SetEqGains(_lastEqGains);
@@ -180,14 +196,14 @@ public sealed class LibVLCDecoder : IDisposable
 		}
 	}
 
-	public bool WaitUntilPlaying(int timeoutMs = 2000)
+	public bool WaitUntilPlaying(int timeoutMs = 2000, CancellationToken cancellationToken = default)
 	{
-		if (_player == null)
+		if (_player == null || cancellationToken.IsCancellationRequested)
 		{
 			return false;
 		}
 		Stopwatch stopwatch = Stopwatch.StartNew();
-		while (stopwatch.ElapsedMilliseconds < timeoutMs)
+		while (stopwatch.ElapsedMilliseconds < timeoutMs && !cancellationToken.IsCancellationRequested)
 		{
 			try
 			{
@@ -200,7 +216,21 @@ public sealed class LibVLCDecoder : IDisposable
 			{
 				return false;
 			}
-			Thread.Sleep(20);
+			if (cancellationToken.CanBeCanceled)
+			{
+				if (cancellationToken.WaitHandle.WaitOne(20))
+				{
+					return false;
+				}
+			}
+			else
+			{
+				Thread.Sleep(20);
+			}
+		}
+		if (cancellationToken.IsCancellationRequested)
+		{
+			return false;
 		}
 		try
 		{

@@ -29,7 +29,7 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 	private string _accentHex = "#00e5ff";
 
 	private const string EmptyHint = "未加载音频文件，无法显示波形";
-	private static readonly SKTypeface CjkTypeface = ResolveCjkTypeface();
+	internal static readonly SKTypeface CjkTypeface = ResolveCjkTypeface();
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private SKXamlCanvas Canvas;
@@ -124,7 +124,7 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 		{
 			using var emptyPaint = new SKPaint
 			{
-				Color = new SKColor(120, 130, 145, 180),
+				Color = new SKColor(226, 232, 240, 245), // #E2E8F0 high contrast on #16191d
 				TextSize = 14f,
 				IsAntialias = true,
 				Typeface = CjkTypeface
@@ -139,10 +139,10 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 		// Colors matching Adobe Audition DAW
 		SKColor peakColor = new SKColor(58, 197, 236); // #3ac5ec electric cyan
 		SKColor rmsColor = new SKColor(2, 136, 209);   // #0288d1 deep solid cyan/blue
-		SKColor greenBaselineColor = new SKColor(34, 139, 73, 140); // 0-axis baseline green
-		SKColor gridLineColor = new SKColor(28, 110, 56, 70);       // dB graticule green
-		SKColor hudTextColor = new SKColor(255, 255, 255, 120);     // HUD text
-		SKColor hudChannelColor = new SKColor(255, 255, 255, 180);  // L / R badge
+		SKColor greenBaselineColor = new SKColor(52, 185, 102, 180); // 0-axis baseline green
+		SKColor gridLineColor = new SKColor(42, 145, 78, 105);       // dB graticule green
+		SKColor hudTextColor = new SKColor(203, 213, 225, 225);      // #CBD5E1 HUD text
+		SKColor hudChannelColor = new SKColor(248, 250, 252, 240);   // #F8FAFC L / R badge
 
 		using var baselinePaint = new SKPaint
 		{
@@ -160,7 +160,7 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 
 		using var tickPaint = new SKPaint
 		{
-			Color = new SKColor(255, 255, 255, 60),
+			Color = new SKColor(203, 213, 225, 145),
 			StrokeWidth = 1f,
 			IsAntialias = true
 		};
@@ -183,7 +183,7 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 
 		using var dbTextPaint = new SKPaint
 		{
-			Color = new SKColor(255, 255, 255, 80),
+			Color = new SKColor(203, 213, 225, 215),
 			TextSize = 8.5f,
 			IsAntialias = true,
 			Typeface = SKTypeface.FromFamilyName("Consolas")

@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Helpers;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
@@ -23,11 +24,14 @@ public sealed partial class DspPage
 {
 	private FrameworkElement? _roomCorrectionWorkbench;
 	private TextBlock? _roomNavSubTb;
-
-	// Top Bar Elements
-	private TextBlock? _roomModuleCountBadge;
-	private TextBlock? _roomStateBadge;
-	private Button? _roomRefreshBtn;
+	private Grid? _roomRootGrid;
+	private Border? _roomWaveIconBorder;
+	private FontIcon? _roomWaveIcon;
+	private Border? _roomHeroCard;
+	private Border? _roomProBadge;
+	private readonly List<Rectangle> _roomDividers = new();
+	private readonly List<Border> _roomSignalPathNodes = new();
+	private readonly List<FontIcon> _roomSignalPathArrows = new();
 
 	// Hero Card Elements
 	private Ellipse? _roomStatusDot;
@@ -46,24 +50,36 @@ public sealed partial class DspPage
 	private Border? _roomActiveIrCard;
 	private TextBlock? _roomIrFileNameTb;
 	private TextBlock? _roomIrSpecsTb;
+	private Button? _roomIrReimportBtn;
+	private Button? _roomIrClearBtn;
+	private FontIcon? _roomTrimIcon;
 	private Slider? _roomTrimSlider;
 	private TextBlock? _roomTrimValueTb;
 	private readonly List<Button> _roomTrimPresetButtons = new();
 	private Border? _roomClippingBanner;
+	private FontIcon? _roomClippingIcon;
+	private TextBlock? _roomClippingTextTb;
+	private readonly List<Button> _roomWorkflowCardButtons = new();
 
 	// REW Guide Collapsible Card
 	private Border? _roomRewExpanderCard;
 	private StackPanel? _roomRewExpanderBody;
 	private FontIcon? _roomRewChevron;
+	private Border? _roomRewCodeBox;
 	private TextBlock? _roomRewGuideFooterTb;
 
 	public FrameworkElement CreateRoomCorrectionWorkbench()
 	{
 		if (_roomCorrectionWorkbench != null)
 		{
-			RefreshRoomCorrectionState();
+			RefreshRoomCorrectionTheme(IsDspDark);
 			return _roomCorrectionWorkbench;
 		}
+
+		_roomDividers.Clear();
+		_roomSignalPathNodes.Clear();
+		_roomSignalPathArrows.Clear();
+		_roomWorkflowCardButtons.Clear();
 
 		var sv = new ScrollViewer
 		{
@@ -71,12 +87,14 @@ public sealed partial class DspPage
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
 		};
 
+		bool isDark = IsDspDark;
 		var root = new Grid
 		{
 			Background = CreateWhiteAcrylicBrush(0.72, 195),
 			Padding = new Thickness(24, 20, 24, 24),
 			RowSpacing = 16
 		};
+		_roomRootGrid = root;
 
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Header & Status Bar
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Main Room Correction Card
@@ -121,130 +139,35 @@ public sealed partial class DspPage
 		// Left Title Row
 		var leftStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
-		var waveIconBorder = new Border
+		_roomWaveIcon = new FontIcon
+		{
+			Glyph = "\uE774", // Audio wave lines
+			FontSize = 16,
+			Foreground = DspAccentSoftTextBrush,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_roomWaveIconBorder = new Border
 		{
 			Width = 32,
 			Height = 32,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE774", // Audio wave lines
-				FontSize = 16,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = DspAccentSoftBgBrush,
+			Child = _roomWaveIcon
 		};
-		leftStack.Children.Add(waveIconBorder);
+		leftStack.Children.Add(_roomWaveIconBorder);
 
 		var titleTb = new TextBlock
 		{
 			Text = "FIR / 房间校正",
 			FontSize = 18,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		leftStack.Children.Add(titleTb);
 		Grid.SetColumn(leftStack, 0);
 		headerGrid.Children.Add(leftStack);
-
-		// Right Pills & Refresh Button
-		var rightStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-
-		// Pill 1: Active modules count
-		var activeModulesPill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(16),
-			Padding = new Thickness(10, 4, 12, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var activePillStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		activePillStack.Children.Add(new FontIcon
-		{
-			Glyph = "\uE9D9", // Activity pulse
-			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		_roomModuleCountBadge = new TextBlock
-		{
-			Text = "4 个模块启用",
-			FontSize = 12,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		activePillStack.Children.Add(_roomModuleCountBadge);
-		activeModulesPill.Child = activePillStack;
-		rightStack.Children.Add(activeModulesPill);
-
-		// Pill 2: Status readiness
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(16),
-			Padding = new Thickness(10, 4, 12, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var readyPillStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		readyPillStack.Children.Add(new FontIcon
-		{
-			Glyph = "\uE767", // Volume / audio
-			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		_roomStateBadge = new TextBlock
-		{
-			Text = "就绪",
-			FontSize = 12,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		readyPillStack.Children.Add(_roomStateBadge);
-		readyPill.Child = readyPillStack;
-		rightStack.Children.Add(readyPill);
-
-		// Button: Refresh Status
-		_roomRefreshBtn = new Button
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(16),
-			Padding = new Thickness(12, 4, 12, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var refreshBtnStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		refreshBtnStack.Children.Add(new FontIcon
-		{
-			Glyph = "\uE72C", // Refresh
-			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		refreshBtnStack.Children.Add(new TextBlock
-		{
-			Text = "刷新状态",
-			FontSize = 12,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		_roomRefreshBtn.Content = refreshBtnStack;
-		_roomRefreshBtn.Click += (s, e) => RefreshRoomCorrectionState();
-		rightStack.Children.Add(_roomRefreshBtn);
-
-		Grid.SetColumn(rightStack, 1);
-		headerGrid.Children.Add(rightStack);
 
 		return headerGrid;
 	}
@@ -254,14 +177,17 @@ public sealed partial class DspPage
 	/// </summary>
 	private FrameworkElement CreateRoomHeroCard()
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(235, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(24, 20, 24, 22)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		_roomHeroCard = card;
 
 		var contentStack = new StackPanel { Spacing = 18 };
 
@@ -279,24 +205,25 @@ public sealed partial class DspPage
 			Text = "空间处理 / IR",
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		var proBadge = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(4),
 			Padding = new Thickness(6, 1, 6, 1),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_roomProBadge = proBadge;
 		proBadge.Child = new TextBlock
 		{
 			Text = "FurinaPlayer Pro",
 			FontSize = 10,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		eyebrowRow.Children.Add(proBadge);
 		introStack.Children.Add(eyebrowRow);
@@ -307,7 +234,7 @@ public sealed partial class DspPage
 			Text = "房间与音箱校正",
 			FontSize = 24,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			Margin = new Thickness(0, 2, 0, 2)
 		});
 
@@ -316,7 +243,7 @@ public sealed partial class DspPage
 		{
 			Text = "导入 REW 或其他测量软件生成的校正滤波器。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		Grid.SetColumn(introStack, 0);
@@ -338,7 +265,7 @@ public sealed partial class DspPage
 			Text = "准备音频校正",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		statusDotStack.Children.Add(_roomStatusDot);
@@ -353,12 +280,14 @@ public sealed partial class DspPage
 		contentStack.Children.Add(topSection);
 
 		// Divider
-		contentStack.Children.Add(new Rectangle
+		var heroDivider = new Rectangle
 		{
 			Height = 1,
-			Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			Fill = GetRoomDividerBrush(isDark),
 			Margin = new Thickness(0, 4, 0, 4)
-		});
+		};
+		_roomDividers.Add(heroDivider);
+		contentStack.Children.Add(heroDivider);
 
 		// 2. Real Signal Path Section
 		contentStack.Children.Add(CreateSignalPathSection());
@@ -368,7 +297,7 @@ public sealed partial class DspPage
 		{
 			Text = "WAV · FLAC · AIFF · ALAC(.m4a) · ZIP, ZIP 支持 Convolver .cfg 及其引用的 .pcm / .dbl, 按播放采样率与声道自动匹配。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 2, 0, 2)
 		};
 		contentStack.Children.Add(formatsNote);
@@ -398,7 +327,7 @@ public sealed partial class DspPage
 			Text = "实际信号路径",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
 		Grid.SetColumn(headingTb, 0);
 		headingGrid.Children.Add(headingTb);
@@ -407,7 +336,7 @@ public sealed partial class DspPage
 		{
 			Text = "等待宿主确认",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
 		Grid.SetColumn(_roomHostStatusTb, 1);
 		headingGrid.Children.Add(_roomHostStatusTb);
@@ -465,12 +394,13 @@ public sealed partial class DspPage
 	{
 		var nodeBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 10, 12, 10)
 		};
+		_roomSignalPathNodes.Add(nodeBorder);
 
 		var stack = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
 
@@ -479,7 +409,7 @@ public sealed partial class DspPage
 		{
 			Glyph = glyph,
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		topRow.Children.Add(new TextBlock
@@ -487,7 +417,7 @@ public sealed partial class DspPage
 			Text = label,
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		stack.Children.Add(topRow);
@@ -497,7 +427,7 @@ public sealed partial class DspPage
 			Text = "—",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		stack.Children.Add(valueTb);
@@ -508,14 +438,16 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateSignalPathArrow()
 	{
-		return new FontIcon
+		var arrow = new FontIcon
 		{
 			Glyph = "\uE72A", // Chevron / Arrow right
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_roomSignalPathArrows.Add(arrow);
+		return arrow;
 	}
 
 	/// <summary>
@@ -525,8 +457,8 @@ public sealed partial class DspPage
 	{
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(18, 14, 18, 16),
@@ -546,14 +478,14 @@ public sealed partial class DspPage
 			Text = "已载入 IR 脉冲文件",
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		_roomIrFileNameTb = new TextBlock
 		{
 			Text = "room_correction_48k.wav",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		fileLeft.Children.Add(_roomIrFileNameTb);
 
@@ -561,7 +493,7 @@ public sealed partial class DspPage
 		{
 			Text = "48 kHz · 立体声 · 65,536 Taps · 1,365 ms",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		fileLeft.Children.Add(_roomIrSpecsTb);
 		Grid.SetColumn(fileLeft, 0);
@@ -569,22 +501,24 @@ public sealed partial class DspPage
 
 		var fileRight = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 
+		bool isDark = IsDspDark;
+
 		var reimportBtn = new Button
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
-			Padding = new Thickness(12, 4, 12, 4)
+			Padding = new Thickness(12, 4, 12, 4),
+			Foreground = DspTextPrimaryBrush
 		};
-		reimportBtn.Content = new TextBlock { Text = "重新导入", FontSize = 12, FontWeight = FontWeights.Medium };
+		reimportBtn.Content = new TextBlock { Text = "重新导入", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 		reimportBtn.Click += (s, e) => TriggerImportFilePicker();
+		_roomIrReimportBtn = reimportBtn;
 		fileRight.Children.Add(reimportBtn);
 
 		var clearBtn = new Button
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 242, 242)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 202, 202)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(10, 4, 12, 4)
@@ -594,7 +528,6 @@ public sealed partial class DspPage
 		{
 			Glyph = "\uE74D", // Trash / delete
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38)),
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		clearStack.Children.Add(new TextBlock
@@ -602,10 +535,10 @@ public sealed partial class DspPage
 			Text = "清除",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38)),
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		clearBtn.Content = clearStack;
+		ApplyRoomDangerButtonTheme(clearBtn, isDark);
 		clearBtn.Click += (s, e) =>
 		{
 			if (ViewModel != null)
@@ -614,6 +547,7 @@ public sealed partial class DspPage
 				RefreshRoomCorrectionState();
 			}
 		};
+		_roomIrClearBtn = clearBtn;
 		fileRight.Children.Add(clearBtn);
 
 		Grid.SetColumn(fileRight, 1);
@@ -621,7 +555,9 @@ public sealed partial class DspPage
 		stack.Children.Add(fileRow);
 
 		// Divider
-		stack.Children.Add(new Rectangle { Height = 1, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)) });
+		var irDivider = new Rectangle { Height = 1, Fill = GetRoomDividerBrush(isDark) };
+		_roomDividers.Add(irDivider);
+		stack.Children.Add(irDivider);
 
 		// 2. Trim Gain Controls
 		var trimHeaderGrid = new Grid();
@@ -629,19 +565,20 @@ public sealed partial class DspPage
 		trimHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var trimTitleStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		trimTitleStack.Children.Add(new FontIcon
+		_roomTrimIcon = new FontIcon
 		{
 			Glyph = "\uE9E9",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		trimTitleStack.Children.Add(_roomTrimIcon);
 		trimTitleStack.Children.Add(new TextBlock
 		{
 			Text = "校正增益 (Correction Trim)",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(trimTitleStack, 0);
@@ -652,7 +589,7 @@ public sealed partial class DspPage
 			Text = "0.0 dB",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_roomTrimValueTb, 1);
@@ -691,7 +628,7 @@ public sealed partial class DspPage
 			Text = "快捷增益:",
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 
@@ -701,8 +638,8 @@ public sealed partial class DspPage
 		{
 			var pBtn = new Button
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				Background = DspSoftSurfaceBrush,
+				BorderBrush = CreateLiquidGlassRimBrush(),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(14),
 				Padding = new Thickness(12, 3, 12, 3),
@@ -712,7 +649,8 @@ public sealed partial class DspPage
 			{
 				Text = $"{pVal:+0;-0;0} dB",
 				FontSize = 11,
-				FontWeight = FontWeights.Medium
+				FontWeight = FontWeights.Medium,
+				Foreground = DspTextSecondaryBrush
 			};
 			pBtn.Click += (s, e) =>
 			{
@@ -729,27 +667,26 @@ public sealed partial class DspPage
 		// Clipping Warning Banner (shown when overload detected)
 		_roomClippingBanner = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 242, 242)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 113, 113)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(12, 8, 12, 8),
 			Visibility = Visibility.Collapsed
 		};
 		var clipStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		clipStack.Children.Add(new FontIcon
+		_roomClippingIcon = new FontIcon
 		{
 			Glyph = "\uE783", // Warning triangle
-			FontSize = 14,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38))
-		});
-		clipStack.Children.Add(new TextBlock
+			FontSize = 14
+		};
+		clipStack.Children.Add(_roomClippingIcon);
+		_roomClippingTextTb = new TextBlock
 		{
 			Text = "检测到卷积输出存在削波风险！建议将校正增益衰减至 -6 dB 以下，并在 Headroom 页面配置数字余量。",
-			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 185, 28, 28))
-		});
+			FontSize = 11
+		};
+		clipStack.Children.Add(_roomClippingTextTb);
 		_roomClippingBanner.Child = clipStack;
+		ApplyRoomClippingBannerTheme(isDark);
 		stack.Children.Add(_roomClippingBanner);
 
 		card.Child = stack;
@@ -789,16 +726,20 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateWorkflowNavCard(string title, string subtitle, Action onClick)
 	{
+		bool isDark = IsDspDark;
 		var btn = new Button
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			HorizontalContentAlignment = HorizontalAlignment.Stretch,
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(235, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
-			Padding = new Thickness(16, 12, 14, 12)
+			Padding = new Thickness(16, 12, 14, 12),
+			Foreground = DspTextPrimaryBrush
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: true);
+		_roomWorkflowCardButtons.Add(btn);
 
 		var innerGrid = new Grid();
 		innerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -810,13 +751,13 @@ public sealed partial class DspPage
 			Text = title,
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		textStack.Children.Add(new TextBlock
 		{
 			Text = subtitle,
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		Grid.SetColumn(textStack, 0);
 		innerGrid.Children.Add(textStack);
@@ -825,7 +766,7 @@ public sealed partial class DspPage
 		{
 			Glyph = "\uE8A7", // ArrowUpRight ↗
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(arrowIcon, 1);
@@ -842,14 +783,16 @@ public sealed partial class DspPage
 	/// </summary>
 	private FrameworkElement CreateRewGuideCard()
 	{
+		bool isDark = IsDspDark;
 		_roomRewExpanderCard = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(235, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 16)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(_roomRewExpanderCard, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
 
 		var rootStack = new StackPanel { Spacing = 14 };
 
@@ -872,7 +815,7 @@ public sealed partial class DspPage
 			Text = "用 REW 制作音箱校正",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(headerTitle, 0);
@@ -882,7 +825,7 @@ public sealed partial class DspPage
 		{
 			Glyph = "\uE70E", // ChevronUp (expanded)
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_roomRewChevron, 1);
@@ -907,7 +850,7 @@ public sealed partial class DspPage
 		{
 			Text = "在 REW 中测量与生成滤波器，再由 FurinaPlayer 应用于播放。需要带校准文件的测量麦克风；本页不会录音或自动测量。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		_roomRewExpanderBody.Children.Add(introText);
 
@@ -935,7 +878,7 @@ public sealed partial class DspPage
 			Text = "3",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(num3, 0);
 		step3Header.Children.Add(num3);
@@ -946,32 +889,33 @@ public sealed partial class DspPage
 			Text = "导出立体声滤波器",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		step3BodyStack.Children.Add(new TextBlock
 		{
 			Text = "选择下方导出菜单，使用 Stereo, 32-bit Float，左、右分别对应刚才的测量，关闭峰值归一化以保留校正增益关系。导出校正滤波器，不要导出原始房间响应。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
 		// Code Callout Box
 		var codeBox = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(12, 6, 12, 6),
 			HorizontalAlignment = HorizontalAlignment.Left
 		};
+		_roomRewCodeBox = codeBox;
 		codeBox.Child = new TextBlock
 		{
 			Text = "File → Export → Export filters impulse response as WAV",
 			FontFamily = new FontFamily("Consolas, Courier New, monospace"),
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
 		step3BodyStack.Children.Add(codeBox);
 
@@ -979,7 +923,7 @@ public sealed partial class DspPage
 		{
 			Text = "每声道最多 131,072 个采样点，总计不超过 262,144。为实际使用的采样率分别导出（如 44.1 / 48 / 96 kHz），可将 WAV 打成 ZIP，每种采样率只放一份立体声滤波器；分开的左右 IR 可用 Convolver .cfg 明确对应，并连同 IR 一起打包。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -999,7 +943,7 @@ public sealed partial class DspPage
 		{
 			Text = "已有校正滤波器？使用上方“导入 IR”。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(28, 4, 0, 0)
 		};
 		_roomRewExpanderBody.Children.Add(_roomRewGuideFooterTb);
@@ -1020,7 +964,7 @@ public sealed partial class DspPage
 			Text = stepNum,
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Top
 		};
 		Grid.SetColumn(numTb, 0);
@@ -1032,13 +976,13 @@ public sealed partial class DspPage
 			Text = title,
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		textStack.Children.Add(new TextBlock
 		{
 			Text = description,
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(textStack, 1);
@@ -1106,19 +1050,7 @@ public sealed partial class DspPage
 			if (chain.Convolution.Enabled) activeModules++;
 			if (chain.Compressor.Enabled) activeModules++;
 		}
-		if (activeModules == 0) activeModules = 4; // fallback standard active
-		if (_roomModuleCountBadge != null)
-		{
-			_roomModuleCountBadge.Text = $"{activeModules} 个模块启用";
-		}
-
-		// 2. Status readiness badge
-		if (_roomStateBadge != null)
-		{
-			_roomStateBadge.Text = isEnabled ? "已启用" : (hasIr ? "已载入" : "就绪");
-		}
-
-		// 3. Hero Status Dot & Text
+		// Hero Status Dot & Text
 		if (_roomStatusDot != null && _roomStatusText != null)
 		{
 			if (!hasIr)
@@ -1141,6 +1073,7 @@ public sealed partial class DspPage
 		// 4. Hero Action Buttons
 		if (_roomActionPanel != null)
 		{
+			bool isDark = IsDspDark;
 			_roomActionPanel.Children.Clear();
 
 			if (!hasIr)
@@ -1167,16 +1100,15 @@ public sealed partial class DspPage
 					// [停用 FIR] Button
 					var disableBtn = new Button
 					{
-						Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-						BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 						BorderThickness = new Thickness(1),
 						CornerRadius = new CornerRadius(8),
 						Padding = new Thickness(14, 7, 14, 7)
 					};
 					var disStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-					disStack.Children.Add(new FontIcon { Glyph = "\uE71A", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38)) });
-					disStack.Children.Add(new TextBlock { Text = "停用 FIR", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38)) });
+					disStack.Children.Add(new FontIcon { Glyph = "\uE71A", FontSize = 12 });
+					disStack.Children.Add(new TextBlock { Text = "停用 FIR", FontSize = 12, FontWeight = FontWeights.Medium });
 					disableBtn.Content = disStack;
+					ApplyRoomDangerButtonTheme(disableBtn, isDark);
 					disableBtn.Click += (s, e) =>
 					{
 						ViewModel.EchoConvolutionEnabled = false;
@@ -1211,13 +1143,14 @@ public sealed partial class DspPage
 					// [启用 FIR] Subtle Button
 					var enableBtn = new Button
 					{
-						Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-						BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+						Background = DspSoftSurfaceBrush,
+						BorderBrush = CreateLiquidGlassRimBrush(),
 						BorderThickness = new Thickness(1),
 						CornerRadius = new CornerRadius(8),
-						Padding = new Thickness(12, 7, 12, 7)
+						Padding = new Thickness(12, 7, 12, 7),
+						Foreground = DspTextPrimaryBrush
 					};
-					enableBtn.Content = new TextBlock { Text = "启用 FIR", FontSize = 12, FontWeight = FontWeights.Medium };
+					enableBtn.Content = new TextBlock { Text = "启用 FIR", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 					enableBtn.Click += (s, e) =>
 					{
 						ViewModel.EchoConvolutionEnabled = true;
@@ -1230,13 +1163,14 @@ public sealed partial class DspPage
 				// [重新导入] Secondary button
 				var reimportBtn = new Button
 				{
-					Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-					BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+					Background = DspSoftSurfaceBrush,
+					BorderBrush = CreateLiquidGlassRimBrush(),
 					BorderThickness = new Thickness(1),
 					CornerRadius = new CornerRadius(8),
-					Padding = new Thickness(12, 7, 12, 7)
+					Padding = new Thickness(12, 7, 12, 7),
+					Foreground = DspTextPrimaryBrush
 				};
-				reimportBtn.Content = new TextBlock { Text = "导入 IR", FontSize = 12, FontWeight = FontWeights.Medium };
+				reimportBtn.Content = new TextBlock { Text = "导入 IR", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 				reimportBtn.Click += (s, e) => TriggerImportFilePicker();
 				_roomActionPanel.Children.Add(reimportBtn);
 			}
@@ -1329,18 +1263,181 @@ public sealed partial class DspPage
 
 	private void UpdateTrimPresetHighlights(double currentVal)
 	{
+		bool isDark = IsDspDark;
+		Brush matchBg = isDark
+			? new SolidColorBrush(Windows.UI.Color.FromArgb(85, 99, 102, 241))
+			: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255));
+		Brush matchBorder = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(180, 129, 140, 248)
+			: Windows.UI.Color.FromArgb(255, 129, 140, 248));
+		Brush matchText = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(255, 199, 210, 254)
+			: Windows.UI.Color.FromArgb(255, 79, 70, 229));
+
+		Brush normalBg = isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Windows.UI.Color.FromArgb(220, 241, 245, 249));
+		Brush normalBorder = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+		Brush normalText = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(255, 226, 232, 240)
+			: Windows.UI.Color.FromArgb(255, 51, 65, 85));
+
 		foreach (var btn in _roomTrimPresetButtons)
 		{
 			if (btn.Tag is double pVal)
 			{
 				bool isMatch = Math.Abs(currentVal - pVal) < 0.15;
-				btn.Background = isMatch
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255));
-				btn.BorderBrush = isMatch
-					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 129, 140, 248))
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240));
+				btn.Background = isMatch ? matchBg : normalBg;
+				btn.BorderBrush = isMatch ? matchBorder : normalBorder;
+				btn.Foreground = isMatch ? matchText : normalText;
+				if (btn.Content is TextBlock tb)
+				{
+					tb.Foreground = isMatch ? matchText : normalText;
+				}
 			}
 		}
+	}
+
+	private static Brush GetRoomDividerBrush(bool isDark) => new SolidColorBrush(isDark
+		? Windows.UI.Color.FromArgb(45, 255, 255, 255)
+		: Windows.UI.Color.FromArgb(255, 241, 245, 249));
+
+	private static void ApplyRoomDangerButtonTheme(Button btn, bool isDark)
+	{
+		btn.Background = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(50, 239, 68, 68)
+			: Windows.UI.Color.FromArgb(255, 254, 242, 242));
+		btn.BorderBrush = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(120, 248, 113, 113)
+			: Windows.UI.Color.FromArgb(255, 254, 202, 202));
+		var fg = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(255, 252, 165, 165)
+			: Windows.UI.Color.FromArgb(255, 220, 38, 38));
+		btn.Foreground = fg;
+		if (btn.Content is StackPanel sp)
+		{
+			foreach (var child in sp.Children)
+			{
+				if (child is FontIcon fi) fi.Foreground = fg;
+				else if (child is TextBlock tb) tb.Foreground = fg;
+			}
+		}
+	}
+
+	private void ApplyRoomClippingBannerTheme(bool isDark)
+	{
+		if (_roomClippingBanner == null) return;
+		_roomClippingBanner.Background = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(55, 239, 68, 68)
+			: Windows.UI.Color.FromArgb(255, 254, 242, 242));
+		_roomClippingBanner.BorderBrush = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(130, 248, 113, 113)
+			: Windows.UI.Color.FromArgb(255, 248, 113, 113));
+		if (_roomClippingIcon != null)
+		{
+			_roomClippingIcon.Foreground = new SolidColorBrush(isDark
+				? Windows.UI.Color.FromArgb(255, 252, 165, 165)
+				: Windows.UI.Color.FromArgb(255, 220, 38, 38));
+		}
+		if (_roomClippingTextTb != null)
+		{
+			_roomClippingTextTb.Foreground = new SolidColorBrush(isDark
+				? Windows.UI.Color.FromArgb(255, 254, 202, 202)
+				: Windows.UI.Color.FromArgb(255, 185, 28, 28));
+		}
+	}
+
+	public void RefreshRoomCorrectionTheme(bool isDark)
+	{
+		if (_roomCorrectionWorkbench == null) return;
+
+		Brush rootBg = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: isDark, opacityScale: Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+		Brush cardBg = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Regular, isDark: isDark, opacityScale: Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+		Brush softBg = isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Windows.UI.Color.FromArgb(220, 241, 245, 249));
+		Brush accentSoftBg = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(85, 99, 102, 241)
+			: Windows.UI.Color.FromArgb(255, 238, 242, 255));
+		Brush accentSoftText = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(255, 199, 210, 254)
+			: Windows.UI.Color.FromArgb(255, 79, 70, 229));
+		Brush primaryText = new SolidColorBrush(isDark ? Colors.White : Windows.UI.Color.FromArgb(255, 15, 23, 42));
+		Brush mutedText = new SolidColorBrush(isDark
+			? Windows.UI.Color.FromArgb(255, 203, 213, 225)
+			: Windows.UI.Color.FromArgb(255, 100, 116, 139));
+
+		if (_roomRootGrid != null) _roomRootGrid.Background = rootBg;
+		if (_roomWaveIconBorder != null) _roomWaveIconBorder.Background = accentSoftBg;
+		if (_roomWaveIcon != null) _roomWaveIcon.Foreground = accentSoftText;
+
+		if (_roomHeroCard != null)
+		{
+			_roomHeroCard.Background = cardBg;
+			_roomHeroCard.BorderBrush = rimBrush;
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_roomHeroCard, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		}
+		if (_roomProBadge != null)
+		{
+			_roomProBadge.Background = softBg;
+			_roomProBadge.BorderBrush = rimBrush;
+		}
+		Brush dividerBrush = GetRoomDividerBrush(isDark);
+		foreach (var div in _roomDividers)
+		{
+			div.Fill = dividerBrush;
+		}
+		foreach (var node in _roomSignalPathNodes)
+		{
+			node.Background = softBg;
+			node.BorderBrush = rimBrush;
+		}
+		foreach (var arrow in _roomSignalPathArrows)
+		{
+			arrow.Foreground = mutedText;
+		}
+		if (_roomActiveIrCard != null)
+		{
+			_roomActiveIrCard.Background = softBg;
+			_roomActiveIrCard.BorderBrush = rimBrush;
+		}
+		if (_roomIrReimportBtn != null)
+		{
+			_roomIrReimportBtn.Background = softBg;
+			_roomIrReimportBtn.BorderBrush = rimBrush;
+			_roomIrReimportBtn.Foreground = primaryText;
+			if (_roomIrReimportBtn.Content is TextBlock tb) tb.Foreground = primaryText;
+		}
+		if (_roomIrClearBtn != null)
+		{
+			ApplyRoomDangerButtonTheme(_roomIrClearBtn, isDark);
+		}
+		if (_roomTrimIcon != null) _roomTrimIcon.Foreground = accentSoftText;
+		if (_roomTrimValueTb != null) _roomTrimValueTb.Foreground = accentSoftText;
+		ApplyRoomClippingBannerTheme(isDark);
+
+		foreach (var wBtn in _roomWorkflowCardButtons)
+		{
+			wBtn.Background = cardBg;
+			wBtn.BorderBrush = rimBrush;
+			wBtn.Foreground = primaryText;
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(wBtn, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: true);
+		}
+		if (_roomRewExpanderCard != null)
+		{
+			_roomRewExpanderCard.Background = cardBg;
+			_roomRewExpanderCard.BorderBrush = rimBrush;
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_roomRewExpanderCard, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		}
+		if (_roomRewCodeBox != null)
+		{
+			_roomRewCodeBox.Background = softBg;
+			_roomRewCodeBox.BorderBrush = rimBrush;
+		}
+
+		RefreshRoomCorrectionState();
+		UpdateTrimPresetHighlights(ViewModel?.EchoConvolutionTrimDb ?? 0.0);
+		RefreshWorkbenchTextContrast(_roomCorrectionWorkbench, isDark);
 	}
 }

@@ -452,16 +452,27 @@ public static class LiquidGlassEngine
 	{
 		try
 		{
-			if (element != null && element.ActualTheme != ElementTheme.Default)
+			if (element != null && element.IsLoaded && element.ActualTheme != ElementTheme.Default)
 			{
-				bool dark = element.ActualTheme == ElementTheme.Dark;
-				return InvertModeEnabled ? !dark : dark;
+				// RootGrid.RequestedTheme already reflects MainWindow's resolved theme (including InvertModeEnabled).
+				return element.ActualTheme == ElementTheme.Dark;
 			}
-			if (ActiveThemeMode == "dark") return !InvertModeEnabled;
-			if (ActiveThemeMode == "light") return InvertModeEnabled;
+			if (string.Equals(ActiveThemeMode, "dark", StringComparison.OrdinalIgnoreCase)) return !InvertModeEnabled;
+			if (string.Equals(ActiveThemeMode, "light", StringComparison.OrdinalIgnoreCase)) return InvertModeEnabled;
 			if (ActivePreset != null && (ActiveThemeMode == "ambient" || ActiveThemeMode == "acrylic" || ActiveThemeMode == "liquid-glass"))
 			{
 				return InvertModeEnabled ? !ActivePreset.IsDark : ActivePreset.IsDark;
+			}
+			// 优先获取 Windows 系统真实 UI 主题颜色 (UISettings)
+			try
+			{
+				var uiSettings = new Windows.UI.ViewManagement.UISettings();
+				var bg = uiSettings.GetColorValue(Windows.UI.ViewManagement.UIColorType.Background);
+				bool sysDark = (bg.R < 128 && bg.G < 128 && bg.B < 128);
+				return InvertModeEnabled ? !sysDark : sysDark;
+			}
+			catch
+			{
 			}
 			if (Application.Current != null)
 			{
@@ -497,11 +508,12 @@ public static class LiquidGlassEngine
 			EndPoint = endPt
 		};
 
-		// 当处于亚克力/液态玻璃模式时，卡片表面适度透出后方焦散光斑与桌面背景，同时保证文字对比度
-		bool isTranslucentMode = ActiveThemeMode == "acrylic" || ActiveThemeMode == "liquid-glass" || ActiveThemeMode == "ambient";
+		// 当处于亚克力/液态玻璃/氛围模式或设置了亚克力透明度时，卡片表面适度透出后方焦散光斑与桌面背景，同时保证文字对比度
+		bool isTranslucentMode = ActiveThemeMode == "acrylic" || ActiveThemeMode == "liquid-glass" || ActiveThemeMode == "ambient" || ActiveThemeMode == "system";
+		double opacityClamped = Math.Clamp(AcrylicOpacityScale, 0.0, 1.0);
 		double modeAlphaFactor = isTranslucentMode
-			? (0.72 + (1.0 - Math.Clamp(AcrylicOpacityScale, 0.0, 1.0)) * 0.28)
-			: 0.96;
+			? (0.65 + (1.0 - opacityClamped) * 0.33)
+			: (0.80 + (1.0 - opacityClamped) * 0.18);
 
 		if (isTranslucentMode && !KeepTranslucentWhenUnfocused && !IsWindowFocused)
 		{
@@ -673,9 +685,17 @@ public static class LiquidGlassEngine
 		FrameworkElement element,
 		LiquidGlassVariant variant = LiquidGlassVariant.Regular,
 		bool isDark = false,
-		bool enablePointerTracking = true)
+		bool enablePointerTracking = false)
 	{
 		if (element == null) return;
+
+		// 检查若按钮 Background 为透明或无边框，绝不添加边框或顶部高光
+		if (element is Button btn && IsTransparentOrBorderlessButton(btn))
+		{
+			btn.BorderThickness = new Thickness(0);
+			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+			return;
+		}
 
 		bool alreadyTracked = _attachedElements.TryGetValue(element, out _);
 		var state = _attachedElements.GetOrCreateValue(element);
@@ -708,18 +728,7 @@ public static class LiquidGlassEngine
 			ApplyElementLiquidGlassVisuals(element, state);
 		};
 
-		element.PointerMoved += (s, e) =>
-		{
-			if (!state.IsHovered) return;
-			if (s is FrameworkElement fe && fe.ActualWidth > 0 && fe.ActualHeight > 0)
-			{
-				var pt = e.GetCurrentPoint(fe).Position;
-				state.NormalizedPointer = new Point(
-					Math.Clamp(pt.X / fe.ActualWidth, 0.0, 1.0),
-					Math.Clamp(pt.Y / fe.ActualHeight, 0.0, 1.0));
-				ApplyElementLiquidGlassVisuals(element, state);
-			}
-		};
+		// 移除 PointerMoved 中的高频重绘，子元素禁用 PointerMoved 重绘，彻底消除闪烁
 
 		element.PointerExited += (s, e) =>
 		{
@@ -742,14 +751,71 @@ public static class LiquidGlassEngine
 		};
 	}
 
+	/// <summary>
+	/// 检查按钮是否为透明背景、无边框或纯图标按钮，避免误添加带顶部高光的渐变边框
+	/// </summary>
+	public static bool IsTransparentOrBorderlessButton(Button btn)
+	{
+		if (btn == null) return false;
+
+		// 1. 图标类按钮 (FontIcon, PathIcon, SymbolIcon)
+		if (btn.Content is FontIcon || btn.Content is PathIcon || btn.Content is SymbolIcon)
+		{
+			return true;
+		}
+
+		// 2. Background 为透明或未设置
+		if (btn.Background == null)
+		{
+			return true;
+		}
+		if (btn.Background is SolidColorBrush scb && (scb.Color.A == 0 || scb.Color == Colors.Transparent))
+		{
+			return true;
+		}
+
+		// 3. 边框显式为 0 且无边框画刷或画刷透明
+		if (btn.BorderThickness.Left == 0 && btn.BorderThickness.Top == 0 &&
+		    btn.BorderThickness.Right == 0 && btn.BorderThickness.Bottom == 0)
+		{
+			if (btn.BorderBrush == null || (btn.BorderBrush is SolidColorBrush bscb && (bscb.Color.A == 0 || bscb.Color == Colors.Transparent)))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private static void ApplyElementLiquidGlassVisuals(FrameworkElement element, GlassAttachmentState state)
 	{
+		// 检查若按钮 Background 为透明或无边框，绝不添加边框或顶部高光
+		if (element is Button btn && IsTransparentOrBorderlessButton(btn))
+		{
+			btn.BorderThickness = new Thickness(0);
+			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+			return;
+		}
+
 		double opacityScale = state.IsPressed ? 0.94 : (state.IsHovered ? 1.06 : 1.0);
 		var surfaceBrush = CreateSurfaceBrush(state.Variant, state.IsDark, opacityScale, state.NormalizedPointer);
 		var rimBrush = CreateSpecularRimBrush(state.Variant, state.IsDark, state.IsHovered, state.Variant == LiquidGlassVariant.AccentLensed, state.NormalizedPointer);
 
 		if (element is Border border)
 		{
+			// 若 Border 为透明或无边框，绝不添加边框或顶部高光
+			bool isBorderless = border.BorderThickness.Left == 0 && border.BorderThickness.Top == 0 &&
+			                    border.BorderThickness.Right == 0 && border.BorderThickness.Bottom == 0;
+			bool isTransparentBg = border.Background == null ||
+			                       (border.Background is SolidColorBrush scb && (scb.Color.A == 0 || scb.Color == Colors.Transparent));
+
+			if (isBorderless && isTransparentBg)
+			{
+				border.BorderThickness = new Thickness(0);
+				border.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				return;
+			}
+
 			border.Background = surfaceBrush;
 			border.BorderBrush = rimBrush;
 			if (border.BorderThickness == default)
@@ -759,11 +825,25 @@ public static class LiquidGlassEngine
 		}
 		else if (element is Control control)
 		{
-			control.Background = surfaceBrush;
-			control.BorderBrush = rimBrush;
-			if (control.BorderThickness == default)
+			bool isBorderless = control.BorderThickness.Left == 0 && control.BorderThickness.Top == 0 &&
+			                    control.BorderThickness.Right == 0 && control.BorderThickness.Bottom == 0;
+			bool isTransparentBg = control.Background == null ||
+			                       (control.Background is SolidColorBrush scb && (scb.Color.A == 0 || scb.Color == Colors.Transparent));
+
+			if (isBorderless || isTransparentBg)
 			{
-				control.BorderThickness = new Thickness(1);
+				// 若为透明或无边框控件，绝不添加边框或顶部高光
+				control.BorderThickness = new Thickness(0);
+				control.BorderBrush = new SolidColorBrush(Colors.Transparent);
+			}
+			else
+			{
+				control.Background = surfaceBrush;
+				control.BorderBrush = rimBrush;
+				if (control.BorderThickness == default)
+				{
+					control.BorderThickness = new Thickness(1);
+				}
 			}
 		}
 		else if (element is Panel panel)
@@ -805,10 +885,24 @@ public static class LiquidGlassEngine
 	{
 		if (root == null) return;
 
+		// 如果 root 本身就是透明/无边框按钮或纯图标按钮，避免修改与深入其内部模板
+		if (root is Button rootBtn && IsTransparentOrBorderlessButton(rootBtn))
+		{
+			rootBtn.BorderThickness = new Thickness(0);
+			rootBtn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+			return;
+		}
+
 		int count = VisualTreeHelper.GetChildrenCount(root);
 		for (int i = 0; i < count; i++)
 		{
 			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is Button childBtn && IsTransparentOrBorderlessButton(childBtn))
+			{
+				childBtn.BorderThickness = new Thickness(0);
+				childBtn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				continue;
+			}
 			UpgradeSingleNode(child, isDark);
 			UpgradeVisualTreeToLiquidGlass(child, isDark);
 		}
@@ -820,6 +914,12 @@ public static class LiquidGlassEngine
 
 		if (node is FrameworkElement fe && _attachedElements.TryGetValue(fe, out var existingState))
 		{
+			if (fe is Button existingBtn && IsTransparentOrBorderlessButton(existingBtn))
+			{
+				existingBtn.BorderThickness = new Thickness(0);
+				existingBtn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				return;
+			}
 			existingState.IsDark = isDark;
 			ApplyElementLiquidGlassVisuals(fe, existingState);
 			return;
@@ -828,6 +928,12 @@ public static class LiquidGlassEngine
 		if (node is Border border)
 		{
 			if ((border.Width > 0 && border.Width <= 26) || (border.Height > 0 && border.Height <= 26))
+			{
+				return;
+			}
+
+			// 若 Border 为透明或未设置背景，绝不强加高光边框
+			if (border.Background == null || (border.Background is SolidColorBrush bscb && (bscb.Color.A == 0 || bscb.Color == Colors.Transparent)))
 			{
 				return;
 			}
@@ -845,22 +951,30 @@ public static class LiquidGlassEngine
 
 				if (isSoftIndigoTint)
 				{
-					AttachInteractiveLiquidGlass(border, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: true);
+					AttachInteractiveLiquidGlass(border, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: false);
 				}
 				else if (isNeutralLight || isNeutralDark)
 				{
 					bool isPill = border.CornerRadius.TopLeft >= 14;
 					var variant = isPill ? LiquidGlassVariant.Clear : LiquidGlassVariant.Regular;
-					AttachInteractiveLiquidGlass(border, variant, isDark, enablePointerTracking: true);
+					AttachInteractiveLiquidGlass(border, variant, isDark, enablePointerTracking: false);
 				}
 			}
 			else if (border.Background is AcrylicBrush)
 			{
-				AttachInteractiveLiquidGlass(border, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+				AttachInteractiveLiquidGlass(border, LiquidGlassVariant.Regular, isDark, enablePointerTracking: false);
 			}
 		}
 		else if (node is Button btn)
 		{
+			// 检查若按钮 Background 为透明或无边框，或者是纯图标按钮，绝不添加边框或顶部高光
+			if (IsTransparentOrBorderlessButton(btn))
+			{
+				btn.BorderThickness = new Thickness(0);
+				btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				return;
+			}
+
 			if (btn.Background is SolidColorBrush scb)
 			{
 				var c = scb.Color;
@@ -873,24 +987,135 @@ public static class LiquidGlassEngine
 
 				if (isSoftIndigo)
 				{
-					AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: true);
+					AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: false);
 				}
 				else if (isNeutralLight)
 				{
-					AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+					AttachInteractiveLiquidGlass(btn, LiquidGlassVariant.Clear, isDark, enablePointerTracking: false);
 				}
 			}
 		}
 		else if (node is ComboBox combo)
 		{
-			AttachInteractiveLiquidGlass(combo, LiquidGlassVariant.Clear, isDark, enablePointerTracking: true);
+			AttachInteractiveLiquidGlass(combo, LiquidGlassVariant.Clear, isDark, enablePointerTracking: false);
+		}
+		else if (node is TextBlock tb)
+		{
+			UpgradeTextBlockColors(tb, isDark);
+		}
+		else if (node is FontIcon fi)
+		{
+			UpgradeFontIconColors(fi, isDark);
+		}
+	}
+
+	private static void UpgradeTextBlockColors(TextBlock tb, bool isDark)
+	{
+		if (tb.Foreground is SolidColorBrush scb)
+		{
+			var c = scb.Color;
+			if (isDark)
+			{
+				// 极暗/主标题类 (如 #0F172A, #1E293B, #000000) -> #F8FAFC 或 #E2E8F0
+				if (c.R <= 40 && c.G <= 50 && c.B <= 70)
+				{
+					if (tb.FontSize >= 14 || tb.FontWeight.Weight >= 600)
+					{
+						tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
+					}
+					else
+					{
+						tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+					}
+				}
+				// 次级暗色 (如 #334155) -> #E2E8F0
+				else if (c.R <= 65 && c.G <= 75 && c.B <= 95)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+				}
+				// 中度暗色 (如 #475569) -> #CBD5E1
+				else if (c.R <= 90 && c.G <= 105 && c.B <= 125)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225));
+				}
+				// 浅灰暗色 (如 #64748B) -> #94A3B8
+				else if (c.R <= 130 && c.G <= 145 && c.B <= 165)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				}
+			}
+			else
+			{
+				if (c.R == 248 && c.G == 250 && c.B == 252)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42));
+				}
+				else if (c.R == 226 && c.G == 232 && c.B == 240)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
+				}
+				else if (c.R == 203 && c.G == 213 && c.B == 225)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+				}
+				else if (c.R == 148 && c.G == 163 && c.B == 184)
+				{
+					tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				}
+			}
+		}
+	}
+
+	private static void UpgradeFontIconColors(FontIcon fi, bool isDark)
+	{
+		if (fi.Foreground is SolidColorBrush scb)
+		{
+			var c = scb.Color;
+			if (isDark)
+			{
+				if (c.R <= 40 && c.G <= 50 && c.B <= 70)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
+				}
+				else if (c.R <= 65 && c.G <= 75 && c.B <= 95)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+				}
+				else if (c.R <= 90 && c.G <= 105 && c.B <= 125)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225));
+				}
+				else if (c.R <= 130 && c.G <= 145 && c.B <= 165)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				}
+			}
+			else
+			{
+				if (c.R == 248 && c.G == 250 && c.B == 252)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42));
+				}
+				else if (c.R == 226 && c.G == 232 && c.B == 240)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
+				}
+				else if (c.R == 203 && c.G == 213 && c.B == 225)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+				}
+				else if (c.R == 148 && c.G == 163 && c.B == 184)
+				{
+					fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				}
+			}
 		}
 	}
 
 	/// <summary>
 	/// 创建基于 SkiaSharp 硬件加速的 Apple Liquid Glass 全景环境流体焦散光场画布 (Ambient Caustic Light Field)。
 	/// </summary>
-	public static SKXamlCanvas CreateAmbientCausticCanvas(Func<bool>? isDarkProvider = null)
+	public static SKXamlCanvas CreateAmbientCausticCanvas(Func<bool>? isDarkProvider = null, bool enablePointLights = true)
 	{
 		var canvas = new SKXamlCanvas
 		{
@@ -902,7 +1127,7 @@ public static class LiquidGlassEngine
 		canvas.PaintSurface += (sender, e) =>
 		{
 			bool isDark = isDarkProvider?.Invoke() ?? IsElementDarkTheme(canvas);
-			RenderAmbientCausticStage(e.Surface.Canvas, e.Info.Width, e.Info.Height, isDark);
+			RenderAmbientCausticStage(e.Surface.Canvas, e.Info.Width, e.Info.Height, isDark, 0.5f, 0.25f, enablePointLights);
 		};
 
 		return canvas;
@@ -919,7 +1144,8 @@ public static class LiquidGlassEngine
 		int height,
 		bool isDark,
 		float pointerNormX = 0.5f,
-		float pointerNormY = 0.25f)
+		float pointerNormY = 0.25f,
+		bool enablePointLights = true)
 	{
 		skCanvas.Clear(SKColors.Transparent);
 		if (width <= 4 || height <= 4) return;
@@ -934,7 +1160,7 @@ public static class LiquidGlassEngine
 		Color priC = TransformActiveColor(preset.AccentPrimary);
 		Color secC = TransformActiveColor(preset.AccentSecondary);
 
-		bool isTranslucentMode = ActiveThemeMode == "acrylic" || ActiveThemeMode == "liquid-glass" || ActiveThemeMode == "ambient";
+		bool isTranslucentMode = ActiveThemeMode == "acrylic" || ActiveThemeMode == "liquid-glass" || ActiveThemeMode == "ambient" || ActiveThemeMode == "system";
 		double translucency = Math.Clamp(AcrylicOpacityScale, 0.0, 1.0);
 		if (isTranslucentMode && !KeepTranslucentWhenUnfocused && !IsWindowFocused)
 		{
@@ -942,23 +1168,26 @@ public static class LiquidGlassEngine
 		}
 
 		// 计算底色薄纱遮罩 Alpha：
-		// 当处于亚克力/液态玻璃且 100% 通透度时，veilAlpha 约为 68 (浅色) / 82 (深色)，既让后方桌面亚克力/壁纸清澈透出，又保有温润的色彩氛围与文字对比度；
+		// 当处于亚克力/液态玻璃且 100% 通透度时，veilAlpha 约为 48..65 (浅色) / 60..78 (深色)，既让后方桌面亚克力/壁纸清澈透出，又保有温润的色彩氛围与文字对比度；
 		// 当拖动透明度滑块从 100% -> 0% 时，veilAlpha 平滑过渡到 238 (接近纯色背景)。
 		byte veilAlphaTop, veilAlphaMid, veilAlphaBot;
 		if (isTranslucentMode)
 		{
-			int minVeil = isDark ? 82 : 66;
-			int maxVeil = isDark ? 238 : 242;
+			int minVeil = isDark ? 62 : 48;
+			int maxVeil = isDark ? 236 : 242;
 			int computed = (int)Math.Round(maxVeil - translucency * (maxVeil - minVeil));
-			veilAlphaTop = (byte)Math.Clamp(computed + 6, 45, 248);
-			veilAlphaMid = (byte)Math.Clamp(computed - 6, 40, 245);
-			veilAlphaBot = (byte)Math.Clamp(computed + 8, 48, 248);
+			veilAlphaTop = (byte)Math.Clamp(computed + 6, 38, 248);
+			veilAlphaMid = (byte)Math.Clamp(computed - 6, 34, 245);
+			veilAlphaBot = (byte)Math.Clamp(computed + 8, 42, 248);
 		}
 		else
 		{
-			veilAlphaTop = (byte)(isDark ? 232 : 242);
-			veilAlphaMid = (byte)(isDark ? 225 : 236);
-			veilAlphaBot = (byte)(isDark ? 236 : 244);
+			// 非通透模式也响应微调（80%..100% 遮罩）
+			int baseVeil = isDark ? 228 : 238;
+			int computed = (int)Math.Round(baseVeil - (translucency * 45));
+			veilAlphaTop = (byte)Math.Clamp(computed + 4, 160, 248);
+			veilAlphaMid = (byte)Math.Clamp(computed - 4, 150, 245);
+			veilAlphaBot = (byte)Math.Clamp(computed + 6, 165, 248);
 		}
 
 		if (!isDark)
@@ -983,35 +1212,38 @@ public static class LiquidGlassEngine
 				skCanvas.DrawRect(0, 0, w, h, basePaint);
 			}
 
-			// 流体焦散折射光球 A (主色调左上 -> 中部色散 Lensing Lobe)
-			DrawCausticLobe(
-				skCanvas,
-				w * (0.22f + (pointerNormX - 0.5f) * 0.06f),
-				h * (0.28f + (pointerNormY - 0.5f) * 0.06f),
-				Math.Max(w, h) * 0.52f,
-				new SKColor(priC.R, priC.G, priC.B, 76),
-				new SKColor(sMid.R, sMid.G, sMid.B, 42),
-				SKColors.Transparent);
+			if (enablePointLights)
+			{
+				// 流体焦散折射光球 A (主色调左上 -> 中部色散 Lensing Lobe)
+				DrawCausticLobe(
+					skCanvas,
+					w * (0.22f + (pointerNormX - 0.5f) * 0.06f),
+					h * (0.28f + (pointerNormY - 0.5f) * 0.06f),
+					Math.Max(w, h) * 0.52f,
+					new SKColor(priC.R, priC.G, priC.B, 76),
+					new SKColor(sMid.R, sMid.G, sMid.B, 42),
+					SKColors.Transparent);
 
-			// 流体焦散折射光球 B (次强调色右侧焦散光带)
-			DrawCausticLobe(
-				skCanvas,
-				w * (0.82f - (pointerNormX - 0.5f) * 0.05f),
-				h * (0.62f - (pointerNormY - 0.5f) * 0.05f),
-				Math.Max(w, h) * 0.48f,
-				new SKColor(secC.R, secC.G, secC.B, 68),
-				new SKColor(priC.R, priC.G, priC.B, 32),
-				SKColors.Transparent);
+				// 流体焦散折射光球 B (次强调色右侧焦散光带)
+				DrawCausticLobe(
+					skCanvas,
+					w * (0.82f - (pointerNormX - 0.5f) * 0.05f),
+					h * (0.62f - (pointerNormY - 0.5f) * 0.05f),
+					Math.Max(w, h) * 0.48f,
+					new SKColor(secC.R, secC.G, secC.B, 68),
+					new SKColor(priC.R, priC.G, priC.B, 32),
+					SKColors.Transparent);
 
-			// 流体焦散折射光球 C (左下柔光珍珠白高光核)
-			DrawCausticLobe(
-				skCanvas,
-				w * 0.38f,
-				h * 0.78f,
-				Math.Max(w, h) * 0.42f,
-				new SKColor(255, 255, 255, 135),
-				new SKColor(sTop.R, sTop.G, sTop.B, 60),
-				SKColors.Transparent);
+				// 流体焦散折射光球 C (左下柔光珍珠白高光核)
+				DrawCausticLobe(
+					skCanvas,
+					w * 0.38f,
+					h * 0.78f,
+					Math.Max(w, h) * 0.42f,
+					new SKColor(255, 255, 255, 135),
+					new SKColor(sTop.R, sTop.G, sTop.B, 60),
+					SKColors.Transparent);
+			}
 		}
 		else
 		{
@@ -1035,35 +1267,38 @@ public static class LiquidGlassEngine
 				skCanvas.DrawRect(0, 0, w, h, basePaint);
 			}
 
-			// 深海流体焦散光球 A
-			DrawCausticLobe(
-				skCanvas,
-				w * (0.20f + (pointerNormX - 0.5f) * 0.08f),
-				h * (0.24f + (pointerNormY - 0.5f) * 0.08f),
-				Math.Max(w, h) * 0.50f,
-				new SKColor(priC.R, priC.G, priC.B, 52),
-				new SKColor(secC.R, secC.G, secC.B, 26),
-				SKColors.Transparent);
-
-			// 深海流体焦散光球 B
-			DrawCausticLobe(
-				skCanvas,
-				w * (0.80f - (pointerNormX - 0.5f) * 0.06f),
-				h * (0.68f - (pointerNormY - 0.5f) * 0.06f),
-				Math.Max(w, h) * 0.48f,
-				new SKColor(secC.R, secC.G, secC.B, 48),
-				new SKColor(priC.R, priC.G, priC.B, 24),
-				SKColors.Transparent);
-
-			// 指针跟随微光透镜
-			DrawCausticLobe(
-				skCanvas,
-				w * pointerNormX,
-				h * pointerNormY,
-				Math.Min(w, h) * 0.32f,
-				new SKColor(priC.R, priC.G, priC.B, 28),
-				new SKColor(secC.R, secC.G, secC.B, 12),
-				SKColors.Transparent);
+			if (enablePointLights)
+			{
+				// 深海流体焦散光球 A
+				DrawCausticLobe(
+					skCanvas,
+					w * (0.20f + (pointerNormX - 0.5f) * 0.08f),
+					h * (0.24f + (pointerNormY - 0.5f) * 0.08f),
+					Math.Max(w, h) * 0.50f,
+					new SKColor(priC.R, priC.G, priC.B, 52),
+					new SKColor(secC.R, secC.G, secC.B, 26),
+					SKColors.Transparent);
+	
+				// 深海流体焦散光球 B
+				DrawCausticLobe(
+					skCanvas,
+					w * (0.80f - (pointerNormX - 0.5f) * 0.06f),
+					h * (0.68f - (pointerNormY - 0.5f) * 0.06f),
+					Math.Max(w, h) * 0.48f,
+					new SKColor(secC.R, secC.G, secC.B, 48),
+					new SKColor(priC.R, priC.G, priC.B, 24),
+					SKColors.Transparent);
+	
+				// 指针跟随微光透镜
+				DrawCausticLobe(
+					skCanvas,
+					w * pointerNormX,
+					h * pointerNormY,
+					Math.Min(w, h) * 0.32f,
+					new SKColor(priC.R, priC.G, priC.B, 28),
+					new SKColor(secC.R, secC.G, secC.B, 12),
+					SKColors.Transparent);
+			}
 		}
 
 		// 顶部边缘曲面折射高光丝带 (Top Specular Lensing Ribbon)

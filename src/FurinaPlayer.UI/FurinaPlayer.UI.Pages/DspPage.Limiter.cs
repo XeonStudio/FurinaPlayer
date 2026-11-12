@@ -260,8 +260,8 @@ public sealed partial class DspPage
 		{
 			CornerRadius = new CornerRadius(16),
 			Padding = new Thickness(14, 6, 16, 6),
-			Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			IsEnabled = _limiterManualCeilingDb != null
 		};
@@ -277,7 +277,7 @@ public sealed partial class DspPage
 		{
 			Glyph = "\uE7A7",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		restoreSp.Children.Add(new TextBlock
@@ -285,7 +285,7 @@ public sealed partial class DspPage
 			Text = "恢复自动上限",
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.Normal,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		});
 
 		_limiterRestoreAutoBtn.Content = restoreSp;
@@ -313,20 +313,20 @@ public sealed partial class DspPage
 
 		if (_limiterEnabled)
 		{
-			_limiterPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)); // Indigo 50
-			_limiterPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)); // Indigo 200
+			_limiterPowerBtn.Background = DspAccentSoftBgBrush; // Indigo 50
+			_limiterPowerBtn.BorderBrush = DspAccentSoftBorderBrush; // Indigo 200
 			_limiterPowerBtn.BorderThickness = new Thickness(1);
-			_limiterPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));  // Indigo 600
-			_limiterPowerTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+			_limiterPowerIcon.Foreground = DspAccentSoftTextBrush;  // Indigo 600
+			_limiterPowerTb.Foreground = DspAccentSoftTextBrush;
 			_limiterPowerTb.Text = "限幅开启";
 		}
 		else
 		{
-			_limiterPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)); // Slate 100
-			_limiterPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)); // Slate 200
+			_limiterPowerBtn.Background = DspSoftSurfaceBrush; // Slate 100
+			_limiterPowerBtn.BorderBrush = CreateLiquidGlassRimBrush(); // Slate 200
 			_limiterPowerBtn.BorderThickness = new Thickness(1);
-			_limiterPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)); // Slate 500
-			_limiterPowerTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			_limiterPowerIcon.Foreground = DspTextMutedBrush; // Slate 500
+			_limiterPowerTb.Foreground = DspTextMutedBrush;
 			_limiterPowerTb.Text = "限幅旁路";
 		}
 
@@ -376,7 +376,7 @@ public sealed partial class DspPage
 			Text = "已接入，等待播放开始",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		textSp.Children.Add(_limiterStatusTitleTb);
 
@@ -384,7 +384,7 @@ public sealed partial class DspPage
 		{
 			Text = "当前上限 0.0 dBTP，自动。开始播放后，真峰值顶到这条线时，增益降低会离开 0。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		textSp.Children.Add(_limiterStatusDetailTb);
@@ -412,7 +412,7 @@ public sealed partial class DspPage
 			Text = "0.0",
 			FontSize = 42,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
 		numberSp.Children.Add(_limiterGrBigTb);
@@ -422,7 +422,7 @@ public sealed partial class DspPage
 			Text = " dB",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(2, 0, 0, 6)
 		};
@@ -454,7 +454,7 @@ public sealed partial class DspPage
 		{
 			Text = "增益降低 当前没有限幅",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Right,
 			Margin = new Thickness(0, 2, 0, 0)
 		};
@@ -477,7 +477,7 @@ public sealed partial class DspPage
 		{
 			_limiterStatusTitleTb.Text = "未开启";
 			_limiterStatusDetailTb.Text = "开启后真峰值将受到上限压制，防止 DAC 间际过载与削波。";
-			_limiterActivityDot.Fill = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)); // Slate 400
+			_limiterActivityDot.Fill = DspTextMutedBrush; // Slate 400
 		}
 		else if (_lastGrDb >= 0.1f)
 		{
@@ -527,7 +527,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 14, 18, 14)
@@ -548,14 +548,14 @@ public sealed partial class DspPage
 			Text = "增益与峰值安全",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 
 		_limiterSafetySubtitleTb = new TextBlock
 		{
 			Text = "等待当前宿主读数",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		titleSp.Children.Add(_limiterSafetySubtitleTb);
@@ -571,7 +571,7 @@ public sealed partial class DspPage
 		{
 			Text = "配置风险估计: 未报告",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		Grid.SetColumn(_limiterStateRiskTb, 0);
 		statesGrid.Children.Add(_limiterStateRiskTb);
@@ -580,7 +580,7 @@ public sealed partial class DspPage
 		{
 			Text = "实测峰值超限: 未知",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		Grid.SetColumn(_limiterStatePeakTb, 1);
 		statesGrid.Children.Add(_limiterStatePeakTb);
@@ -589,7 +589,7 @@ public sealed partial class DspPage
 		{
 			Text = "当前限幅: 未知",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		Grid.SetColumn(_limiterStateLimitingTb, 2);
 		statesGrid.Children.Add(_limiterStateLimitingTb);
@@ -623,7 +623,7 @@ public sealed partial class DspPage
 		{
 			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只覆盖所报告的阶段。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 
@@ -635,15 +635,15 @@ public sealed partial class DspPage
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 4, 0, 4),
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium
 		};
 
 		_limiterPlacementPanel = new Border
 		{
 			Visibility = Visibility.Collapsed,
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 10, 12, 10),
@@ -651,7 +651,7 @@ public sealed partial class DspPage
 			{
 				Text = "当前 native 链路在 Rack 后应用 Headroom，再经过 Limiter、变速和输出表。EQ/FIR 保留浮点超限样本；非线性效果仍可能改变信号。",
 				FontSize = 12,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+				Foreground = DspTextSecondaryBrush,
 				TextWrapping = TextWrapping.Wrap,
 				LineHeight = 18
 			}
@@ -678,14 +678,14 @@ public sealed partial class DspPage
 		return card;
 	}
 
-	private static StackPanel CreateLimiterMetricBox(string label, string initialVal, out TextBlock valTb)
+	private StackPanel CreateLimiterMetricBox(string label, string initialVal, out TextBlock valTb)
 	{
 		var box = new StackPanel { Spacing = 2 };
 		box.Children.Add(new TextBlock
 		{
 			Text = label,
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		valTb = new TextBlock
@@ -693,7 +693,7 @@ public sealed partial class DspPage
 			Text = initialVal,
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		box.Children.Add(valTb);
 		return box;
@@ -717,7 +717,7 @@ public sealed partial class DspPage
 			Text = "限幅前真峰值",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(titleTb, 0);
@@ -727,7 +727,7 @@ public sealed partial class DspPage
 		{
 			Text = "等待读数",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_limiterPrePeakValTb, 1);
@@ -781,7 +781,7 @@ public sealed partial class DspPage
 		{
 			Text = "-12",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
 		Grid.SetColumn(leftScaleTb, 0);
 		scaleGrid.Children.Add(leftScaleTb);
@@ -790,7 +790,7 @@ public sealed partial class DspPage
 		{
 			Text = "上限 0.0 dBTP",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		Grid.SetColumn(_limiterCeilingScaleTb, 1);
@@ -800,7 +800,7 @@ public sealed partial class DspPage
 		{
 			Text = "0",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
 		Grid.SetColumn(rightScaleTb, 2);
@@ -880,7 +880,7 @@ public sealed partial class DspPage
 			Text = "手动上限",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(ceilingLabelTb, 0);
 		ceilingHeaderGrid.Children.Add(ceilingLabelTb);
@@ -889,7 +889,7 @@ public sealed partial class DspPage
 		{
 			Text = _limiterManualCeilingDb == null ? "自动" : $"{_limiterManualCeilingDb.Value:0.0} dBTP",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		Grid.SetColumn(_limiterManualCeilingValTb, 1);
 		ceilingHeaderGrid.Children.Add(_limiterManualCeilingValTb);
@@ -939,7 +939,7 @@ public sealed partial class DspPage
 			Text = "释放",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(releaseLabelTb, 0);
 		releaseHeaderGrid.Children.Add(releaseLabelTb);
@@ -948,7 +948,7 @@ public sealed partial class DspPage
 		{
 			Text = $"{Math.Round(_limiterReleaseMs)} ms",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		Grid.SetColumn(_limiterReleaseValTb, 1);
 		releaseHeaderGrid.Children.Add(_limiterReleaseValTb);
@@ -1029,7 +1029,7 @@ public sealed partial class DspPage
 			Text = "衰减轨迹",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(titleTb, 0);
@@ -1039,7 +1039,7 @@ public sealed partial class DspPage
 		{
 			Text = "播放后开始记录",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_limiterHistoryStatusTb, 1);
@@ -1094,7 +1094,7 @@ public sealed partial class DspPage
 		{
 			Text = "-24",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
 		Canvas.SetLeft(lbl24, 8);
 		Canvas.SetTop(lbl24, 8);
@@ -1104,7 +1104,7 @@ public sealed partial class DspPage
 		{
 			Text = "-12",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
 		Canvas.SetLeft(lbl12, 8);
 		Canvas.SetTop(lbl12, 48);
@@ -1114,7 +1114,7 @@ public sealed partial class DspPage
 		{
 			Text = "0",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
 		Canvas.SetLeft(lbl0, 16);
 		Canvas.SetTop(lbl0, 88);
@@ -1213,13 +1213,13 @@ public sealed partial class DspPage
 
 	#region 7. Bottom Note ("底部提示")
 
-	private static FrameworkElement CreateLimiterBottomNoteSection()
+	private FrameworkElement CreateLimiterBottomNoteSection()
 	{
 		return new TextBlock
 		{
 			Text = "增益降低离开 0，就说明峰值已经顶到上限。释放越短，压完回得越快，默认 80 ms。未手动设置上限时，升频采样开着是 -1 dBTP，否则是 0。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 4, 0, 16),
 			TextWrapping = TextWrapping.Wrap,
 			LineHeight = 18

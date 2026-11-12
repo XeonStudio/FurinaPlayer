@@ -49,6 +49,8 @@ public sealed class Vst3EditorWindow : IDisposable
 		public int Bottom;
 	}
 
+	private const uint WM_DESTROY = 2u;
+
 	private const uint WM_CLOSE = 16u;
 
 	private const uint WS_OVERLAPPEDWINDOW = 0x00CF0000;
@@ -77,6 +79,15 @@ public sealed class Vst3EditorWindow : IDisposable
 	public string PluginPath => _pluginPath;
 
 	public nint Handle => _hwnd;
+
+	public static string? ActivePluginPath
+	{
+		get
+		{
+			Vst3EditorWindow? active = s_active;
+			return (active != null && !active._closed) ? active.PluginPath : null;
+		}
+	}
 
 	public event Action? Closed;
 
@@ -143,6 +154,7 @@ public sealed class Vst3EditorWindow : IDisposable
 				vst3EditorWindow.CloseInternal();
 			}
 			EnsureClassRegistered();
+			bool wasLoadedForTarget = Vst3NativeHost.Instance.IsLoadedFor(pluginPath);
 			if (!Vst3NativeHost.Instance.EnsureLoaded(pluginPath, sampleRate, channels, out error))
 			{
 				if (error.Length == 0)
@@ -154,12 +166,20 @@ public sealed class Vst3EditorWindow : IDisposable
 			nint num = CreateWindowExW(0u, "FurinaVst3EditorWnd", "VST3 插件界面 - Furina Player", WS_VST3_WINDOW, 100, 100, 640, 480, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
 			if (num == IntPtr.Zero)
 			{
+				if (!wasLoadedForTarget)
+				{
+					try { Vst3NativeHost.Instance.Unload(); } catch { }
+				}
 				error = "创建宿主窗口失败";
 				return null;
 			}
 			if (!Vst3NativeHost.Instance.OpenEditor(num, out var width, out var height, out error))
 			{
 				DestroyWindow(num);
+				if (!wasLoadedForTarget)
+				{
+					try { Vst3NativeHost.Instance.Unload(); } catch { }
+				}
 				return null;
 			}
 			int targetW = Math.Max(640, width);
@@ -256,13 +276,28 @@ public sealed class Vst3EditorWindow : IDisposable
 		}
 	}
 
-	private void CloseInternal()
+	private void CloseInternal(bool destroying = false)
 	{
+		if (!destroying && _uiDispatcher != null && !_uiDispatcher.HasThreadAccess)
+		{
+			try
+			{
+				_uiDispatcher.TryEnqueue(() => CloseInternal());
+			}
+			catch
+			{
+			}
+			return;
+		}
 		if (_closed)
 		{
 			return;
 		}
 		_closed = true;
+		if (s_active == this)
+		{
+			s_active = null;
+		}
 		Vst3NativeHost.Instance.EditorResizeRequested -= OnEditorResizeRequested;
 		try
 		{
@@ -271,14 +306,11 @@ public sealed class Vst3EditorWindow : IDisposable
 		catch
 		{
 		}
-		if (_hwnd != IntPtr.Zero)
+		nint hwnd = _hwnd;
+		_hwnd = IntPtr.Zero;
+		if (!destroying && hwnd != IntPtr.Zero)
 		{
-			DestroyWindow(_hwnd);
-			_hwnd = IntPtr.Zero;
-		}
-		if (s_active == this)
-		{
-			s_active = null;
+			DestroyWindow(hwnd);
 		}
 		try
 		{
@@ -291,14 +323,22 @@ public sealed class Vst3EditorWindow : IDisposable
 
 	private static nint WndProcImpl(nint hWnd, uint msg, nint wParam, nint lParam)
 	{
-		if (msg == 16)
+		if (msg == WM_CLOSE)
 		{
-			Vst3EditorWindow vst3EditorWindow = s_active;
+			Vst3EditorWindow? vst3EditorWindow = s_active;
 			if (vst3EditorWindow != null && vst3EditorWindow._hwnd == hWnd)
 			{
 				vst3EditorWindow.CloseInternal();
 			}
 			return IntPtr.Zero;
+		}
+		if (msg == WM_DESTROY)
+		{
+			Vst3EditorWindow? vst3EditorWindow = s_active;
+			if (vst3EditorWindow != null && vst3EditorWindow._hwnd == hWnd)
+			{
+				vst3EditorWindow.CloseInternal(destroying: true);
+			}
 		}
 		return DefWindowProcW(hWnd, msg, wParam, lParam);
 	}

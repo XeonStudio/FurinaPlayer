@@ -62,14 +62,14 @@ public sealed class SpectrumAnalyzer : UserControl, IComponentConnector
 		// Grid Paints
 		using var gridPaint = new SKPaint
 		{
-			Color = new SKColor(38, 45, 54, 180), // #262d36
+			Color = new SKColor(58, 69, 84, 190),
 			StrokeWidth = 1f,
 			IsAntialias = true
 		};
 
 		using var borderPaint = new SKPaint
 		{
-			Color = new SKColor(48, 56, 68),
+			Color = new SKColor(76, 90, 108),
 			StrokeWidth = 1f,
 			Style = SKPaintStyle.Stroke,
 			IsAntialias = true
@@ -77,7 +77,7 @@ public sealed class SpectrumAnalyzer : UserControl, IComponentConnector
 
 		using var textPaint = new SKPaint
 		{
-			Color = new SKColor(127, 140, 155),
+			Color = new SKColor(203, 213, 225), // #CBD5E1 high contrast on #16191d
 			TextSize = 10f,
 			IsAntialias = true
 		};
@@ -197,9 +197,10 @@ public sealed class SpectrumAnalyzer : UserControl, IComponentConnector
 			{
 				using var hudPaint = new SKPaint
 				{
-					Color = new SKColor(58, 197, 236),
+					Color = new SKColor(125, 211, 252), // #7DD3FC crisp sky cyan
 					TextSize = 10.5f,
-					IsAntialias = true
+					IsAntialias = true,
+					Typeface = WaveformControl.CjkTypeface
 				};
 				string peakText = $"峰值: {maxDbFreq:F0} Hz · {maxDb:F1} dBFS";
 				float tw = hudPaint.MeasureText(peakText);

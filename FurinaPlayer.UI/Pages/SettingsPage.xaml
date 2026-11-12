@@ -128,7 +128,7 @@
                     <TextBlock Text="关于" FontWeight="SemiBold" FontSize="16" />
                     <TextBlock Text="Furina player · 全格式无损音乐播放器" FontWeight="SemiBold" FontSize="15" />
                     <TextBlock Text="开发商：Xeon Studio" Opacity="0.7" FontSize="12" />
-                    <TextBlock x:ConnectionId='2' x:Name="VersionText" Opacity="0.8" FontSize="12" FontWeight="SemiBold" />
+                    <TextBlock x:ConnectionId='2' x:Name="VersionText" Opacity="0.8" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
                     <TextBlock Text="WinUI 3 · .NET 8 · LibVLC（原生均衡器）· NAudio（实时 DSP）· ATL" Opacity="0.6" FontSize="12" />
                     <TextBlock Text="均衡器由 LibVLC 原生实现；空间音频采用多频段去相关混响 + 慢速调制 + 立体声宽度（独立实现的公开 DSP 技术路线，不包含第三方插件代码）" Opacity="0.55" FontSize="11" TextWrapping="Wrap" />
                     <TextBlock Text="开源库与许可：" Opacity="0.7" FontSize="12" Margin="0,8,0,0" />

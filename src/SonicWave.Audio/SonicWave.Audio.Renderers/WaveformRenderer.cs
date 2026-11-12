@@ -109,10 +109,14 @@ public static class WaveformRenderer
 			ISampleProvider sampleProvider = stream.ToSampleProvider();
 			int channels = Math.Max(1, sampleProvider.WaveFormat.Channels);
 			int sampleRate = Math.Max(8000, sampleProvider.WaveFormat.SampleRate);
-			long totalFrames = (long)(stream.TotalTime.TotalSeconds * sampleRate);
+			double totalSeconds = stream.TotalTime.TotalSeconds;
+			long totalFrames = (double.IsFinite(totalSeconds) && totalSeconds > 0.0)
+				? (long)(totalSeconds * sampleRate)
+				: 0L;
 			if (totalFrames <= 0)
 			{
-				totalFrames = Math.Max(1L, stream.Length / Math.Max(1, (sampleProvider.WaveFormat.BitsPerSample / 8) * channels));
+				int bytesPerFrame = Math.Max(1, Math.Max(1, sampleProvider.WaveFormat.BitsPerSample / 8) * channels);
+				totalFrames = Math.Max(1L, stream.Length / bytesPerFrame);
 			}
 
 			float[] leftMin = new float[bucketCount];
@@ -212,6 +216,10 @@ public static class WaveformRenderer
 								if (magBuf[k] > m) m = magBuf[k];
 							}
 						}
+						if (!float.IsFinite(m))
+						{
+							m = 0f;
+						}
 						if (m > targetMax[baseIdx + b])
 						{
 							targetMax[baseIdx + b] = m;
@@ -228,11 +236,14 @@ public static class WaveformRenderer
 				for (int i = 0; i < read; i += channels)
 				{
 					long bLong = frameIndex * bucketCount / totalFrames;
+					if (bLong < 0) bLong = 0;
 					if (bLong >= bucketCount) bLong = bucketCount - 1;
 					int b = (int)bLong;
 
 					float l = buffer[i];
+					if (!float.IsFinite(l)) l = 0f;
 					float r = (channels > 1 && i + 1 < read) ? buffer[i + 1] : l;
+					if (!float.IsFinite(r)) r = 0f;
 
 					if (l < leftMin[b]) leftMin[b] = l;
 					if (l > leftMax[b]) leftMax[b] = l;
@@ -260,12 +271,21 @@ public static class WaveformRenderer
 				}
 			}
 
+			if (frameIndex <= 0)
+			{
+				return null;
+			}
+
 			byte[] specLBytes = new byte[specCols * specBins];
 			byte[] specRBytes = new byte[specCols * specBins];
 			for (int idx = 0; idx < specCols * specBins; idx++)
 			{
-				double dbL = 20.0 * Math.Log10(Math.Max(1e-6, specMaxL[idx]));
-				double dbR = 20.0 * Math.Log10(Math.Max(1e-6, specMaxR[idx]));
+				float maxL = float.IsFinite(specMaxL[idx]) ? specMaxL[idx] : 0f;
+				float maxR = float.IsFinite(specMaxR[idx]) ? specMaxR[idx] : 0f;
+				double dbL = 20.0 * Math.Log10(Math.Max(1e-6, maxL));
+				double dbR = 20.0 * Math.Log10(Math.Max(1e-6, maxR));
+				if (!double.IsFinite(dbL)) dbL = -84.0;
+				if (!double.IsFinite(dbR)) dbR = -84.0;
 				int qL = (int)Math.Round(Math.Clamp((dbL + 84.0) / 80.0, 0.0, 1.0) * 255.0);
 				int qR = (int)Math.Round(Math.Clamp((dbR + 84.0) / 80.0, 0.0, 1.0) * 255.0);
 				specLBytes[idx] = (byte)Math.Clamp(qL, 0, 255);
@@ -274,12 +294,13 @@ public static class WaveformRenderer
 
 			for (int b = 0; b < bucketCount; b++)
 			{
-				leftMin[b] = Math.Clamp(leftMin[b], -1f, 0f);
-				leftMax[b] = Math.Clamp(leftMax[b], 0f, 1f);
-				rightMin[b] = Math.Clamp(rightMin[b], -1f, 0f);
-				rightMax[b] = Math.Clamp(rightMax[b], 0f, 1f);
-				peak[b] = Math.Clamp(peak[b], 0f, 1f);
-				rms[b] = counts[b] > 0 ? Math.Clamp((float)Math.Sqrt(sumSq[b] / counts[b]), 0f, 1f) : 0f;
+				leftMin[b] = float.IsFinite(leftMin[b]) ? Math.Clamp(leftMin[b], -1f, 0f) : 0f;
+				leftMax[b] = float.IsFinite(leftMax[b]) ? Math.Clamp(leftMax[b], 0f, 1f) : 0f;
+				rightMin[b] = float.IsFinite(rightMin[b]) ? Math.Clamp(rightMin[b], -1f, 0f) : 0f;
+				rightMax[b] = float.IsFinite(rightMax[b]) ? Math.Clamp(rightMax[b], 0f, 1f) : 0f;
+				peak[b] = float.IsFinite(peak[b]) ? Math.Clamp(peak[b], 0f, 1f) : 0f;
+				double rmsVal = (counts[b] > 0 && double.IsFinite(sumSq[b])) ? Math.Sqrt(Math.Max(0.0, sumSq[b] / counts[b])) : 0.0;
+				rms[b] = double.IsFinite(rmsVal) ? Math.Clamp((float)rmsVal, 0f, 1f) : 0f;
 			}
 
 			var result = new AuditionEnvelopeData
@@ -438,12 +459,16 @@ public static class WaveformRenderer
 		{
 			using WaveStream stream = CreateWaveStream(filePath);
 			ISampleProvider sampleProvider = stream.ToSampleProvider();
-			int channels = sampleProvider.WaveFormat.Channels;
-			int sampleRate = sampleProvider.WaveFormat.SampleRate;
-			long totalSampleFrames = (long)(stream.TotalTime.TotalSeconds * sampleRate);
+			int channels = Math.Max(1, sampleProvider.WaveFormat.Channels);
+			int sampleRate = Math.Max(8000, sampleProvider.WaveFormat.SampleRate);
+			double totalSeconds = stream.TotalTime.TotalSeconds;
+			long totalSampleFrames = (double.IsFinite(totalSeconds) && totalSeconds > 0.0)
+				? (long)(totalSeconds * sampleRate)
+				: 0L;
 			if (totalSampleFrames <= 0)
 			{
-				totalSampleFrames = Math.Max(1L, stream.Length / Math.Max(1, sampleProvider.WaveFormat.BitsPerSample / 8 * channels));
+				int bytesPerFrame = Math.Max(1, Math.Max(1, sampleProvider.WaveFormat.BitsPerSample / 8) * channels);
+				totalSampleFrames = Math.Max(1L, stream.Length / bytesPerFrame);
 			}
 			long framesPerBucket = Math.Max(1L, totalSampleFrames / Math.Max(1, targetWidth));
 			float[] buffer = new float[Math.Max(4096, sampleRate * channels)];
@@ -459,6 +484,10 @@ public static class WaveformRenderer
 					if (channels > 1 && i + 1 < readCount)
 					{
 						s = (buffer[i] + buffer[i + 1]) * 0.5f;
+					}
+					if (!float.IsFinite(s))
+					{
+						s = 0f;
 					}
 
 					if (bucketIdx >= list.Count)
@@ -489,31 +518,58 @@ public static class WaveformRenderer
 	private static WaveStream CreateWaveStream(string filePath)
 	{
 		string ext = Path.GetExtension(filePath).ToLowerInvariant();
-		if (ext == ".wav")
+		if (LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(ext)
+			&& LibVlcPcmTranscoder.TryDecodeToWav(filePath, out string predecodedWavPath))
 		{
-			return new WaveFileReader(filePath);
+			return new WaveFileReader(predecodedWavPath);
 		}
-		if (ext == ".mp3")
+
+		try
 		{
-			try { return new Mp3FileReader(filePath); }
-			catch { return new MediaFoundationReader(filePath); }
-		}
-		if (ext == ".aiff" || ext == ".aif")
-		{
-			return new AiffFileReader(filePath);
-		}
-		if (ext == ".flac")
-		{
-			try
+			if (ext == ".wav")
 			{
-				return new MediaFoundationReader(filePath);
+				return new WaveFileReader(filePath);
 			}
-			catch
+			if (ext == ".mp3")
 			{
-				return new StreamMediaFoundationReader(new FlacSanitizingStream(filePath));
+				try { return new Mp3FileReader(filePath); }
+				catch { return new MediaFoundationReader(filePath); }
 			}
+			if (ext == ".aiff" || ext == ".aif")
+			{
+				return new AiffFileReader(filePath);
+			}
+			if (ext == ".flac")
+			{
+				try
+				{
+					return new MediaFoundationReader(filePath);
+				}
+				catch
+				{
+					FlacSanitizingStream? sanitizingStream = null;
+					try
+					{
+						sanitizingStream = new FlacSanitizingStream(filePath);
+						return new StreamMediaFoundationReader(sanitizingStream);
+					}
+					catch
+					{
+						sanitizingStream?.Dispose();
+						throw;
+					}
+				}
+			}
+			return new MediaFoundationReader(filePath);
 		}
-		return new MediaFoundationReader(filePath);
+		catch
+		{
+			if (LibVlcPcmTranscoder.TryDecodeToWav(filePath, out string wavPath))
+			{
+				return new WaveFileReader(wavPath);
+			}
+			throw;
+		}
 	}
 
 	private static float[] DownmixToMono(float[] samples, int channels, int start, int count)

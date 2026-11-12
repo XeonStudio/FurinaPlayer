@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
+using FurinaPlayer.UI.Helpers;
 using Microsoft.UI.Dispatching;
 using SonicWave.Audio;
 using SonicWave.Audio.Dsp;
@@ -47,6 +48,30 @@ public class EditorViewModel : ObservableObject
 	private const int MaxUndoSteps = 15;
 
 	private readonly DispatcherQueue? _uiDispatcher;
+
+	private string _lastCommittedVst3FullSignature = string.Empty;
+
+	private string _lastPreviewVst3Signature = string.Empty;
+
+	private HashSet<string> _lastCommittedEnabledPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+	private readonly object _echoEqLock = new object();
+
+	private readonly object _insightEqLock = new object();
+
+	private double _echoEqPreampDb;
+
+	private bool _echoEqEnabled = true;
+
+	private int _echoEqVersion;
+
+	private int _insightEqVersion = -1;
+
+	private int _insightEqSampleRate;
+
+	private double _lastInsightPosSec = -1.0;
+
+	private EchoEqProcessor? _previewInsightEq;
 
 	[ObservableProperty]
 	private ObservableCollection<Vst3PluginState> vst3Plugins = new ObservableCollection<Vst3PluginState>();
@@ -173,6 +198,33 @@ public class EditorViewModel : ObservableObject
 	public Equalizer Equalizer { get; }
 
 	public FftAnalyzer Fft { get; }
+
+	public InsightProAnalyzer InsightAnalyzer { get; } = new InsightProAnalyzer();
+
+	public List<EchoBiquadFilter> EchoEqBands { get; } = new List<EchoBiquadFilter>();
+
+	public double EchoEqPreampDb
+	{
+		get => _echoEqPreampDb;
+		set => SetProperty(ref _echoEqPreampDb, Math.Clamp(value, -18.0, 18.0));
+	}
+
+	public bool EchoEqEnabled
+	{
+		get => _echoEqEnabled;
+		set => SetProperty(ref _echoEqEnabled, value);
+	}
+
+	public bool HasActiveParametricEq
+	{
+		get
+		{
+			lock (_echoEqLock)
+			{
+				return _echoEqEnabled && HasActiveParametricEqLocked();
+			}
+		}
+	}
 
 	public IReadOnlyList<Vst3PluginState> ActiveVst3Plugins => Vst3Plugins.Where((Vst3PluginState p) => p?.IsActive ?? false).ToList();
 
@@ -805,6 +857,7 @@ public class EditorViewModel : ObservableObject
 		SettingsService = settingsService;
 		_uiDispatcher = DispatcherQueue.GetForCurrentThread();
 		Equalizer = new Equalizer();
+		InitializeEchoEqBands();
 		Fft = new FftAnalyzer
 		{
 			FftSize = 8192
@@ -812,12 +865,24 @@ public class EditorViewModel : ObservableObject
 		Preview = new PreviewPlayer();
 		Preview.RenderingChanged += OnPreviewRenderingChanged;
 		Preview.RenderProgress += OnPreviewRenderProgress;
-		AppSettings appSettings = settingsService?.Load();
-		if (appSettings != null && appSettings.Vst3Plugins != null)
+		Vst3SyncHub.PluginsSynced += OnExternalVst3Synced;
+		if (Vst3SyncHub.TryGetLatest(out List<Vst3PluginState> syncedPlugins))
 		{
-			Vst3Plugins = new ObservableCollection<Vst3PluginState>(appSettings.Vst3Plugins);
+			Vst3Plugins = new ObservableCollection<Vst3PluginState>(syncedPlugins);
 		}
-		Preview.SetVst3(ActiveVst3Plugins);
+		else
+		{
+			AppSettings appSettings = settingsService?.Load();
+			if (appSettings != null && appSettings.Vst3Plugins != null)
+			{
+				Vst3Plugins = new ObservableCollection<Vst3PluginState>(Vst3SyncHub.CloneList(appSettings.Vst3Plugins));
+			}
+		}
+		_lastCommittedVst3FullSignature = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+		_lastCommittedEnabledPaths = new HashSet<string>(
+			Vst3Plugins.Where((Vst3PluginState p) => p != null && p.Enabled && !string.IsNullOrWhiteSpace(p.Path)).Select((Vst3PluginState p) => p.Path),
+			StringComparer.OrdinalIgnoreCase);
+		ApplyPreviewVst3IfChanged(force: true);
 	}
 
 	private void OnPreviewRenderingChanged(bool rendering)
@@ -856,21 +921,109 @@ public class EditorViewModel : ObservableObject
 		return SettingsService?.Load().PanelLayouts ?? new Dictionary<string, double[]>();
 	}
 
+	private void ApplyPreviewVst3IfChanged(bool force = false)
+	{
+		IReadOnlyList<Vst3PluginState> active = ActiveVst3Plugins;
+		string sig = Vst3SyncHub.BuildActiveSignature(active);
+		if (!force && string.Equals(_lastPreviewVst3Signature, sig, StringComparison.Ordinal))
+		{
+			return;
+		}
+		_lastPreviewVst3Signature = sig;
+		Preview.SetVst3(active);
+	}
+
+	private void OnExternalVst3Synced(object sender, IReadOnlyList<Vst3PluginState> plugins)
+	{
+		if (ReferenceEquals(sender, this))
+		{
+			return;
+		}
+		RunOnUiThread(() =>
+		{
+			string incomingSig = Vst3SyncHub.BuildFullSignature(plugins);
+			if (!string.Equals(_lastCommittedVst3FullSignature, incomingSig, StringComparison.Ordinal))
+			{
+				List<Vst3PluginState> cloned = Vst3SyncHub.CloneList(plugins);
+				_lastCommittedVst3FullSignature = incomingSig;
+				_lastCommittedEnabledPaths = new HashSet<string>(
+					cloned.Where((Vst3PluginState p) => p.Enabled && !string.IsNullOrWhiteSpace(p.Path)).Select((Vst3PluginState p) => p.Path),
+					StringComparer.OrdinalIgnoreCase);
+				Vst3Plugins = new ObservableCollection<Vst3PluginState>(cloned);
+			}
+			ApplyPreviewVst3IfChanged(force: false);
+			Vst3PluginState? active = Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && p.IsActive);
+			Vst3StatusText = active != null
+				? $"效果组已同步启用：{active.Name}（预览与主播放引擎实时生效）"
+				: "效果组已同步：当前未启用插件（直通）";
+		});
+	}
+
 	[RelayCommand]
 	private void ApplyVst3()
 	{
-		Preview.SetVst3(ActiveVst3Plugins);
+		List<Vst3PluginState> enabledPlugins = Vst3Plugins.Where((Vst3PluginState p) => p != null && p.Enabled).ToList();
+		bool normalizedChanged = false;
+		if (enabledPlugins.Count > 1)
+		{
+			string? activeEditorPath = Vst3EditorWindow.ActivePluginPath;
+			Vst3PluginState? winner = (!string.IsNullOrWhiteSpace(activeEditorPath))
+				? enabledPlugins.FirstOrDefault((Vst3PluginState p) => string.Equals(p.Path, activeEditorPath, StringComparison.OrdinalIgnoreCase))
+				: null;
+			winner ??= enabledPlugins.FirstOrDefault((Vst3PluginState p) => !string.IsNullOrWhiteSpace(p.Path) && !_lastCommittedEnabledPaths.Contains(p.Path));
+			winner ??= enabledPlugins.FirstOrDefault((Vst3PluginState p) => p.IsActive) ?? enabledPlugins[0];
+			foreach (Vst3PluginState p in enabledPlugins)
+			{
+				if (!ReferenceEquals(p, winner))
+				{
+					p.Enabled = false;
+					p.Bypass = false;
+					normalizedChanged = true;
+				}
+			}
+		}
+
+		string currentFullSig = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+		Vst3PluginState? firstActive = Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && p.IsActive);
+		bool hostMatches = _engine == null || (firstActive != null
+			? Vst3NativeHost.Instance.IsLoadedFor(firstActive.Path)
+			: !Vst3NativeHost.Instance.IsLoaded);
+
+		if (!normalizedChanged && string.Equals(_lastCommittedVst3FullSignature, currentFullSig, StringComparison.Ordinal) && hostMatches)
+		{
+			ApplyPreviewVst3IfChanged(force: false);
+			return;
+		}
+
+		_lastCommittedVst3FullSignature = currentFullSig;
+		_lastCommittedEnabledPaths = new HashSet<string>(
+			Vst3Plugins.Where((Vst3PluginState p) => p != null && p.Enabled && !string.IsNullOrWhiteSpace(p.Path)).Select((Vst3PluginState p) => p.Path),
+			StringComparer.OrdinalIgnoreCase);
+
+		if (normalizedChanged)
+		{
+			// Refresh items so EditorPage ToggleSwitch reflects single-slot exclusivity;
+			// rebinding fires Toggled which will hit the signature guard above and no-op.
+			Vst3Plugins = new ObservableCollection<Vst3PluginState>(Vst3SyncHub.CloneList(Vst3Plugins));
+		}
+
+		ApplyPreviewVst3IfChanged(force: false);
+		Vst3SyncHub.PushToEngine(_engine, Vst3Plugins.ToList());
 		SaveVst3State();
-		Vst3StatusText = "效果组已更新：启用 " + ActiveVst3Plugins.Count + " 个插件，下次预览播放时生效";
+		Vst3SyncHub.Publish(this, Vst3Plugins);
+		Vst3StatusText = ActiveVst3Plugins.Count > 0
+			? $"效果组已更新：启用 {ActiveVst3Plugins[0].Name}（预览与主播放引擎同步生效）"
+			: "效果组已更新：当前未启用 VST3 插件（直通）";
 	}
 
 	private void SaveVst3State()
 	{
 		try
 		{
+			List<Vst3PluginState> snapshot = Vst3SyncHub.CloneList(Vst3Plugins);
 			SettingsService?.Update((AppSettings s) =>
 			{
-				s.Vst3Plugins = Vst3Plugins.ToList();
+				s.Vst3Plugins = snapshot;
 			});
 		}
 		catch
@@ -880,14 +1033,403 @@ public class EditorViewModel : ObservableObject
 
 	public void ResetDefaults()
 	{
+		bool hadActiveOrEnabled = false;
 		foreach (Vst3PluginState vst3Plugin in Vst3Plugins)
 		{
-			vst3Plugin.Enabled = false;
-			vst3Plugin.Bypass = false;
+			if (vst3Plugin != null && (vst3Plugin.Enabled || vst3Plugin.Bypass))
+			{
+				hadActiveOrEnabled = true;
+			}
+			if (vst3Plugin != null)
+			{
+				vst3Plugin.Enabled = false;
+				vst3Plugin.Bypass = false;
+			}
 		}
-		Preview.SetVst3(ActiveVst3Plugins);
+		_lastCommittedVst3FullSignature = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+		_lastCommittedEnabledPaths.Clear();
+		if (hadActiveOrEnabled)
+		{
+			Vst3Plugins = new ObservableCollection<Vst3PluginState>(Vst3SyncHub.CloneList(Vst3Plugins));
+		}
+		ApplyPreviewVst3IfChanged(force: false);
+		Vst3SyncHub.PushToEngine(_engine, Vst3Plugins.ToList());
 		SaveVst3State();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 		Vst3StatusText = "效果组已恢复默认（插件配置清空，音乐库不受影响）";
+	}
+
+	public void InitializeEchoEqBands()
+	{
+		lock (_echoEqLock)
+		{
+			PopulateDefaultEchoEqBandsLocked(_sampleRate > 0 ? _sampleRate : 48000);
+			_echoEqPreampDb = 0.0;
+			_echoEqEnabled = true;
+			_echoEqVersion++;
+		}
+		OnPropertyChanged(nameof(EchoEqPreampDb));
+		OnPropertyChanged(nameof(EchoEqEnabled));
+		Equalizer.Gains = new double[10];
+	}
+
+	private void PopulateDefaultEchoEqBandsLocked(double sampleRate)
+	{
+		EchoEqBands.Clear();
+		double[] freqs = MixAssistantEngine.GraphicFrequencies;
+		for (int i = 0; i < freqs.Length; i++)
+		{
+			var band = new EchoBiquadFilter
+			{
+				FilterType = i == 0
+					? EchoFilterType.LowShelf
+					: (i == freqs.Length - 1 ? EchoFilterType.HighShelf : EchoFilterType.Peaking),
+				FrequencyHz = freqs[i],
+				GainDb = 0.0,
+				Q = 1.414,
+				Enabled = true
+			};
+			band.UpdateCoefficients(sampleRate);
+			EchoEqBands.Add(band);
+		}
+	}
+
+	public void ApplyPreviewParametricEq(IReadOnlyList<EchoBiquadFilter>? bands, double preampDb, bool enabled)
+	{
+		List<EchoBiquadFilter>? activeSnapshot = null;
+		double[] summaryGains = new double[10];
+		double clampedPreamp = Math.Clamp(preampDb, -18.0, 18.0);
+
+		lock (_echoEqLock)
+		{
+			int rate = _sampleRate > 0 ? _sampleRate : 48000;
+			EchoEqBands.Clear();
+			if (bands != null && bands.Count > 0)
+			{
+				for (int i = 0; i < bands.Count; i++)
+				{
+					EchoBiquadFilter? src = bands[i];
+					if (src == null) continue;
+					var copy = new EchoBiquadFilter
+					{
+						FilterType = src.FilterType,
+						FrequencyHz = src.FrequencyHz,
+						GainDb = src.GainDb,
+						Q = src.Q,
+						Enabled = src.Enabled
+					};
+					copy.UpdateCoefficients(rate);
+					EchoEqBands.Add(copy);
+				}
+			}
+			if (EchoEqBands.Count == 0)
+			{
+				PopulateDefaultEchoEqBandsLocked(rate);
+			}
+
+			_echoEqPreampDb = clampedPreamp;
+			_echoEqEnabled = enabled;
+			_echoEqVersion++;
+
+			double[] isoFreqs = MixAssistantEngine.GraphicFrequencies;
+			for (int i = 0; i < 10; i++)
+			{
+				if (!enabled)
+				{
+					summaryGains[i] = 0.0;
+					continue;
+				}
+				if (i < EchoEqBands.Count && Math.Abs(EchoEqBands[i].FrequencyHz - isoFreqs[i]) < isoFreqs[i] * 0.2)
+				{
+					summaryGains[i] = EchoEqBands[i].Enabled ? Math.Clamp(EchoEqBands[i].GainDb, -12.0, 12.0) : 0.0;
+				}
+				else
+				{
+					double resp = 0.0;
+					for (int b = 0; b < EchoEqBands.Count; b++)
+					{
+						if (EchoEqBands[b].Enabled)
+						{
+							resp += EchoEqBands[b].CalculateResponseDb(isoFreqs[i], 48000.0);
+						}
+					}
+					summaryGains[i] = Math.Clamp(resp, -12.0, 12.0);
+				}
+			}
+
+			if (enabled)
+			{
+				activeSnapshot = CloneEchoBands(EchoEqBands, rate);
+			}
+		}
+
+		OnPropertyChanged(nameof(EchoEqPreampDb));
+		OnPropertyChanged(nameof(EchoEqEnabled));
+		Equalizer.Gains = summaryGains;
+		Preview.SetParametricEq(activeSnapshot, enabled ? clampedPreamp : 0.0);
+	}
+
+	public bool ImportAutoEqToParametricBands(string text)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+		try
+		{
+			AutoEqPreset preset = AutoEqParser.Parse(text);
+			if (preset.Bands.Count == 0)
+			{
+				StatusText = "AutoEq 文件中未检测到有效滤波频段";
+				return false;
+			}
+			ApplyPreviewParametricEq(preset.Bands, preset.PreampDb, enabled: true);
+			StatusText = $"已导入 AutoEq 参数均衡（{preset.Bands.Count} 段，前级 {preset.PreampDb:+0.0;-0.0;0.0} dB）";
+			return true;
+		}
+		catch (Exception ex)
+		{
+			StatusText = "AutoEq 导入失败：" + ex.Message;
+			return false;
+		}
+	}
+
+	public Task<MixAssistantProfile> AnalyzeMixAssistantOnLoadedSamples()
+	{
+		float[] samples = _samples;
+		int channels = _channels;
+		int sampleRate = _sampleRate;
+		return Task.Run(() =>
+		{
+			var engine = new MixAssistantEngine();
+			return engine.AnalyzeSamples(samples, channels, sampleRate);
+		});
+	}
+
+	public InsightProSnapshot GetCurrentInsightSnapshot() => InsightAnalyzer.GetSnapshot();
+
+	public bool TryGetCurrentSpectrum64(float[] spectrumOut64)
+	{
+		if (spectrumOut64 == null || spectrumOut64.Length == 0 || _samples.Length == 0)
+		{
+			return false;
+		}
+		PopulateSpectrum64FromSnapshot(InsightAnalyzer.GetSnapshot(), spectrumOut64);
+		return true;
+	}
+
+	public static void PopulateSpectrum64FromSnapshot(InsightProSnapshot snapshot, float[] spectrumOut64)
+	{
+		if (spectrumOut64 == null || spectrumOut64.Length == 0)
+		{
+			return;
+		}
+		float[] src = snapshot.SpectrumDb;
+		if (src == null || src.Length == 0)
+		{
+			Array.Clear(spectrumOut64, 0, spectrumOut64.Length);
+			return;
+		}
+
+		int outLen = spectrumOut64.Length;
+		int srcLen = src.Length;
+		for (int i = 0; i < outLen; i++)
+		{
+			double f0 = (double)i * srcLen / outLen;
+			double f1 = (double)(i + 1) * srcLen / outLen;
+			int idx0 = Math.Clamp((int)Math.Floor(f0), 0, srcLen - 1);
+			int idx1 = Math.Clamp((int)Math.Ceiling(f1) - 1, idx0, srcLen - 1);
+			float sum = 0f;
+			int count = 0;
+			for (int k = idx0; k <= idx1; k++)
+			{
+				sum += src[k];
+				count++;
+			}
+			float avgDb = count > 0 ? sum / count : -110f;
+			spectrumOut64[i] = Math.Clamp((avgDb + 80.0f) / 80.0f, 0.0f, 1.0f);
+		}
+	}
+
+	private bool HasActiveParametricEqLocked()
+	{
+		if (Math.Abs(_echoEqPreampDb) > 0.01)
+		{
+			return true;
+		}
+		for (int i = 0; i < EchoEqBands.Count; i++)
+		{
+			EchoBiquadFilter? b = EchoEqBands[i];
+			if (b != null && b.Enabled &&
+				(Math.Abs(b.GainDb) > 0.01 ||
+				 b.FilterType is EchoFilterType.LowPass or EchoFilterType.HighPass or EchoFilterType.BandPass or EchoFilterType.Notch))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static List<EchoBiquadFilter> CloneEchoBands(IReadOnlyList<EchoBiquadFilter> source, double sampleRate)
+	{
+		var cloned = new List<EchoBiquadFilter>(source.Count);
+		for (int i = 0; i < source.Count; i++)
+		{
+			EchoBiquadFilter? src = source[i];
+			if (src == null) continue;
+			var copy = new EchoBiquadFilter
+			{
+				FilterType = src.FilterType,
+				FrequencyHz = src.FrequencyHz,
+				GainDb = src.GainDb,
+				Q = src.Q,
+				Enabled = src.Enabled
+			};
+			copy.UpdateCoefficients(sampleRate);
+			cloned.Add(copy);
+		}
+		return cloned;
+	}
+
+	private EchoEqProcessor? CreateActiveEchoEqProcessor(int sampleRate)
+	{
+		int safeRate = sampleRate > 0 ? sampleRate : 44100;
+		List<EchoBiquadFilter> snapshot;
+		double preampDb;
+		lock (_echoEqLock)
+		{
+			if (!_echoEqEnabled || !HasActiveParametricEqLocked())
+			{
+				return null;
+			}
+			snapshot = CloneEchoBands(EchoEqBands, safeRate);
+			preampDb = _echoEqPreampDb;
+		}
+
+		var eq = new EchoEqProcessor(safeRate)
+		{
+			Enabled = true,
+			CalibrationEnabled = true,
+			PreampDb = preampDb
+		};
+		eq.Prepare(safeRate);
+		eq.SetCalibrationBands(snapshot, 0.0);
+		return eq;
+	}
+
+	private void ApplyActivePreviewEqForInsight(float[] interleaved, int channels, int sampleRate, double posSec)
+	{
+		lock (_insightEqLock)
+		{
+			int currentVersion;
+			bool eqEnabled;
+			lock (_echoEqLock)
+			{
+				currentVersion = _echoEqVersion;
+				eqEnabled = _echoEqEnabled;
+			}
+
+			if (!eqEnabled)
+			{
+				_previewInsightEq = null;
+				_insightEqVersion = currentVersion;
+				_lastInsightPosSec = posSec;
+				return;
+			}
+
+			if (currentVersion != _insightEqVersion || _insightEqSampleRate != sampleRate)
+			{
+				_insightEqVersion = currentVersion;
+				_insightEqSampleRate = sampleRate;
+				_previewInsightEq = CreateActiveEchoEqProcessor(sampleRate);
+			}
+
+			if (_previewInsightEq != null)
+			{
+				if (posSec < _lastInsightPosSec - 0.05 || posSec - _lastInsightPosSec > 0.5)
+				{
+					_previewInsightEq.Reset();
+				}
+				_previewInsightEq.ProcessInterleaved(interleaved, 0, interleaved.Length, channels);
+			}
+			_lastInsightPosSec = posSec;
+		}
+	}
+
+	private void SeedInsightAnalyzer(float[] samples, int channels, int sampleRate)
+	{
+		if (samples == null || samples.Length == 0 || channels <= 0 || sampleRate <= 0)
+		{
+			InsightAnalyzer.Reset();
+			return;
+		}
+
+		int totalFrames = samples.Length / channels;
+		if (totalFrames <= 0)
+		{
+			InsightAnalyzer.Reset();
+			return;
+		}
+
+		int seedFrames = Math.Min(totalFrames, sampleRate * 4);
+		float[] seedBuffer = new float[seedFrames * channels];
+		Array.Copy(samples, 0, seedBuffer, 0, seedBuffer.Length);
+
+		EchoEqProcessor? eq = CreateActiveEchoEqProcessor(sampleRate);
+		eq?.ProcessInterleaved(seedBuffer, 0, seedBuffer.Length, channels);
+
+		InsightAnalyzer.Reset();
+		InsightAnalyzer.AnalyzeWindow(seedBuffer, channels, sampleRate, 0, seedFrames);
+	}
+
+	public InsightProSnapshot AdvancePreviewInsight(TimeSpan position, TimeSpan duration, float[]? spectrumOut64 = null)
+	{
+		float[] samples = _samples;
+		int channels = _channels;
+		int sampleRate = _sampleRate;
+		if (samples.Length == 0 || channels <= 0 || sampleRate <= 0)
+		{
+			if (spectrumOut64 != null)
+			{
+				Array.Clear(spectrumOut64, 0, spectrumOut64.Length);
+			}
+			return InsightAnalyzer.GetSnapshot();
+		}
+
+		long totalFrames = samples.Length / channels;
+		int chunkFrames = Math.Min(2048, (int)totalFrames);
+		if (chunkFrames <= 0)
+		{
+			if (spectrumOut64 != null)
+			{
+				Array.Clear(spectrumOut64, 0, spectrumOut64.Length);
+			}
+			return InsightAnalyzer.GetSnapshot();
+		}
+
+		double posSec = Math.Max(0.0, position.TotalSeconds);
+		if (duration.TotalSeconds > 0.0)
+		{
+			posSec = Math.Min(posSec, duration.TotalSeconds);
+		}
+
+		long centerFrame = (long)(posSec * sampleRate);
+		long startFrame = Math.Clamp(centerFrame - chunkFrames / 2, 0L, Math.Max(0L, totalFrames - chunkFrames));
+
+		float[] chunk = new float[chunkFrames * channels];
+		Array.Copy(samples, startFrame * channels, chunk, 0L, chunk.Length);
+
+		ApplyActivePreviewEqForInsight(chunk, channels, sampleRate, posSec);
+
+		InsightAnalyzer.PushSamples(chunk, channels, sampleRate);
+		InsightProSnapshot snapshot = InsightAnalyzer.GetSnapshot();
+
+		if (spectrumOut64 != null)
+		{
+			PopulateSpectrum64FromSnapshot(snapshot, spectrumOut64);
+		}
+
+		return snapshot;
 	}
 
 	public void ApplyPreviewEq(double[] gains)
@@ -929,6 +1471,7 @@ public class EditorViewModel : ObservableObject
 			PhasePoints = new ObservableCollection<PhaseAnalyzer.LissajousPoint>();
 			PhaseDifference = 0.0;
 			StereoCorrelation = 0.0;
+			InsightAnalyzer.Reset();
 			StatusText = "无法读取该音频文件：" + ex.Message;
 			return;
 		}
@@ -939,9 +1482,10 @@ public class EditorViewModel : ObservableObject
 		_redoStack.Clear();
 		UpdateHistoryState();
 		Preview.Load(_samples, _sampleRate, _channels);
-		Preview.SetEqGains(Equalizer.Gains);
+		Preview.SetEqGains(new double[10]);
+		SyncPreviewParametricEq();
 		Preview.SetSpatialAudio(ReverbEnabled, ReverbMix, ReverbPreset, SpatialWidth, SpatialModulation, SpatialPredelayMs);
-		Preview.SetVst3(ActiveVst3Plugins);
+		ApplyPreviewVst3IfChanged(force: true);
 		await AnalyzeAllAsync();
 		StatusText = $"{FileName} · {_sampleRate}Hz · {_channels}声道 · {DurationSeconds:F1}s";
 	}
@@ -959,6 +1503,7 @@ public class EditorViewModel : ObservableObject
 			PhasePoints = new ObservableCollection<PhaseAnalyzer.LissajousPoint>();
 			PhaseDifference = 0.0;
 			StereoCorrelation = 0.0;
+			InsightAnalyzer.Reset();
 			return;
 		}
 		float[] samples = _samples;
@@ -974,6 +1519,7 @@ public class EditorViewModel : ObservableObject
 		 double phaseDiff,
 		 double correlation) tuple = await Task.Run(() =>
 		{
+			SeedInsightAnalyzer(samples, channels, sampleRate);
 			var (leftP, rightP, leftR, rightR) = WaveformRenderer.ComputeStereoPeaksAndRms(samples, channels, 1200);
 			List<WaveformRenderer.PeakPair> item = leftP;
 			List<SpectrumPoint> item2 = Fft.Compute(samples, sampleRate, logarithmic: true, 96);
@@ -1056,12 +1602,33 @@ public class EditorViewModel : ObservableObject
 		StatusText = $"已标准化至 {NormalizeTargetDbfs} dBFS";
 	}
 
+	private void SyncPreviewParametricEq()
+	{
+		List<EchoBiquadFilter>? activeSnapshot = null;
+		double preampDb = 0.0;
+		lock (_echoEqLock)
+		{
+			if (_echoEqEnabled)
+			{
+				int rate = _sampleRate > 0 ? _sampleRate : 48000;
+				activeSnapshot = CloneEchoBands(EchoEqBands, rate);
+				preampDb = _echoEqPreampDb;
+			}
+		}
+		Preview.SetParametricEq(activeSnapshot, preampDb);
+	}
+
 	[RelayCommand]
 	private async Task ApplyDspAsync()
 	{
 		await ApplyEditAsync((float[] s) =>
 		{
-			Equalizer.ProcessInterleaved(s, _channels);
+			float[] working = (float[])s.Clone();
+			if (EchoEqEnabled)
+			{
+				EchoEqProcessor? parametricEq = CreateActiveEchoEqProcessor(_sampleRate);
+				parametricEq?.ProcessInterleaved(working, 0, working.Length, _channels);
+			}
 			if (ReverbEnabled)
 			{
 				SpatialAudioEffect spatialAudioEffect = new SpatialAudioEffect(_sampleRate);
@@ -1070,28 +1637,28 @@ public class EditorViewModel : ObservableObject
 				spatialAudioEffect.Width = SpatialWidth;
 				spatialAudioEffect.Modulation = SpatialModulation;
 				spatialAudioEffect.PredelayMs = SpatialPredelayMs;
-				spatialAudioEffect.ProcessInterleaved(s, _channels);
+				spatialAudioEffect.ProcessInterleaved(working, _channels);
 			}
 			if (Math.Abs(PitchSemitones) > 0.01)
 			{
 				PitchShifter shifter = new PitchShifter();
-				s = ApplyPerChannel(s, _channels, (float[] ch) => shifter.PitchShift(ch, PitchSemitones));
+				working = ApplyPerChannel(working, _channels, (float[] ch) => shifter.PitchShift(ch, PitchSemitones));
 			}
 			if (Math.Abs(SpeedRatio - 1.0) > 0.01)
 			{
 				PitchShifter shifter2 = new PitchShifter();
-				s = ApplyPerChannel(s, _channels, (float[] ch) => shifter2.TimeStretch(ch, SpeedRatio));
+				working = ApplyPerChannel(working, _channels, (float[] ch) => shifter2.TimeStretch(ch, SpeedRatio));
 			}
 			foreach (Vst3PluginState vst3Plugin in Vst3Plugins)
 			{
 				if (vst3Plugin != null && vst3Plugin.IsActive)
 				{
-					Vst3SimulatedProcessor.Process(s, _channels, new Vst3Parameters(vst3Plugin.Drive, vst3Plugin.Tone, vst3Plugin.Mix));
+					Vst3SimulatedProcessor.Process(working, _channels, new Vst3Parameters(vst3Plugin.Drive, vst3Plugin.Tone, vst3Plugin.Mix));
 				}
 			}
-			return s;
+			return working;
 		});
-		StatusText = "已应用 DSP 效果（含效果组 VST3 插件）";
+		StatusText = "已应用 DSP 效果（含参数均衡与 VST3 插件）";
 	}
 
 	[RelayCommand]
@@ -1134,9 +1701,10 @@ public class EditorViewModel : ObservableObject
 		SelectionEndSeconds = (double)_samples.Length / (double)_channels / (double)_sampleRate;
 		DurationSeconds = SelectionEndSeconds;
 		Preview.Load(_samples, _sampleRate, _channels);
-		Preview.SetEqGains(Equalizer.Gains);
+		Preview.SetEqGains(new double[10]);
+		SyncPreviewParametricEq();
 		Preview.SetSpatialAudio(ReverbEnabled, ReverbMix, ReverbPreset, SpatialWidth, SpatialModulation, SpatialPredelayMs);
-		Preview.SetVst3(ActiveVst3Plugins);
+		ApplyPreviewVst3IfChanged(force: true);
 		await AnalyzeAllAsync();
 	}
 
@@ -1234,9 +1802,10 @@ public class EditorViewModel : ObservableObject
 		DurationSeconds = (double)_samples.Length / (double)_channels / (double)_sampleRate;
 		UpdateHistoryState();
 		Preview.Load(_samples, _sampleRate, _channels);
-		Preview.SetEqGains(Equalizer.Gains);
+		Preview.SetEqGains(new double[10]);
+		SyncPreviewParametricEq();
 		Preview.SetSpatialAudio(ReverbEnabled, ReverbMix, ReverbPreset, SpatialWidth, SpatialModulation, SpatialPredelayMs);
-		Preview.SetVst3(ActiveVst3Plugins);
+		ApplyPreviewVst3IfChanged(force: true);
 		await AnalyzeAllAsync();
 	}
 

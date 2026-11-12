@@ -43,18 +43,38 @@ public sealed class SafeAudioFileReader : WaveStream, ISampleProvider
 
 	private static WaveStream OpenLocalWaveStream(string filePath)
 	{
+		string ext = Path.GetExtension(filePath).ToLowerInvariant();
+		if (LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(ext)
+			&& LibVlcPcmTranscoder.TryDecodeToWav(filePath, out string predecodedWavPath))
+		{
+			return new WaveFileReader(predecodedWavPath);
+		}
+
 		try
 		{
 			return new AudioFileReader(filePath);
 		}
 		catch
 		{
-			string ext = Path.GetExtension(filePath).ToLowerInvariant();
 			if (ext == ".flac")
 			{
-				var sanitizingStream = new FlacSanitizingStream(filePath);
-				return new StreamMediaFoundationReader(sanitizingStream);
+				FlacSanitizingStream? sanitizingStream = null;
+				try
+				{
+					sanitizingStream = new FlacSanitizingStream(filePath);
+					return new StreamMediaFoundationReader(sanitizingStream);
+				}
+				catch
+				{
+					sanitizingStream?.Dispose();
+				}
 			}
+
+			if (LibVlcPcmTranscoder.TryDecodeToWav(filePath, out string wavPath))
+			{
+				return new WaveFileReader(wavPath);
+			}
+
 			throw;
 		}
 	}

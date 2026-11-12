@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using SonicWave.Audio.Dsp;
+using SonicWave.Audio.Vst3;
 using SonicWave.Core.Models;
 
 namespace SonicWave.Audio;
@@ -129,11 +131,16 @@ public sealed class PreviewPlayer : IDisposable
 	private bool _playing;
 	private bool _paused;
 	private RenderSettings _renderSettings = RenderSettings.Flat;
+	private EchoBiquadFilter[]? _parametricBands;
+	private double _parametricPreampDb;
 	private CancellationTokenSource? _renderCts;
 	private bool _rendering;
 	private Timer? _restartTimer;
 	private bool _restartScheduled;
 	private TimeSpan _resumePosition;
+	private bool _settingsDirty;
+	private string _lastVst3Signature = string.Empty;
+	private long _lastRenderedVst3StateVersion;
 
 	public float Volume
 	{
@@ -207,7 +214,12 @@ public sealed class PreviewPlayer : IDisposable
 				if (_source != null)
 				{
 					long num = _samples.Length / _channels;
-					_source.PositionFrames = Math.Clamp((long)(value.TotalSeconds * (double)_sampleRate), 0L, Math.Max(0L, num - 1));
+					long clamped = Math.Clamp((long)(value.TotalSeconds * (double)_sampleRate), 0L, Math.Max(0L, num - 1));
+					_source.PositionFrames = clamped;
+					if (_paused || !_playing)
+					{
+						_resumePosition = TimeSpan.FromSeconds((double)clamped / (double)_sampleRate);
+					}
 				}
 			}
 		}
@@ -227,9 +239,35 @@ public sealed class PreviewPlayer : IDisposable
 			_samples = samples ?? Array.Empty<float>();
 			_channels = ((channels <= 0) ? 1 : channels);
 			_sampleRate = ((sampleRate > 0) ? sampleRate : 44100);
+			_settingsDirty = HasActiveEffectsLocked();
 			_source = new FloatSampleProvider(_samples, _channels, _sampleRate, _volume, _lock);
 		}
 	}
+
+	private bool HasActiveParametricEqLocked()
+	{
+		if (Math.Abs(_parametricPreampDb) > 0.05)
+		{
+			return true;
+		}
+		if (_parametricBands == null || _parametricBands.Length == 0)
+		{
+			return false;
+		}
+		for (int i = 0; i < _parametricBands.Length; i++)
+		{
+			EchoBiquadFilter b = _parametricBands[i];
+			if (b != null && b.Enabled &&
+			    (Math.Abs(b.GainDb) > 0.05 ||
+			     b.FilterType is EchoFilterType.LowPass or EchoFilterType.HighPass or EchoFilterType.BandPass or EchoFilterType.Notch))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private bool HasActiveEffectsLocked() => _renderSettings.IsActive || HasActiveParametricEqLocked();
 
 	public void SetEqGains(double[] gains)
 	{
@@ -243,6 +281,41 @@ public sealed class PreviewPlayer : IDisposable
 			{
 				EqGains = (double[])gains.Clone()
 			};
+			_settingsDirty = true;
+		}
+		ScheduleRestart();
+	}
+
+	public void SetParametricEq(IReadOnlyList<EchoBiquadFilter>? bands, double preampDb = 0.0)
+	{
+		lock (_lock)
+		{
+			if (bands == null || bands.Count == 0)
+			{
+				_parametricBands = null;
+			}
+			else
+			{
+				var snapshot = new EchoBiquadFilter[bands.Count];
+				int safeRate = _sampleRate > 0 ? _sampleRate : 44100;
+				for (int i = 0; i < bands.Count; i++)
+				{
+					EchoBiquadFilter src = bands[i];
+					var copy = new EchoBiquadFilter
+					{
+						FilterType = src.FilterType,
+						FrequencyHz = src.FrequencyHz,
+						GainDb = src.GainDb,
+						Q = src.Q,
+						Enabled = src.Enabled
+					};
+					copy.UpdateCoefficients(safeRate);
+					snapshot[i] = copy;
+				}
+				_parametricBands = snapshot;
+			}
+			_parametricPreampDb = Math.Clamp(preampDb, -30.0, 30.0);
+			_settingsDirty = true;
 		}
 		ScheduleRestart();
 	}
@@ -258,6 +331,7 @@ public sealed class PreviewPlayer : IDisposable
 				ReverbPreset = (string.IsNullOrEmpty(preset) ? "大厅" : preset),
 				Spatial = new SpatialParameters(width, modulation, predelayMs)
 			};
+			_settingsDirty = true;
 		}
 		ScheduleRestart();
 	}
@@ -268,34 +342,96 @@ public sealed class PreviewPlayer : IDisposable
 		SetSpatialAudio(enabled, mix, preset, spatialParameters.Width, spatialParameters.Modulation, spatialParameters.PredelayMs);
 	}
 
+	private static string ComputeVst3Signature(IReadOnlyList<Vst3PluginState>? plugins)
+	{
+		if (plugins == null || plugins.Count == 0)
+		{
+			return string.Empty;
+		}
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < plugins.Count; i++)
+		{
+			Vst3PluginState? item = plugins[i];
+			if (item != null && item.IsActive)
+			{
+				string key = string.IsNullOrWhiteSpace(item.Path) ? item.Name : Vst3NativeHost.ResolveCacheKey(item.Path);
+				sb.Append(key)
+				  .Append('|').Append(item.Drive.ToString("R"))
+				  .Append('|').Append(item.Tone.ToString("R"))
+				  .Append('|').Append(item.Mix.ToString("R"))
+				  .Append(';');
+			}
+		}
+		return sb.ToString();
+	}
+
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{
+		Vst3PluginState[] snapshot;
+		if (plugins == null || plugins.Count == 0)
+		{
+			snapshot = Array.Empty<Vst3PluginState>();
+		}
+		else
+		{
+			snapshot = new Vst3PluginState[plugins.Count];
+			for (int i = 0; i < plugins.Count; i++)
+			{
+				snapshot[i] = plugins[i];
+			}
+		}
+
+		bool changed;
 		lock (_lock)
 		{
 			_renderSettings = _renderSettings with
 			{
-				Vst3 = (plugins ?? Array.Empty<Vst3PluginState>())
+				Vst3 = snapshot
 			};
+			string sig = ComputeVst3Signature(snapshot);
+			long ver = Vst3NativeHost.Instance.StateVersion;
+			changed = !string.Equals(sig, _lastVst3Signature, StringComparison.Ordinal) ||
+			          (sig.Length > 0 && ver != _lastRenderedVst3StateVersion);
+			if (changed)
+			{
+				_lastVst3Signature = sig;
+				_settingsDirty = true;
+			}
 		}
-		ScheduleRestart();
+		if (changed)
+		{
+			ScheduleRestart();
+		}
 	}
 
 	public void Play()
 	{
-		bool flag = false;
+		bool needRender = false;
 		lock (_lock)
 		{
 			if (_source == null || _playing || (_renderCts != null && _rendering))
 			{
 				return;
 			}
-			flag = _renderSettings.IsActive;
-			if (!flag)
+			bool vst3ParamChanged = _lastVst3Signature.Length > 0 && _lastRenderedVst3StateVersion != Vst3NativeHost.Instance.StateVersion;
+			if (_paused && _output != null && !_settingsDirty && !vst3ParamChanged)
 			{
+				_paused = false;
+				_playing = true;
+				_output.Play();
+				return;
+			}
+			if (HasActiveEffectsLocked())
+			{
+				needRender = true;
+			}
+			else
+			{
+				_settingsDirty = false;
 				StartOutputLocked(_samples);
 			}
 		}
-		if (flag)
+		if (needRender)
 		{
 			StartRenderAsync();
 		}
@@ -305,8 +441,18 @@ public sealed class PreviewPlayer : IDisposable
 	{
 		lock (_lock)
 		{
+			if (_rendering)
+			{
+				CancelRenderLocked();
+				_paused = true;
+				return;
+			}
 			if (_output != null && _playing)
 			{
+				if (_source != null)
+				{
+					_resumePosition = TimeSpan.FromSeconds((double)_source.PositionFrames / (double)_sampleRate);
+				}
 				_output.Pause();
 				_playing = false;
 				_paused = true;
@@ -329,7 +475,7 @@ public sealed class PreviewPlayer : IDisposable
 		bool flag = false;
 		lock (_lock)
 		{
-			if (!_playing || !_renderSettings.IsActive)
+			if (!_playing && !_rendering)
 			{
 				return;
 			}
@@ -359,7 +505,7 @@ public sealed class PreviewPlayer : IDisposable
 
 	private void RestartDue()
 	{
-		bool flag = false;
+		bool needRender = false;
 		lock (_lock)
 		{
 			if (!_restartScheduled)
@@ -367,17 +513,29 @@ public sealed class PreviewPlayer : IDisposable
 				return;
 			}
 			_restartScheduled = false;
-			if (!_playing || !_renderSettings.IsActive)
+			if (!_playing && !_rendering)
 			{
 				return;
 			}
-			_resumePosition = Position;
-			flag = true;
+			if (_source != null && _playing)
+			{
+				_resumePosition = TimeSpan.FromSeconds((double)_source.PositionFrames / (double)_sampleRate);
+			}
+			CancelRenderLocked();
+			StopLocked(resetPosition: false);
+			if (HasActiveEffectsLocked())
+			{
+				needRender = true;
+			}
+			else
+			{
+				_settingsDirty = false;
+				StartOutputLocked(_samples);
+			}
 		}
-		if (flag)
+		if (needRender)
 		{
-			Stop();
-			Play();
+			StartRenderAsync();
 		}
 	}
 
@@ -388,6 +546,9 @@ public sealed class PreviewPlayer : IDisposable
 		int sr;
 		int ch;
 		RenderSettings settings;
+		EchoBiquadFilter[]? parametricBands;
+		double parametricPreampDb;
+		long startVst3Ver;
 		lock (_lock)
 		{
 			if (_playing || _rendering)
@@ -403,6 +564,9 @@ public sealed class PreviewPlayer : IDisposable
 			sr = _sampleRate;
 			ch = _channels;
 			settings = _renderSettings;
+			parametricBands = _parametricBands;
+			parametricPreampDb = _parametricPreampDb;
+			startVst3Ver = Vst3NativeHost.Instance.StateVersion;
 		}
 		RenderingChanged?.Invoke(obj: true);
 		RenderProgress?.Invoke(new RenderProgress(0.0, TimeSpan.Zero));
@@ -412,7 +576,10 @@ public sealed class PreviewPlayer : IDisposable
 			{
 				RenderProgress?.Invoke(p);
 			});
-			RenderResult renderResult = await Task.Run(() => OfflineEffectRenderer.RenderSamplesAsync(source, sr, ch, settings, progress, cts.Token));
+			RenderResult renderResult = await Task.Run(() =>
+				parametricBands != null || Math.Abs(parametricPreampDb) > 0.05
+					? OfflineEffectRenderer.RenderSamplesWithParametricEqAsync(source, sr, ch, settings, parametricBands, parametricPreampDb, progress, cts.Token)
+					: OfflineEffectRenderer.RenderSamplesAsync(source, sr, ch, settings, progress, cts.Token));
 			lock (_lock)
 			{
 				if (cts.IsCancellationRequested)
@@ -421,14 +588,11 @@ public sealed class PreviewPlayer : IDisposable
 				}
 				_renderCts = null;
 				_rendering = false;
+				_settingsDirty = false;
+				_lastRenderedVst3StateVersion = startVst3Ver;
 				if (!_playing)
 				{
 					StartOutputLocked(renderResult.Samples);
-					if (_resumePosition > TimeSpan.Zero && _source != null)
-					{
-						_source.PositionFrames = Math.Clamp((long)(_resumePosition.TotalSeconds * (double)_sampleRate), 0L, Math.Max(0, _samples.Length / _channels - 1));
-						_resumePosition = TimeSpan.Zero;
-					}
 				}
 			}
 		}
@@ -436,15 +600,22 @@ public sealed class PreviewPlayer : IDisposable
 		{
 			lock (_lock)
 			{
-				_rendering = false;
+				if (ReferenceEquals(_renderCts, cts))
+				{
+					_renderCts = null;
+					_rendering = false;
+				}
 			}
 		}
 		catch (Exception)
 		{
 			lock (_lock)
 			{
-				_rendering = false;
-				_renderCts = null;
+				if (ReferenceEquals(_renderCts, cts))
+				{
+					_rendering = false;
+					_renderCts = null;
+				}
 				if (!_playing)
 				{
 					StartOutputLocked(_samples);
@@ -470,6 +641,18 @@ public sealed class PreviewPlayer : IDisposable
 
 		_source = new FloatSampleProvider(samples, _channels, _sampleRate, _volume, _lock);
 
+		if (_resumePosition > TimeSpan.Zero)
+		{
+			long totalFrames = samples.Length / Math.Max(1, _channels);
+			_source.PositionFrames = Math.Clamp((long)(_resumePosition.TotalSeconds * (double)_sampleRate), 0L, Math.Max(0L, totalFrames - 1));
+			_resumePosition = TimeSpan.Zero;
+		}
+		else if (_paused)
+		{
+			_source.PositionFrames = 0L;
+		}
+		_paused = false;
+
 		// Use modern low-latency WASAPI with IEEE float 32-bit output; fallback safely to clamped WaveOutEvent
 		try
 		{
@@ -489,14 +672,6 @@ public sealed class PreviewPlayer : IDisposable
 			_output = waveOut;
 		}
 
-		if (_paused)
-		{
-			_paused = false;
-		}
-		else if (_source.PositionFrames >= _samples.Length / _channels)
-		{
-			_source.PositionFrames = 0L;
-		}
 		_output.Play();
 		_playing = true;
 	}
@@ -514,7 +689,7 @@ public sealed class PreviewPlayer : IDisposable
 		_rendering = false;
 	}
 
-	private void StopLocked()
+	private void StopLocked(bool resetPosition = true)
 	{
 		_playing = false;
 		_paused = false;
@@ -525,20 +700,33 @@ public sealed class PreviewPlayer : IDisposable
 			try { _output.Dispose(); } catch { }
 			_output = null;
 		}
-		if (_source != null)
+		if (resetPosition)
 		{
-			_source.PositionFrames = 0L;
+			_resumePosition = TimeSpan.Zero;
+			if (_source != null)
+			{
+				_source.PositionFrames = 0L;
+			}
 		}
 	}
 
 	private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
 	{
+		bool raised = false;
 		lock (_lock)
 		{
+			if (!ReferenceEquals(sender, _output))
+			{
+				return;
+			}
 			_playing = false;
 			_paused = false;
+			raised = true;
 		}
-		PlaybackStopped?.Invoke();
+		if (raised)
+		{
+			PlaybackStopped?.Invoke();
+		}
 	}
 
 	public void Dispose()

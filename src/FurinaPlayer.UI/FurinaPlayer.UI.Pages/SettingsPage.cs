@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -245,29 +245,58 @@ public sealed class SettingsPage : Page, IComponentConnector
 			{
 				Thickness gridPad = settingsGrid.Padding;
 				Thickness gridMargin = settingsGrid.Margin;
+				double gridMaxW = settingsGrid.MaxWidth;
 				settingsGrid.Padding = new Thickness(0);
 				settingsGrid.Margin = new Thickness(0);
+				settingsGrid.MaxWidth = double.PositiveInfinity;
+				settingsGrid.HorizontalAlignment = HorizontalAlignment.Stretch;
 
 				_outerSettingsContainer = new StackPanel
 				{
 					Spacing = 18,
 					Padding = gridPad.Left > 0 ? gridPad : new Thickness(24, 16, 24, 28),
 					Margin = gridMargin,
+					MaxWidth = (!double.IsNaN(gridMaxW) && !double.IsInfinity(gridMaxW) && gridMaxW > 0) ? gridMaxW : 1280.0,
+					HorizontalAlignment = HorizontalAlignment.Stretch,
 					Background = new SolidColorBrush(Colors.Transparent)
 				};
 
 				targetSv.Content = null;
-				_echoAppearanceCard = CreateEchoAppearanceWorkbenchCard(isDark);
-				_outerSettingsContainer.Children.Add(_echoAppearanceCard);
 				_outerSettingsContainer.Children.Add(settingsGrid);
 				targetSv.Content = _outerSettingsContainer;
 			}
-			else if (_echoAppearanceCard != null)
-			{
-				RefreshEchoAppearanceWorkbenchVisuals(isDark);
-			}
 
-			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+			if (_echoAppearanceCard == null)
+			{
+				LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(this, isDark);
+			}
+			else
+			{
+				if (settingsGrid != null)
+				{
+					foreach (UIElement child in settingsGrid.Children)
+					{
+						if (child is Panel p)
+						{
+							foreach (UIElement sub in p.Children)
+							{
+								if (!ReferenceEquals(sub, _echoAppearanceCard))
+								{
+									LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(sub, isDark);
+								}
+							}
+						}
+						else if (!ReferenceEquals(child, _echoAppearanceCard))
+						{
+							LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(child, isDark);
+						}
+					}
+				}
+				if (_aboutCardBorder != null)
+				{
+					LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(_aboutCardBorder, isDark);
+				}
+			}
 
 			if (settingsGrid != null)
 			{
@@ -283,6 +312,23 @@ public sealed class SettingsPage : Page, IComponentConnector
 					else
 					{
 						LiquidGlassEngine.AttachInteractiveLiquidGlass(_systemSettingsCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+					}
+
+					// 隐藏原本旧的“外观与主题”卡片（插入系统设置后位于 index 1）
+					if (col1Panel.Children.Count >= 2 && col1Panel.Children[1] is Border legacyAppearanceCard && legacyAppearanceCard != _echoAppearanceCard)
+					{
+						legacyAppearanceCard.Visibility = Visibility.Collapsed;
+					}
+
+					if (_echoAppearanceCard == null)
+					{
+						_echoAppearanceCard = CreateEchoAppearanceWorkbenchCard(isDark);
+						// 插入到系统与窗口设置之后、音乐库之前
+						col1Panel.Children.Insert(2, _echoAppearanceCard);
+					}
+					else
+					{
+						RefreshEchoAppearanceWorkbenchVisuals(isDark);
 					}
 				}
 				foreach (UIElement child in settingsGrid.Children)
@@ -323,6 +369,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 					}
 				}
 			}
+
+			EnsureAboutCardAtEnd(settingsGrid, isDark);
 
 			ComboBox?[] combos = new ComboBox?[]
 			{
@@ -443,16 +491,50 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		try
 		{
-			UpdatePresetGridColumns(width);
 			Grid? settingsGrid = ResolveSettingsGrid();
 			if (settingsGrid != null)
 			{
-				List<FrameworkElement> panels = settingsGrid.Children
+				List<FrameworkElement> allPanels = settingsGrid.Children
 					.OfType<FrameworkElement>()
 					.Where(c => c is not SKXamlCanvas)
 					.ToList();
+				foreach (FrameworkElement p in allPanels)
+				{
+					if (p is Panel pnl)
+					{
+						pnl.Visibility = pnl.Children.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+					}
+				}
+				List<FrameworkElement> panels = allPanels
+					.Where(c => c is not Panel pnl || pnl.Children.Count > 0)
+					.ToList();
 
-				if (panels.Count >= 3)
+				if (panels.Count == 2)
+				{
+					FrameworkElement panel0 = panels[0];
+					FrameworkElement panel1 = panels[1];
+					if (width < 980.0)
+					{
+						settingsGrid.ColumnDefinitions.Clear();
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+						settingsGrid.RowDefinitions.Clear();
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						Grid.SetColumn(panel0, 0); Grid.SetRow(panel0, 0);
+						Grid.SetColumn(panel1, 0); Grid.SetRow(panel1, 1);
+					}
+					else
+					{
+						settingsGrid.ColumnDefinitions.Clear();
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(width >= 1320.0 ? 420.0 : 380.0, GridUnitType.Pixel) });
+						settingsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star), MinWidth = 380.0 });
+						settingsGrid.RowDefinitions.Clear();
+						settingsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+						Grid.SetColumn(panel0, 0); Grid.SetRow(panel0, 0);
+						Grid.SetColumn(panel1, 1); Grid.SetRow(panel1, 0);
+					}
+				}
+				else if (panels.Count >= 3)
 				{
 					FrameworkElement panel0 = panels[0];
 					FrameworkElement panel1 = panels[1];
@@ -502,8 +584,58 @@ public sealed class SettingsPage : Page, IComponentConnector
 					}
 				}
 			}
+			UpdatePresetGridColumns(width);
 		}
 		catch (Exception)
+		{
+		}
+	}
+
+	private void EnsureAboutCardAtEnd(Grid? settingsGrid, bool isDark)
+	{
+		try
+		{
+			if (_outerSettingsContainer == null || settingsGrid == null || VersionText == null)
+			{
+				return;
+			}
+			if (_aboutCardBorder == null)
+			{
+				DependencyObject? cur = VersionText;
+				while (cur != null)
+				{
+					DependencyObject? parent = VisualTreeHelper.GetParent(cur) ?? (cur as FrameworkElement)?.Parent;
+					if (cur is Border candidateBorder && parent is Panel parentPanel &&
+					    (ReferenceEquals(parentPanel, settingsGrid) || settingsGrid.Children.Contains(parentPanel)))
+					{
+						_aboutCardBorder = candidateBorder;
+						parentPanel.Children.Remove(candidateBorder);
+						if (!ReferenceEquals(parentPanel, settingsGrid) && parentPanel.Children.Count == 0)
+						{
+							parentPanel.Visibility = Visibility.Collapsed;
+						}
+						Grid.SetColumn(candidateBorder, 0);
+						Grid.SetRow(candidateBorder, 0);
+						Grid.SetColumnSpan(candidateBorder, 1);
+						candidateBorder.HorizontalAlignment = HorizontalAlignment.Stretch;
+						candidateBorder.Margin = new Thickness(0);
+						_outerSettingsContainer.Children.Add(candidateBorder);
+						UpdateResponsiveLayout(ActualWidth > 0 ? ActualWidth : 1200.0);
+						break;
+					}
+					cur = parent;
+				}
+			}
+			if (_aboutCardBorder != null)
+			{
+				if (_aboutCardBorder.CornerRadius == default)
+				{
+					_aboutCardBorder.CornerRadius = new CornerRadius(16);
+				}
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(_aboutCardBorder, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+			}
+		}
+		catch
 		{
 		}
 	}
@@ -535,7 +667,16 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		try
 		{
-			AssemblyInformationalVersionAttribute customAttribute = Assembly.GetEntryAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			Assembly? entryAsm = Assembly.GetEntryAssembly();
+			string? buildMetaVersion = entryAsm?
+				.GetCustomAttributes<AssemblyMetadataAttribute>()
+				.FirstOrDefault(a => string.Equals(a.Key, "FurinaBuildVersion", StringComparison.Ordinal))?
+				.Value;
+			if (!string.IsNullOrWhiteSpace(buildMetaVersion))
+			{
+				return buildMetaVersion;
+			}
+			AssemblyInformationalVersionAttribute? customAttribute = entryAsm?.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
 			return string.IsNullOrWhiteSpace(customAttribute?.InformationalVersion) ? "1.0.0.0.0000" : customAttribute.InformationalVersion;
 		}
 		catch
@@ -1232,9 +1373,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private Grid? _innerSettingsGrid;
 	private StackPanel? _outerSettingsContainer;
 	private Border? _echoAppearanceCard;
-	private readonly Dictionary<string, Button> _echoSubTabButtons = new();
-	private readonly Dictionary<string, Border> _echoSubTabIndicators = new();
-	private string _activeEchoSubTab = "theme";
+	private Border? _aboutCardBorder;
 	private readonly Dictionary<string, Button> _echoThemeModeButtons = new();
 	private Border? _acrylicFeatureCard;
 	private Border? _acrylicLiveBadgeBorder;
@@ -1256,172 +1395,106 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private Border? _presetWorkbenchContainer;
 	private readonly Dictionary<string, Button> _categoryFilterButtons = new();
 	private Grid? _presetsGridContainer;
-	private int _presetGridCols = 4;
+	private int _presetGridCols = 2;
 	private bool _suppressEchoUiEvents;
+
+	private static void DetachFromParent(FrameworkElement? el)
+	{
+		if (el == null) return;
+		if (el.Parent is Panel p)
+		{
+			p.Children.Remove(el);
+		}
+		else if (el.Parent is ContentControl cc)
+		{
+			cc.Content = null;
+		}
+		else if (el.Parent is Border b)
+		{
+			b.Child = null;
+		}
+	}
 
 	private Border CreateEchoAppearanceWorkbenchCard(bool isDark)
 	{
 		var outerCard = new Border
 		{
-			Name = "EchoAppearanceWorkbenchCard",
-			CornerRadius = new CornerRadius(20),
-			Padding = new Thickness(24, 20, 24, 22),
-			Margin = new Thickness(0, 0, 0, 4)
+			Name = "ModernAppearanceWorkbenchCard",
+			CornerRadius = new CornerRadius(16),
+			Padding = new Thickness(18, 16, 18, 18),
+			Margin = new Thickness(0, 0, 0, 16)
 		};
 
-		var rootStack = new StackPanel { Spacing = 18 };
+		var rootStack = new StackPanel { Spacing = 14 };
 
-		// 1. Header "外观" + Sub-navigation tabs ("主题与字体" | "布局与可视化" | "迷你播放器" | "背景与封面" | "无障碍")
-		var headerSection = new StackPanel { Spacing = 12 };
-		var titleRow = new Grid();
-		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-		var titleText = new TextBlock
+		// 1. Header "外观与个性化"
+		var headerSection = new StackPanel { Spacing = 6 };
+		var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		titleRow.Children.Add(FluentIconFactory.Create(FluentIconKind.Wallpaper, 20));
+		titleRow.Children.Add(new TextBlock
 		{
-			Text = "外观",
-			FontSize = 22,
-			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		Grid.SetColumn(titleText, 0);
-		titleRow.Children.Add(titleText);
-
-		var activePresetSummaryBadge = new Border
-		{
-			CornerRadius = new CornerRadius(999),
-			Padding = new Thickness(12, 5, 12, 5),
-			Background = new SolidColorBrush(isDark ? Color.FromArgb(45, 99, 102, 241) : Color.FromArgb(26, 99, 102, 241)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(95, 99, 102, 241)),
-			BorderThickness = new Thickness(1)
-		};
-		var badgeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		badgeSp.Children.Add(new TextBlock
-		{
-			Text = "ECHO 光学外观引擎 · 实时生效",
-			FontSize = 11.5,
+			Text = "外观与个性化",
+			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 79, 70, 229))
+			VerticalAlignment = VerticalAlignment.Center
 		});
-		activePresetSummaryBadge.Child = badgeSp;
-		Grid.SetColumn(activePresetSummaryBadge, 1);
-		titleRow.Children.Add(activePresetSummaryBadge);
 		headerSection.Children.Add(titleRow);
-
-		var subTabsBar = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 22
-		};
-		(string Key, string Label)[] subTabs = new[]
-		{
-			("theme", "主题与字体"),
-			("layout", "布局与可视化"),
-			("mini", "迷你播放器"),
-			("bg", "背景与封面"),
-			("a11y", "无障碍")
-		};
-		_echoSubTabButtons.Clear();
-		_echoSubTabIndicators.Clear();
-		foreach (var tab in subTabs)
-		{
-			var tabStack = new StackPanel { Spacing = 5 };
-			var tabBtn = new Button
-			{
-				Content = tab.Label,
-				Tag = tab.Key,
-				Background = new SolidColorBrush(Colors.Transparent),
-				BorderThickness = new Thickness(0),
-				Padding = new Thickness(4, 4, 4, 4),
-				FontSize = 13.5,
-				FontWeight = tab.Key == _activeEchoSubTab ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Medium
-			};
-			var indicator = new Border
-			{
-				Height = 2.5,
-				CornerRadius = new CornerRadius(2),
-				Background = new SolidColorBrush(tab.Key == _activeEchoSubTab
-					? LiquidGlassEngine.ActivePreset.AccentPrimary
-					: Colors.Transparent)
-			};
-			tabBtn.Click += (s, e) =>
-			{
-				_activeEchoSubTab = tab.Key;
-				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
-			};
-			_echoSubTabButtons[tab.Key] = tabBtn;
-			_echoSubTabIndicators[tab.Key] = indicator;
-			tabStack.Children.Add(tabBtn);
-			tabStack.Children.Add(indicator);
-			subTabsBar.Children.Add(tabStack);
-		}
-		headerSection.Children.Add(subTabsBar);
-		headerSection.Children.Add(new Border
-		{
-			Height = 1,
-			Background = new SolidColorBrush(isDark ? Color.FromArgb(30, 255, 255, 255) : Color.FromArgb(22, 15, 23, 42)),
-			Margin = new Thickness(0, -4, 0, 0)
-		});
 		rootStack.Children.Add(headerSection);
 
-		// 2. "主题" Mode Selector Row (浅色 | 深色 | 跟随系统 | 氛围 | 亚克力 | 液态玻璃)
-		var themeModeRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-		themeModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		themeModeRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-		var themeLabel = new TextBlock
+		// 2. 主题模式切换 (浅色 | 深色 | 跟随系统 | 亚克力 | 液态玻璃)
+		var themeModeSection = new StackPanel { Spacing = 8, Margin = new Thickness(0, 2, 0, 2) };
+		themeModeSection.Children.Add(new TextBlock
 		{
-			Text = "主题",
-			FontSize = 15,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		Grid.SetColumn(themeLabel, 0);
-		themeModeRow.Children.Add(themeLabel);
+			Text = "主题模式",
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium
+		});
 
-		var modeButtonsPanel = new StackPanel
+		var modeButtonsPanel = new SimpleWrapPanel
 		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 8,
-			HorizontalAlignment = HorizontalAlignment.Right
+			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
 		(string Key, string Icon, string Label)[] modeItems = new[]
 		{
 			("light", "☀", "浅色"),
 			("dark", "🌙", "深色"),
 			("system", "🖥", "跟随系统"),
-			("ambient", "✨", "氛围"),
 			("acrylic", "🪟", "亚克力"),
 			("liquid-glass", "💧", "液态玻璃")
 		};
 		_echoThemeModeButtons.Clear();
 		foreach (var m in modeItems)
 		{
-			var btnContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-			btnContent.Children.Add(new TextBlock { Text = m.Icon, FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center });
-			btnContent.Children.Add(new TextBlock { Text = m.Label, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+			var btnContent = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+			btnContent.Children.Add(new TextBlock { Text = m.Icon, FontSize = 12, VerticalAlignment = VerticalAlignment.Center });
+			btnContent.Children.Add(new TextBlock { Text = m.Label, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
 
 			var mBtn = new Button
 			{
 				Content = btnContent,
 				Tag = m.Key,
-				CornerRadius = new CornerRadius(10),
-				Padding = new Thickness(13, 7, 13, 7),
+				CornerRadius = new CornerRadius(8),
+				Padding = new Thickness(10, 6, 10, 6),
+				Margin = new Thickness(0, 0, 6, 6),
 				BorderThickness = new Thickness(1.2)
 			};
 			mBtn.Click += (s, e) =>
 			{
 				if (_suppressEchoUiEvents || ViewModel == null) return;
 				ViewModel.SetEchoThemeMode(m.Key);
+				if (m.Key == "acrylic") ViewModel.SetMaterial(BackgroundMaterial.Acrylic);
+				else if (m.Key == "liquid-glass") ViewModel.SetMaterial(BackgroundMaterial.LiquidGlass);
+				else if (m.Key == "light") ViewModel.SetTheme(ThemeMode.Light);
+				else if (m.Key == "dark") ViewModel.SetTheme(ThemeMode.Dark);
+				else if (m.Key == "system") ViewModel.SetTheme(ThemeMode.System);
 				SyncLegacyThemeMaterialCombos();
 				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
 			};
 			_echoThemeModeButtons[m.Key] = mBtn;
 			modeButtonsPanel.Children.Add(mBtn);
 		}
-		Grid.SetColumn(modeButtonsPanel, 1);
-		themeModeRow.Children.Add(modeButtonsPanel);
-		rootStack.Children.Add(themeModeRow);
+		themeModeSection.Children.Add(modeButtonsPanel);
+		rootStack.Children.Add(themeModeSection);
 
 		// 3. "窗口亚克力主题" Feature Card (with miniature glass preview, live % badge, 失焦时保持通透 & 透明度 0-100% slider)
 		_acrylicFeatureCard = new Border
@@ -1609,7 +1682,10 @@ public sealed class SettingsPage : Page, IComponentConnector
 			int pct = (int)Math.Round(e.NewValue);
 			if (_opacityValueText != null) _opacityValueText.Text = $"{pct}%";
 			if (_acrylicLiveBadgeText != null) _acrylicLiveBadgeText.Text = $"{pct}%";
+			LiquidGlassEngine.AcrylicOpacityScale = pct / 100.0;
 			ViewModel.SetAcrylicOpacityPercent(pct);
+			WindowManager.InvalidateStageGlass();
+			LiquidGlassEngine.RefreshAllAttachedElements(LiquidGlassEngine.IsElementDarkTheme(this));
 		};
 		opacityStack.Children.Add(_opacitySlider);
 		opacityStack.Children.Add(new TextBlock
@@ -1626,10 +1702,66 @@ public sealed class SettingsPage : Page, IComponentConnector
 		_acrylicFeatureCard.Child = acrylicStack;
 		rootStack.Children.Add(_acrylicFeatureCard);
 
-		// 4. "定时切换深色模式" Row
-		var scheduleRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-		scheduleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		scheduleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		// 4. 材质与壁纸设置
+		if (MaterialCombo != null)
+		{
+			DetachFromParent(MaterialCombo);
+			rootStack.Children.Add(MaterialCombo);
+		}
+		if (WallpaperCombo != null)
+		{
+			DetachFromParent(WallpaperCombo);
+			rootStack.Children.Add(WallpaperCombo);
+		}
+		if (WallpaperLocalPanel != null)
+		{
+			DetachFromParent(WallpaperLocalPanel);
+			rootStack.Children.Add(WallpaperLocalPanel);
+		}
+
+		// 5. 歌词字体与排版
+		var lyricFontHeader = new TextBlock
+		{
+			Text = "歌词字体",
+			FontSize = 14,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Margin = new Thickness(0, 4, 0, 0)
+		};
+		rootStack.Children.Add(lyricFontHeader);
+
+		if (LyricFontButton != null)
+		{
+			DetachFromParent(LyricFontButton);
+			rootStack.Children.Add(LyricFontButton);
+		}
+
+		var fontButtonsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		if (_importLyricFontButton != null)
+		{
+			DetachFromParent(_importLyricFontButton);
+			fontButtonsSp.Children.Add(_importLyricFontButton);
+		}
+		if (_resetLyricFontButton != null)
+		{
+			DetachFromParent(_resetLyricFontButton);
+			fontButtonsSp.Children.Add(_resetLyricFontButton);
+		}
+		if (fontButtonsSp.Children.Count > 0)
+		{
+			rootStack.Children.Add(fontButtonsSp);
+		}
+
+		if (LyricFontInfoText != null)
+		{
+			DetachFromParent(LyricFontInfoText);
+			rootStack.Children.Add(LyricFontInfoText);
+		}
+
+		// 4. "定时切换深色模式" Section
+		var scheduleSection = new StackPanel { Spacing = 8, Margin = new Thickness(0, 2, 0, 2) };
+		var scheduleHeaderRow = new Grid { ColumnSpacing = 12 };
+		scheduleHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		scheduleHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var scheduleLabel = new TextBlock
 		{
@@ -1639,21 +1771,16 @@ public sealed class SettingsPage : Page, IComponentConnector
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(scheduleLabel, 0);
-		scheduleRow.Children.Add(scheduleLabel);
+		scheduleHeaderRow.Children.Add(scheduleLabel);
 
-		var scheduleControls = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 10,
-			VerticalAlignment = VerticalAlignment.Center
-		};
 		_scheduleToggleBtn = new Button
 		{
 			Content = (ViewModel?.ScheduledDarkModeEnabled ?? false) ? "已启用" : "未启用",
-			CornerRadius = new CornerRadius(10),
+			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(14, 6, 14, 6),
 			FontSize = 12.5,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
 		};
 		_scheduleToggleBtn.Click += (s, e) =>
 		{
@@ -1662,22 +1789,37 @@ public sealed class SettingsPage : Page, IComponentConnector
 			ViewModel.SetScheduledDarkMode(next, _scheduleDarkStartBox?.Text, _scheduleDarkEndBox?.Text);
 			RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
 		};
-		scheduleControls.Children.Add(_scheduleToggleBtn);
+		Grid.SetColumn(_scheduleToggleBtn, 1);
+		scheduleHeaderRow.Children.Add(_scheduleToggleBtn);
+		scheduleSection.Children.Add(scheduleHeaderRow);
 
-		scheduleControls.Children.Add(new TextBlock
+		var scheduleTimesWrap = new SimpleWrapPanel
+		{
+			HorizontalAlignment = HorizontalAlignment.Stretch
+		};
+
+		var darkStartPair = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 8,
+			Margin = new Thickness(0, 0, 16, 4),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		darkStartPair.Children.Add(new TextBlock
 		{
 			Text = "切到深色",
 			FontSize = 12.5,
 			Opacity = 0.78,
-			VerticalAlignment = VerticalAlignment.Center,
-			Margin = new Thickness(4, 0, 0, 0)
+			VerticalAlignment = VerticalAlignment.Center
 		});
 		_scheduleDarkStartBox = new TextBox
 		{
 			Text = ViewModel?.ScheduledDarkStartTime ?? "19:00",
-			Width = 96,
+			Width = 88,
+			MinWidth = 0,
 			CornerRadius = new CornerRadius(8),
 			FontSize = 12.5,
+			Padding = new Thickness(10, 5, 10, 5),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_scheduleDarkStartBox.LostFocus += (s, e) =>
@@ -1685,22 +1827,31 @@ public sealed class SettingsPage : Page, IComponentConnector
 			if (_suppressEchoUiEvents || ViewModel == null) return;
 			ViewModel.SetScheduledDarkMode(ViewModel.ScheduledDarkModeEnabled, _scheduleDarkStartBox.Text, _scheduleDarkEndBox?.Text);
 		};
-		scheduleControls.Children.Add(_scheduleDarkStartBox);
+		darkStartPair.Children.Add(_scheduleDarkStartBox);
+		scheduleTimesWrap.Children.Add(darkStartPair);
 
-		scheduleControls.Children.Add(new TextBlock
+		var darkEndPair = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 8,
+			Margin = new Thickness(0, 0, 0, 4),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		darkEndPair.Children.Add(new TextBlock
 		{
 			Text = "切回浅色",
 			FontSize = 12.5,
 			Opacity = 0.78,
-			VerticalAlignment = VerticalAlignment.Center,
-			Margin = new Thickness(4, 0, 0, 0)
+			VerticalAlignment = VerticalAlignment.Center
 		});
 		_scheduleDarkEndBox = new TextBox
 		{
 			Text = ViewModel?.ScheduledDarkEndTime ?? "07:00",
-			Width = 96,
+			Width = 88,
+			MinWidth = 0,
 			CornerRadius = new CornerRadius(8),
 			FontSize = 12.5,
+			Padding = new Thickness(10, 5, 10, 5),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_scheduleDarkEndBox.LostFocus += (s, e) =>
@@ -1708,11 +1859,11 @@ public sealed class SettingsPage : Page, IComponentConnector
 			if (_suppressEchoUiEvents || ViewModel == null) return;
 			ViewModel.SetScheduledDarkMode(ViewModel.ScheduledDarkModeEnabled, _scheduleDarkStartBox?.Text, _scheduleDarkEndBox.Text);
 		};
-		scheduleControls.Children.Add(_scheduleDarkEndBox);
+		darkEndPair.Children.Add(_scheduleDarkEndBox);
+		scheduleTimesWrap.Children.Add(darkEndPair);
 
-		Grid.SetColumn(scheduleControls, 1);
-		scheduleRow.Children.Add(scheduleControls);
-		rootStack.Children.Add(scheduleRow);
+		scheduleSection.Children.Add(scheduleTimesWrap);
+		rootStack.Children.Add(scheduleSection);
 
 		// 5. "Rainbow 模式" PRO Row
 		var rainbowRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
@@ -1818,8 +1969,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		invertRow.Children.Add(_invertToggle);
 		rootStack.Children.Add(invertRow);
 
-		// 7. "主题预设" Header + Expander Pill Button
-		var presetHeaderRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+		// 7. "主题预设" Header + Expander Button
+		var presetHeaderRow = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 4, 0, 0) };
 		presetHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 		presetHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
@@ -1863,8 +2014,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		_presetExpanderBtn = new Button
 		{
 			Content = expanderContent,
-			CornerRadius = new CornerRadius(999),
-			Padding = new Thickness(14, 7, 14, 7),
+			CornerRadius = new CornerRadius(8),
+			Padding = new Thickness(12, 6, 12, 6),
 			BorderThickness = new Thickness(1)
 		};
 		_presetExpanderBtn.Click += (s, e) =>
@@ -1895,41 +2046,36 @@ public sealed class SettingsPage : Page, IComponentConnector
 		};
 		var workbenchStack = new StackPanel { Spacing = 14 };
 
-		// 8a. Custom Theme Header Bar ("自定义主题" + "✎ 进入编辑" | "+ 新建我的主题" | "📁 导入参数")
-		var customHeaderGrid = new Grid { ColumnSpacing = 12 };
-		customHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		customHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		// 8a. Custom Theme Header Bar ("自定义主题" stacked cleanly above action pills so title never squishes)
+		var customHeaderStack = new StackPanel { Spacing = 10 };
 
 		var customTitleStack = new StackPanel
 		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 12,
-			VerticalAlignment = VerticalAlignment.Center
+			Orientation = Orientation.Vertical,
+			Spacing = 4
 		};
 		customTitleStack.Children.Add(new TextBlock
 		{
 			Text = "自定义主题",
 			FontSize = 14,
-			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			VerticalAlignment = VerticalAlignment.Center
+			FontWeight = Microsoft.UI.Text.FontWeights.Bold
 		});
 		customTitleStack.Children.Add(new TextBlock
 		{
 			Text = "新主题会自动收入「我的」，支持配色编辑和 JSON 参数导入",
 			FontSize = 12,
-			Opacity = 0.72,
-			VerticalAlignment = VerticalAlignment.Center
+			Opacity = 0.78,
+			TextWrapping = TextWrapping.Wrap
 		});
-		Grid.SetColumn(customTitleStack, 0);
-		customHeaderGrid.Children.Add(customTitleStack);
+		customHeaderStack.Children.Add(customTitleStack);
 
 		var customActionsBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 		var editThemeBtn = new Button
 		{
 			Content = "✎ 进入编辑",
 			CornerRadius = new CornerRadius(999),
-			Padding = new Thickness(13, 6, 13, 6),
-			FontSize = 12.5,
+			Padding = new Thickness(11, 5, 11, 5),
+			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
 		};
 		editThemeBtn.Click += async (s, e) => await ShowCustomThemeEditorDialogAsync(editCurrent: true);
@@ -1938,8 +2084,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			Content = "+ 新建我的主题",
 			CornerRadius = new CornerRadius(999),
-			Padding = new Thickness(13, 6, 13, 6),
-			FontSize = 12.5,
+			Padding = new Thickness(11, 5, 11, 5),
+			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
 		};
 		newThemeBtn.Click += async (s, e) => await ShowCustomThemeEditorDialogAsync(editCurrent: false);
@@ -1948,8 +2094,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			Content = "📁 导入参数",
 			CornerRadius = new CornerRadius(999),
-			Padding = new Thickness(13, 6, 13, 6),
-			FontSize = 12.5,
+			Padding = new Thickness(11, 5, 11, 5),
+			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
 		};
 		importThemeBtn.Click += async (s, e) => await ShowImportThemeParamsDialogAsync();
@@ -1957,23 +2103,31 @@ public sealed class SettingsPage : Page, IComponentConnector
 		customActionsBar.Children.Add(editThemeBtn);
 		customActionsBar.Children.Add(newThemeBtn);
 		customActionsBar.Children.Add(importThemeBtn);
-		Grid.SetColumn(customActionsBar, 1);
-		customHeaderGrid.Children.Add(customActionsBar);
-		workbenchStack.Children.Add(customHeaderGrid);
+		customHeaderStack.Children.Add(customActionsBar);
+		workbenchStack.Children.Add(customHeaderStack);
 
-		// 8b. Category Filter Bar (全部 | 我的 | 简洁 | 柔和 | 和纸 | 夜色 | 工作室 | 个性)
-		var categoryBar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		_categoryFilterButtons.Clear();
-		foreach (string cat in LiquidGlassEngine.ThemeCategories)
+		// 8b. Category Filter Bar (4x2 responsive grid so all 8 categories stay visible without horizontal clipping)
+		var categoryGrid = new Grid { ColumnSpacing = 8, RowSpacing = 8 };
+		for (int c = 0; c < 4; c++)
 		{
-			string currentCat = cat;
+			categoryGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		}
+		categoryGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+		categoryGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+		_categoryFilterButtons.Clear();
+		for (int catIdx = 0; catIdx < LiquidGlassEngine.ThemeCategories.Length; catIdx++)
+		{
+			string currentCat = LiquidGlassEngine.ThemeCategories[catIdx];
 			var catBtn = new Button
 			{
 				Content = currentCat,
 				Tag = currentCat,
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				HorizontalContentAlignment = HorizontalAlignment.Center,
 				CornerRadius = new CornerRadius(999),
-				Padding = new Thickness(14, 5, 14, 5),
-				FontSize = 12.5,
+				Padding = new Thickness(8, 5, 8, 5),
+				FontSize = 12,
 				FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 				BorderThickness = new Thickness(1)
 			};
@@ -1983,17 +2137,20 @@ public sealed class SettingsPage : Page, IComponentConnector
 				RefreshEchoAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
 			};
 			_categoryFilterButtons[currentCat] = catBtn;
-			categoryBar.Children.Add(catBtn);
+			Grid.SetRow(catBtn, catIdx / 4);
+			Grid.SetColumn(catBtn, catIdx % 4);
+			categoryGrid.Children.Add(catBtn);
 		}
-		workbenchStack.Children.Add(categoryBar);
+		workbenchStack.Children.Add(categoryGrid);
 
 		// 8c. Preset Cards Grid
 		_presetsGridContainer = new Grid
 		{
-			ColumnSpacing = 12,
-			RowSpacing = 12,
+			ColumnSpacing = 10,
+			RowSpacing = 10,
 			Margin = new Thickness(0, 4, 0, 0)
 		};
+		_presetsGridContainer.SizeChanged += (s, e) => UpdatePresetGridColumnsFromContainer(e.NewSize.Width);
 		workbenchStack.Children.Add(_presetsGridContainer);
 
 		_presetWorkbenchContainer.Child = workbenchStack;
@@ -2031,7 +2188,27 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private void UpdatePresetGridColumns(double pageWidth)
 	{
-		int targetCols = pageWidth >= 1120 ? 4 : (pageWidth >= 780 ? 3 : 2);
+		double containerWidth = (_presetsGridContainer != null && _presetsGridContainer.ActualWidth > 60.0)
+			? _presetsGridContainer.ActualWidth
+			: EstimatePresetGridWidth(pageWidth);
+		UpdatePresetGridColumnsFromContainer(containerWidth);
+	}
+
+	private static double EstimatePresetGridWidth(double pageWidth)
+	{
+		double effectiveWidth = Math.Min(1280.0, pageWidth);
+		if (effectiveWidth < 980.0)
+		{
+			return Math.Max(260.0, effectiveWidth - 48.0 - 72.0);
+		}
+		double col0Width = effectiveWidth >= 1320.0 ? 420.0 : 380.0;
+		return Math.Max(300.0, effectiveWidth - col0Width - 68.0 - 72.0);
+	}
+
+	private void UpdatePresetGridColumnsFromContainer(double containerWidth)
+	{
+		if (containerWidth <= 40.0) return;
+		int targetCols = containerWidth >= 760.0 ? 4 : (containerWidth >= 520.0 ? 3 : 2);
 		if (targetCols != _presetGridCols)
 		{
 			_presetGridCols = targetCols;
@@ -2058,18 +2235,6 @@ public sealed class SettingsPage : Page, IComponentConnector
 			Color subtleBorder = isDark
 				? Color.FromArgb(60, 255, 255, 255)
 				: Color.FromArgb(35, 15, 23, 42);
-
-			// Update Sub-tabs
-			foreach (var kv in _echoSubTabButtons)
-			{
-				bool isSelected = kv.Key == _activeEchoSubTab;
-				kv.Value.FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.Bold : Microsoft.UI.Text.FontWeights.Medium;
-				kv.Value.Opacity = isSelected ? 1.0 : 0.72;
-				if (_echoSubTabIndicators.TryGetValue(kv.Key, out var ind))
-				{
-					ind.Background = new SolidColorBrush(isSelected ? accent : Colors.Transparent);
-				}
-			}
 
 			// Update Theme Mode Buttons
 			string currentMode = ViewModel?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
@@ -2165,8 +2330,17 @@ public sealed class SettingsPage : Page, IComponentConnector
 			}
 			if (_presetExpanderBtn != null)
 			{
-				_presetExpanderBtn.Background = new SolidColorBrush(subCardSurface);
-				_presetExpanderBtn.BorderBrush = new SolidColorBrush(subtleBorder);
+				var expanderBg = new SolidColorBrush(subCardSurface);
+				var expanderBorder = new SolidColorBrush(subtleBorder);
+				var expanderHoverBorder = new SolidColorBrush(accent);
+				_presetExpanderBtn.CornerRadius = new CornerRadius(8);
+				_presetExpanderBtn.BorderThickness = new Thickness(1);
+				_presetExpanderBtn.Background = expanderBg;
+				_presetExpanderBtn.BorderBrush = expanderBorder;
+				_presetExpanderBtn.Resources["ButtonBackground"] = expanderBg;
+				_presetExpanderBtn.Resources["ButtonBorderBrush"] = expanderBorder;
+				_presetExpanderBtn.Resources["ButtonBorderBrushPointerOver"] = expanderHoverBorder;
+				_presetExpanderBtn.Resources["ButtonBorderBrushPressed"] = expanderHoverBorder;
 			}
 			if (_presetWorkbenchContainer != null)
 			{
@@ -2264,13 +2438,13 @@ public sealed class SettingsPage : Page, IComponentConnector
 		var card = new Border
 		{
 			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(14, 12, 14, 12),
+			Padding = new Thickness(12, 10, 12, 10),
 			Background = new SolidColorBrush(cardBg),
 			BorderBrush = new SolidColorBrush(cardBorder),
 			BorderThickness = new Thickness(isRandomActive ? 2.0 : 1.0)
 		};
 
-		var stack = new StackPanel { Spacing = 8 };
+		var stack = new StackPanel { Spacing = 6 };
 
 		// Top gradient banner + refresh button
 		var banner = new Border
@@ -2363,13 +2537,13 @@ public sealed class SettingsPage : Page, IComponentConnector
 		var card = new Border
 		{
 			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(14, 12, 14, 12),
+			Padding = new Thickness(12, 10, 12, 10),
 			Background = new SolidColorBrush(cardBg),
 			BorderBrush = new SolidColorBrush(borderColor),
 			BorderThickness = new Thickness(isSelected ? 2.0 : 1.0)
 		};
 
-		var stack = new StackPanel { Spacing = 8 };
+		var stack = new StackPanel { Spacing = 6 };
 
 		// Top miniature gradient preview banner + checkmark badge when selected
 		var banner = new Border

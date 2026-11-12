@@ -113,7 +113,7 @@ public sealed partial class DspPage
 		{
 			Text = "只处理 PCM，共享输出、DSD 输出或 HQPlayer 协议时不会叠加热转。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 4, 4, 12)
 		};
 		Grid.SetRow(bottomNote, 4);
@@ -143,12 +143,12 @@ public sealed partial class DspPage
 			Width = 34,
 			Height = 34,
 			CornerRadius = new CornerRadius(17),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Background = DspAccentSoftBgBrush,
 			Child = new FontIcon
 			{
 				Glyph = "\uE774", // Audio / broadcast icon
 				FontSize = 16,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+				Foreground = DspAccentSoftTextBrush,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				VerticalAlignment = VerticalAlignment.Center
 			}
@@ -159,7 +159,7 @@ public sealed partial class DspPage
 			Text = "FurinaPlayer SRC / 升频",
 			FontSize = 20,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		leftStack.Children.Add(titleRow);
@@ -178,7 +178,7 @@ public sealed partial class DspPage
 			Text = "原生直通",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		statusRow.Children.Add(_srcStatusDot);
@@ -188,72 +188,10 @@ public sealed partial class DspPage
 		Grid.SetColumn(leftStack, 0);
 		headerGrid.Children.Add(leftStack);
 
-		// Right Actions: Pills & Buttons
+		// Right Actions: A/B Benchmark CheckBox
 		var rightStack = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
 
-		var pillRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-		var refreshBtn = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		refreshBtn.Click += (s, e) => RefreshSrcUpsamplingState();
-
-		pillRow.Children.Add(modulePill);
-		pillRow.Children.Add(readyPill);
-		pillRow.Children.Add(refreshBtn);
-		rightStack.Children.Add(pillRow);
-
-		// Sub-row: A/B Benchmark CheckBox & Refresh Status
+		// Sub-row: A/B Benchmark CheckBox
 		var subActionRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Right };
 		_srcAbBenchmarkCheck = new CheckBox
 		{
@@ -280,24 +218,7 @@ public sealed partial class DspPage
 			}
 		};
 
-		var linkRefresh = new HyperlinkButton
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 4,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) }
-				}
-			},
-			Padding = new Thickness(4, 2, 4, 2)
-		};
-		linkRefresh.Click += (s, e) => RefreshSrcUpsamplingState();
-
 		subActionRow.Children.Add(_srcAbBenchmarkCheck);
-		subActionRow.Children.Add(linkRefresh);
 		rightStack.Children.Add(subActionRow);
 
 		Grid.SetColumn(rightStack, 1);
@@ -311,7 +232,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(22, 18, 22, 18)
@@ -331,7 +252,7 @@ public sealed partial class DspPage
 			Text = "路径",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		// Sample Rate Transform Display
@@ -343,13 +264,13 @@ public sealed partial class DspPage
 
 		// Source Rate
 		var srcSp = new StackPanel { Spacing = 2 };
-		srcSp.Children.Add(new TextBlock { Text = "源采样率", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		srcSp.Children.Add(new TextBlock { Text = "源采样率", FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcSourceRateText = new TextBlock
 		{
 			Text = "--",
 			FontSize = 26,
 			FontWeight = FontWeights.Normal,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
 		srcSp.Children.Add(_srcSourceRateText);
 		Grid.SetColumn(srcSp, 0);
@@ -362,7 +283,7 @@ public sealed partial class DspPage
 			Text = "──▶",
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		arrowSp.Children.Add(arrowIcon);
@@ -371,13 +292,13 @@ public sealed partial class DspPage
 
 		// Target Rate
 		var dstSp = new StackPanel { Spacing = 2 };
-		dstSp.Children.Add(new TextBlock { Text = "目标采样率", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		dstSp.Children.Add(new TextBlock { Text = "目标采样率", FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcTargetRateText = new TextBlock
 		{
 			Text = "--",
 			FontSize = 36,
 			FontWeight = FontWeights.Light,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		dstSp.Children.Add(_srcTargetRateText);
 		Grid.SetColumn(dstSp, 2);
@@ -423,7 +344,7 @@ public sealed partial class DspPage
 		// --- Right Section: Precision & Stats ---
 		var rightBorder = new Border
 		{
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1, 0, 0, 0),
 			Padding = new Thickness(28, 0, 0, 0)
 		};
@@ -434,7 +355,7 @@ public sealed partial class DspPage
 			Text = "精度",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		_srcPrecisionValue = new TextBlock
@@ -453,16 +374,16 @@ public sealed partial class DspPage
 
 		// Filter Slot
 		var slotSp = new StackPanel { Spacing = 2 };
-		slotSp.Children.Add(new TextBlock { Text = "过滤器插槽", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		_srcFilterSlotValue = new TextBlock { Text = "Standby", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) };
+		slotSp.Children.Add(new TextBlock { Text = "过滤器插槽", FontSize = 11, Foreground = DspTextMutedBrush });
+		_srcFilterSlotValue = new TextBlock { Text = "Standby", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		slotSp.Children.Add(_srcFilterSlotValue);
 		Grid.SetColumn(slotSp, 0);
 		statColsGrid.Children.Add(slotSp);
 
 		// PCM Dither
 		var ditherSp = new StackPanel { Spacing = 2 };
-		ditherSp.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		_srcDitherSlotValue = new TextBlock { Text = "关闭", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) };
+		ditherSp.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 11, Foreground = DspTextMutedBrush });
+		_srcDitherSlotValue = new TextBlock { Text = "关闭", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		ditherSp.Children.Add(_srcDitherSlotValue);
 		Grid.SetColumn(ditherSp, 1);
 		statColsGrid.Children.Add(ditherSp);
@@ -494,7 +415,7 @@ public sealed partial class DspPage
 		{
 			Text = label,
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		valBlock = new TextBlock
@@ -502,7 +423,7 @@ public sealed partial class DspPage
 			Text = defaultValue,
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		};
 		sp.Children.Add(valBlock);
@@ -516,7 +437,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(22, 16, 22, 18)
@@ -571,7 +492,7 @@ public sealed partial class DspPage
 			Text = "FurinaPlayer SRC 控制模式",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		});
 
 		var modeOptions = new (string Key, string Label)[]
@@ -589,7 +510,7 @@ public sealed partial class DspPage
 		{
 			Text = "保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(2, 0, 0, 0)
 		};
 		modeStack.Children.Add(_srcModeHint);
@@ -603,7 +524,7 @@ public sealed partial class DspPage
 			Text = "质量策略",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		});
 
 		var qualityOptions = new (string Key, string Label)[]
@@ -619,7 +540,7 @@ public sealed partial class DspPage
 		{
 			Text = "最高精度 SOXR，优先透明度和截断失真。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(2, 0, 0, 0)
 		};
 		qualityStack.Children.Add(_srcQualityHint);
@@ -637,7 +558,7 @@ public sealed partial class DspPage
 
 		// Col 0: 过滤器 1x
 		var col0 = new StackPanel { Spacing = 6 };
-		col0.Children.Add(new TextBlock { Text = "过滤器 1x", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		col0.Children.Add(new TextBlock { Text = "过滤器 1x", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcFilter1xCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -665,7 +586,7 @@ public sealed partial class DspPage
 		{
 			Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		col0.Children.Add(_srcFilter1xHint);
@@ -674,7 +595,7 @@ public sealed partial class DspPage
 
 		// Col 1: 过滤器 Nx
 		var col1 = new StackPanel { Spacing = 6 };
-		col1.Children.Add(new TextBlock { Text = "过滤器 Nx", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		col1.Children.Add(new TextBlock { Text = "过滤器 Nx", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcFilterNxCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -700,7 +621,7 @@ public sealed partial class DspPage
 		{
 			Text = "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		col1.Children.Add(_srcFilterNxHint);
@@ -709,7 +630,7 @@ public sealed partial class DspPage
 
 		// Col 2: Compute
 		var col2 = new StackPanel { Spacing = 6 };
-		col2.Children.Add(new TextBlock { Text = "Compute", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		col2.Children.Add(new TextBlock { Text = "Compute", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcComputeCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -733,7 +654,7 @@ public sealed partial class DspPage
 		{
 			Text = "默认实时路径：极优，无降采样风险，并保证随机可用。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		col2.Children.Add(_srcComputeHint);
@@ -742,7 +663,7 @@ public sealed partial class DspPage
 
 		// Col 3: PCM Dither / Noise Shaping
 		var col3 = new StackPanel { Spacing = 6 };
-		col3.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		col3.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcDitherCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -770,7 +691,7 @@ public sealed partial class DspPage
 		{
 			Text = "保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		col3.Children.Add(_srcDitherHint);
@@ -792,7 +713,7 @@ public sealed partial class DspPage
 	{
 		var border = new Border
 		{
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(0, 1, 0, 0),
 			Padding = new Thickness(0, 14, 0, 0),
 			Margin = new Thickness(0, 4, 0, 0)
@@ -805,12 +726,12 @@ public sealed partial class DspPage
 		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		titleSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
-		titleSp.Children.Add(new TextBlock { Text = "快速套用进阶调谐梯度", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)), VerticalAlignment = VerticalAlignment.Center });
+		titleSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
+		titleSp.Children.Add(new TextBlock { Text = "快速套用进阶调谐梯度", FontSize = 11, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
 		Grid.SetColumn(titleSp, 0);
 		titleRow.Children.Add(titleSp);
 
-		var firPlannedText = new TextBlock { Text = "FIR planned", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) };
+		var firPlannedText = new TextBlock { Text = "FIR planned", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
 		Grid.SetColumn(firPlannedText, 1);
 		titleRow.Children.Add(firPlannedText);
 		stack.Children.Add(titleRow);
@@ -855,14 +776,14 @@ public sealed partial class DspPage
 			HorizontalContentAlignment = HorizontalAlignment.Left,
 			Padding = new Thickness(12, 10, 12, 10),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
 
 		var sp = new StackPanel { Spacing = 3 };
-		sp.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) });
-		sp.Children.Add(new TextBlock { Text = detail, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), TextTrimming = TextTrimming.CharacterEllipsis });
+		sp.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
+		sp.Children.Add(new TextBlock { Text = detail, FontSize = 11, Foreground = DspTextMutedBrush, TextTrimming = TextTrimming.CharacterEllipsis });
 		sp.Children.Add(new TextBlock { Text = meta, FontSize = 10.5, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) });
 
 		btn.Content = sp;
@@ -888,7 +809,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(22, 18, 22, 18)
@@ -912,14 +833,14 @@ public sealed partial class DspPage
 			Text = "FILTER : DESIGN PREVIEW",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		_srcFilterNameText = new TextBlock
 		{
 			Text = "furina-gauss-long",
 			FontSize = 18,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		titleSp.Children.Add(_srcFilterNameText);
 		Grid.SetColumn(titleSp, 0);
@@ -928,8 +849,8 @@ public sealed partial class DspPage
 		// Phase Pill Badge
 		var phaseBadgeBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 203, 213, 225)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(8, 3, 8, 3),
@@ -940,7 +861,7 @@ public sealed partial class DspPage
 			Text = "Linear phase",
 			FontSize = 11,
 			FontFamily = new FontFamily("Consolas, Segoe UI"),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		phaseBadgeBorder.Child = _srcPhaseBadgeText;
 		Grid.SetColumn(phaseBadgeBorder, 1);
@@ -968,7 +889,7 @@ public sealed partial class DspPage
 		{
 			Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。44.1/48 kHz 音源的差异主要集中在最高频段，相位与瞬态响应：透明 SRC 本身就不应产生明显染色。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(4, 2, 4, 0)
 		};
@@ -980,7 +901,7 @@ public sealed partial class DspPage
 		// --- Right Section: Filter Plan 1x / Nx Details ---
 		var rightBorder = new Border
 		{
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1, 0, 0, 0),
 			Padding = new Thickness(24, 0, 0, 0)
 		};
@@ -991,24 +912,24 @@ public sealed partial class DspPage
 			Text = "Filter 1x / Nx",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		// 1x Details Box
 		_srcFilterPlan1xSlot = new Border { Padding = new Thickness(0, 0, 0, 10) };
 		var f1xSp = new StackPanel { Spacing = 4 };
 		var f1xHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		f1xHeader.Children.Add(new TextBlock { Text = "1X", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		f1xHeader.Children.Add(new TextBlock { Text = "1X", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
 		f1xHeader.Children.Add(new TextBlock { Text = "· 激活", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)) });
 		f1xSp.Children.Add(f1xHeader);
 
 		_srcFilterPlan1xName = new TextBlock { Text = "FurinaPlayer Gauss Long", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
 		f1xSp.Children.Add(_srcFilterPlan1xName);
 
-		_srcFilterPlan1xDesc = new TextBlock { Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlan1xDesc = new TextBlock { Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。", FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		f1xSp.Children.Add(_srcFilterPlan1xDesc);
 
-		_srcFilterPlan1xPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) };
+		_srcFilterPlan1xPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
 		f1xSp.Children.Add(_srcFilterPlan1xPhase);
 		_srcFilterPlan1xSlot.Child = f1xSp;
 		rightStack.Children.Add(_srcFilterPlan1xSlot);
@@ -1019,15 +940,15 @@ public sealed partial class DspPage
 		// Nx Details Box
 		_srcFilterPlanNxSlot = new Border { Padding = new Thickness(0, 10, 0, 0) };
 		var fnxSp = new StackPanel { Spacing = 4 };
-		fnxSp.Children.Add(new TextBlock { Text = "NX", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		fnxSp.Children.Add(new TextBlock { Text = "NX", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
 
-		_srcFilterPlanNxName = new TextBlock { Text = "FurinaPlayer Halfband", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)) };
+		_srcFilterPlanNxName = new TextBlock { Text = "FurinaPlayer Halfband", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		fnxSp.Children.Add(_srcFilterPlanNxName);
 
-		_srcFilterPlanNxDesc = new TextBlock { Text = "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlanNxDesc = new TextBlock { Text = "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。", FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		fnxSp.Children.Add(_srcFilterPlanNxDesc);
 
-		_srcFilterPlanNxPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) };
+		_srcFilterPlanNxPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
 		fnxSp.Children.Add(_srcFilterPlanNxPhase);
 		_srcFilterPlanNxSlot.Child = fnxSp;
 		rightStack.Children.Add(_srcFilterPlanNxSlot);
@@ -1044,8 +965,8 @@ public sealed partial class DspPage
 	{
 		var container = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(9),
 			Padding = new Thickness(3)
@@ -1095,21 +1016,22 @@ public sealed partial class DspPage
 		return container;
 	}
 
-	private static void ApplySegmentedButtonStyle(Button btn, bool isSelected)
+	private void ApplySegmentedButtonStyle(Button btn, bool isSelected)
 	{
+		bool isDark = IsDspDark;
 		if (isSelected)
 		{
-			btn.Background = new SolidColorBrush(Colors.White);
-			btn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 203, 213, 225));
+			btn.Background = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(95, 59, 130, 246) : Colors.White);
+			btn.BorderBrush = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(160, 147, 197, 253) : Windows.UI.Color.FromArgb(200, 203, 213, 225));
 			btn.BorderThickness = new Thickness(1);
-			btn.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)); // Accent Blue
+			btn.Foreground = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 224, 242, 254) : Windows.UI.Color.FromArgb(255, 37, 99, 235));
 			btn.FontWeight = FontWeights.Bold;
 		}
 		else
 		{
 			btn.Background = new SolidColorBrush(Colors.Transparent);
 			btn.BorderThickness = new Thickness(0);
-			btn.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)); // Slate 500
+			btn.Foreground = DspTextMutedBrush;
 			btn.FontWeight = FontWeights.Medium;
 		}
 	}
@@ -1171,7 +1093,7 @@ public sealed partial class DspPage
 		// Status dot & text
 		if (mode == "off" || !enabled)
 		{
-			if (_srcStatusDot != null) _srcStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)); // Gray
+			if (_srcStatusDot != null) _srcStatusDot.Fill = DspTextMutedBrush; // Gray
 			if (_srcStatusText != null) _srcStatusText.Text = "原生直通";
 			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:F1} kHz";
 			if (_srcTargetRateText != null) _srcTargetRateText.Text = "--";
@@ -1323,8 +1245,10 @@ public sealed partial class DspPage
 
 	private void UpdateFilterDesignCurve()
 	{
-		if (_srcFilterCurveCanvas == null) return;
-		_srcFilterCurveCanvas.Children.Clear();
+		try
+		{
+			if (_srcFilterCurveCanvas == null) return;
+			_srcFilterCurveCanvas.Children.Clear();
 
 		string f1x = ViewModel?.FurinaSrcFilter1x ?? "FurinaPlayer Gauss Long";
 		string fnx = ViewModel?.FurinaSrcFilterNx ?? "FurinaPlayer Halfband";
@@ -1428,10 +1352,16 @@ public sealed partial class DspPage
 		curveFig.Segments.Add(b3);
 		curveFig.Segments.Add(b4);
 
-		areaFig.Segments.Add(b1);
-		areaFig.Segments.Add(b2);
-		areaFig.Segments.Add(b3);
-		areaFig.Segments.Add(b4);
+		// Area figure requires distinct PathSegment instances to avoid COMException (0x800F1000)
+		var ab1 = new BezierSegment { Point1 = b1.Point1, Point2 = b1.Point2, Point3 = b1.Point3 };
+		var ab2 = new BezierSegment { Point1 = b2.Point1, Point2 = b2.Point2, Point3 = b2.Point3 };
+		var ab3 = new BezierSegment { Point1 = b3.Point1, Point2 = b3.Point2, Point3 = b3.Point3 };
+		var ab4 = new BezierSegment { Point1 = b4.Point1, Point2 = b4.Point2, Point3 = b4.Point3 };
+
+		areaFig.Segments.Add(ab1);
+		areaFig.Segments.Add(ab2);
+		areaFig.Segments.Add(ab3);
+		areaFig.Segments.Add(ab4);
 		areaFig.Segments.Add(new LineSegment { Point = new Point(676, 188) });
 		areaFig.Segments.Add(new LineSegment { Point = new Point(52, 188) });
 
@@ -1457,7 +1387,7 @@ public sealed partial class DspPage
 		});
 
 		// --- 3. Text Labels on Canvas ---
-		var labelBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184));
+		var labelBrush = DspTextMutedBrush;
 		var monoFont = new FontFamily("Consolas, Segoe UI");
 
 		// Y-axis labels
@@ -1473,7 +1403,12 @@ public sealed partial class DspPage
 		AddSrcCanvasText(_srcFilterCurveCanvas, "Nyquist", 640, 196, labelBrush, monoFont, 10.5);
 
 		// Inner Chart Phase Text
-		AddSrcCanvasText(_srcFilterCurveCanvas, phaseStr, 590, 40, new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)), monoFont, 11);
+		AddSrcCanvasText(_srcFilterCurveCanvas, phaseStr, 590, 40, DspTextMutedBrush, monoFont, 11);
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"UpdateFilterDesignCurve failed: {ex.Message}");
+		}
 	}
 
 	private static void AddSrcCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
