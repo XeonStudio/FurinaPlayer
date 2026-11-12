@@ -182,7 +182,7 @@ public sealed partial class DspPage
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
+			Background = DspAccentSoftBgBrush,
 			Child = new FontIcon
 			{
 				Glyph = "\uE995",
@@ -198,80 +198,11 @@ public sealed partial class DspPage
 			Text = "虚拟声场",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		// 右侧：状态标签与刷新按钮
-		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) }
-				}
-			},
-			Padding = new Thickness(10, 4, 10, 4),
-			CornerRadius = new CornerRadius(14)
-		};
-		btnRefreshTop.Click += (s, e) =>
-		{
-			InitVirtualStageState();
-			UpdateVsAllVisuals();
-		};
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 
 		return headerGrid;
 	}
@@ -315,8 +246,8 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) }
+					new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = DspTextSubHeaderBrush },
+					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSubHeaderBrush }
 				}
 			}
 		};
@@ -332,7 +263,7 @@ public sealed partial class DspPage
 			Text = "±30°",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_vsTopAngleBadgeTb, 1);
@@ -347,7 +278,7 @@ public sealed partial class DspPage
 		{
 			Text = "用两耳时间差、频率衰减和短反射模拟音箱空间感，保留中置直达声的位置；适合耳机，开启后会关闭交叉馈送；听感因耳机和个人而异。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(2, -4, 0, 4)
 		};
@@ -385,7 +316,7 @@ public sealed partial class DspPage
 		var cardBorder = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 238),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(22, 18, 22, 20)
@@ -425,7 +356,7 @@ public sealed partial class DspPage
 		{
 			Text = "已旁路，保留原始立体声，不添加空间处理。",
 			FontSize = 12.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 0, 4, 0),
 			TextWrapping = TextWrapping.Wrap
 		};
@@ -439,7 +370,7 @@ public sealed partial class DspPage
 		{
 			Text = "参数实时同步。点击预设开始试听，使用电源按钮对比原声。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 2, 4, 0)
 		});
 
@@ -502,7 +433,7 @@ public sealed partial class DspPage
 			Text = "中置",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			IsHitTestVisible = false
 		};
 		Canvas.SetLeft(centerLabel, VsListenerCx - 12.0);
@@ -530,7 +461,7 @@ public sealed partial class DspPage
 			Text = "左",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			IsHitTestVisible = false
 		};
 		canvas.Children.Add(_vsLeftSpeakerNode);
@@ -543,7 +474,7 @@ public sealed partial class DspPage
 			Text = "右",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			IsHitTestVisible = false
 		};
 		canvas.Children.Add(_vsRightSpeakerNode);
@@ -567,7 +498,7 @@ public sealed partial class DspPage
 			Text = "模拟 ±30°",
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			IsHitTestVisible = false
 		};
 		Canvas.SetLeft(_vsDiagramAngleTb, VsListenerCx - 32.0);
@@ -575,22 +506,23 @@ public sealed partial class DspPage
 		canvas.Children.Add(_vsDiagramAngleTb);
 	}
 
-	private static Border CreateVsSpeakerNodeBorder()
+	private Border CreateVsSpeakerNodeBorder()
 	{
+		bool isDark = IsDspDark;
 		return new Border
 		{
 			Width = 28,
 			Height = 28,
 			CornerRadius = new CornerRadius(14),
-			Background = new SolidColorBrush(Colors.White),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(220, 30, 41, 59) : Colors.White),
 			BorderThickness = new Thickness(2),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 148, 163, 184) : Color.FromArgb(255, 148, 163, 184)),
 			Child = new Border
 			{
 				Width = 8,
 				Height = 8,
 				CornerRadius = new CornerRadius(4),
-				Background = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Background = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 148, 163, 184)),
 				HorizontalAlignment = HorizontalAlignment.Center,
 				VerticalAlignment = VerticalAlignment.Center
 			}
@@ -601,8 +533,8 @@ public sealed partial class DspPage
 	{
 		var card = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(120, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(80, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(18, 14, 18, 14)
@@ -615,13 +547,13 @@ public sealed partial class DspPage
 
 		// 列 0：模拟角度
 		var sp0 = new StackPanel { Spacing = 3 };
-		sp0.Children.Add(new TextBlock { Text = "模拟角度", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) });
+		sp0.Children.Add(new TextBlock { Text = "模拟角度", FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatAngleTb = new TextBlock
 		{
 			Text = "±30°",
 			FontSize = 24,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		sp0.Children.Add(_vsStatAngleTb);
 		Grid.SetColumn(sp0, 0);
@@ -629,13 +561,13 @@ public sealed partial class DspPage
 
 		// 列 1：反射量
 		var sp1 = new StackPanel { Spacing = 3 };
-		sp1.Children.Add(new TextBlock { Text = "反射量", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) });
+		sp1.Children.Add(new TextBlock { Text = "反射量", FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatReflectionTb = new TextBlock
 		{
 			Text = "100%",
 			FontSize = 24,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		sp1.Children.Add(_vsStatReflectionTb);
 		Grid.SetColumn(sp1, 1);
@@ -643,13 +575,13 @@ public sealed partial class DspPage
 
 		// 列 2：中置
 		var sp2 = new StackPanel { Spacing = 3 };
-		sp2.Children.Add(new TextBlock { Text = "中置", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) });
+		sp2.Children.Add(new TextBlock { Text = "中置", FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatCenterTb = new TextBlock
 		{
 			Text = "直达声居中",
 			FontSize = 24,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		sp2.Children.Add(_vsStatCenterTb);
 		Grid.SetColumn(sp2, 2);
@@ -684,7 +616,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 238),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 16, 18, 16)
@@ -724,7 +656,7 @@ public sealed partial class DspPage
 		{
 			Content = "导入 SOFA",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			Padding = new Thickness(6, 2, 6, 2),
 			VerticalAlignment = VerticalAlignment.Center
 		};
@@ -744,7 +676,7 @@ public sealed partial class DspPage
 		{
 			Text = "方案",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(lbl, 0);
@@ -811,7 +743,7 @@ public sealed partial class DspPage
 			Spacing = 8,
 			Visibility = Visibility.Collapsed,
 			Padding = new Thickness(8, 6, 8, 4),
-			Background = new SolidColorBrush(Color.FromArgb(60, 241, 245, 249)),
+			Background = DspSoftSurfaceBrush,
 			CornerRadius = new CornerRadius(6)
 		};
 
@@ -819,7 +751,7 @@ public sealed partial class DspPage
 		{
 			Text = "用当前音乐切换比较，选择声像与音色最自然的一项。",
 			FontSize = 11.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		var buttonsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -880,7 +812,7 @@ public sealed partial class DspPage
 				: new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
 			btn.Foreground = active
 				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+				: DspTextSubHeaderBrush;
 		}
 	}
 
@@ -889,7 +821,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 238),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 14, 18, 14)
@@ -901,7 +833,7 @@ public sealed partial class DspPage
 			Text = "快速预设",
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		var buttonsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
@@ -967,7 +899,7 @@ public sealed partial class DspPage
 		var card = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 238),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 14, 18, 16)
@@ -979,20 +911,20 @@ public sealed partial class DspPage
 			Text = "参数控制",
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		// 1. 强度滑块 (0% ~ 100%, 默认 45%)
 		var strHeader = new Grid();
 		strHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		strHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var strLbl = new TextBlock { Text = "强度", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) };
+		var strLbl = new TextBlock { Text = "强度", FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsStrengthValTb = new TextBlock
 		{
 			Text = $"{Math.Round(_virtualStageStrength * 100)}%",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(strLbl, 0);
 		Grid.SetColumn(_vsStrengthValTb, 1);
@@ -1026,13 +958,13 @@ public sealed partial class DspPage
 		var azHeader = new Grid();
 		azHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		azHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var azLbl = new TextBlock { Text = "模拟角度", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) };
+		var azLbl = new TextBlock { Text = "模拟角度", FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsAzimuthValTb = new TextBlock
 		{
 			Text = $"±{Math.Round(_virtualStageAzimuthDegrees)}°",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(azLbl, 0);
 		Grid.SetColumn(_vsAzimuthValTb, 1);
@@ -1069,13 +1001,13 @@ public sealed partial class DspPage
 		var refHeader = new Grid();
 		refHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		refHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var refLbl = new TextBlock { Text = "反射量", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) };
+		var refLbl = new TextBlock { Text = "反射量", FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsReflectionValTb = new TextBlock
 		{
 			Text = $"{Math.Round(_virtualStageReflection * 100)}%",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		Grid.SetColumn(refLbl, 0);
 		Grid.SetColumn(_vsReflectionValTb, 1);
@@ -1130,18 +1062,18 @@ public sealed partial class DspPage
 		if (_virtualStageEnabled)
 		{
 			_vsPowerText.Text = "已开启";
-			_vsPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-			_vsPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-			_vsPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255));
-			_vsPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254));
+			_vsPowerText.Foreground = DspAccentSoftTextBrush;
+			_vsPowerIcon.Foreground = DspAccentSoftTextBrush;
+			_vsPowerBtn.Background = DspAccentSoftBgBrush;
+			_vsPowerBtn.BorderBrush = DspAccentSoftBorderBrush;
 		}
 		else
 		{
 			_vsPowerText.Text = "已旁路 · 开始试听";
-			_vsPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-			_vsPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-			_vsPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
-			_vsPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225));
+			_vsPowerText.Foreground = DspTextSubHeaderBrush;
+			_vsPowerIcon.Foreground = DspTextMutedBrush;
+			_vsPowerBtn.Background = DspSoftSurfaceBrush;
+			_vsPowerBtn.BorderBrush = CreateLiquidGlassRimBrush();
 		}
 	}
 
@@ -1190,12 +1122,12 @@ public sealed partial class DspPage
 			Canvas.SetTop(_vsLeftSpeakerNode, yL - 14.0);
 			_vsLeftSpeakerNode.BorderBrush = _virtualStageEnabled
 				? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-				: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				: DspTextMutedBrush;
 			if (_vsLeftSpeakerNode.Child is Border inner)
 			{
 				inner.Background = _virtualStageEnabled
 					? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-					: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+					: DspTextMutedBrush;
 			}
 		}
 
@@ -1212,12 +1144,12 @@ public sealed partial class DspPage
 			Canvas.SetTop(_vsRightSpeakerNode, yR - 14.0);
 			_vsRightSpeakerNode.BorderBrush = _virtualStageEnabled
 				? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-				: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				: DspTextMutedBrush;
 			if (_vsRightSpeakerNode.Child is Border inner)
 			{
 				inner.Background = _virtualStageEnabled
 					? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-					: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+					: DspTextMutedBrush;
 			}
 		}
 
@@ -1243,24 +1175,24 @@ public sealed partial class DspPage
 		if (!_virtualStageEnabled)
 		{
 			_vsStatusDescTb.Text = "已旁路，保留原始立体声，不添加空间处理。";
-			_vsStatusDescTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			_vsStatusDescTb.Foreground = DspTextMutedBrush;
 		}
 		else
 		{
 			if (_virtualStageStrength <= 0.001)
 			{
 				_vsStatusDescTb.Text = "强度为 0%，平滑过渡后恢复原始立体声。提高强度可加入空间线索。";
-				_vsStatusDescTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				_vsStatusDescTb.Foreground = DspTextMutedBrush;
 			}
 			else if (_virtualStageHrtfEnabled)
 			{
 				_vsStatusDescTb.Text = $"已开启 · 虚拟空间声场渲染中（HRTF: {_virtualStageHrtfProfile} · 模拟角度 ±{Math.Round(_virtualStageAzimuthDegrees)}°）";
-				_vsStatusDescTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+				_vsStatusDescTb.Foreground = DspAccentSoftTextBrush;
 			}
 			else
 			{
 				_vsStatusDescTb.Text = "已开启 · 虚拟空间声场渲染中";
-				_vsStatusDescTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+				_vsStatusDescTb.Foreground = DspAccentSoftTextBrush;
 			}
 		}
 	}
@@ -1287,21 +1219,22 @@ public sealed partial class DspPage
 		SetVsPresetButtonStyle(_vsPresetStrongBtn, isStrong);
 	}
 
-	private static void SetVsPresetButtonStyle(Button? btn, bool active)
+	private void SetVsPresetButtonStyle(Button? btn, bool active)
 	{
 		if (btn == null) return;
+		bool isDark = IsDspDark;
 		if (active)
 		{
-			btn.Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255));
-			btn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
-			btn.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+			btn.Background = new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+			btn.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(200, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241));
+			btn.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 224, 231, 255) : Color.FromArgb(255, 79, 70, 229));
 			btn.FontWeight = FontWeights.SemiBold;
 		}
 		else
 		{
-			btn.Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
-			btn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
-			btn.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			btn.Background = CreateWhiteAcrylicBrush(isDark ? 0.16 : 0.78, isDark ? (byte)45 : (byte)200);
+			btn.BorderBrush = CreateLiquidGlassRimBrush();
+			btn.Foreground = DspTextSubHeaderBrush;
 			btn.FontWeight = FontWeights.Normal;
 		}
 	}

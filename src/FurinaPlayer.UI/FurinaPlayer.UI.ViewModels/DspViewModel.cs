@@ -31,6 +31,8 @@ public class DspViewModel : ObservableObject
 
 	private readonly DispatcherQueue? _uiDispatcher;
 
+	private string _lastSavedVst3Signature = string.Empty;
+
 	[ObservableProperty]
 	private double[] eqGains = new double[10];
 
@@ -613,7 +615,10 @@ public class DspViewModel : ObservableObject
 		Vst3Folders = new ObservableCollection<string>((appSettings.Vst3ScanFolders != null && appSettings.Vst3ScanFolders.Count > 0) ? appSettings.Vst3ScanFolders : Vst3Manager.DefaultScanFolders.ToList());
 		List<Vst3PluginState> initialPlugins = Vst3Manager.Merge(appSettings.Vst3Plugins ?? new List<Vst3PluginState>(), Enumerable.Empty<string>());
 		Vst3Plugins = new ObservableCollection<Vst3PluginState>(initialPlugins);
-		_engine.SetVst3(Vst3Plugins.ToList());
+		_lastSavedVst3Signature = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+		Vst3SyncHub.PluginsSynced += OnExternalVst3Synced;
+		ApplyVst3ToEngine();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 
 		// Load ECHO Audio DSP settings
 		EchoHeadroomEnabled = appSettings.EchoHeadroomEnabled;
@@ -779,13 +784,19 @@ public class DspViewModel : ObservableObject
 		ApplyVst3ToEngine();
 		Vst3StatusText = ((list.Count > 0) ? $"扫描完成：发现 {list.Count} 个 VST3 插件" : "扫描完成：未在目录中发现 .vst3 插件（可添加自定义目录）");
 		SaveVst3State();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 	}
 
 	[RelayCommand]
 	private void ApplyVst3()
 	{
 		ApplyVst3ToEngine();
-		SaveVst3State();
+		string currentSig = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+		if (!string.Equals(_lastSavedVst3Signature, currentSig, StringComparison.Ordinal))
+		{
+			SaveVst3State();
+		}
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 	}
 
 	public Vst3PluginState? AddOrSelectVst3PluginFile(string? filePath)
@@ -808,6 +819,7 @@ public class DspViewModel : ObservableObject
 		}
 		Vst3Plugins.Insert(0, created);
 		SaveVst3State();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 		Vst3StatusText = $"已加载插件文件：{created.Name} ({created.Vendor})";
 		return created;
 	}
@@ -837,17 +849,41 @@ public class DspViewModel : ObservableObject
 
 	private void ApplyVst3ToEngine()
 	{
-		_engine.SetVst3(Vst3Plugins.ToList());
+		Vst3SyncHub.PushToEngine(_engine, Vst3Plugins.ToList());
+	}
+
+	private void OnExternalVst3Synced(object sender, IReadOnlyList<Vst3PluginState> plugins)
+	{
+		if (ReferenceEquals(sender, this))
+		{
+			return;
+		}
+		RunOnUiThread(() =>
+		{
+			string incomingSig = Vst3SyncHub.BuildFullSignature(plugins);
+			string localSig = Vst3SyncHub.BuildFullSignature(Vst3Plugins);
+			if (!string.Equals(localSig, incomingSig, StringComparison.Ordinal))
+			{
+				Vst3Plugins = new ObservableCollection<Vst3PluginState>(Vst3SyncHub.CloneList(plugins));
+				_lastSavedVst3Signature = incomingSig;
+			}
+			Vst3PluginState? active = Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && p.IsActive);
+			Vst3StatusText = active != null
+				? $"已同步 VST3 启用状态：{active.Name}（实时处理中）"
+				: "已同步 VST3 状态：当前未启用插件（直通）";
+		});
 	}
 
 	private void SaveVst3State()
 	{
 		try
 		{
+			List<Vst3PluginState> snapshot = Vst3SyncHub.CloneList(Vst3Plugins);
+			_lastSavedVst3Signature = Vst3SyncHub.BuildFullSignature(snapshot);
 			_settingsService.Update((AppSettings s) =>
 			{
 				s.Vst3ScanFolders = Vst3Folders.ToList();
-				s.Vst3Plugins = Vst3Plugins.ToList();
+				s.Vst3Plugins = snapshot;
 			});
 		}
 		catch
@@ -962,6 +998,8 @@ public class DspViewModel : ObservableObject
 		}
 		ApplyVst3ToEngine();
 		Save();
+		SaveVst3State();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 		StatusText = "已重置全部 DSP 效果";
 	}
 
@@ -990,6 +1028,8 @@ public class DspViewModel : ObservableObject
 		ApplyVst3ToEngine();
 		StatusText = "已恢复默认 DSP 设置";
 		Save();
+		SaveVst3State();
+		Vst3SyncHub.Publish(this, Vst3Plugins);
 	}
 
 	private void Save()
@@ -1140,6 +1180,139 @@ public class DspViewModel : ObservableObject
 				EchoEqBands.Add(filter);
 			}
 		}
+	}
+
+	public void ApplyParametricEqState(IReadOnlyList<EchoBiquadFilter> bands, double preampDb, bool enabled, bool save = true)
+	{
+		if (bands == null) return;
+
+		double sampleRate = EngineSampleRate > 0 ? EngineSampleRate : 48000.0;
+		EchoEqBands.Clear();
+		for (int i = 0; i < bands.Count; i++)
+		{
+			EchoBiquadFilter src = bands[i];
+			var clone = new EchoBiquadFilter
+			{
+				FilterType = src.FilterType,
+				FrequencyHz = src.FrequencyHz,
+				GainDb = src.GainDb,
+				Q = src.Q,
+				Enabled = src.Enabled
+			};
+			clone.UpdateCoefficients(sampleRate);
+			EchoEqBands.Add(clone);
+		}
+
+		EchoEqPreampDb = Math.Clamp(preampDb, -24.0, 24.0);
+		EchoEqEnabled = enabled;
+
+		// Zero the legacy 10-band equalizer first so it doesn't double-process alongside EchoEqProcessor.
+		// Note SetEqGains also writes zeros into DspChain.Eq.UserBands, so push EchoEqBands right after.
+		_engine.SetEqGains(new double[10]);
+		_engine.SetEchoEqEnabled(EchoEqEnabled);
+		_engine.SetEchoEqPreamp(EchoEqPreampDb);
+
+		for (int i = 0; i < EchoEqBands.Count; i++)
+		{
+			EchoBiquadFilter b = EchoEqBands[i];
+			_engine.SetEchoEqBand(i, b.FilterType, b.FrequencyHz, b.GainDb, b.Q, b.Enabled);
+		}
+
+		int engineBandCount = _engine.DspChain?.Eq?.UserBands?.Count ?? 10;
+		for (int i = EchoEqBands.Count; i < engineBandCount; i++)
+		{
+			_engine.SetEchoEqBand(i, EchoFilterType.Peaking, 1000.0, 0.0, 1.414, false);
+		}
+
+		UpdateLegacyEqGainsSummary(BuildSummaryEqGains(EchoEqBands));
+		if (save)
+		{
+			SaveEchoSettings();
+		}
+	}
+
+	public void SyncEchoEqBand(int index, EchoBiquadFilter filter, bool save = true)
+	{
+		if (filter == null || index < 0) return;
+		double sampleRate = EngineSampleRate > 0 ? EngineSampleRate : 48000.0;
+		var clone = new EchoBiquadFilter
+		{
+			FilterType = filter.FilterType,
+			FrequencyHz = filter.FrequencyHz,
+			GainDb = filter.GainDb,
+			Q = filter.Q,
+			Enabled = filter.Enabled
+		};
+		clone.UpdateCoefficients(sampleRate);
+
+		while (EchoEqBands.Count <= index)
+		{
+			var pad = new EchoBiquadFilter
+			{
+				FilterType = EchoFilterType.Peaking,
+				FrequencyHz = 1000.0,
+				GainDb = 0.0,
+				Q = 1.414,
+				Enabled = false
+			};
+			pad.UpdateCoefficients(sampleRate);
+			EchoEqBands.Add(pad);
+		}
+		EchoEqBands[index] = clone;
+
+		_engine.SetEchoEqBand(index, clone.FilterType, clone.FrequencyHz, clone.GainDb, clone.Q, clone.Enabled);
+		UpdateLegacyEqGainsSummary(BuildSummaryEqGains(EchoEqBands));
+		if (save)
+		{
+			SaveEchoSettings();
+		}
+	}
+
+	private static double[] BuildSummaryEqGains(IReadOnlyList<EchoBiquadFilter> bands)
+	{
+		double[] targetFrequencies = { 31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0 };
+		double[] summary = new double[10];
+		if (bands == null || bands.Count == 0)
+		{
+			return summary;
+		}
+
+		for (int i = 0; i < targetFrequencies.Length; i++)
+		{
+			double targetFreq = targetFrequencies[i];
+			EchoBiquadFilter? best = null;
+			double bestDist = double.MaxValue;
+			for (int j = 0; j < bands.Count; j++)
+			{
+				EchoBiquadFilter candidate = bands[j];
+				if (!candidate.Enabled || candidate.FrequencyHz <= 0.0) continue;
+				double dist = Math.Abs(Math.Log10(candidate.FrequencyHz) - Math.Log10(targetFreq));
+				if (dist < bestDist)
+				{
+					bestDist = dist;
+					best = candidate;
+				}
+			}
+
+			if (best != null && bestDist < 0.25)
+			{
+				summary[i] = Math.Clamp(best.GainDb, -12.0, 12.0);
+			}
+		}
+
+		return summary;
+	}
+
+	private void UpdateLegacyEqGainsSummary(double[] summary)
+	{
+		if (EqualityComparer<double[]>.Default.Equals(eqGains, summary))
+		{
+			return;
+		}
+		OnPropertyChanging(__KnownINotifyPropertyChangingArgs.EqGains);
+		eqGains = summary;
+		EqGainsChanged?.Invoke(summary);
+		OnPropertyChanged(__KnownINotifyPropertyChangedArgs.EqGains);
 	}
 
 	public bool EchoHeadroomEnabled { get; set; } = true;
@@ -1524,24 +1697,9 @@ public class DspViewModel : ObservableObject
 			var preset = SonicWave.Audio.Dsp.AutoEqParser.Parse(text);
 			if (preset.Bands.Count > 0)
 			{
-				double[] targetFrequencies = new double[10] { 31.0, 62.0, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0 };
-				double[] newGains = new double[10];
-
-				for (int i = 0; i < 10; i++)
-				{
-					double targetFreq = targetFrequencies[i];
-					var best = preset.Bands.OrderBy(b => Math.Abs(Math.Log10(b.FrequencyHz) - Math.Log10(targetFreq))).FirstOrDefault();
-					if (best != null && Math.Abs(Math.Log10(best.FrequencyHz) - Math.Log10(targetFreq)) < 0.25)
-					{
-						newGains[i] = Math.Clamp(best.GainDb, -12.0, 12.0);
-					}
-				}
-
-				EqGains = newGains;
-				ApplyEqGains(newGains);
+				ApplyParametricEqState(preset.Bands, preset.PreampDb, enabled: true, save: true);
 				EqPresetName = "AutoEq 校准";
-				StatusText = $"已导入 AutoEq 耳机预设 ({preset.Bands.Count} 个频点)";
-				SaveEchoSettings();
+				StatusText = $"已导入 AutoEq 耳机预设 ({preset.Bands.Count} 个频点，前级 {preset.PreampDb:F1} dB)";
 				return true;
 			}
 		}
@@ -1710,4 +1868,127 @@ public class DspViewModel : ObservableObject
 	}
 
 	#endregion
+}
+
+internal static class Vst3SyncHub
+{
+	private static readonly object s_gate = new object();
+	private static List<Vst3PluginState>? s_latestPlugins;
+	private static string s_lastEngineSignature = string.Empty;
+	private static bool s_hasEngineSynced;
+
+	public static event Action<object, IReadOnlyList<Vst3PluginState>>? PluginsSynced;
+
+	public static Vst3PluginState ClonePlugin(Vst3PluginState p)
+	{
+		return new Vst3PluginState
+		{
+			Path = p.Path ?? string.Empty,
+			Name = p.Name ?? string.Empty,
+			Vendor = p.Vendor ?? "未知（模拟宿主）",
+			Version = p.Version ?? "1.0.0",
+			Enabled = p.Enabled,
+			Bypass = p.Bypass,
+			Drive = p.Drive,
+			Tone = p.Tone,
+			Mix = p.Mix
+		};
+	}
+
+	public static List<Vst3PluginState> CloneList(IEnumerable<Vst3PluginState>? plugins)
+	{
+		if (plugins == null)
+		{
+			return new List<Vst3PluginState>();
+		}
+		var result = new List<Vst3PluginState>();
+		foreach (Vst3PluginState p in plugins)
+		{
+			if (p != null)
+			{
+				result.Add(ClonePlugin(p));
+			}
+		}
+		return result;
+	}
+
+	public static string BuildActiveSignature(IEnumerable<Vst3PluginState>? plugins)
+	{
+		if (plugins == null)
+		{
+			return string.Empty;
+		}
+		return string.Join(";", plugins
+			.Where(p => p != null && p.IsActive && !string.IsNullOrWhiteSpace(p.Path))
+			.Select(p => $"{p.Path.Trim().ToLowerInvariant()}|{p.Drive:R}|{p.Tone:R}|{p.Mix:R}"));
+	}
+
+	public static string BuildFullSignature(IEnumerable<Vst3PluginState>? plugins)
+	{
+		if (plugins == null)
+		{
+			return string.Empty;
+		}
+		return string.Join(";", plugins
+			.Where(p => p != null && !string.IsNullOrWhiteSpace(p.Path))
+			.Select(p => $"{p.Path.Trim().ToLowerInvariant()}|{(p.Enabled ? 1 : 0)}|{(p.Bypass ? 1 : 0)}|{p.Drive:R}|{p.Tone:R}|{p.Mix:R}"));
+	}
+
+	public static bool TryGetLatest(out List<Vst3PluginState> plugins)
+	{
+		lock (s_gate)
+		{
+			if (s_latestPlugins != null)
+			{
+				plugins = CloneList(s_latestPlugins);
+				return true;
+			}
+		}
+		plugins = new List<Vst3PluginState>();
+		return false;
+	}
+
+	public static void Publish(object sender, IEnumerable<Vst3PluginState>? plugins)
+	{
+		List<Vst3PluginState> snapshot = CloneList(plugins);
+		string nextFullSig = BuildFullSignature(snapshot);
+		lock (s_gate)
+		{
+			if (s_latestPlugins != null && string.Equals(BuildFullSignature(s_latestPlugins), nextFullSig, StringComparison.Ordinal))
+			{
+				return;
+			}
+			s_latestPlugins = snapshot;
+		}
+		PluginsSynced?.Invoke(sender, CloneList(snapshot));
+	}
+
+	public static void PushToEngine(AudioEngine? engine, IEnumerable<Vst3PluginState>? plugins, bool force = false)
+	{
+		if (engine == null)
+		{
+			return;
+		}
+		List<Vst3PluginState> snapshot = CloneList(plugins);
+		string sig = BuildActiveSignature(snapshot);
+		Vst3PluginState? firstActive = snapshot.FirstOrDefault(p => p.IsActive);
+		bool hostMatches = firstActive != null
+			? Vst3NativeHost.Instance.IsLoadedFor(firstActive.Path)
+			: !Vst3NativeHost.Instance.IsLoaded;
+		lock (s_gate)
+		{
+			if (!force && s_hasEngineSynced && string.Equals(s_lastEngineSignature, sig, StringComparison.Ordinal) && hostMatches)
+			{
+				return;
+			}
+			s_lastEngineSignature = sig;
+			s_hasEngineSynced = true;
+		}
+		bool wasPaused = engine.State == PlaybackState.Paused;
+		engine.SetVst3(snapshot);
+		if (wasPaused && engine.State == PlaybackState.Playing)
+		{
+			engine.Pause();
+		}
+	}
 }

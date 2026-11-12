@@ -150,7 +150,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 				rootBorder.BorderThickness = new Thickness(1);
 				rootBorder.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
 				rootBorder.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
-				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootBorder, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: true);
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootBorder, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: false);
 			}
 			else if (rootGrid != null)
 			{
@@ -158,7 +158,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 				rootGrid.BorderThickness = new Thickness(1);
 				rootGrid.Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver ? 1.04 : 1.0, _pointerNorm);
 				rootGrid.BorderBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.FloatingBar, isDark, _isPointerOver, false, _pointerNorm);
-				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootGrid, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: true);
+				LiquidGlassEngine.AttachInteractiveLiquidGlass(rootGrid, LiquidGlassVariant.FloatingBar, isDark, enablePointerTracking: false);
 			}
 
 			if (rootGrid != null && _glassCanvas == null)
@@ -179,7 +179,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 			{
 				_pointerEventsHooked = true;
 				PointerEntered += OnBarPointerEntered;
-				PointerMoved += OnBarPointerMoved;
+				// 移除 PointerMoved 中的无效高频 Invalidate 与画刷重置，保持平滑稳定的毛玻璃背景
 				PointerExited += OnBarPointerExited;
 			}
 
@@ -224,16 +224,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnBarPointerMoved(object sender, PointerRoutedEventArgs e)
 	{
-		if (ActualWidth <= 0 || ActualHeight <= 0) return;
-		var pt = e.GetCurrentPoint(this).Position;
-		double nx = Math.Clamp(pt.X / ActualWidth, 0.0, 1.0);
-		double ny = Math.Clamp(pt.Y / ActualHeight, 0.0, 1.0);
-		if (Math.Abs(nx - _pointerNorm.X) > 0.01 || Math.Abs(ny - _pointerNorm.Y) > 0.01)
-		{
-			_pointerNorm = new Point(nx, ny);
-			UpdateRootBarBrushes();
-			_glassCanvas?.Invalidate();
-		}
+		// 移除 PointerMoved 中的无效高频 Invalidate 与画刷重置，保持平滑稳定的毛玻璃背景，子元素禁用 PointerMoved 重绘，彻底消除闪烁
 	}
 
 	private void OnBarPointerExited(object sender, PointerRoutedEventArgs e)

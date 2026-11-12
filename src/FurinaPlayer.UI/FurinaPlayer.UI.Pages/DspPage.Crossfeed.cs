@@ -26,6 +26,7 @@ public sealed partial class DspPage
 {
 	// 核心工作台容器与参数状态
 	private FrameworkElement? _crossfeedWorkbench;
+	private Border? _crossfeedRootBorder;
 	private bool _crossfeedEnabled = false;
 	private double _crossfeedAmount = 0.25;
 	private double _crossfeedCutoffHz = 700.0;
@@ -40,14 +41,27 @@ public sealed partial class DspPage
 	private bool _isDraggingCrossfeedCutoff = false;
 
 	// 顶部操作栏控件
+	private Border? _crossfeedHeaderIconBorder;
+	private FontIcon? _crossfeedHeaderIcon;
 	private Button? _crossfeedPowerBtn;
 	private FontIcon? _crossfeedPowerIcon;
 	private TextBlock? _crossfeedPowerText;
 	private Button? _crossfeedResetBtn;
+	private FontIcon? _crossfeedResetIcon;
+	private TextBlock? _crossfeedResetText;
 	private Button? _crossfeedApplyBtn;
+	private FontIcon? _crossfeedApplyIcon;
+	private TextBlock? _crossfeedApplyText;
 	private Border? _crossfeedPendingBadge;
+	private TextBlock? _crossfeedPendingBadgeText;
+	private Border? _crossfeedParamModelPill;
+	private TextBlock? _crossfeedParamModelText;
 
 	// 响应曲线监视器控件
+	private Border? _crossfeedChartStageBorder;
+	private Border? _crossfeedDragHintTag;
+	private TextBlock? _crossfeedDragHintArrowTb;
+	private TextBlock? _crossfeedDragHintTextTb;
 	private TextBlock? _crossfeedChartSubtitleTb;
 	private Canvas? _crossfeedChartCanvas;
 	private Canvas? _crossfeedRulerCanvas;
@@ -77,6 +91,7 @@ public sealed partial class DspPage
 	private Button? _btnPresetSpeaker;
 
 	// 参数控制控件
+	private Border? _crossfeedDividerBorder;
 	private ComboBox? _crossfeedModelCombo;
 	private Slider? _crossfeedAmountSlider;
 	private TextBlock? _crossfeedAmountValueTb;
@@ -87,6 +102,11 @@ public sealed partial class DspPage
 	private TextBlock? _statFeedValueTb;
 	private TextBlock? _statLowCutValueTb;
 	private TextBlock? _statCutoffValueTb;
+
+	// 主题追踪集合
+	private readonly List<Border> _crossfeedCardBorders = new();
+	private readonly List<TextBlock> _crossfeedPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _crossfeedMutedTextBlocks = new();
 
 	// 互斥冲突提示
 	private InfoBar? _crossfeedMutualExclusionInfoBar;
@@ -102,12 +122,15 @@ public sealed partial class DspPage
 		}
 
 		InitCrossfeedState();
+		bool isDark = IsDspDark;
 
 		var rootBorder = new Border
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
-			CornerRadius = new CornerRadius(0)
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0)),
+			CornerRadius = new CornerRadius(0),
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light
 		};
+		_crossfeedRootBorder = rootBorder;
 
 		var sv = new ScrollViewer
 		{
@@ -130,13 +153,15 @@ public sealed partial class DspPage
 		mainStack.Children.Add(CreateCrossfeedActionToolbar());
 
 		// 3. 描述说明文本
-		mainStack.Children.Add(new TextBlock
+		var descTb = new TextBlock
 		{
 			Text = "在 Mid / Side 域收窄低频左右差异，保留高频定位，缓解耳机硬分离。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			Margin = new Thickness(2, -4, 0, 4)
-		});
+		};
+		_crossfeedMutedTextBlocks.Add(descTb);
+		mainStack.Children.Add(descTb);
 
 		// 4. 互斥冲突提示条 (声学联动)
 		_crossfeedMutualExclusionInfoBar = new InfoBar
@@ -156,13 +181,15 @@ public sealed partial class DspPage
 		mainStack.Children.Add(CreateCrossfeedStatsSection());
 
 		// 7. 底部说明提示
-		mainStack.Children.Add(new TextBlock
+		var footerHintTb = new TextBlock
 		{
 			Text = "预设立即应用并启用效果；滑块和图上拖动需点击「应用参数」或按 Enter。曲线显示参数响应，不是实时声音测量。",
 			FontSize = 11.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			Margin = new Thickness(2, 4, 0, 0)
-		});
+		};
+		_crossfeedMutedTextBlocks.Add(footerHintTb);
+		mainStack.Children.Add(footerHintTb);
 
 		sv.Content = mainStack;
 		rootBorder.Child = sv;
@@ -186,7 +213,7 @@ public sealed partial class DspPage
 		_spatialCrossfeedPanel = rootBorder;
 
 		// 初始渲染
-		UpdateAllCrossfeedVisuals();
+		RefreshCrossfeedTheme(isDark);
 
 		return _crossfeedWorkbench;
 	}
@@ -217,6 +244,7 @@ public sealed partial class DspPage
 	#region 1. Top Header Bar
 	private FrameworkElement CreateCrossfeedHeaderBar()
 	{
+		bool isDark = IsDspDark;
 		var headerGrid = new Grid();
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -228,109 +256,36 @@ public sealed partial class DspPage
 			VerticalAlignment = VerticalAlignment.Center
 		};
 
-		var iconBorder = new Border
+		_crossfeedHeaderIcon = new FontIcon
+		{
+			Glyph = "\uE895",
+			FontSize = 18,
+			Foreground = GetCrossfeedAccentSoftTextBrush(isDark),
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_crossfeedHeaderIconBorder = new Border
 		{
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE895",
-				FontSize = 18,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = GetCrossfeedAccentSoftBgBrush(isDark),
+			Child = _crossfeedHeaderIcon
 		};
-		titleSp.Children.Add(iconBorder);
+		titleSp.Children.Add(_crossfeedHeaderIconBorder);
 
-		titleSp.Children.Add(new TextBlock
+		var titleTb = new TextBlock
 		{
 			Text = "交叉馈送",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_crossfeedPrimaryTextBlocks.Add(titleTb);
+		titleSp.Children.Add(titleTb);
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		// 右侧状态胶囊指示器
-		var topActionsSp = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 10,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		btnRefreshTop.Click += (s, e) =>
-		{
-			InitCrossfeedState();
-			UpdateAllCrossfeedVisuals();
-		};
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 
 		return headerGrid;
 	}
@@ -339,6 +294,7 @@ public sealed partial class DspPage
 	#region 2. Top Action Toolbar
 	private FrameworkElement CreateCrossfeedActionToolbar()
 	{
+		bool isDark = IsDspDark;
 		var toolbarGrid = new Grid();
 		toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -362,6 +318,8 @@ public sealed partial class DspPage
 		leftStack.Children.Add(_crossfeedPowerBtn);
 
 		// 【恢复默认】按钮
+		_crossfeedResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 12, Foreground = GetCrossfeedSubHeaderTextBrush(isDark) };
+		_crossfeedResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = GetCrossfeedSecondaryTextBrush(isDark) };
 		_crossfeedResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -370,16 +328,15 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE777", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
+					_crossfeedResetIcon,
+					_crossfeedResetText
 				}
 			},
 			Padding = new Thickness(12, 7, 14, 7),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		ApplyCrossfeedNeutralButtonStyle(_crossfeedResetBtn, isDark, _crossfeedResetIcon, _crossfeedResetText);
 		_crossfeedResetBtn.Click += OnResetCrossfeedClick;
 		leftStack.Children.Add(_crossfeedResetBtn);
 
@@ -390,14 +347,16 @@ public sealed partial class DspPage
 			CornerRadius = new CornerRadius(8),
 			BorderThickness = new Thickness(1)
 		};
+		_crossfeedApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 12 };
+		_crossfeedApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.SemiBold };
 		var applySp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
 			Spacing = 6,
 			Children =
 			{
-				new FontIcon { Glyph = "\uE74E", FontSize = 12 },
-				new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.SemiBold }
+				_crossfeedApplyIcon,
+				_crossfeedApplyText
 			}
 		};
 		_crossfeedApplyBtn.Content = applySp;
@@ -405,47 +364,48 @@ public sealed partial class DspPage
 		leftStack.Children.Add(_crossfeedApplyBtn);
 
 		// 未应用角标 (Pending Badge)
+		_crossfeedPendingBadgeText = new TextBlock
+		{
+			Text = "未应用",
+			FontSize = 11,
+			FontWeight = FontWeights.SemiBold
+		};
 		_crossfeedPendingBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 254, 243, 199)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 251, 191, 36)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(8, 2, 8, 2),
 			VerticalAlignment = VerticalAlignment.Center,
 			Visibility = Visibility.Collapsed,
-			Child = new TextBlock
-			{
-				Text = "未应用",
-				FontSize = 11,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 180, 83, 9)),
-				FontWeight = FontWeights.SemiBold
-			}
+			Child = _crossfeedPendingBadgeText
 		};
+		ApplyCrossfeedPendingBadgeTheme(isDark);
 		leftStack.Children.Add(_crossfeedPendingBadge);
 
 		Grid.SetColumn(leftStack, 0);
 		toolbarGrid.Children.Add(leftStack);
 
 		// 右上角胶囊标: PARAM MODEL
-		var paramModelPill = new Border
+		_crossfeedParamModelText = new TextBlock
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Text = "PARAM MODEL",
+			FontSize = 11,
+			FontWeight = FontWeights.SemiBold,
+			Foreground = GetCrossfeedMutedTextBrush(isDark)
+		};
+		_crossfeedMutedTextBlocks.Add(_crossfeedParamModelText);
+		_crossfeedParamModelPill = new Border
+		{
+			Background = GetCrossfeedSoftSurfaceBrush(isDark),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(12, 4, 12, 4),
 			VerticalAlignment = VerticalAlignment.Center,
-			Child = new TextBlock
-			{
-				Text = "PARAM MODEL",
-				FontSize = 11,
-				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
-			}
+			Child = _crossfeedParamModelText
 		};
-		Grid.SetColumn(paramModelPill, 1);
-		toolbarGrid.Children.Add(paramModelPill);
+		Grid.SetColumn(_crossfeedParamModelPill, 1);
+		toolbarGrid.Children.Add(_crossfeedParamModelPill);
 
 		return toolbarGrid;
 	}
@@ -473,14 +433,16 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateCrossfeedChartCard()
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 16, 18, 16)
 		};
+		_crossfeedCardBorders.Add(card);
 
 		var stack = new StackPanel { Spacing = 12 };
 
@@ -490,19 +452,24 @@ public sealed partial class DspPage
 		headGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleStack = new StackPanel { Spacing = 2 };
-		titleStack.Children.Add(new TextBlock
+		var chartTitleTb = new TextBlock
 		{
 			Text = "侧声道频率响应",
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
-		titleStack.Children.Add(new TextBlock
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
+		};
+		_crossfeedPrimaryTextBlocks.Add(chartTitleTb);
+		titleStack.Children.Add(chartTitleTb);
+
+		var chartDescTb = new TextBlock
 		{
 			Text = "按当前馈送量与低通截止推导的 Side 通道衰减曲线；在图上拖动可直接调整截止频率。",
 			FontSize = 11.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
-		});
+			Foreground = GetCrossfeedMutedTextBrush(isDark)
+		};
+		_crossfeedMutedTextBlocks.Add(chartDescTb);
+		titleStack.Children.Add(chartDescTb);
 		Grid.SetColumn(titleStack, 0);
 		headGrid.Children.Add(titleStack);
 
@@ -511,20 +478,21 @@ public sealed partial class DspPage
 			Text = "25% · 700 Hz · 自然",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_crossfeedMutedTextBlocks.Add(_crossfeedChartSubtitleTb);
 		Grid.SetColumn(_crossfeedChartSubtitleTb, 1);
 		headGrid.Children.Add(_crossfeedChartSubtitleTb);
 
 		stack.Children.Add(headGrid);
 
 		// 绘图区域容器
-		var stageBorder = new Border
+		_crossfeedChartStageBorder = new Border
 		{
 			Height = 270,
-			Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetCrossfeedSoftSurfaceBrush(isDark),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Clip = new RectangleGeometry { Rect = new Rect(0, 0, 1920, 270) }
@@ -541,12 +509,13 @@ public sealed partial class DspPage
 		};
 
 		// 辅助网格线
-		_crossfeedGridLine0 = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
-		_crossfeedGridLineMinus2 = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
-		_crossfeedGridLineMinus4 = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
-		_crossfeedGridLine100 = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
-		_crossfeedGridLine1k = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
-		_crossfeedGridLine10k = new Line { Stroke = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)), StrokeThickness = 1 };
+		var gridLineBrush = GetCrossfeedChartGridBrush(isDark);
+		_crossfeedGridLine0 = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
+		_crossfeedGridLineMinus2 = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
+		_crossfeedGridLineMinus4 = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
+		_crossfeedGridLine100 = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
+		_crossfeedGridLine1k = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
+		_crossfeedGridLine10k = new Line { Stroke = gridLineBrush, StrokeThickness = 1 };
 
 		_crossfeedChartCanvas.Children.Add(_crossfeedGridLine0);
 		_crossfeedChartCanvas.Children.Add(_crossfeedGridLineMinus2);
@@ -589,7 +558,7 @@ public sealed partial class DspPage
 		// 截止频率垂线与把手
 		_crossfeedCutoffLine = new Line
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Stroke = GetCrossfeedCutoffLineBrush(isDark),
 			StrokeThickness = 1.5,
 			StrokeDashArray = new DoubleCollection { 3, 3 }
 		};
@@ -598,14 +567,14 @@ public sealed partial class DspPage
 			Width = 14,
 			Height = 14,
 			CornerRadius = new CornerRadius(7),
-			Background = new SolidColorBrush(Colors.White),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Background = GetCrossfeedCutoffKnobBgBrush(isDark),
+			BorderBrush = GetCrossfeedCutoffKnobBorderBrush(isDark),
 			BorderThickness = new Thickness(2.5)
 		};
 		_crossfeedCutoffBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = GetCrossfeedAccentSoftBgBrush(isDark),
+			BorderBrush = GetCrossfeedAccentSoftBorderBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(4),
 			Padding = new Thickness(6, 2, 6, 2)
@@ -615,7 +584,7 @@ public sealed partial class DspPage
 			Text = "截止 700 Hz",
 			FontSize = 10,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
+			Foreground = GetCrossfeedAccentSoftTextBrush(isDark)
 		};
 		_crossfeedCutoffBadge.Child = _crossfeedCutoffBadgeTb;
 
@@ -624,32 +593,37 @@ public sealed partial class DspPage
 		_crossfeedChartCanvas.Children.Add(_crossfeedCutoffBadge);
 
 		// 图内刻度文字 (MID 0 dB, SIDE, -2, -4)
+		var mutedBrush = GetCrossfeedMutedTextBrush(isDark);
 		_crossfeedMidLabelTb = new TextBlock
 		{
 			Text = "MID 0 dB",
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = mutedBrush
 		};
 		_crossfeedSideLabelTb = new TextBlock
 		{
 			Text = "SIDE",
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = mutedBrush
 		};
 		_crossfeedTickMinus2Tb = new TextBlock
 		{
 			Text = "-2",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = mutedBrush
 		};
 		_crossfeedTickMinus4Tb = new TextBlock
 		{
 			Text = "-4",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = mutedBrush
 		};
+		_crossfeedMutedTextBlocks.Add(_crossfeedMidLabelTb);
+		_crossfeedMutedTextBlocks.Add(_crossfeedSideLabelTb);
+		_crossfeedMutedTextBlocks.Add(_crossfeedTickMinus2Tb);
+		_crossfeedMutedTextBlocks.Add(_crossfeedTickMinus4Tb);
 
 		_crossfeedChartCanvas.Children.Add(_crossfeedMidLabelTb);
 		_crossfeedChartCanvas.Children.Add(_crossfeedSideLabelTb);
@@ -657,10 +631,15 @@ public sealed partial class DspPage
 		_crossfeedChartCanvas.Children.Add(_crossfeedTickMinus4Tb);
 
 		// 右上角操作提示 Tag: ↔ 可拖动 · 调整截止
-		var dragHintTag = new Border
+		_crossfeedDragHintArrowTb = new TextBlock { Text = "↔", FontSize = 10, Foreground = mutedBrush };
+		_crossfeedDragHintTextTb = new TextBlock { Text = "可拖动 · 调整截止", FontSize = 10, Foreground = mutedBrush };
+		_crossfeedMutedTextBlocks.Add(_crossfeedDragHintArrowTb);
+		_crossfeedMutedTextBlocks.Add(_crossfeedDragHintTextTb);
+
+		_crossfeedDragHintTag = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(4),
 			Padding = new Thickness(6, 3, 6, 3),
@@ -673,8 +652,8 @@ public sealed partial class DspPage
 				Spacing = 4,
 				Children =
 				{
-					new TextBlock { Text = "↔", FontSize = 10, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
-					new TextBlock { Text = "可拖动 · 调整截止", FontSize = 10, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+					_crossfeedDragHintArrowTb,
+					_crossfeedDragHintTextTb
 				}
 			}
 		};
@@ -688,9 +667,9 @@ public sealed partial class DspPage
 		_crossfeedChartCanvas.Loaded += (s, e) => { RedrawCrossfeedCurve(); };
 
 		stageGrid.Children.Add(_crossfeedChartCanvas);
-		stageGrid.Children.Add(dragHintTag);
-		stageBorder.Child = stageGrid;
-		stack.Children.Add(stageBorder);
+		stageGrid.Children.Add(_crossfeedDragHintTag);
+		_crossfeedChartStageBorder.Child = stageGrid;
+		stack.Children.Add(_crossfeedChartStageBorder);
 
 		// X 轴频率标尺 (20, 100, 1k, 10k, 20k Hz)
 		_crossfeedRulerCanvas = new Canvas
@@ -707,26 +686,30 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateCrossfeedPresetsAndControlsCard()
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_crossfeedCardBorders.Add(card);
 
 		var stack = new StackPanel { Spacing = 16 };
 
 		// --- 1. 试听预设 (点击即生效) ---
 		var presetsSection = new StackPanel { Spacing = 10 };
-		presetsSection.Children.Add(new TextBlock
+		var presetsHeaderTb = new TextBlock
 		{
 			Text = "试听预设 · 点击即生效",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
+		};
+		_crossfeedPrimaryTextBlocks.Add(presetsHeaderTb);
+		presetsSection.Children.Add(presetsHeaderTb);
 
 		var pillsWrap = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
@@ -742,34 +725,39 @@ public sealed partial class DspPage
 		presetsSection.Children.Add(pillsWrap);
 
 		// 试听提示
-		presetsSection.Children.Add(new TextBlock
+		var presetHintTb = new TextBlock
 		{
 			Text = "戴耳机从「强烈」开始，用右上角开关对比旁路。低截止与居中的人声、低音变化通常很轻；重点听左右分离的乐器是否向中间靠拢。开启交叉馈送会关闭虚拟声场。",
 			FontSize = 11.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			TextWrapping = TextWrapping.Wrap,
 			LineHeight = 17
-		});
+		};
+		_crossfeedMutedTextBlocks.Add(presetHintTb);
+		presetsSection.Children.Add(presetHintTb);
 
 		stack.Children.Add(presetsSection);
 
 		// 分隔线
-		stack.Children.Add(new Border
+		_crossfeedDividerBorder = new Border
 		{
 			Height = 1,
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetCrossfeedDividerBrush(isDark),
 			Margin = new Thickness(0, 2, 0, 2)
-		});
+		};
+		stack.Children.Add(_crossfeedDividerBorder);
 
 		// --- 2. 参数控制 ---
 		var controlsSection = new StackPanel { Spacing = 14 };
-		controlsSection.Children.Add(new TextBlock
+		var controlsHeaderTb = new TextBlock
 		{
 			Text = "参数控制",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
+		};
+		_crossfeedPrimaryTextBlocks.Add(controlsHeaderTb);
+		controlsSection.Children.Add(controlsHeaderTb);
 
 		// 算法下拉框
 		var modelRow = new Grid();
@@ -780,16 +768,21 @@ public sealed partial class DspPage
 		{
 			Text = "算法",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_crossfeedPrimaryTextBlocks.Add(modelLabel);
 		Grid.SetColumn(modelLabel, 0);
 		modelRow.Children.Add(modelLabel);
 
 		_crossfeedModelCombo = new ComboBox
 		{
 			MinWidth = 180,
-			CornerRadius = new CornerRadius(6)
+			CornerRadius = new CornerRadius(6),
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light
 		};
 		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = "原有低频 Side 衰减", Tag = "mid_side" });
 		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = "Bauer BS2B (自然仿真)", Tag = "bs2b" });
@@ -815,15 +808,18 @@ public sealed partial class DspPage
 		var amountHead = new Grid();
 		amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		amountHead.Children.Add(new TextBlock { Text = "馈送量", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) });
+		var amountLabelTb = new TextBlock { Text = "馈送量", FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
+		_crossfeedPrimaryTextBlocks.Add(amountLabelTb);
+		amountHead.Children.Add(amountLabelTb);
 
 		_crossfeedAmountValueTb = new TextBlock
 		{
 			Text = "25%",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
 		};
+		_crossfeedPrimaryTextBlocks.Add(_crossfeedAmountValueTb);
 		Grid.SetColumn(_crossfeedAmountValueTb, 1);
 		amountHead.Children.Add(_crossfeedAmountValueTb);
 		amountStack.Children.Add(amountHead);
@@ -858,15 +854,18 @@ public sealed partial class DspPage
 		var cutoffHead = new Grid();
 		cutoffHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		cutoffHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		cutoffHead.Children.Add(new TextBlock { Text = "低通截止", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) });
+		var cutoffLabelTb = new TextBlock { Text = "低通截止", FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
+		_crossfeedPrimaryTextBlocks.Add(cutoffLabelTb);
+		cutoffHead.Children.Add(cutoffLabelTb);
 
 		_crossfeedCutoffValueTb = new TextBlock
 		{
 			Text = "700 Hz",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
 		};
+		_crossfeedPrimaryTextBlocks.Add(_crossfeedCutoffValueTb);
 		Grid.SetColumn(_crossfeedCutoffValueTb, 1);
 		cutoffHead.Children.Add(_crossfeedCutoffValueTb);
 		cutoffStack.Children.Add(cutoffHead);
@@ -960,34 +959,39 @@ public sealed partial class DspPage
 		return grid;
 	}
 
-	private static FrameworkElement CreateCrossfeedMetricBox(string header, string value, out TextBlock valTb)
+	private FrameworkElement CreateCrossfeedMetricBox(string header, string value, out TextBlock valTb)
 	{
+		bool isDark = IsDspDark;
 		var border = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateCrossfeedRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 14, 18, 16)
 		};
+		_crossfeedCardBorders.Add(border);
 
 		var sp = new StackPanel { Spacing = 6 };
-		sp.Children.Add(new TextBlock
+		var headerTb = new TextBlock
 		{
 			Text = header,
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
-		});
+			Foreground = GetCrossfeedMutedTextBrush(isDark)
+		};
+		_crossfeedMutedTextBlocks.Add(headerTb);
+		sp.Children.Add(headerTb);
 
 		valTb = new TextBlock
 		{
 			Text = value,
 			FontSize = 32,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
 			FontFamily = new FontFamily("Segoe UI Variable Display, Consolas, Segoe UI")
 		};
+		_crossfeedPrimaryTextBlocks.Add(valTb);
 		sp.Children.Add(valTb);
 
 		border.Child = sp;
@@ -1170,11 +1174,14 @@ public sealed partial class DspPage
 		line.Y2 = y2;
 	}
 
-	private void UpdateCrossfeedRulerLayout()
+	private void UpdateCrossfeedRulerLayout(bool? isDarkOverride = null)
 	{
 		if (_crossfeedRulerCanvas == null) return;
 		double w = _crossfeedRulerCanvas.ActualWidth;
 		if (w <= 20) return;
+
+		bool isDark = isDarkOverride ?? IsDspDark;
+		Brush mutedBrush = GetCrossfeedMutedTextBrush(isDark);
 
 		_crossfeedRulerCanvas.Children.Clear();
 
@@ -1199,7 +1206,7 @@ public sealed partial class DspPage
 			{
 				Text = text,
 				FontSize = 11,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+				Foreground = mutedBrush
 			};
 
 			double x = GetX(freq);
@@ -1473,69 +1480,95 @@ public sealed partial class DspPage
 		UpdateAllCrossfeedVisuals();
 	}
 
-	private void UpdateAllCrossfeedVisuals()
+	private void UpdateAllCrossfeedVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		// 1. 电源按钮状态
 		if (_crossfeedPowerBtn != null && _crossfeedPowerText != null && _crossfeedPowerIcon != null)
 		{
 			if (_crossfeedEnabled)
 			{
-				_crossfeedPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255));
-				_crossfeedPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
-				_crossfeedPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-				_crossfeedPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
 				_crossfeedPowerText.Text = "已开启";
+				ApplyCrossfeedAccentButtonStyle(
+					_crossfeedPowerBtn,
+					isDark,
+					_crossfeedPowerIcon,
+					_crossfeedPowerText,
+					borderOverride: new SolidColorBrush(isDark ? Color.FromArgb(200, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241)));
 			}
 			else
 			{
-				_crossfeedPowerBtn.Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
-				_crossfeedPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240));
-				_crossfeedPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-				_crossfeedPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
 				_crossfeedPowerText.Text = "已旁路 · 点击试听";
+				ApplyCrossfeedNeutralButtonStyle(
+					_crossfeedPowerBtn,
+					isDark,
+					_crossfeedPowerIcon,
+					_crossfeedPowerText);
 			}
 		}
 
 		// 2. 草稿脏状态
-		UpdateCrossfeedDirtyStateVisuals();
+		UpdateCrossfeedDirtyStateVisuals(isDark);
 
 		// 3. 预设按钮激活态
-		UpdateCrossfeedPresetButtonsVisuals();
+		UpdateCrossfeedPresetButtonsVisuals(isDark);
 
 		// 4. 底部大号读数
 		UpdateCrossfeedBottomStats();
 
 		// 5. 侧声道响应曲线
 		RedrawCrossfeedCurve();
-		UpdateCrossfeedRulerLayout();
+		UpdateCrossfeedRulerLayout(isDark);
 	}
 
-	private void UpdateCrossfeedDirtyStateVisuals()
+	private void UpdateCrossfeedDirtyStateVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		if (_crossfeedApplyBtn != null)
 		{
 			if (_isCrossfeedDirty)
 			{
-				_crossfeedApplyBtn.Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
-				_crossfeedApplyBtn.Foreground = new SolidColorBrush(Colors.White);
-				_crossfeedApplyBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+				var bg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+				var hoverBg = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+				var pressedBg = new SolidColorBrush(Color.FromArgb(255, 67, 56, 202));
+				var border = new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 79, 70, 229));
+				var hoverBorder = new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 67, 56, 202));
+				var fg = new SolidColorBrush(Colors.White);
+
+				ApplyCrossfeedButtonPalette(
+					_crossfeedApplyBtn,
+					bg,
+					hoverBg,
+					pressedBg,
+					border,
+					hoverBorder,
+					fg,
+					_crossfeedApplyIcon,
+					_crossfeedApplyText);
 			}
 			else
 			{
-				_crossfeedApplyBtn.Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255));
-				_crossfeedApplyBtn.Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
-				_crossfeedApplyBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240));
+				ApplyCrossfeedNeutralButtonStyle(
+					_crossfeedApplyBtn,
+					isDark,
+					_crossfeedApplyIcon,
+					_crossfeedApplyText);
 			}
 		}
 
 		if (_crossfeedPendingBadge != null)
 		{
+			ApplyCrossfeedPendingBadgeTheme(isDark);
 			_crossfeedPendingBadge.Visibility = _isCrossfeedDirty ? Visibility.Visible : Visibility.Collapsed;
 		}
 	}
 
-	private void UpdateCrossfeedPresetButtonsVisuals()
+	private void UpdateCrossfeedPresetButtonsVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		foreach (var btn in _crossfeedPresetButtons)
 		{
 			if (btn.Tag is (double pAmount, double pCutoff, string _))
@@ -1546,16 +1579,15 @@ public sealed partial class DspPage
 
 				if (isActive)
 				{
-					btn.Background = new SolidColorBrush(Colors.White);
-					btn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
-					btn.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+					ApplyCrossfeedAccentButtonStyle(btn, isDark);
 					btn.FontWeight = FontWeights.SemiBold;
 				}
 				else
 				{
-					btn.Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
-					btn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
-					btn.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+					ApplyCrossfeedNeutralButtonStyle(
+						btn,
+						isDark,
+						foregroundOverride: GetCrossfeedSubHeaderTextBrush(isDark));
 					btn.FontWeight = FontWeights.Normal;
 				}
 			}
@@ -1577,6 +1609,246 @@ public sealed partial class DspPage
 		{
 			_statCutoffValueTb.Text = $"{Math.Round(_draftCrossfeedCutoffHz)} Hz";
 		}
+	}
+
+	public void RefreshCrossfeedTheme(bool isDark)
+	{
+		if (_crossfeedWorkbench == null) return;
+
+		_crossfeedWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+
+		Brush primaryText = GetCrossfeedPrimaryTextBrush(isDark);
+		Brush mutedText = GetCrossfeedMutedTextBrush(isDark);
+		Brush accentSoftBg = GetCrossfeedAccentSoftBgBrush(isDark);
+		Brush accentSoftBorder = GetCrossfeedAccentSoftBorderBrush(isDark);
+		Brush accentSoftText = GetCrossfeedAccentSoftTextBrush(isDark);
+		Brush cardBg = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = CreateCrossfeedRimBrush(isDark);
+		Brush softBg = GetCrossfeedSoftSurfaceBrush(isDark);
+
+		if (_crossfeedRootBorder != null)
+		{
+			_crossfeedRootBorder.Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+			_crossfeedRootBorder.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		}
+		if (_crossfeedHeaderIconBorder != null) _crossfeedHeaderIconBorder.Background = accentSoftBg;
+		if (_crossfeedHeaderIcon != null) _crossfeedHeaderIcon.Foreground = accentSoftText;
+
+		foreach (var card in _crossfeedCardBorders)
+		{
+			card.Background = cardBg;
+			card.BorderBrush = rimBrush;
+		}
+
+		foreach (var tb in _crossfeedPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _crossfeedMutedTextBlocks) tb.Foreground = mutedText;
+
+		if (_crossfeedParamModelPill != null)
+		{
+			_crossfeedParamModelPill.Background = softBg;
+			_crossfeedParamModelPill.BorderBrush = rimBrush;
+		}
+		if (_crossfeedParamModelText != null) _crossfeedParamModelText.Foreground = mutedText;
+
+		if (_crossfeedChartStageBorder != null)
+		{
+			_crossfeedChartStageBorder.Background = softBg;
+			_crossfeedChartStageBorder.BorderBrush = rimBrush;
+		}
+
+		var gridBrush = GetCrossfeedChartGridBrush(isDark);
+		if (_crossfeedGridLine0 != null) _crossfeedGridLine0.Stroke = gridBrush;
+		if (_crossfeedGridLineMinus2 != null) _crossfeedGridLineMinus2.Stroke = gridBrush;
+		if (_crossfeedGridLineMinus4 != null) _crossfeedGridLineMinus4.Stroke = gridBrush;
+		if (_crossfeedGridLine100 != null) _crossfeedGridLine100.Stroke = gridBrush;
+		if (_crossfeedGridLine1k != null) _crossfeedGridLine1k.Stroke = gridBrush;
+		if (_crossfeedGridLine10k != null) _crossfeedGridLine10k.Stroke = gridBrush;
+
+		if (_crossfeedCutoffLine != null) _crossfeedCutoffLine.Stroke = GetCrossfeedCutoffLineBrush(isDark);
+		if (_crossfeedCutoffKnob != null)
+		{
+			_crossfeedCutoffKnob.Background = GetCrossfeedCutoffKnobBgBrush(isDark);
+			_crossfeedCutoffKnob.BorderBrush = GetCrossfeedCutoffKnobBorderBrush(isDark);
+		}
+		if (_crossfeedCutoffBadge != null)
+		{
+			_crossfeedCutoffBadge.Background = accentSoftBg;
+			_crossfeedCutoffBadge.BorderBrush = accentSoftBorder;
+		}
+		if (_crossfeedCutoffBadgeTb != null) _crossfeedCutoffBadgeTb.Foreground = accentSoftText;
+
+		if (_crossfeedDragHintTag != null)
+		{
+			_crossfeedDragHintTag.Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+			_crossfeedDragHintTag.BorderBrush = rimBrush;
+		}
+		if (_crossfeedDragHintArrowTb != null) _crossfeedDragHintArrowTb.Foreground = mutedText;
+		if (_crossfeedDragHintTextTb != null) _crossfeedDragHintTextTb.Foreground = mutedText;
+
+		if (_crossfeedDividerBorder != null) _crossfeedDividerBorder.Background = GetCrossfeedDividerBrush(isDark);
+
+		if (_crossfeedMutualExclusionInfoBar != null)
+		{
+			_crossfeedMutualExclusionInfoBar.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		}
+
+		if (_crossfeedModelCombo != null)
+		{
+			_crossfeedModelCombo.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+			_crossfeedModelCombo.Background = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+			_crossfeedModelCombo.BorderBrush = rimBrush;
+			_crossfeedModelCombo.Foreground = primaryText;
+		}
+		if (_crossfeedAmountSlider != null) _crossfeedAmountSlider.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		if (_crossfeedCutoffSlider != null) _crossfeedCutoffSlider.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+
+		ApplyCrossfeedNeutralButtonStyle(_crossfeedResetBtn, isDark, _crossfeedResetIcon, _crossfeedResetText);
+		ApplyCrossfeedPendingBadgeTheme(isDark);
+		UpdateAllCrossfeedVisuals(isDark);
+	}
+
+	private void ApplyCrossfeedPendingBadgeTheme(bool isDark)
+	{
+		if (_crossfeedPendingBadge == null) return;
+		_crossfeedPendingBadge.Background = new SolidColorBrush(isDark ? Color.FromArgb(75, 245, 158, 11) : Color.FromArgb(255, 254, 243, 199));
+		_crossfeedPendingBadge.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(190, 251, 191, 36) : Color.FromArgb(255, 251, 191, 36));
+		if (_crossfeedPendingBadgeText != null)
+		{
+			_crossfeedPendingBadgeText.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 253, 230, 138) : Color.FromArgb(255, 180, 83, 9));
+		}
+	}
+
+	private static Brush CreateCrossfeedSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
+	{
+		return LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
+	}
+
+	private static Brush CreateCrossfeedRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: isDark,
+			isHovered: isHovered,
+			isSelected: isSelected);
+	}
+
+	private static Brush GetCrossfeedSoftSurfaceBrush(bool isDark)
+	{
+		return isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+	}
+
+	private static Brush GetCrossfeedChartGridBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(45, 255, 255, 255) : Color.FromArgb(255, 226, 232, 240));
+
+	private static Brush GetCrossfeedDividerBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(45, 255, 255, 255) : Color.FromArgb(255, 226, 232, 240));
+
+	private static Brush GetCrossfeedCutoffLineBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(180, 165, 180, 252) : Color.FromArgb(255, 199, 210, 254));
+
+	private static Brush GetCrossfeedCutoffKnobBgBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 30, 41, 59) : Colors.White);
+
+	private static Brush GetCrossfeedCutoffKnobBorderBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241));
+
+	private static Brush GetCrossfeedPrimaryTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+
+	private static Brush GetCrossfeedSecondaryTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+
+	private static Brush GetCrossfeedSubHeaderTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+
+	private static Brush GetCrossfeedMutedTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+
+	private static Brush GetCrossfeedAccentSoftBgBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+
+	private static Brush GetCrossfeedAccentSoftBorderBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+
+	private static Brush GetCrossfeedAccentSoftTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+	private static void ApplyCrossfeedNeutralButtonStyle(
+		Button? btn,
+		bool isDark,
+		FontIcon? icon = null,
+		TextBlock? label = null,
+		Brush? foregroundOverride = null)
+	{
+		if (btn == null) return;
+
+		Brush bg = CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		Brush hoverBg = isDark
+			? CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, 1.08)
+			: new SolidColorBrush(Color.FromArgb(238, 248, 250, 252));
+		Brush pressedBg = isDark
+			? CreateCrossfeedSurfaceBrush(LiquidGlassVariant.Regular, isDark: true, 1.0)
+			: new SolidColorBrush(Color.FromArgb(245, 226, 232, 240));
+		Brush border = CreateCrossfeedRimBrush(isDark);
+		Brush hoverBorder = CreateCrossfeedRimBrush(isDark, isHovered: true);
+		Brush fg = foregroundOverride ?? GetCrossfeedSecondaryTextBrush(isDark);
+		Brush iconFg = foregroundOverride ?? GetCrossfeedSubHeaderTextBrush(isDark);
+
+		ApplyCrossfeedButtonPalette(btn, bg, hoverBg, pressedBg, border, hoverBorder, fg, icon, label, iconFg);
+	}
+
+	private static void ApplyCrossfeedAccentButtonStyle(
+		Button? btn,
+		bool isDark,
+		FontIcon? icon = null,
+		TextBlock? label = null,
+		Brush? borderOverride = null)
+	{
+		if (btn == null) return;
+
+		Brush bg = GetCrossfeedAccentSoftBgBrush(isDark);
+		Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(115, 99, 102, 241) : Color.FromArgb(255, 224, 231, 255));
+		Brush pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(135, 99, 102, 241) : Color.FromArgb(255, 199, 210, 254));
+		Brush border = borderOverride ?? GetCrossfeedAccentSoftBorderBrush(isDark);
+		Brush hoverBorder = new SolidColorBrush(isDark ? Color.FromArgb(230, 165, 180, 252) : Color.FromArgb(255, 79, 70, 229));
+		Brush fg = GetCrossfeedAccentSoftTextBrush(isDark);
+
+		ApplyCrossfeedButtonPalette(btn, bg, hoverBg, pressedBg, border, hoverBorder, fg, icon, label);
+	}
+
+	private static void ApplyCrossfeedButtonPalette(
+		Button? btn,
+		Brush background,
+		Brush pointerOverBackground,
+		Brush pressedBackground,
+		Brush borderBrush,
+		Brush pointerOverBorderBrush,
+		Brush foreground,
+		FontIcon? icon = null,
+		TextBlock? label = null,
+		Brush? iconForeground = null)
+	{
+		if (btn == null) return;
+
+		btn.Background = background;
+		btn.BorderBrush = borderBrush;
+		btn.BorderThickness = new Thickness(1);
+		btn.Foreground = foreground;
+
+		btn.Resources["ButtonBackground"] = background;
+		btn.Resources["ButtonBackgroundPointerOver"] = pointerOverBackground;
+		btn.Resources["ButtonBackgroundPressed"] = pressedBackground;
+		btn.Resources["ButtonBorderBrush"] = borderBrush;
+		btn.Resources["ButtonBorderBrushPointerOver"] = pointerOverBorderBrush;
+		btn.Resources["ButtonBorderBrushPressed"] = pointerOverBorderBrush;
+		btn.Resources["ButtonForeground"] = foreground;
+		btn.Resources["ButtonForegroundPointerOver"] = foreground;
+		btn.Resources["ButtonForegroundPressed"] = foreground;
+
+		if (icon != null) icon.Foreground = iconForeground ?? foreground;
+		if (label != null) label.Foreground = foreground;
 	}
 	#endregion
 }

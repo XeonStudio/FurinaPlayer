@@ -25,18 +25,18 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Border CornerRadius="14" Padding="16,8,16,10"
+    <Border CornerRadius="14" Padding="16,14,16,14"
             Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="1">
         <Grid ColumnSpacing="16">
             <Grid.ColumnDefinitions>
-                <!-- Column 0: 曲目封面与信息 -->
-                <ColumnDefinition Width="Auto" MinWidth="160" MaxWidth="280" />
-                <!-- Column 1: 走带控制与完整进度时间轴 (居中) -->
-                <ColumnDefinition Width="*" />
-                <!-- Column 2: 辅助操作 (播放模式 + 最近播放) -->
-                <ColumnDefinition Width="Auto" />
+                <!-- Column 0: 曲目封面与信息 (与右侧 1* 对称，严格限制宽度不随歌名长度推动中间控制栏) -->
+                <ColumnDefinition Width="1*" />
+                <!-- Column 1: 走带控制与完整进度时间轴 (始终绝对居中) -->
+                <ColumnDefinition Width="2*" />
+                <!-- Column 2: 辅助操作 (播放模式 + 最近播放，与左侧 1* 对称) -->
+                <ColumnDefinition Width="1*" />
             </Grid.ColumnDefinitions>
 
             <!-- 左侧：封面与曲目信息 (点击自动跳转正在播放选项卡) -->
@@ -61,14 +61,14 @@
             </Grid>
 
             <!-- 中间：核心播放控制与进度时间轴 -->
-            <Grid Grid.Column="1" RowSpacing="4" VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="620">
+            <Grid Grid.Column="1" RowSpacing="6" VerticalAlignment="Center" HorizontalAlignment="Stretch" MaxWidth="620">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <!-- 播放走带按钮群 (居中，播放/暂停按钮适当放大至44x44突出核心焦点) -->
-                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="0,2,0,0">
                     <Button Style="{StaticResource TransportButtonStyle}" Command="{Binding PreviousCommand}"
                             ToolTipService.ToolTip="上一曲" AutomationProperties.Name="迷你-上一曲"
                             Width="32" Height="32" Padding="0">
@@ -106,8 +106,8 @@
 
                     <Slider x:ConnectionId='7' Grid.Column="1" Minimum="0" Maximum="100"
                             Value="{Binding PositionPercent, Mode=OneWay}"
-                            IsThumbToolTipEnabled="False" MinHeight="26" Height="26"
-                            VerticalAlignment="Center" Margin="0"
+                            IsThumbToolTipEnabled="False" MinHeight="34" Height="34"
+                            VerticalAlignment="Center" Margin="0,2,0,2"
                             AutomationProperties.Name="迷你-播放进度">
                         <Slider.Resources>
                             <SolidColorBrush x:Key="SliderTrackFill" Color="#2E808080" />

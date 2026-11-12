@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using FurinaPlayer.UI;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Pages;
 using FurinaPlayer.UI.ViewModels;
@@ -55,6 +57,10 @@ public sealed class MainWindow : Window, IComponentConnector
 	private SystemTrayManager? _trayManager;
 
 	private bool _isExplicitExit;
+
+	private volatile bool _isWindowClosed;
+
+	private int _trayTransportActive;
 
 	private ScaleTransform? _uiScaleTransform;
 
@@ -121,8 +127,22 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	public Frame MainContentFrame => ContentFrame;
 
+	public static MainWindow? Current { get; private set; }
+
+	public static void InvalidateStageGlass()
+	{
+		Current?.DispatcherQueue.TryEnqueue(() =>
+		{
+			Current?.GlassSkiaCanvas?.Invalidate();
+			Current?.UpdateWallpaperVisuals();
+		});
+	}
+
 	public MainWindow(HomeViewModel homeVm, NowPlayingViewModel nowPlayingVm, EditorViewModel editorVm, SettingsViewModel settingsVm, DspViewModel dspVm, StreamingViewModel streamingVm, AudioEngine engine)
 	{
+		Current = this;
+		WindowManager.CurrentWindow = this;
+		WindowManager.StageGlassInvalidateRequested = InvalidateStageGlass;
 		InitializeComponent();
 		_engine = engine;
 		_homeVm = homeVm;
@@ -172,6 +192,11 @@ public sealed class MainWindow : Window, IComponentConnector
 			RootGrid.Loaded += (object _, RoutedEventArgs _) =>
 			{
 				ApplyWindowBackdrop();
+				if (!_autoCaptureChecked)
+				{
+					_autoCaptureChecked = true;
+					CheckCommandLineAndRunAutoCapture();
+				}
 			};
 		}
 		if (ContentFrame != null)
@@ -188,9 +213,9 @@ public sealed class MainWindow : Window, IComponentConnector
 			_trayManager = new SystemTrayManager();
 			_trayManager.Initialize();
 			_trayManager.RestoreRequested += () => DispatcherQueue.TryEnqueue(RestoreMainWindow);
-			_trayManager.PlayPauseRequested += () => DispatcherQueue.TryEnqueue(() => _engine.TogglePlayPause());
-			_trayManager.NextRequested += () => DispatcherQueue.TryEnqueue(() => _engine.Next());
-			_trayManager.PrevRequested += () => DispatcherQueue.TryEnqueue(() => _engine.Previous());
+			_trayManager.PlayPauseRequested += () => EnqueueTrayTransportAction(() => _engine.TogglePlayPause());
+			_trayManager.NextRequested += () => EnqueueTrayTransportAction(() => _engine.Next());
+			_trayManager.PrevRequested += () => EnqueueTrayTransportAction(() => _engine.Previous());
 			_trayManager.ExitRequested += () => DispatcherQueue.TryEnqueue(ExitApplication);
 		}
 		catch { }
@@ -224,6 +249,7 @@ public sealed class MainWindow : Window, IComponentConnector
 
 		Closed += (object _, WindowEventArgs _) =>
 		{
+			_isWindowClosed = true;
 			_trayManager?.Dispose();
 			PowerWakeManager.SetKeepAwake(false);
 			SaveWindowPlacement();
@@ -492,6 +518,10 @@ public sealed class MainWindow : Window, IComponentConnector
 		if (ContentFrame?.Content is DependencyObject pageRoot && _currentNavTag != "playing")
 		{
 			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(pageRoot, _isDarkTheme);
+			if (pageRoot is FurinaPlayer.UI.Pages.StreamingPage streamingPage)
+			{
+				streamingPage.ApplyStreamingLiquidGlass();
+			}
 		}
 		GlassSkiaCanvas?.Invalidate();
 	}
@@ -659,6 +689,10 @@ public sealed class MainWindow : Window, IComponentConnector
 			if (ContentFrame?.Content is DependencyObject pageRoot && _currentNavTag != "playing")
 			{
 				LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(pageRoot, _isDarkTheme);
+				if (pageRoot is FurinaPlayer.UI.Pages.StreamingPage streamingPage)
+				{
+					streamingPage.ApplyStreamingLiquidGlass();
+				}
 			}
 			if (LiquidGlassEngine.RainbowModeEnabled)
 			{
@@ -872,13 +906,13 @@ public sealed class MainWindow : Window, IComponentConnector
 			string echoMode = _settingsVm?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
 			double opacityScale = Math.Clamp(LiquidGlassEngine.AcrylicOpacityScale, 0.0, 1.0);
 
-			// 在纯亚克力模式下，让系统桌面从窗口后方透出；在氛围/液态玻璃模式下，壁纸与焦散光场柔美交融
+			// 在亚克力/氛围/液态玻璃模式下，壁纸与焦散光场柔美交融，透明度滑块实时线性响应
 			double targetOpacity = echoMode switch
 			{
-				"acrylic" => Math.Clamp((1.0 - opacityScale) * 0.35, 0.0, 0.35),
-				"ambient" => 0.38 + opacityScale * 0.45,
-				"liquid-glass" => 0.25 + opacityScale * 0.38,
-				_ => 0.20
+				"acrylic" => 0.15 + opacityScale * 0.40,
+				"ambient" => 0.30 + opacityScale * 0.50,
+				"liquid-glass" => 0.20 + opacityScale * 0.45,
+				_ => 0.15 + opacityScale * 0.35
 			};
 
 			if (targetOpacity <= 0.02)
@@ -1268,6 +1302,29 @@ public sealed class MainWindow : Window, IComponentConnector
 		catch { }
 	}
 
+	private void EnqueueTrayTransportAction(Action action)
+	{
+		if (_isWindowClosed)
+		{
+			return;
+		}
+		DispatcherQueue.TryEnqueue(() =>
+		{
+			if (_isWindowClosed || Interlocked.Exchange(ref _trayTransportActive, 1) != 0)
+			{
+				return;
+			}
+			try
+			{
+				action();
+			}
+			finally
+			{
+				Interlocked.Exchange(ref _trayTransportActive, 0);
+			}
+		});
+	}
+
 	private void UpdateKeepAwake()
 	{
 		try
@@ -1278,6 +1335,8 @@ public sealed class MainWindow : Window, IComponentConnector
 		}
 		catch { }
 	}
+
+	private bool _autoCaptureChecked;
 
 	private void CheckCommandLineAndRunAutoCapture()
 	{

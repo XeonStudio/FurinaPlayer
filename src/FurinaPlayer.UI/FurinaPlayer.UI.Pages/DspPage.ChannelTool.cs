@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -20,7 +21,18 @@ namespace FurinaPlayer.UI.Pages;
 public sealed partial class DspPage
 {
 	private FrameworkElement? _channelToolWorkbench;
+	private Grid? _channelRootGrid;
+	private Border? _channelTitleIconBorder;
+	private FontIcon? _channelTitleIcon;
 	private TextBlock? _channelNavSubTb;
+
+	// Theme tracking collections
+	private readonly List<Border> _channelCardBorders = new();
+	private readonly List<Border> _channelFactBoxBorders = new();
+	private readonly List<TextBlock> _channelPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _channelSecondaryTextBlocks = new();
+	private readonly List<TextBlock> _channelMutedTextBlocks = new();
+	private readonly List<TextBlock> _channelAccentTextBlocks = new();
 
 	// Top operation row
 	private Button? _channelPowerBtn;
@@ -28,6 +40,9 @@ public sealed partial class DspPage
 	private FontIcon? _channelPowerIcon;
 	private Button? _channelCompareBtn;
 	private Button? _channelResetBtn;
+	private FontIcon? _channelResetIcon;
+	private TextBlock? _channelResetText;
+	private Border? _channelModeSegBorder;
 	private Button? _channelModeSimpleBtn;
 	private Button? _channelModeProBtn;
 
@@ -36,6 +51,8 @@ public sealed partial class DspPage
 	private TextBlock? _rightOutputBigTb;
 	private TextBlock? _centerStatusBigTb;
 	private TextBlock? _centerStatusSubTb;
+	private Grid? _leftMeterTrack;
+	private Grid? _rightMeterTrack;
 	private Border? _leftMeterFill;
 	private Border? _rightMeterFill;
 
@@ -48,6 +65,8 @@ public sealed partial class DspPage
 	private readonly List<Button> _trimStepButtons = new();
 	private Button? _leftTooLoudBtn;
 	private Button? _rightTooLoudBtn;
+	private HyperlinkButton? _channelClearAuxBtn;
+	private HyperlinkButton? _channelSwapAuxBtn;
 
 	// Pro controls
 	private Grid? _proContainer;
@@ -85,6 +104,8 @@ public sealed partial class DspPage
 	private Button? _presetSaveBtn;
 
 	// Diagnostics Telemetry
+	private Expander? _channelDiagExpander;
+	private FontIcon? _channelDiagIcon;
 	private TextBlock? _factLeftTb;
 	private TextBlock? _factRightTb;
 	private TextBlock? _factDelaySkewTb;
@@ -92,6 +113,14 @@ public sealed partial class DspPage
 
 	public FrameworkElement CreateChannelToolWorkbench()
 	{
+		bool isDark = IsDspDark;
+		_channelCardBorders.Clear();
+		_channelFactBoxBorders.Clear();
+		_channelPrimaryTextBlocks.Clear();
+		_channelSecondaryTextBlocks.Clear();
+		_channelMutedTextBlocks.Clear();
+		_channelAccentTextBlocks.Clear();
+
 		var sv = new ScrollViewer
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -100,10 +129,11 @@ public sealed partial class DspPage
 
 		var root = new Grid
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0)),
 			Padding = new Thickness(24, 20, 24, 24),
 			RowSpacing = 16
 		};
+		_channelRootGrid = root;
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Header
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Operation row
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 2: Output meter triple card
@@ -126,103 +156,35 @@ public sealed partial class DspPage
 			VerticalAlignment = VerticalAlignment.Center
 		};
 
-		var iconBorder = new Border
+		_channelTitleIcon = new FontIcon
+		{
+			Glyph = "\uE7F6", // Headphone icon
+			FontSize = 18,
+			Foreground = DspAccentSoftTextBrush,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_channelTitleIconBorder = new Border
 		{
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE7F6", // Headphone icon
-				FontSize = 18,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = DspAccentSoftBgBrush,
+			Child = _channelTitleIcon
 		};
-		titleSp.Children.Add(iconBorder);
-		titleSp.Children.Add(new TextBlock
+		titleSp.Children.Add(_channelTitleIconBorder);
+		var titleTb = new TextBlock
 		{
 			Text = "声道工具",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_channelPrimaryTextBlocks.Add(titleTb);
+		titleSp.Children.Add(titleTb);
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		var topActionsSp = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 10,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		btnRefreshTop.Click += (s, e) => RefreshChannelToolStatus();
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 		Grid.SetRow(headerGrid, 0);
 		root.Children.Add(headerGrid);
 
@@ -240,13 +202,14 @@ public sealed partial class DspPage
 		{
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextSubHeaderBrush
 		};
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		_channelPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		_channelPowerText = new TextBlock { Text = "已关闭", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) };
+		_channelPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = DspTextMutedBrush };
+		_channelPowerText = new TextBlock { Text = "已关闭", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush };
 		powerSp.Children.Add(_channelPowerIcon);
 		powerSp.Children.Add(_channelPowerText);
 		_channelPowerBtn.Content = powerSp;
@@ -267,9 +230,10 @@ public sealed partial class DspPage
 			Content = "A/B 对比",
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextSubHeaderBrush
 		};
 		_channelCompareBtn.Click += (s, e) =>
 		{
@@ -283,6 +247,8 @@ public sealed partial class DspPage
 		opLeftSp.Children.Add(_channelCompareBtn);
 
 		// Reset button
+		_channelResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = DspTextMutedBrush };
+		_channelResetText = new TextBlock { Text = "重置", FontSize = 13, Foreground = DspTextSubHeaderBrush };
 		_channelResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -291,15 +257,16 @@ public sealed partial class DspPage
 				Spacing = 5,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
-					new TextBlock { Text = "重置", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) }
+					_channelResetIcon,
+					_channelResetText
 				}
 			},
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextSubHeaderBrush
 		};
 		_channelResetBtn.Click += (s, e) =>
 		{
@@ -330,10 +297,10 @@ public sealed partial class DspPage
 		opGrid.Children.Add(opLeftSp);
 
 		// Right Segmented Switch: [ Simple | Pro ]
-		var modeSegBorder = new Border
+		_channelModeSegBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(240, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = GetChannelSoftSurfaceBrush(isDark),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(16),
 			Padding = new Thickness(3)
@@ -345,11 +312,11 @@ public sealed partial class DspPage
 			Content = "Simple",
 			Padding = new Thickness(14, 4, 14, 4),
 			CornerRadius = new CornerRadius(13),
-			Background = new SolidColorBrush(Colors.White),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(95, 99, 102, 241) : Colors.White),
 			BorderThickness = new Thickness(0),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
+			Foreground = DspAccentSoftTextBrush
 		};
 		_channelModeProBtn = new Button
 		{
@@ -360,7 +327,7 @@ public sealed partial class DspPage
 			BorderThickness = new Thickness(0),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.Normal,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 
 		_channelModeSimpleBtn.Click += (s, e) => SetChannelMode("simple");
@@ -368,9 +335,9 @@ public sealed partial class DspPage
 
 		modeSegSp.Children.Add(_channelModeSimpleBtn);
 		modeSegSp.Children.Add(_channelModeProBtn);
-		modeSegBorder.Child = modeSegSp;
-		Grid.SetColumn(modeSegBorder, 1);
-		opGrid.Children.Add(modeSegBorder);
+		_channelModeSegBorder.Child = modeSegSp;
+		Grid.SetColumn(_channelModeSegBorder, 1);
+		opGrid.Children.Add(_channelModeSegBorder);
 
 		Grid.SetRow(opGrid, 1);
 		root.Children.Add(opGrid);
@@ -380,12 +347,13 @@ public sealed partial class DspPage
 		// =========================================================================
 		var meterCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(24, 16, 24, 18)
 		};
+		_channelCardBorders.Add(meterCard);
 
 		var meterGrid = new Grid();
 		meterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -394,21 +362,24 @@ public sealed partial class DspPage
 
 		// Left output
 		var leftSp = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Left };
-		leftSp.Children.Add(new TextBlock { Text = "左输出", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) });
+		var leftOutLbl = new TextBlock { Text = "左输出", FontSize = 12, Foreground = DspTextMutedBrush };
+		_channelMutedTextBlocks.Add(leftOutLbl);
+		leftSp.Children.Add(leftOutLbl);
 		_leftOutputBigTb = new TextBlock
 		{
 			Text = "0 dB",
 			FontSize = 30,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
+		_channelPrimaryTextBlocks.Add(_leftOutputBigTb);
 		leftSp.Children.Add(_leftOutputBigTb);
 
-		var leftTrack = new Grid
+		_leftMeterTrack = new Grid
 		{
 			Height = 6,
 			CornerRadius = new CornerRadius(3),
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetChannelMeterTrackBrush(isDark),
 			Margin = new Thickness(0, 4, 0, 0)
 		};
 		_leftMeterFill = new Border
@@ -418,8 +389,8 @@ public sealed partial class DspPage
 			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
 			Width = 140
 		};
-		leftTrack.Children.Add(_leftMeterFill);
-		leftSp.Children.Add(leftTrack);
+		_leftMeterTrack.Children.Add(_leftMeterFill);
+		leftSp.Children.Add(_leftMeterTrack);
 		Grid.SetColumn(leftSp, 0);
 		meterGrid.Children.Add(leftSp);
 
@@ -435,14 +406,15 @@ public sealed partial class DspPage
 			Text = "中心稳定",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
+		_channelPrimaryTextBlocks.Add(_centerStatusBigTb);
 		_centerStatusSubTb = new TextBlock
 		{
 			Text = "已关闭",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		centerSp.Children.Add(_centerStatusBigTb);
@@ -452,22 +424,25 @@ public sealed partial class DspPage
 
 		// Right output
 		var rightSp = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
-		rightSp.Children.Add(new TextBlock { Text = "右输出", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Right });
+		var rightOutLbl = new TextBlock { Text = "右输出", FontSize = 12, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Right };
+		_channelMutedTextBlocks.Add(rightOutLbl);
+		rightSp.Children.Add(rightOutLbl);
 		_rightOutputBigTb = new TextBlock
 		{
 			Text = "0 dB",
 			FontSize = 30,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
+		_channelPrimaryTextBlocks.Add(_rightOutputBigTb);
 		rightSp.Children.Add(_rightOutputBigTb);
 
-		var rightTrack = new Grid
+		_rightMeterTrack = new Grid
 		{
 			Height = 6,
 			CornerRadius = new CornerRadius(3),
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetChannelMeterTrackBrush(isDark),
 			Margin = new Thickness(0, 4, 0, 0)
 		};
 		_rightMeterFill = new Border
@@ -477,8 +452,8 @@ public sealed partial class DspPage
 			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
 			Width = 140
 		};
-		rightTrack.Children.Add(_rightMeterFill);
-		rightSp.Children.Add(rightTrack);
+		_rightMeterTrack.Children.Add(_rightMeterFill);
+		rightSp.Children.Add(_rightMeterTrack);
 		Grid.SetColumn(rightSp, 2);
 		meterGrid.Children.Add(rightSp);
 
@@ -496,12 +471,13 @@ public sealed partial class DspPage
 		// --- Left Column: 声像平衡 ---
 		var panCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(panCard);
 		var panSp = new StackPanel { Spacing = 14 };
 
 		var panHeadGrid = new Grid();
@@ -513,17 +489,19 @@ public sealed partial class DspPage
 			Text = "声像平衡",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_channelPrimaryTextBlocks.Add(panTitleTb);
 		_balanceValTb = new TextBlock
 		{
 			Text = "0%",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_channelAccentTextBlocks.Add(_balanceValTb);
 		Grid.SetColumn(panTitleTb, 0);
 		Grid.SetColumn(_balanceValTb, 1);
 		panHeadGrid.Children.Add(panTitleTb);
@@ -557,9 +535,12 @@ public sealed partial class DspPage
 		panLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		panLabelsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var l100Tb = new TextBlock { Text = "L 100%", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Left };
-		var zeroTb = new TextBlock { Text = "0", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Center };
-		var r100Tb = new TextBlock { Text = "R 100%", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)), HorizontalAlignment = HorizontalAlignment.Right };
+		var l100Tb = new TextBlock { Text = "L 100%", FontSize = 11, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Left };
+		var zeroTb = new TextBlock { Text = "0", FontSize = 11, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center };
+		var r100Tb = new TextBlock { Text = "R 100%", FontSize = 11, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Right };
+		_channelMutedTextBlocks.Add(l100Tb);
+		_channelMutedTextBlocks.Add(zeroTb);
+		_channelMutedTextBlocks.Add(r100Tb);
 		Grid.SetColumn(l100Tb, 0);
 		Grid.SetColumn(zeroTb, 1);
 		Grid.SetColumn(r100Tb, 2);
@@ -575,31 +556,29 @@ public sealed partial class DspPage
 		// --- Right Column: 偏音补偿 ---
 		var biasCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(biasCard);
 		var biasSp = new StackPanel { Spacing = 12 };
 
-		var biasHeadGrid = new Grid();
-		biasHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		biasHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		var biasHeadSp = new StackPanel { Spacing = 8 };
 
 		var biasTitleTb = new TextBlock
 		{
 			Text = "偏音补偿",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
-			VerticalAlignment = VerticalAlignment.Center
+			Foreground = DspTextPrimaryBrush
 		};
-		Grid.SetColumn(biasTitleTb, 0);
-		biasHeadGrid.Children.Add(biasTitleTb);
+		_channelPrimaryTextBlocks.Add(biasTitleTb);
+		biasHeadSp.Children.Add(biasTitleTb);
 
 		// Step gain pills: +0.1 dB, +0.25 dB, +0.5 dB, +1 dB
-		var stepsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+		var stepsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		_trimStepButtons.Clear();
 		double[] steps = { 0.1, 0.25, 0.5, 1.0 };
 		foreach (var step in steps)
@@ -607,7 +586,7 @@ public sealed partial class DspPage
 			var stepBtn = new Button
 			{
 				Content = $"+{step} dB",
-				Padding = new Thickness(8, 2, 8, 2),
+				Padding = new Thickness(9, 3, 9, 3),
 				CornerRadius = new CornerRadius(10),
 				FontSize = 11,
 				BorderThickness = new Thickness(1),
@@ -623,15 +602,14 @@ public sealed partial class DspPage
 						ViewModel.FurinaChannelTrimStepDb = val;
 						ViewModel.SaveEchoSettings();
 					}
-					UpdateStepPills();
+					UpdateStepPills(IsDspDark);
 				}
 			};
 			_trimStepButtons.Add(stepBtn);
 			stepsSp.Children.Add(stepBtn);
 		}
-		Grid.SetColumn(stepsSp, 1);
-		biasHeadGrid.Children.Add(stepsSp);
-		biasSp.Children.Add(biasHeadGrid);
+		biasHeadSp.Children.Add(stepsSp);
+		biasSp.Children.Add(biasHeadSp);
 
 		// Two Big Card Buttons: [ 左侧偏响 ] and [ 右侧偏响 ]
 		var cardsGrid = new Grid { ColumnSpacing = 12 };
@@ -644,12 +622,12 @@ public sealed partial class DspPage
 			Height = 44,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		_leftTooLoudBtn.Click += (s, e) =>
 		{
@@ -670,12 +648,12 @@ public sealed partial class DspPage
 			Height = 44,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		_rightTooLoudBtn.Click += (s, e) =>
 		{
@@ -696,21 +674,22 @@ public sealed partial class DspPage
 		{
 			Text = "默认只降低偏响一侧，适合不可维修的耳机偏音补偿。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_channelMutedTextBlocks.Add(biasHintTb);
 		biasSp.Children.Add(biasHintTb);
 
 		// Auxiliary Action Links: "偏音清零" and "交换补偿方向"
 		var auxSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
 
-		var clearBtn = new HyperlinkButton
+		_channelClearAuxBtn = new HyperlinkButton
 		{
 			Content = "偏音清零",
 			FontSize = 12,
 			Padding = new Thickness(0),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
+			Foreground = DspAccentSoftTextBrush
 		};
-		clearBtn.Click += (s, e) =>
+		_channelClearAuxBtn.Click += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
@@ -729,16 +708,16 @@ public sealed partial class DspPage
 				RefreshChannelToolStatus();
 			}
 		};
-		auxSp.Children.Add(clearBtn);
+		auxSp.Children.Add(_channelClearAuxBtn);
 
-		var swapBtn = new HyperlinkButton
+		_channelSwapAuxBtn = new HyperlinkButton
 		{
 			Content = "交换补偿方向",
 			FontSize = 12,
 			Padding = new Thickness(0),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
+			Foreground = DspAccentSoftTextBrush
 		};
-		swapBtn.Click += (s, e) =>
+		_channelSwapAuxBtn.Click += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
@@ -767,7 +746,7 @@ public sealed partial class DspPage
 				RefreshChannelToolStatus();
 			}
 		};
-		auxSp.Children.Add(swapBtn);
+		auxSp.Children.Add(_channelSwapAuxBtn);
 		biasSp.Children.Add(auxSp);
 
 		biasCard.Child = biasSp;
@@ -780,7 +759,7 @@ public sealed partial class DspPage
 		// =========================================================================
 		// 4. Pro Mode Advanced Controls (Bands, Delays, Mono, Phase)
 		// =========================================================================
-		_proContainer = CreateProControlsPanel();
+		_proContainer = CreateProControlsPanel(isDark);
 		_proContainer.Visibility = Visibility.Collapsed;
 		Grid.SetRow(_proContainer, 4);
 		root.Children.Add(_proContainer);
@@ -790,33 +769,37 @@ public sealed partial class DspPage
 		// =========================================================================
 		var presetCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(presetCard);
 		var presetGrid = new Grid();
 		presetGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		presetGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var presetLeftSp = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		presetLeftSp.Children.Add(new TextBlock
+		var presetTitleTb = new TextBlock
 		{
 			Text = "耳机方案",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = DspTextPrimaryBrush
+		};
+		_channelPrimaryTextBlocks.Add(presetTitleTb);
+		presetLeftSp.Children.Add(presetTitleTb);
 
 		var presetPickerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 		_presetEmptyTb = new TextBlock
 		{
 			Text = "还没有保存的声道方案。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_channelMutedTextBlocks.Add(_presetEmptyTb);
 		presetPickerSp.Children.Add(_presetEmptyTb);
 
 		_presetCombo = new ComboBox
@@ -824,11 +807,26 @@ public sealed partial class DspPage
 			Width = 180,
 			Height = 36,
 			PlaceholderText = "选择耳机方案",
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
 			Visibility = Visibility.Collapsed
 		};
 		presetPickerSp.Children.Add(_presetCombo);
 
-		_presetApplyBtn = new Button { Content = "切换", Height = 36, Visibility = Visibility.Collapsed };
+		_presetApplyBtn = new Button
+		{
+			Content = "切换",
+			Height = 36,
+			Padding = new Thickness(12, 0, 12, 0),
+			CornerRadius = new CornerRadius(8),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
+			Visibility = Visibility.Collapsed
+		};
 		_presetApplyBtn.Click += (s, e) =>
 		{
 			if (_presetCombo?.SelectedItem is ChannelToolPreset p && ViewModel != null)
@@ -839,7 +837,18 @@ public sealed partial class DspPage
 		};
 		presetPickerSp.Children.Add(_presetApplyBtn);
 
-		_presetRenameBtn = new Button { Content = "重命名", Height = 36, Visibility = Visibility.Collapsed };
+		_presetRenameBtn = new Button
+		{
+			Content = "重命名",
+			Height = 36,
+			Padding = new Thickness(12, 0, 12, 0),
+			CornerRadius = new CornerRadius(8),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
+			Visibility = Visibility.Collapsed
+		};
 		_presetRenameBtn.Click += (s, e) =>
 		{
 			if (_presetCombo?.SelectedItem is ChannelToolPreset p && ViewModel != null && _presetDraftTb != null)
@@ -850,7 +859,18 @@ public sealed partial class DspPage
 		};
 		presetPickerSp.Children.Add(_presetRenameBtn);
 
-		_presetDeleteBtn = new Button { Content = "移除", Height = 36, Visibility = Visibility.Collapsed };
+		_presetDeleteBtn = new Button
+		{
+			Content = "移除",
+			Height = 36,
+			Padding = new Thickness(12, 0, 12, 0),
+			CornerRadius = new CornerRadius(8),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
+			Visibility = Visibility.Collapsed
+		};
 		_presetDeleteBtn.Click += (s, e) =>
 		{
 			if (_presetCombo?.SelectedItem is ChannelToolPreset p && ViewModel != null)
@@ -872,6 +892,9 @@ public sealed partial class DspPage
 			Width = 160,
 			Height = 36,
 			CornerRadius = new CornerRadius(8),
+			Background = GetChannelInputBgBrush(isDark),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		presetRightSp.Children.Add(_presetDraftTb);
@@ -884,8 +907,8 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE74E", FontSize = 13 },
-					new TextBlock { Text = "保存当前参数", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+					new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = new SolidColorBrush(Colors.White) },
+					new TextBlock { Text = "保存当前参数", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) }
 				}
 			},
 			Height = 36,
@@ -915,10 +938,13 @@ public sealed partial class DspPage
 		// =========================================================================
 		// 6. Realtime Diagnostics Expander (实时状态)
 		// =========================================================================
-		var diagExpander = new Expander
+		_channelDiagExpander = new Expander
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
-			Background = CreateAcrylicCardBrush(0.88, 235),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(16, 12, 16, 12),
 			IsExpanded = false
@@ -929,15 +955,18 @@ public sealed partial class DspPage
 			Orientation = Orientation.Horizontal,
 			Spacing = 8
 		};
-		expHeader.Children.Add(new FontIcon { Glyph = "\uE95D", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) });
-		expHeader.Children.Add(new TextBlock
+		_channelDiagIcon = new FontIcon { Glyph = "\uE95D", FontSize = 14, Foreground = DspAccentSoftTextBrush };
+		var diagTitleTb = new TextBlock
 		{
 			Text = "实时状态",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
-		diagExpander.Header = expHeader;
+			Foreground = DspTextPrimaryBrush
+		};
+		_channelPrimaryTextBlocks.Add(diagTitleTb);
+		expHeader.Children.Add(_channelDiagIcon);
+		expHeader.Children.Add(diagTitleTb);
+		_channelDiagExpander.Header = expHeader;
 
 		var expContentSp = new StackPanel { Spacing = 12 };
 
@@ -947,42 +976,50 @@ public sealed partial class DspPage
 		factsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		factsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		_factLeftTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
-		_factRightTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
-		_factDelaySkewTb = new TextBlock { Text = "0.00 ms", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
-		_factStatusDescTb = new TextBlock { Text = "建议从 0.25 dB 开始微调", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		_factLeftTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_factRightTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_factDelaySkewTb = new TextBlock { Text = "0.00 ms", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_factStatusDescTb = new TextBlock { Text = "建议从 0.25 dB 开始微调", FontSize = 13, Foreground = DspTextMutedBrush };
+		_channelPrimaryTextBlocks.Add(_factLeftTb);
+		_channelPrimaryTextBlocks.Add(_factRightTb);
+		_channelPrimaryTextBlocks.Add(_factDelaySkewTb);
+		_channelMutedTextBlocks.Add(_factStatusDescTb);
 
-		factsGrid.Children.Add(CreateFactBox("左总增益", _factLeftTb, 0));
-		factsGrid.Children.Add(CreateFactBox("右总增益", _factRightTb, 1));
-		factsGrid.Children.Add(CreateFactBox("左右延迟差", _factDelaySkewTb, 2));
-		factsGrid.Children.Add(CreateFactBox("推荐建议", _factStatusDescTb, 3));
+		factsGrid.Children.Add(CreateFactBox("左总增益", _factLeftTb, 0, isDark));
+		factsGrid.Children.Add(CreateFactBox("右总增益", _factRightTb, 1, isDark));
+		factsGrid.Children.Add(CreateFactBox("左右延迟差", _factDelaySkewTb, 2, isDark));
+		factsGrid.Children.Add(CreateFactBox("推荐建议", _factStatusDescTb, 3, isDark));
 		expContentSp.Children.Add(factsGrid);
 
 		var noteTb = new TextBlock
 		{
 			Text = "声道工具已从参数 EQ 中分离，适合检查声像、左右耳差异和单声道兼容。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 4, 0, 0)
 		};
+		_channelMutedTextBlocks.Add(noteTb);
 		expContentSp.Children.Add(noteTb);
-		diagExpander.Content = expContentSp;
+		_channelDiagExpander.Content = expContentSp;
 
-		Grid.SetRow(diagExpander, 6);
-		root.Children.Add(diagExpander);
+		Grid.SetRow(_channelDiagExpander, 6);
+		root.Children.Add(_channelDiagExpander);
 
 		sv.Content = root;
-		_channelToolWorkbench = new Border { Child = sv };
+		_channelToolWorkbench = new Border
+		{
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light,
+			Child = sv
+		};
 
 		// Initial load
-		UpdateStepPills();
-		RefreshChannelToolStatus();
+		RefreshChannelToolTheme(isDark);
 		RefreshPresetsUI();
 
 		return _channelToolWorkbench;
 	}
 
-	private Grid CreateProControlsPanel()
+	private Grid CreateProControlsPanel(bool isDark)
 	{
 		var proGrid = new Grid { RowSpacing = 16 };
 		proGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: 3-band table
@@ -991,26 +1028,31 @@ public sealed partial class DspPage
 		// --- 0. 3-Band Equalization ---
 		var bandCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(bandCard);
 		var bandSp = new StackPanel { Spacing = 12 };
-		bandSp.Children.Add(new TextBlock
+		var bandTitleTb = new TextBlock
 		{
 			Text = "分频段左右补偿",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
-		bandSp.Children.Add(new TextBlock
+			Foreground = DspTextPrimaryBrush
+		};
+		_channelPrimaryTextBlocks.Add(bandTitleTb);
+		bandSp.Children.Add(bandTitleTb);
+		var bandSubTb = new TextBlock
 		{
 			Text = "默认只降低偏响一侧，适合高低频不均衡的耳机偏音校准。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
-		});
+			Foreground = DspTextMutedBrush
+		};
+		_channelMutedTextBlocks.Add(bandSubTb);
+		bandSp.Children.Add(bandSubTb);
 
 		var bandGrid = new Grid { RowSpacing = 10 };
 		bandGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140, GridUnitType.Pixel) });
@@ -1018,20 +1060,26 @@ public sealed partial class DspPage
 		bandGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// Header
-		var h0 = new TextBlock { Text = "频段", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		var h1 = new TextBlock { Text = "左输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		var h2 = new TextBlock { Text = "右输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		var h0 = new TextBlock { Text = "频段", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var h1 = new TextBlock { Text = "左输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var h2 = new TextBlock { Text = "右输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		_channelMutedTextBlocks.Add(h0);
+		_channelMutedTextBlocks.Add(h1);
+		_channelMutedTextBlocks.Add(h2);
 		Grid.SetColumn(h0, 0); Grid.SetColumn(h1, 1); Grid.SetColumn(h2, 2);
 		bandGrid.Children.Add(h0); bandGrid.Children.Add(h1); bandGrid.Children.Add(h2);
 
 		// Low band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var lowLbl = new TextBlock { Text = "低频 (< 250 Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
+		var lowLbl = new TextBlock { Text = "低频 (< 250 Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		_channelSecondaryTextBlocks.Add(lowLbl);
 		_proLowLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proLowRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
-		_proLowLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
-		_proLowRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
+		_proLowLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_proLowRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_channelAccentTextBlocks.Add(_proLowLTb);
+		_channelAccentTextBlocks.Add(_proLowRTb);
 
 		_proLowLSlider.ValueChanged += (s, e) =>
 		{
@@ -1066,11 +1114,14 @@ public sealed partial class DspPage
 
 		// Mid band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var midLbl = new TextBlock { Text = "中频 (250~4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
+		var midLbl = new TextBlock { Text = "中频 (250~4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		_channelSecondaryTextBlocks.Add(midLbl);
 		_proMidLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proMidRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
-		_proMidLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
-		_proMidRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
+		_proMidLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_proMidRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_channelAccentTextBlocks.Add(_proMidLTb);
+		_channelAccentTextBlocks.Add(_proMidRTb);
 
 		_proMidLSlider.ValueChanged += (s, e) =>
 		{
@@ -1105,11 +1156,14 @@ public sealed partial class DspPage
 
 		// High band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var highLbl = new TextBlock { Text = "高频 (> 4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
+		var highLbl = new TextBlock { Text = "高频 (> 4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		_channelSecondaryTextBlocks.Add(highLbl);
 		_proHighLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proHighRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
-		_proHighLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
-		_proHighRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
+		_proHighLTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_proHighRTb = new TextBlock { Text = "0.0 dB", FontSize = 12, Foreground = DspAccentSoftTextBrush };
+		_channelAccentTextBlocks.Add(_proHighLTb);
+		_channelAccentTextBlocks.Add(_proHighRTb);
 
 		_proHighLSlider.ValueChanged += (s, e) =>
 		{
@@ -1155,20 +1209,23 @@ public sealed partial class DspPage
 		// Advanced Delays & Precise Gains Card
 		var precCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(precCard);
 		var precSp = new StackPanel { Spacing = 12 };
-		precSp.Children.Add(new TextBlock
+		var precTitleTb = new TextBlock
 		{
 			Text = "高级声道 (精确控制)",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = DspTextPrimaryBrush
+		};
+		_channelPrimaryTextBlocks.Add(precTitleTb);
+		precSp.Children.Add(precTitleTb);
 
 		var fGrid = new Grid { RowSpacing = 8, ColumnSpacing = 12 };
 		fGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -1176,10 +1233,10 @@ public sealed partial class DspPage
 		fGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		fGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-		_proLeftGainNb = new NumberBox { Header = "左声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0 };
-		_proRightGainNb = new NumberBox { Header = "右声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0 };
-		_proLeftDelayNb = new NumberBox { Header = "左声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0 };
-		_proRightDelayNb = new NumberBox { Header = "右声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0 };
+		_proLeftGainNb = new NumberBox { Header = "左声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proRightGainNb = new NumberBox { Header = "右声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proLeftDelayNb = new NumberBox { Header = "左声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proRightDelayNb = new NumberBox { Header = "右声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
 
 		_proLeftGainNb.ValueChanged += (s, e) =>
 		{
@@ -1232,21 +1289,24 @@ public sealed partial class DspPage
 		// Mono & Phase Routing Card
 		var routeCard = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
 		};
+		_channelCardBorders.Add(routeCard);
 		var routeSp = new StackPanel { Spacing = 14 };
 
-		routeSp.Children.Add(new TextBlock
+		var routeTitleTb = new TextBlock
 		{
 			Text = "Mono 检查与相位路由",
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = DspTextPrimaryBrush
+		};
+		_channelPrimaryTextBlocks.Add(routeTitleTb);
+		routeSp.Children.Add(routeTitleTb);
 
 		// Mono Buttons
 		var monoSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -1265,6 +1325,7 @@ public sealed partial class DspPage
 				Content = item.name,
 				Padding = new Thickness(10, 4, 10, 4),
 				CornerRadius = new CornerRadius(8),
+				BorderThickness = new Thickness(1),
 				FontSize = 12,
 				Tag = item.key
 			};
@@ -1274,7 +1335,7 @@ public sealed partial class DspPage
 				{
 					ViewModel.FurinaChannelMonoMode = mk;
 					ViewModel.ApplyChannelToolSettings();
-					UpdateMonoButtons();
+					UpdateMonoButtons(IsDspDark);
 				}
 			};
 			_monoModeButtons.Add(btn);
@@ -1284,10 +1345,10 @@ public sealed partial class DspPage
 
 		// Phase CheckBoxes
 		var cbSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-		_phaseConstantPowerCb = new CheckBox { Content = "恒功率平衡" };
-		_phaseSwapCb = new CheckBox { Content = "左右交换" };
-		_phaseInvertLCb = new CheckBox { Content = "左声道反相" };
-		_phaseInvertRCb = new CheckBox { Content = "右声道反相" };
+		_phaseConstantPowerCb = new CheckBox { Content = "恒功率平衡", Foreground = DspTextSecondaryBrush };
+		_phaseSwapCb = new CheckBox { Content = "左右交换", Foreground = DspTextSecondaryBrush };
+		_phaseInvertLCb = new CheckBox { Content = "左声道反相", Foreground = DspTextSecondaryBrush };
+		_phaseInvertRCb = new CheckBox { Content = "右声道反相", Foreground = DspTextSecondaryBrush };
 
 		_phaseConstantPowerCb.Click += (s, e) =>
 		{
@@ -1342,76 +1403,278 @@ public sealed partial class DspPage
 		return proGrid;
 	}
 
-	private static Border CreateFactBox(string label, TextBlock valueTb, int col)
+	private Border CreateFactBox(string label, TextBlock valueTb, int col, bool isDark)
 	{
 		var b = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(200, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = GetChannelSoftSurfaceBrush(isDark),
+			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 8, 12, 8)
 		};
+		_channelFactBoxBorders.Add(b);
 		var sp = new StackPanel { Spacing = 2 };
-		sp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) });
+		var lblTb = new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush };
+		_channelMutedTextBlocks.Add(lblTb);
+		sp.Children.Add(lblTb);
 		sp.Children.Add(valueTb);
 		b.Child = sp;
 		Grid.SetColumn(b, col);
 		return b;
 	}
 
-	private void SetChannelMode(string mode)
+	private static Brush CreateChannelSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
+	{
+		return LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
+	}
+
+	private static Brush CreateChannelRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: isDark,
+			isHovered: isHovered,
+			isSelected: isSelected);
+	}
+
+	private static Brush GetChannelSoftSurfaceBrush(bool isDark)
+	{
+		return isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+	}
+
+	private static Brush GetChannelInputBgBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(140, 30, 41, 59) : Color.FromArgb(220, 255, 255, 255));
+	}
+
+	private static Brush GetChannelMeterTrackBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(255, 226, 232, 240));
+	}
+
+	private static void ApplyChannelButtonSurface(Button? btn, bool isDark, Brush foregroundBrush)
+	{
+		if (btn == null) return;
+		btn.Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		btn.BorderBrush = CreateChannelRimBrush(isDark);
+		btn.BorderThickness = new Thickness(1);
+		btn.Foreground = foregroundBrush;
+	}
+
+	private void ApplyChannelPowerButtonTheme(bool isDark, bool enabled)
+	{
+		if (_channelPowerBtn == null) return;
+
+		if (enabled)
+		{
+			var greenBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74));
+			_channelPowerBtn.Background = new SolidColorBrush(isDark ? Color.FromArgb(55, 34, 197, 94) : Color.FromArgb(255, 240, 253, 244));
+			_channelPowerBtn.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(145, 74, 222, 128) : Color.FromArgb(255, 134, 239, 172));
+			_channelPowerBtn.Foreground = greenBrush;
+			if (_channelPowerText != null) _channelPowerText.Foreground = greenBrush;
+			if (_channelPowerIcon != null) _channelPowerIcon.Foreground = greenBrush;
+		}
+		else
+		{
+			var subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+			var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+			ApplyChannelButtonSurface(_channelPowerBtn, isDark, subHeaderBrush);
+			if (_channelPowerText != null) _channelPowerText.Foreground = subHeaderBrush;
+			if (_channelPowerIcon != null) _channelPowerIcon.Foreground = mutedBrush;
+		}
+	}
+
+	private void ApplyChannelCompareButtonTheme(bool isDark, bool compareBypassed)
+	{
+		if (_channelCompareBtn == null) return;
+
+		if (compareBypassed)
+		{
+			_channelCompareBtn.Background = new SolidColorBrush(isDark ? Color.FromArgb(75, 245, 158, 11) : Color.FromArgb(255, 254, 243, 199));
+			_channelCompareBtn.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(190, 251, 191, 36) : Color.FromArgb(255, 245, 158, 11));
+			_channelCompareBtn.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 253, 230, 138) : Color.FromArgb(255, 146, 64, 14));
+		}
+		else
+		{
+			var subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+			ApplyChannelButtonSurface(_channelCompareBtn, isDark, subHeaderBrush);
+		}
+	}
+
+	public void RefreshChannelToolTheme(bool isDark)
+	{
+		if (_channelToolWorkbench == null) return;
+
+		_channelToolWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+
+		Brush primaryText = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		Brush secondaryText = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+		Brush subHeaderText = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+		Brush mutedText = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		Brush accentSoftBg = new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+		Brush accentSoftText = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+		Brush cardBg = CreateChannelSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = CreateChannelRimBrush(isDark);
+		Brush softBg = GetChannelSoftSurfaceBrush(isDark);
+
+		if (_channelRootGrid != null)
+		{
+			_channelRootGrid.Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+		}
+		if (_channelTitleIconBorder != null) _channelTitleIconBorder.Background = accentSoftBg;
+		if (_channelTitleIcon != null) _channelTitleIcon.Foreground = accentSoftText;
+
+		foreach (var card in _channelCardBorders)
+		{
+			card.Background = cardBg;
+			card.BorderBrush = rimBrush;
+		}
+		foreach (var box in _channelFactBoxBorders)
+		{
+			box.Background = softBg;
+			box.BorderBrush = rimBrush;
+		}
+
+		foreach (var tb in _channelPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _channelSecondaryTextBlocks) tb.Foreground = secondaryText;
+		foreach (var tb in _channelMutedTextBlocks) tb.Foreground = mutedText;
+		foreach (var tb in _channelAccentTextBlocks) tb.Foreground = accentSoftText;
+
+		if (_leftMeterTrack != null) _leftMeterTrack.Background = GetChannelMeterTrackBrush(isDark);
+		if (_rightMeterTrack != null) _rightMeterTrack.Background = GetChannelMeterTrackBrush(isDark);
+
+		if (_channelModeSegBorder != null)
+		{
+			_channelModeSegBorder.Background = softBg;
+			_channelModeSegBorder.BorderBrush = rimBrush;
+		}
+
+		ApplyChannelButtonSurface(_channelResetBtn, isDark, subHeaderText);
+		if (_channelResetIcon != null) _channelResetIcon.Foreground = mutedText;
+		if (_channelResetText != null) _channelResetText.Foreground = subHeaderText;
+
+		ApplyChannelButtonSurface(_leftTooLoudBtn, isDark, primaryText);
+		ApplyChannelButtonSurface(_rightTooLoudBtn, isDark, primaryText);
+
+		if (_channelClearAuxBtn != null) _channelClearAuxBtn.Foreground = accentSoftText;
+		if (_channelSwapAuxBtn != null) _channelSwapAuxBtn.Foreground = accentSoftText;
+
+		if (_presetCombo != null)
+		{
+			_presetCombo.Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+			_presetCombo.BorderBrush = rimBrush;
+			_presetCombo.Foreground = primaryText;
+		}
+		ApplyChannelButtonSurface(_presetApplyBtn, isDark, primaryText);
+		ApplyChannelButtonSurface(_presetRenameBtn, isDark, primaryText);
+		ApplyChannelButtonSurface(_presetDeleteBtn, isDark, primaryText);
+		if (_presetDraftTb != null)
+		{
+			_presetDraftTb.Background = GetChannelInputBgBrush(isDark);
+			_presetDraftTb.BorderBrush = rimBrush;
+			_presetDraftTb.Foreground = primaryText;
+		}
+
+		if (_channelDiagExpander != null)
+		{
+			_channelDiagExpander.Background = cardBg;
+			_channelDiagExpander.BorderBrush = rimBrush;
+			_channelDiagExpander.Foreground = primaryText;
+		}
+		if (_channelDiagIcon != null) _channelDiagIcon.Foreground = accentSoftText;
+
+		if (_proLeftGainNb != null) _proLeftGainNb.Foreground = primaryText;
+		if (_proRightGainNb != null) _proRightGainNb.Foreground = primaryText;
+		if (_proLeftDelayNb != null) _proLeftDelayNb.Foreground = primaryText;
+		if (_proRightDelayNb != null) _proRightDelayNb.Foreground = primaryText;
+
+		if (_phaseConstantPowerCb != null) _phaseConstantPowerCb.Foreground = secondaryText;
+		if (_phaseSwapCb != null) _phaseSwapCb.Foreground = secondaryText;
+		if (_phaseInvertLCb != null) _phaseInvertLCb.Foreground = secondaryText;
+		if (_phaseInvertRCb != null) _phaseInvertRCb.Foreground = secondaryText;
+
+		SetChannelMode(ViewModel?.FurinaChannelProMode ?? "simple", isDark, persist: false);
+		UpdateStepPills(isDark);
+		UpdateMonoButtons(isDark);
+		RefreshChannelToolStatus(isDark);
+	}
+
+	private void SetChannelMode(string mode, bool? isDarkOverride = null, bool persist = true)
 	{
 		bool isPro = string.Equals(mode, "pro", StringComparison.OrdinalIgnoreCase);
+		bool isDark = isDarkOverride ?? IsDspDark;
+		var activeBg = isDark ? Color.FromArgb(95, 99, 102, 241) : Colors.White;
+		var activeFg = isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229);
+		var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
 		if (_channelModeSimpleBtn != null)
 		{
-			_channelModeSimpleBtn.Background = new SolidColorBrush(isPro ? Colors.Transparent : Colors.White);
-			_channelModeSimpleBtn.Foreground = new SolidColorBrush(isPro ? Color.FromArgb(255, 100, 116, 139) : Color.FromArgb(255, 79, 70, 229));
+			_channelModeSimpleBtn.Background = new SolidColorBrush(isPro ? Colors.Transparent : activeBg);
+			_channelModeSimpleBtn.Foreground = isPro ? mutedBrush : new SolidColorBrush(activeFg);
 			_channelModeSimpleBtn.FontWeight = isPro ? Microsoft.UI.Text.FontWeights.Normal : Microsoft.UI.Text.FontWeights.SemiBold;
 		}
 		if (_channelModeProBtn != null)
 		{
-			_channelModeProBtn.Background = new SolidColorBrush(isPro ? Colors.White : Colors.Transparent);
-			_channelModeProBtn.Foreground = new SolidColorBrush(isPro ? Color.FromArgb(255, 79, 70, 229) : Color.FromArgb(255, 100, 116, 139));
+			_channelModeProBtn.Background = new SolidColorBrush(isPro ? activeBg : Colors.Transparent);
+			_channelModeProBtn.Foreground = isPro ? new SolidColorBrush(activeFg) : mutedBrush;
 			_channelModeProBtn.FontWeight = isPro ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
 		}
 		if (_proContainer != null)
 		{
 			_proContainer.Visibility = isPro ? Visibility.Visible : Visibility.Collapsed;
 		}
-		if (ViewModel != null)
+		if (persist && ViewModel != null)
 		{
 			ViewModel.FurinaChannelProMode = mode;
 			ViewModel.SaveEchoSettings();
 		}
 	}
 
-	private void UpdateStepPills()
+	private void UpdateStepPills(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+		var mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
 		foreach (var btn in _trimStepButtons)
 		{
 			if (btn.Tag is double val)
 			{
 				bool active = Math.Abs(val - _currentTrimStep) < 0.01;
-				btn.Background = new SolidColorBrush(active ? Color.FromArgb(255, 238, 242, 255) : Colors.Transparent);
-				btn.BorderBrush = new SolidColorBrush(active ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(100, 226, 232, 240));
-				btn.Foreground = new SolidColorBrush(active ? Color.FromArgb(255, 79, 70, 229) : Color.FromArgb(255, 100, 116, 139));
+				btn.Background = new SolidColorBrush(active
+					? (isDark ? Color.FromArgb(80, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255))
+					: Colors.Transparent);
+				btn.BorderBrush = new SolidColorBrush(active
+					? (isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254))
+					: (isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(100, 226, 232, 240)));
+				btn.Foreground = active
+					? new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229))
+					: mutedBrush;
 				btn.FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
 			}
 		}
 	}
 
-	private void UpdateMonoButtons()
+	private void UpdateMonoButtons(bool? isDarkOverride = null)
 	{
 		string activeKey = ViewModel?.FurinaChannelMonoMode ?? "off";
+		bool isDark = isDarkOverride ?? IsDspDark;
+		var subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
 		foreach (var btn in _monoModeButtons)
 		{
 			if (btn.Tag is string k)
 			{
 				bool active = string.Equals(k, activeKey, StringComparison.OrdinalIgnoreCase);
-				btn.Background = new SolidColorBrush(active ? Color.FromArgb(255, 238, 242, 255) : Color.FromArgb(200, 255, 255, 255));
-				btn.BorderBrush = new SolidColorBrush(active ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(120, 226, 232, 240));
-				btn.Foreground = new SolidColorBrush(active ? Color.FromArgb(255, 79, 70, 229) : Color.FromArgb(255, 71, 85, 105));
+				btn.Background = active
+					? new SolidColorBrush(isDark ? Color.FromArgb(80, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255))
+					: CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, isDark ? 0.85 : 0.92);
+				btn.BorderBrush = new SolidColorBrush(active
+					? (isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254))
+					: (isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(120, 226, 232, 240)));
+				btn.Foreground = active
+					? new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229))
+					: subHeaderBrush;
 				btn.FontWeight = active ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
 			}
 		}
@@ -1435,12 +1698,27 @@ public sealed partial class DspPage
 		if (_presetDeleteBtn != null) _presetDeleteBtn.Visibility = hasPresets ? Visibility.Visible : Visibility.Collapsed;
 	}
 
-	public void RefreshChannelToolStatus()
+	public void RefreshChannelToolStatus() => RefreshChannelToolStatus(IsDspDark);
+
+	private void RefreshChannelToolStatus(bool isDark)
 	{
+		bool enabled = ViewModel?.FurinaChannelToolEnabled ?? false;
+		bool compareBypassed = ViewModel?.FurinaChannelCompareBypassed ?? false;
+
+		if (_channelPowerText != null)
+		{
+			_channelPowerText.Text = enabled ? "已开启" : "已关闭";
+		}
+		ApplyChannelPowerButtonTheme(isDark, enabled);
+
+		if (_channelCompareBtn != null)
+		{
+			_channelCompareBtn.Content = compareBypassed ? "已旁路 (对比中)" : "A/B 对比";
+		}
+		ApplyChannelCompareButtonTheme(isDark, compareBypassed);
+
 		if (ViewModel == null) return;
 
-		bool enabled = ViewModel.FurinaChannelToolEnabled;
-		bool compareBypassed = ViewModel.FurinaChannelCompareBypassed;
 		double bal = ViewModel.FurinaChannelBalance;
 		bool constPower = ViewModel.FurinaChannelConstantPower;
 
@@ -1467,31 +1745,6 @@ public sealed partial class DspPage
 		double totalLeftDb = Math.Round((ViewModel.FurinaChannelLeftGainDb + leftBalDb) * 100.0) / 100.0;
 		double totalRightDb = Math.Round((ViewModel.FurinaChannelRightGainDb + rightBalDb) * 100.0) / 100.0;
 		double skew = Math.Round((totalRightDb - totalLeftDb) * 100.0) / 100.0;
-
-		// 2. Power & Compare State
-		if (_channelPowerText != null)
-		{
-			_channelPowerText.Text = enabled ? "已开启" : "已关闭";
-			_channelPowerText.Foreground = enabled
-				? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
-				: new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-		}
-		if (_channelPowerIcon != null)
-		{
-			_channelPowerIcon.Foreground = enabled
-				? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-		}
-		if (_channelCompareBtn != null)
-		{
-			_channelCompareBtn.Content = compareBypassed ? "已旁路 (对比中)" : "A/B 对比";
-			_channelCompareBtn.Background = compareBypassed
-				? new SolidColorBrush(Color.FromArgb(255, 254, 243, 199))
-				: new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			_channelCompareBtn.BorderBrush = compareBypassed
-				? new SolidColorBrush(Color.FromArgb(255, 245, 158, 11))
-				: new SolidColorBrush(Color.FromArgb(160, 226, 232, 240));
-		}
 
 		// 3. Level Readouts
 		if (_leftOutputBigTb != null)
@@ -1522,8 +1775,8 @@ public sealed partial class DspPage
 		{
 			_centerStatusSubTb.Text = compareBypassed ? "已旁路 (对比中)" : (enabled ? "已开启" : "已关闭");
 			_centerStatusSubTb.Foreground = enabled && !compareBypassed
-				? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				? new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74))
+				: new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
 		}
 
 		// Meter bars (symmetric fill)
@@ -1576,7 +1829,7 @@ public sealed partial class DspPage
 		if (_phaseSwapCb != null) _phaseSwapCb.IsChecked = ViewModel.FurinaChannelSwapLeftRight;
 		if (_phaseInvertLCb != null) _phaseInvertLCb.IsChecked = ViewModel.FurinaChannelInvertLeft;
 		if (_phaseInvertRCb != null) _phaseInvertRCb.IsChecked = ViewModel.FurinaChannelInvertRight;
-		UpdateMonoButtons();
+		UpdateMonoButtons(isDark);
 
 		// 7. Sidebar text update
 		if (_channelNavSubTb != null)

@@ -123,14 +123,14 @@ public sealed partial class DspPage
 			Width = 38,
 			Height = 38,
 			CornerRadius = new CornerRadius(9),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Background = DspAccentSoftBgBrush,
 			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 224, 231, 255)),
 			BorderThickness = new Thickness(1),
 			Child = new FontIcon
 			{
 				Glyph = "\uE8B7",
 				FontSize = 18,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+				Foreground = DspAccentSoftTextBrush,
 				HorizontalAlignment = HorizontalAlignment.Center,
 				VerticalAlignment = VerticalAlignment.Center
 			}
@@ -143,70 +143,18 @@ public sealed partial class DspPage
 			Text = "DSP 模块",
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		titleSp.Children.Add(new TextBlock
 		{
 			Text = "FurinaPlayer SDM / DSD (测试版)",
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		leftSp.Children.Add(titleSp);
 		Grid.SetColumn(leftSp, 0);
 		topGrid.Children.Add(leftSp);
-
-		// Right: Badges & Buttons
-		var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-
-		// Pill 1: 4 个模块已启用
-		var activeBadge = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(6),
-			Padding = new Thickness(10, 5, 10, 5)
-		};
-		var activeBadgeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		activeBadgeSp.Children.Add(new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		activeBadgeSp.Children.Add(new TextBlock { Text = "4 个模块已启用", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		activeBadge.Child = activeBadgeSp;
-		rightSp.Children.Add(activeBadge);
-
-		// Pill 2: 就绪
-		var readyBadge = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(6),
-			Padding = new Thickness(10, 5, 10, 5)
-		};
-		var readyBadgeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		readyBadgeSp.Children.Add(new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
-		readyBadgeSp.Children.Add(new TextBlock { Text = "就绪", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
-		readyBadge.Child = readyBadgeSp;
-		rightSp.Children.Add(readyBadge);
-
-		// Button: 刷新状态
-		var refreshBtn = new Button
-		{
-			Padding = new Thickness(12, 5, 12, 5),
-			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		var refreshSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		refreshSp.Children.Add(new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		refreshSp.Children.Add(new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
-		refreshBtn.Content = refreshSp;
-		refreshBtn.Click += (s, e) => UpdateSdmUiStates();
-		rightSp.Children.Add(refreshBtn);
-
-		Grid.SetColumn(rightSp, 1);
-		topGrid.Children.Add(rightSp);
 
 		return topGrid;
 	}
@@ -226,7 +174,7 @@ public sealed partial class DspPage
 			Text = "ACTUAL OUTPUT",
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		var bigTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Bottom };
@@ -235,7 +183,7 @@ public sealed partial class DspPage
 			Text = "当前不是 DSD 源",
 			FontSize = 36,
 			FontWeight = Microsoft.UI.Text.FontWeights.Light,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		_sdmActualOutputSubTb = new TextBlock
 		{
@@ -243,7 +191,7 @@ public sealed partial class DspPage
 			FontSize = 20,
 			FontFamily = new FontFamily("Consolas, Courier New"),
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			Margin = new Thickness(0, 0, 0, 4),
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
@@ -262,7 +210,7 @@ public sealed partial class DspPage
 			Text = "真实信号路径",
 			FontSize = 11.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		Grid.SetColumn(pathLabel, 0);
 		pathSubGrid.Children.Add(pathLabel);
@@ -272,7 +220,7 @@ public sealed partial class DspPage
 			Text = "Requested: 关闭 SDM",
 			FontSize = 11,
 			FontFamily = new FontFamily("Consolas, Courier New"),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		Grid.SetColumn(_sdmRequestedTb, 1);
 		pathSubGrid.Children.Add(_sdmRequestedTb);
@@ -287,23 +235,23 @@ public sealed partial class DspPage
 		pipelineGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
 
 		// Node 01: Source
-		_sdmNodeSourceTb = new TextBlock { Text = "FLAC", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_sdmNodeSourceTb = new TextBlock { Text = "FLAC", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("01 · Source", _sdmNodeSourceTb, false, 0));
 
 		// Node 02: PCM oversampling
-		_sdmNodeOversampleTb = new TextBlock { Text = "-- / --", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_sdmNodeOversampleTb = new TextBlock { Text = "-- / --", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("02 · PCM oversampling", _sdmNodeOversampleTb, false, 1));
 
 		// Node 03: PCM -> SDM modulator
-		_sdmNodeModulatorTb = new TextBlock { Text = "Realtime Safe", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_sdmNodeModulatorTb = new TextBlock { Text = "Realtime Safe", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("03 · PCM -> SDM modulator", _sdmNodeModulatorTb, false, 2));
 
 		// Node 04: Transport
-		_sdmNodeTransportTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_sdmNodeTransportTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("04 · Transport", _sdmNodeTransportTb, false, 3));
 
 		// Node 05: Actual output
-		_sdmNodeActualOutputTb = new TextBlock { Text = "当前不是 DSD 源", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_sdmNodeActualOutputTb = new TextBlock { Text = "当前不是 DSD 源", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("05 · Actual output", _sdmNodeActualOutputTb, true, 4));
 
 		leftStack.Children.Add(pipelineGrid);
@@ -323,8 +271,8 @@ public sealed partial class DspPage
 			Padding = new Thickness(8, 4, 8, 4)
 		};
 		var advSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-		advSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		advSp.Children.Add(new FontIcon { Glyph = "\uE70D", FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
+		advSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, Foreground = DspAccentSoftTextBrush });
+		advSp.Children.Add(new FontIcon { Glyph = "\uE70D", FontSize = 10, Foreground = DspAccentSoftTextBrush });
 		_btnToggleAdvanced.Content = advSp;
 		_btnToggleAdvanced.Click += (s, e) => ToggleAdvancedPanel();
 		advHeader.Children.Add(_btnToggleAdvanced);
@@ -337,21 +285,21 @@ public sealed partial class DspPage
 
 		// Gauge 1: REALTIME BUDGET
 		var g1Sp = new StackPanel { Spacing = 5 };
-		g1Sp.Children.Add(new TextBlock { Text = "REALTIME BUDGET", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		_sdmRealtimeBudgetTb = new TextBlock { Text = "--", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) };
+		g1Sp.Children.Add(new TextBlock { Text = "REALTIME BUDGET", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextMutedBrush });
+		_sdmRealtimeBudgetTb = new TextBlock { Text = "--", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush };
 		g1Sp.Children.Add(_sdmRealtimeBudgetTb);
 		g1Sp.Children.Add(CreateSegmentedBarVisual(14, false));
-		g1Sp.Children.Add(new TextBlock { Text = "Audio Core runtime unavailable", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) });
+		g1Sp.Children.Add(new TextBlock { Text = "Audio Core runtime unavailable", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush });
 		Grid.SetColumn(g1Sp, 0);
 		gaugesGrid.Children.Add(g1Sp);
 
 		// Gauge 2: STABILITY GUARD
 		var g2Sp = new StackPanel { Spacing = 5 };
-		g2Sp.Children.Add(new TextBlock { Text = "STABILITY GUARD", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		_sdmStabilityGuardTb = new TextBlock { Text = "--", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) };
+		g2Sp.Children.Add(new TextBlock { Text = "STABILITY GUARD", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextMutedBrush });
+		_sdmStabilityGuardTb = new TextBlock { Text = "--", FontSize = 26, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush };
 		g2Sp.Children.Add(_sdmStabilityGuardTb);
 		g2Sp.Children.Add(CreateSegmentedBarVisual(14, false));
-		g2Sp.Children.Add(new TextBlock { Text = "Audio Core runtime unavailable", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) });
+		g2Sp.Children.Add(new TextBlock { Text = "Audio Core runtime unavailable", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush });
 		Grid.SetColumn(g2Sp, 1);
 		gaugesGrid.Children.Add(g2Sp);
 
@@ -366,13 +314,13 @@ public sealed partial class DspPage
 		statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		statsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		_sdmNoiseTransferTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		_sdmNoiseTransferTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextSubHeaderBrush };
 		statsGrid.Children.Add(CreateStatStack("NOISE TRANSFER", _sdmNoiseTransferTb, 0));
 
-		_sdmWorkerLatencyTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		_sdmWorkerLatencyTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextSubHeaderBrush };
 		statsGrid.Children.Add(CreateStatStack("WORKER LATENCY", _sdmWorkerLatencyTb, 1));
 
-		_sdmQuantizerGuardTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) };
+		_sdmQuantizerGuardTb = new TextBlock { Text = "--", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.Medium, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextSubHeaderBrush };
 		statsGrid.Children.Add(CreateStatStack("QUANTIZER GUARD", _sdmQuantizerGuardTb, 2));
 
 		rightStack.Children.Add(statsGrid);
@@ -383,7 +331,7 @@ public sealed partial class DspPage
 		return heroGrid;
 	}
 
-	private static FrameworkElement CreatePipelineNode(string title, TextBlock valueTb, bool isLast, int col)
+	private FrameworkElement CreatePipelineNode(string title, TextBlock valueTb, bool isLast, int col)
 	{
 		var sp = new StackPanel { Spacing = 3 };
 		var line = new Rectangle
@@ -395,16 +343,16 @@ public sealed partial class DspPage
 			Margin = new Thickness(0, 0, 0, 6)
 		};
 		sp.Children.Add(line);
-		sp.Children.Add(new TextBlock { Text = title, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		sp.Children.Add(new TextBlock { Text = title, FontSize = 11, Foreground = DspTextMutedBrush });
 		sp.Children.Add(valueTb);
 		Grid.SetColumn(sp, col);
 		return sp;
 	}
 
-	private static FrameworkElement CreateStatStack(string label, TextBlock valTb, int col)
+	private FrameworkElement CreateStatStack(string label, TextBlock valTb, int col)
 	{
 		var sp = new StackPanel { Spacing = 2 };
-		sp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		sp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush });
 		sp.Children.Add(valTb);
 		Grid.SetColumn(sp, col);
 		return sp;
@@ -438,7 +386,7 @@ public sealed partial class DspPage
 		var deckBorder = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 18, 20, 20)
@@ -455,11 +403,11 @@ public sealed partial class DspPage
 
 		// Col 0: SDM 模式 (3-segment pill buttons)
 		var modeSp = new StackPanel { Spacing = 6 };
-		modeSp.Children.Add(new TextBlock { Text = "SDM 模式", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		modeSp.Children.Add(new TextBlock { Text = "SDM 模式", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 
 		var pillBorder = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			Background = DspSoftSurfaceBrush,
 			CornerRadius = new CornerRadius(7),
 			Padding = new Thickness(3)
 		};
@@ -490,7 +438,7 @@ public sealed partial class DspPage
 		{
 			Text = "PCM 和 FurinaPlayer SRC 保持独立；不会启动 DSD/SDM 输出。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(2, 4, 0, 0)
 		};
@@ -500,7 +448,7 @@ public sealed partial class DspPage
 
 		// Col 1: Target DSD rate
 		var targetRateSp = new StackPanel { Spacing = 6 };
-		targetRateSp.Children.Add(new TextBlock { Text = "Target DSD rate", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		targetRateSp.Children.Add(new TextBlock { Text = "Target DSD rate", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboTargetRate = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboTargetRate.Items.Add("DSD64");
 		_comboTargetRate.Items.Add("DSD128");
@@ -528,7 +476,7 @@ public sealed partial class DspPage
 		{
 			Text = "常用实时目标；PCM -> SDM 由 FurinaPlayer SDM 独立编排实际超频。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(targetRateSp, 1);
@@ -536,7 +484,7 @@ public sealed partial class DspPage
 
 		// Col 2: 调制器 / 稳定性
 		var modulatorSp = new StackPanel { Spacing = 6 };
-		modulatorSp.Children.Add(new TextBlock { Text = "调制器 / 稳定性", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		modulatorSp.Children.Add(new TextBlock { Text = "调制器 / 稳定性", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboModulatorStability = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboModulatorStability.Items.Add("Realtime Safe");
 		_comboModulatorStability.Items.Add("5th-order Precision");
@@ -562,7 +510,7 @@ public sealed partial class DspPage
 		{
 			Text = "3 阶异常 NTF，固定 6 dB 调制安全余量；稳定性优先。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(modulatorSp, 2);
@@ -570,7 +518,7 @@ public sealed partial class DspPage
 
 		// Col 3: 量化策略
 		var quantizerSp = new StackPanel { Spacing = 6 };
-		quantizerSp.Children.Add(new TextBlock { Text = "量化策略", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		quantizerSp.Children.Add(new TextBlock { Text = "量化策略", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboQuantizerStrategy = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboQuantizerStrategy.Items.Add("Off");
 		_comboQuantizerStrategy.Items.Add("Dither");
@@ -586,7 +534,7 @@ public sealed partial class DspPage
 		{
 			Text = "未启用量化，负载与当前 Quality 相同。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(quantizerSp, 3);
@@ -603,8 +551,8 @@ public sealed partial class DspPage
 
 		// Col 0: SDM 声音风格
 		var soundSp = new StackPanel { Spacing = 4 };
-		soundSp.Children.Add(new TextBlock { Text = "PCM / Select Exclusive", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		soundSp.Children.Add(new TextBlock { Text = "SDM 声音风格", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		soundSp.Children.Add(new TextBlock { Text = "PCM / Select Exclusive", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspAccentSoftTextBrush });
+		soundSp.Children.Add(new TextBlock { Text = "SDM 声音风格", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboSoundProfile = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboSoundProfile.Items.Add("FurinaPlayer Linear");
 		_comboSoundProfile.Items.Add("Warm Vintage");
@@ -620,7 +568,7 @@ public sealed partial class DspPage
 		{
 			Text = "性能相位、频响完全收敛；保留平滑顺畅和甜蜜厚度，适合作为中性基准。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(soundSp, 0);
@@ -628,7 +576,7 @@ public sealed partial class DspPage
 
 		// Col 1: FIR 升频档
 		var firSp = new StackPanel { Spacing = 6 };
-		firSp.Children.Add(new TextBlock { Text = "FIR 升频档", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		firSp.Children.Add(new TextBlock { Text = "FIR 升频档", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboFirTier = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboFirTier.Items.Add("Standard");
 		_comboFirTier.Items.Add("Steep");
@@ -644,7 +592,7 @@ public sealed partial class DspPage
 		{
 			Text = "使用声学频域滤波插头；默认快。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(firSp, 1);
@@ -652,7 +600,7 @@ public sealed partial class DspPage
 
 		// Col 2: SDM Compute
 		var computeSp = new StackPanel { Spacing = 6 };
-		computeSp.Children.Add(new TextBlock { Text = "SDM Compute", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		computeSp.Children.Add(new TextBlock { Text = "SDM Compute", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboComputeEngine = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboComputeEngine.Items.Add("CPU SDM");
 		_comboComputeEngine.Items.Add("CPU AVX2 SIMD");
@@ -665,16 +613,16 @@ public sealed partial class DspPage
 		};
 		computeSp.Children.Add(_comboComputeEngine);
 		var computeDescStack = new StackPanel { Spacing = 1 };
-		computeDescStack.Children.Add(new TextBlock { Text = "CPU SDM", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
-		computeDescStack.Children.Add(new TextBlock { Text = "CPU 实时编排已进入第一版 PCM -> SDM DoP。", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
-		computeDescStack.Children.Add(new TextBlock { Text = "Fallback: --", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) });
+		computeDescStack.Children.Add(new TextBlock { Text = "CPU SDM", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		computeDescStack.Children.Add(new TextBlock { Text = "CPU 实时编排已进入第一版 PCM -> SDM DoP。", FontSize = 11, Foreground = DspTextMutedBrush });
+		computeDescStack.Children.Add(new TextBlock { Text = "Fallback: --", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush });
 		computeSp.Children.Add(computeDescStack);
 		Grid.SetColumn(computeSp, 2);
 		row2Grid.Children.Add(computeSp);
 
 		// Col 3: DoP passthrough & DSD512 预调制
 		var switchesSp = new StackPanel { Spacing = 6 };
-		switchesSp.Children.Add(new TextBlock { Text = "DoP passthrough / 预调制", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		switchesSp.Children.Add(new TextBlock { Text = "DoP passthrough / 预调制", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 
 		var switchList = new StackPanel { Spacing = 6 };
 		_toggleDopPassthrough = new ToggleSwitch
@@ -708,7 +656,7 @@ public sealed partial class DspPage
 		{
 			Text = "实验：DSD512 预调制 opt-in！提升单端调制限制；默认关，开启后需按切动进入准入。",
 			FontSize = 10.5,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(switchesSp, 3);
@@ -720,8 +668,9 @@ public sealed partial class DspPage
 		return deckBorder;
 	}
 
-	private static Button CreateSegmentButton(string text, bool isSelected)
+	private Button CreateSegmentButton(string text, bool isSelected)
 	{
+		bool isDark = IsDspDark;
 		var btn = new Button
 		{
 			Content = text,
@@ -730,12 +679,14 @@ public sealed partial class DspPage
 			FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal,
 			Padding = new Thickness(8, 6, 8, 6),
 			CornerRadius = new CornerRadius(5),
-			Background = isSelected ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.Transparent),
+			Background = isSelected
+				? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(95, 99, 102, 241) : Colors.White)
+				: new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(isSelected ? 1 : 0),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 226, 232, 240)),
+			BorderBrush = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(140, 129, 140, 248) : Windows.UI.Color.FromArgb(120, 226, 232, 240)),
 			Foreground = isSelected
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+				? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 224, 231, 255) : Windows.UI.Color.FromArgb(255, 79, 70, 229))
+				: DspTextMutedBrush
 		};
 		return btn;
 	}
@@ -745,7 +696,7 @@ public sealed partial class DspPage
 		_advancedPanelContainer = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 230),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(18, 14, 18, 14),
@@ -759,7 +710,7 @@ public sealed partial class DspPage
 
 		// Filter 1x
 		var f1xSp = new StackPanel { Spacing = 4 };
-		f1xSp.Children.Add(new TextBlock { Text = "Filter 1x", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		f1xSp.Children.Add(new TextBlock { Text = "Filter 1x", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		var combo1x = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, FontSize = 11.5 };
 		combo1x.Items.Add("Standard Sinc");
 		combo1x.Items.Add("Minimum Phase");
@@ -771,7 +722,7 @@ public sealed partial class DspPage
 
 		// Filter Nx
 		var fnxSp = new StackPanel { Spacing = 4 };
-		fnxSp.Children.Add(new TextBlock { Text = "Filter Nx", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)) });
+		fnxSp.Children.Add(new TextBlock { Text = "Filter Nx", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		var comboNx = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, FontSize = 11.5 };
 		comboNx.Items.Add("Half-Band FIR");
 		comboNx.Items.Add("Steep Hi-Res");
@@ -791,7 +742,7 @@ public sealed partial class DspPage
 		{
 			Text = "动态监测 5 阶环路积分器状态，当反馈超过 ±1.55 时瞬间触发硬件自恢复，消除直流漂移与高频爆音风险。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		});
 		Grid.SetColumn(guardSp, 2);
@@ -825,7 +776,7 @@ public sealed partial class DspPage
 		var ntfBorder = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 16, 18, 16)
@@ -844,14 +795,14 @@ public sealed partial class DspPage
 			Text = "PCM -> SDM MODULATOR · RUNTIME NTF",
 			FontSize = 13.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		_sdmNtfPillTb = new TextBlock
 		{
 			Text = "DSD128 · safe",
 			FontSize = 11,
 			FontFamily = new FontFamily("Consolas, Courier New"),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+			Foreground = DspAccentSoftTextBrush
 		};
 		ntfTitleSp.Children.Add(_sdmNtfPillTb);
 		Grid.SetColumn(ntfTitleSp, 0);
@@ -862,7 +813,7 @@ public sealed partial class DspPage
 			Text = "Runtime unavailable",
 			FontSize = 11,
 			FontFamily = new FontFamily("Consolas, Courier New"),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Top
 		};
 		Grid.SetColumn(runtimeTag, 1);
@@ -884,7 +835,7 @@ public sealed partial class DspPage
 		{
 			Text = "3 阶异常 NTF，固定 6 dB 调制安全余量：稳定性优先。SDM 与 PCM/FurinaPlayer SRC 分开保存；只有当音频模块满足预定条件时才会实时接管 PCM。",
 			FontSize = 10.5,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(0, 4, 0, 0)
 		});
@@ -897,7 +848,7 @@ public sealed partial class DspPage
 		var modBorder = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.88, 235),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 16, 18, 16)
@@ -909,7 +860,7 @@ public sealed partial class DspPage
 			Text = "PCM -> SDM MODULATOR",
 			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 
 		// 4 Parameters Grid (2 columns x 2 rows)
@@ -920,19 +871,19 @@ public sealed partial class DspPage
 		factsGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
 		// Fact 1: 阶数
-		_inspectorOrderValTb = new TextBlock { Text = "5th", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_inspectorOrderValTb = new TextBlock { Text = "5th", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
 		factsGrid.Children.Add(CreateInspectorItem("阶数", _inspectorOrderValTb, "当前调校收敛到 5阶 SDM", 0, 0));
 
 		// Fact 2: 衰减系数
-		_inspectorDecayValTb = new TextBlock { Text = "0.950", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_inspectorDecayValTb = new TextBlock { Text = "0.950", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
 		factsGrid.Children.Add(CreateInspectorItem("衰减系数", _inspectorDecayValTb, "稳定性限幅 ±1.55", 1, 0));
 
 		// Fact 3: Dither
-		_inspectorDitherValTb = new TextBlock { Text = "--", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_inspectorDitherValTb = new TextBlock { Text = "--", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
 		factsGrid.Children.Add(CreateInspectorItem("Dither", _inspectorDitherValTb, "自由调制 --", 0, 1));
 
 		// Fact 4: 摆动余量
-		_inspectorHeadroomValTb = new TextBlock { Text = "-3.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		_inspectorHeadroomValTb = new TextBlock { Text = "-3.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
 		factsGrid.Children.Add(CreateInspectorItem("摆动余量", _inspectorHeadroomValTb, "PCM -> SDM 会自动预置调频余量 headroom，并对低频信号导进入 DSD idle 区压低噪声。", 1, 1));
 
 		modStack.Children.Add(factsGrid);
@@ -942,7 +893,7 @@ public sealed partial class DspPage
 
 		// Feedback Coefficients Visualizer
 		var coeffContainer = new StackPanel { Spacing = 8 };
-		coeffContainer.Children.Add(new TextBlock { Text = "反馈环路系数 (FEEDBACK COEFFICIENTS)", FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		coeffContainer.Children.Add(new TextBlock { Text = "反馈环路系数 (FEEDBACK COEFFICIENTS)", FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextMutedBrush });
 
 		_coeffBarsGrid = new Grid { Height = 74 };
 		_coeffLabelsGrid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
@@ -958,12 +909,12 @@ public sealed partial class DspPage
 		return analysisGrid;
 	}
 
-	private static FrameworkElement CreateInspectorItem(string label, TextBlock valTb, string detail, int col, int row)
+	private FrameworkElement CreateInspectorItem(string label, TextBlock valTb, string detail, int col, int row)
 	{
 		var sp = new StackPanel { Spacing = 2 };
-		sp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		sp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush });
 		sp.Children.Add(valTb);
-		sp.Children.Add(new TextBlock { Text = detail, FontSize = 10, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)), TextWrapping = TextWrapping.Wrap });
+		sp.Children.Add(new TextBlock { Text = detail, FontSize = 10, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap });
 		Grid.SetColumn(sp, col);
 		Grid.SetRow(sp, row);
 		return sp;
@@ -974,7 +925,7 @@ public sealed partial class DspPage
 		var telBorder = new Border
 		{
 			Background = CreateAcrylicCardBrush(0.85, 230),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(20, 16, 20, 18)
@@ -988,8 +939,8 @@ public sealed partial class DspPage
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		headSp.Children.Add(new FontIcon { Glyph = "\uE9D9", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
-		headSp.Children.Add(new TextBlock { Text = "专业遥测与硬件宿主 (PROFESSIONAL TELEMETRY)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105)) });
+		headSp.Children.Add(new FontIcon { Glyph = "\uE9D9", FontSize = 13, Foreground = DspAccentSoftTextBrush });
+		headSp.Children.Add(new TextBlock { Text = "专业遥测与硬件宿主 (PROFESSIONAL TELEMETRY)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
 		Grid.SetColumn(headSp, 0);
 		headerGrid.Children.Add(headSp);
 
@@ -1006,7 +957,7 @@ public sealed partial class DspPage
 
 		// Group 1: 信号链
 		var g1 = new StackPanel { Spacing = 8 };
-		g1.Children.Add(new TextBlock { Text = "信号链 (Signal Chain)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
+		g1.Children.Add(new TextBlock { Text = "信号链 (Signal Chain)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
 		g1.Children.Add(CreateTelemetryRow("CLOCK DOMAIN", "44.1 kHz", "carrier: DSD128 5.6448 MHz"));
 		g1.Children.Add(CreateTelemetryRow("FIR TOPOLOGY", "FURINA FIR ×128", "4 stages · 2048 taps · stopband -120 dB"));
 		g1.Children.Add(CreateTelemetryRow("NOISE TRANSFER", "5th · H∞ 1.55 dB", "pole r=0.8842 · Safe loop gain"));
@@ -1016,7 +967,7 @@ public sealed partial class DspPage
 
 		// Group 2: 计算引擎
 		var g2 = new StackPanel { Spacing = 8 };
-		g2.Children.Add(new TextBlock { Text = "计算引擎 (Compute)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
+		g2.Children.Add(new TextBlock { Text = "计算引擎 (Compute)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
 		g2.Children.Add(CreateTelemetryRow("COMPUTE SPLIT", "CPU AVX2 SIMD", "FP64 precision · batch 512 frames"));
 		g2.Children.Add(CreateTelemetryRow("CUDA CAPABILITY", "未启用", "可选 GPU 流水线加速"));
 		g2.Children.Add(CreateTelemetryRow("WORKER LATENCY", "0.42 ms avg", "0.65 ms max · 128 requests"));
@@ -1026,7 +977,7 @@ public sealed partial class DspPage
 
 		// Group 3: 实时预算
 		var g3 = new StackPanel { Spacing = 8 };
-		g3.Children.Add(new TextBlock { Text = "实时预算 (Budget)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)) });
+		g3.Children.Add(new TextBlock { Text = "实时预算 (Budget)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
 		g3.Children.Add(CreateTelemetryRow("REALTIME BUDGET", "12.4%", "87.6% 充沛冗余 · 稳定无下溢"));
 		g3.Children.Add(CreateTelemetryRow("STABILITY GUARD", "0.142 / ±1.55", "9.1% state budget · 0 recoveries"));
 		Grid.SetColumn(g3, 2);
@@ -1039,7 +990,7 @@ public sealed partial class DspPage
 		{
 			Text = "FurinaPlayer SDM/DSD 引擎为高性能母带级架构，支持 Native DSD 与 DoP (DSD over PCM) 输出标准；完全兼容 DSD64/128/256/512 与 PCM 实时高保真重调制。",
 			FontSize = 10.5,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 6, 0, 0)
 		});
 
@@ -1047,7 +998,7 @@ public sealed partial class DspPage
 		return telBorder;
 	}
 
-	private static FrameworkElement CreateTelemetryRow(string label, string val, string sub)
+	private FrameworkElement CreateTelemetryRow(string label, string val, string sub)
 	{
 		var row = new Grid { Padding = new Thickness(0, 4, 0, 4) };
 		row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -1057,17 +1008,17 @@ public sealed partial class DspPage
 
 		var dtSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		dtSp.Children.Add(new Ellipse { Width = 5, Height = 5, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)), VerticalAlignment = VerticalAlignment.Center });
-		dtSp.Children.Add(new TextBlock { Text = label, FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+		dtSp.Children.Add(new TextBlock { Text = label, FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush });
 		Grid.SetColumn(dtSp, 0);
 		Grid.SetRow(dtSp, 0);
 		row.Children.Add(dtSp);
 
-		var valTb = new TextBlock { Text = val, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)) };
+		var valTb = new TextBlock { Text = val, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
 		Grid.SetColumn(valTb, 1);
 		Grid.SetRow(valTb, 0);
 		row.Children.Add(valTb);
 
-		var subTb = new TextBlock { Text = sub, FontSize = 10, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)) };
+		var subTb = new TextBlock { Text = sub, FontSize = 10, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush };
 		Grid.SetColumn(subTb, 0);
 		Grid.SetColumnSpan(subTb, 2);
 		Grid.SetRow(subTb, 1);
@@ -1101,15 +1052,19 @@ public sealed partial class DspPage
 		UpdateSdmUiStates();
 	}
 
-	private static void UpdateSegmentButtonState(Button? btn, bool isSelected)
+	private void UpdateSegmentButtonState(Button? btn, bool isSelected)
 	{
 		if (btn == null) return;
+		bool isDark = IsDspDark;
 		btn.FontWeight = isSelected ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal;
-		btn.Background = isSelected ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Colors.Transparent);
+		btn.Background = isSelected
+			? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(95, 99, 102, 241) : Colors.White)
+			: new SolidColorBrush(Colors.Transparent);
 		btn.BorderThickness = new Thickness(isSelected ? 1 : 0);
+		btn.BorderBrush = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(140, 129, 140, 248) : Windows.UI.Color.FromArgb(120, 226, 232, 240));
 		btn.Foreground = isSelected
-			? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-			: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
+			? new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 224, 231, 255) : Windows.UI.Color.FromArgb(255, 79, 70, 229))
+			: DspTextMutedBrush;
 	}
 
 	private void UpdateSdmUiStates()
@@ -1234,7 +1189,7 @@ public sealed partial class DspPage
 				Text = $"{val:+0.00;-0.00;0.00}",
 				FontSize = 9.5,
 				FontFamily = new FontFamily("Consolas, Courier New"),
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+				Foreground = DspTextMutedBrush,
 				HorizontalAlignment = HorizontalAlignment.Center
 			};
 			Grid.SetColumn(labelTb, i);

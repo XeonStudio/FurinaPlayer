@@ -10,6 +10,9 @@
   <ItemGroup>
     <ProjectReference Include="..\SonicWave.Core\SonicWave.Core.csproj" />
     <ProjectReference Include="..\SonicWave.Audio\SonicWave.Audio.csproj" />
+    <Reference Include="NAudio.Core">
+      <HintPath>..\..\NAudio.Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
 

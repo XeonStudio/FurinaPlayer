@@ -141,7 +141,7 @@ public static class Vst3Manager
 			if (Directory.Exists(path) && path.EndsWith(".vst3", StringComparison.OrdinalIgnoreCase))
 			{
 				string bin64 = Path.Combine(path, "Contents", "x86_64-win");
-				if (Directory.Exists(bin64) && Directory.EnumerateFiles(bin64, "*.vst3").Any())
+				if (Directory.Exists(bin64) && (Directory.EnumerateFiles(bin64, "*.vst3").Any() || Directory.EnumerateFiles(bin64, "*.dll").Any()))
 				{
 					return true;
 				}
@@ -213,7 +213,7 @@ public static class Vst3Manager
 		return vst3PluginState;
 	}
 
-	private static string ResolveBinaryPath(string path)
+	internal static string ResolveBinaryPath(string path)
 	{
 		if (string.IsNullOrWhiteSpace(path))
 		{
@@ -226,7 +226,8 @@ public static class Vst3Manager
 				string bin64 = Path.Combine(path, "Contents", "x86_64-win");
 				if (Directory.Exists(bin64))
 				{
-					string? firstBin = Directory.EnumerateFiles(bin64, "*.vst3").FirstOrDefault();
+					string? firstBin = Directory.EnumerateFiles(bin64, "*.vst3").FirstOrDefault()
+						?? Directory.EnumerateFiles(bin64, "*.dll").FirstOrDefault();
 					if (!string.IsNullOrEmpty(firstBin))
 					{
 						return firstBin;

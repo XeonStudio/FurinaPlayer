@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,11 @@ namespace SonicWave.Audio.Vst3;
 
 public sealed class Vst3NativeInstance : IDisposable
 {
+	private static readonly ConcurrentDictionary<nint, bool> s_initializedDlls = new ConcurrentDictionary<nint, bool>();
+
+	[UnmanagedFunctionPointer(CallingConvention.StdCall)]
+	private delegate bool InitDllProc();
+
 	private nint _module;
 
 	private nint _factoryRaw;
@@ -37,13 +43,21 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	private nint _hostContextCcw;
 
+	private nint _handlerCcw;
+
 	private nint _paramChangesCcw;
 
+	private nint _inFlightParamChangesCcw;
+
 	private nint _factory2Raw;
+
+	private bool _controllerIsSeparate;
 
 	private readonly Vst3HostContextImpl _hostContext;
 
 	private readonly Vst3ParameterChangesImpl _paramChanges = new Vst3ParameterChangesImpl();
+
+	private readonly Vst3ParameterChangesImpl _inFlightParamChanges = new Vst3ParameterChangesImpl();
 
 	private int _inChannels = 2;
 
@@ -57,9 +71,11 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	private int _maxBlock = 8192;
 
-	private bool _processingEnabled;
+	private volatile bool _processingEnabled;
 
-	private bool _disposed;
+	private volatile bool _disposed;
+
+	private volatile bool _disposing;
 
 	private IPlugView? _view;
 
@@ -70,6 +86,8 @@ public sealed class Vst3NativeInstance : IDisposable
 	private bool _viewResizable;
 
 	private nint _viewFrameCcw;
+
+	private readonly object _editorLock = new object();
 
 	private float[][] _inPlanar = Array.Empty<float[]>();
 
@@ -150,6 +168,8 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public string Path { get; }
 
+	public string ResolvedPath { get; }
+
 	public string DisplayName { get; }
 
 	public int InChannels => _inChannels;
@@ -162,11 +182,46 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public event Action<int, int>? EditorResizeRequested;
 
+	public event Action? ParameterEdited;
+
 	public Vst3NativeInstance(string path)
 	{
 		Path = path;
+		ResolvedPath = NormalizePath(path);
 		DisplayName = SafeName(path);
 		_hostContext = new Vst3HostContextImpl(this);
+	}
+
+	internal static string NormalizePath(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			return string.Empty;
+		}
+		string? resolved = ResolveModulePath(path);
+		string candidate = string.IsNullOrWhiteSpace(resolved) ? path.Trim() : resolved;
+		try
+		{
+			return System.IO.Path.GetFullPath(candidate);
+		}
+		catch
+		{
+			return candidate;
+		}
+	}
+
+	public bool MatchesPath(string? path)
+	{
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			return false;
+		}
+		if (string.Equals(Path, path, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		string normalized = NormalizePath(path);
+		return !string.IsNullOrEmpty(normalized) && string.Equals(ResolvedPath, normalized, StringComparison.OrdinalIgnoreCase);
 	}
 
 	private static string SafeName(string path)
@@ -194,7 +249,7 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public unsafe string? Initialize(double sampleRate, int channels)
 	{
-		_sampleRate = sampleRate;
+		_sampleRate = sampleRate > 0 ? sampleRate : 48000.0;
 		string text = ResolveModulePath(Path);
 		if (text == null)
 		{
@@ -203,7 +258,26 @@ public sealed class Vst3NativeInstance : IDisposable
 		_module = NativeMethods.LoadLibraryExW(text, IntPtr.Zero, 8u);
 		if (_module == IntPtr.Zero)
 		{
+			_module = NativeMethods.LoadLibraryW(text);
+		}
+		if (_module == IntPtr.Zero)
+		{
 			return "模块加载失败：" + text + "（错误码 " + Marshal.GetLastWin32Error() + "，请确认插件为 64 位且已安装运行库）";
+		}
+		if (s_initializedDlls.TryAdd(_module, true))
+		{
+			nint initDllAddr = NativeMethods.GetProcAddress(_module, "InitDll");
+			if (initDllAddr != IntPtr.Zero)
+			{
+				try
+				{
+					var initDll = Marshal.GetDelegateForFunctionPointer<InitDllProc>(initDllAddr);
+					initDll();
+				}
+				catch
+				{
+				}
+			}
 		}
 		nint procAddress = NativeMethods.GetProcAddress(_module, "GetPluginFactory");
 		if (procAddress == IntPtr.Zero)
@@ -251,12 +325,14 @@ public sealed class Vst3NativeInstance : IDisposable
 			{
 				gCHandle.Free();
 			}
+			_controllerIsSeparate = false;
 			if (num2 == 0 && array2.Any((byte b) => b != 0))
 			{
 				byte[] guidBytes2 = Vst3Com.GetGuidBytes(Vst3Ids.IEditController);
 				if (CreateInstance(_factory, array2, guidBytes2, out _controllerRaw) == 0 && _controllerRaw != IntPtr.Zero)
 				{
 					_controller = Vst3Com.ToManaged<IEditController>(_controllerRaw);
+					_controllerIsSeparate = _controllerRaw != _componentRaw;
 				}
 			}
 			_hostContextCcw = Vst3Com.ToNative((IHostApplicationCom)_hostContext);
@@ -272,13 +348,17 @@ public sealed class Vst3NativeInstance : IDisposable
 				{
 					_controllerRaw = ctrlPtr;
 					_controller = Vst3Com.ToManaged<IEditController>(_controllerRaw);
+					_controllerIsSeparate = false;
 				}
 			}
-			_controller?.Initialize(_hostContextCcw);
+			if (_controller != null && _controllerIsSeparate)
+			{
+				_controller.Initialize(_hostContextCcw);
+			}
 			if (_controller != null)
 			{
-				nint handlerCcw = Vst3Com.ToNative((IComponentHandlerCom)_hostContext);
-				_controller.SetComponentHandler(handlerCcw);
+				_handlerCcw = Vst3Com.ToNative((IComponentHandlerCom)_hostContext);
+				_controller.SetComponentHandler(_handlerCcw);
 			}
 			_processorRaw = QueryInterface(_componentRaw, Vst3Ids.IAudioProcessor);
 			if (_processorRaw == IntPtr.Zero)
@@ -287,7 +367,7 @@ public sealed class Vst3NativeInstance : IDisposable
 			}
 			_processor = Vst3Com.ToManaged<IAudioProcessor>(_processorRaw);
 			_componentCpRaw = QueryInterface(_componentRaw, Vst3Ids.IConnectionPoint);
-			_controllerCpRaw = ((_controllerRaw == IntPtr.Zero) ? IntPtr.Zero : QueryInterface(_controllerRaw, Vst3Ids.IConnectionPoint));
+			_controllerCpRaw = ((_controllerRaw == IntPtr.Zero || !_controllerIsSeparate) ? IntPtr.Zero : QueryInterface(_controllerRaw, Vst3Ids.IConnectionPoint));
 			if (_componentCpRaw != IntPtr.Zero)
 			{
 				_componentCp = Vst3Com.ToManaged<IConnectionPoint>(_componentCpRaw);
@@ -314,23 +394,24 @@ public sealed class Vst3NativeInstance : IDisposable
 			{
 				Console.WriteLine("[echo-vst3-host] Connection point connect failed: " + ex.Message);
 			}
+			ActivateBuses();
 			ProcessSetup setup = new ProcessSetup
 			{
 				ProcessMode = 0,
 				SymbolicSampleSize = 0,
 				MaxSamplesPerBlock = _maxBlock,
-				SampleRate = sampleRate
+				SampleRate = _sampleRate
 			};
 			num2 = _processor.SetupProcessing(ref setup);
 			if (num2 != 0)
 			{
 				return "setupProcessing 失败（0x" + num2.ToString("X8") + "）";
 			}
-			ActivateBuses();
 			_component.SetActive(1);
 			_processor.SetProcessing(1);
 			_processingEnabled = true;
 			_paramChangesCcw = Vst3Com.ToNative((IParameterChangesCom)_paramChanges);
+			_inFlightParamChangesCcw = Vst3Com.ToNative((IParameterChangesCom)_inFlightParamChanges);
 			_outputParamChangesCcw = Vst3Com.ToNative((IParameterChangesCom)_outputParamChanges);
 			if (_processContextPtr == IntPtr.Zero)
 			{
@@ -542,11 +623,38 @@ public sealed class Vst3NativeInstance : IDisposable
 			{
 				array2[j] = 3UL;
 			}
+			int res;
 			fixed (ulong* inputs = array)
 			{
 				fixed (ulong* outputs = array2)
 				{
-					_processor.SetBusArrangements((nint)inputs, num, (nint)outputs, num2);
+					res = _processor.SetBusArrangements((nint)inputs, num, (nint)outputs, num2);
+				}
+			}
+			if (res != 0 && (num > 1 || num2 > 1))
+			{
+				for (int i = 1; i < num; i++)
+				{
+					ulong arr = 3UL;
+					if (_processor.GetBusArrangement(0, i, (nint)(&arr)) == 0)
+					{
+						array[i] = arr;
+					}
+				}
+				for (int j = 1; j < num2; j++)
+				{
+					ulong arr = 3UL;
+					if (_processor.GetBusArrangement(1, j, (nint)(&arr)) == 0)
+					{
+						array2[j] = arr;
+					}
+				}
+				fixed (ulong* inputs = array)
+				{
+					fixed (ulong* outputs = array2)
+					{
+						_processor.SetBusArrangements((nint)inputs, num, (nint)outputs, num2);
+					}
 				}
 			}
 		}
@@ -656,26 +764,35 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public void UpdateSampleRate(double sampleRate)
 	{
-		if (_sampleRate == sampleRate || _disposed)
+		if (sampleRate <= 0 || Math.Abs(_sampleRate - sampleRate) < 0.5 || _disposed || _disposing)
 		{
 			return;
 		}
-		_sampleRate = sampleRate;
 		try
 		{
 			lock (_lock)
 			{
-				if (!_disposed && _processor != null)
+				if (_disposed || _disposing || _processor == null || Math.Abs(_sampleRate - sampleRate) < 0.5)
 				{
-					ProcessSetup setup = new ProcessSetup
-					{
-						ProcessMode = 0,
-						SymbolicSampleSize = 0,
-						MaxSamplesPerBlock = _maxBlock,
-						SampleRate = sampleRate
-					};
-					_processor.SetupProcessing(ref setup);
+					return;
 				}
+				try { _processor.SetProcessing(0); } catch { }
+				try { _component?.SetActive(0); } catch { }
+				ProcessSetup setup = new ProcessSetup
+				{
+					ProcessMode = 0,
+					SymbolicSampleSize = 0,
+					MaxSamplesPerBlock = _maxBlock,
+					SampleRate = sampleRate
+				};
+				int hr = _processor.SetupProcessing(ref setup);
+				if (hr == 0)
+				{
+					_sampleRate = sampleRate;
+				}
+				ActivateBuses();
+				try { _component?.SetActive(1); } catch { }
+				try { _processor.SetProcessing(1); } catch { }
 			}
 		}
 		catch
@@ -790,207 +907,244 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public bool TryProcess(float[] interleaved, int channels)
 	{
-		if (_disposed || !_processingEnabled || _processor == null || interleaved == null)
+		if (_disposed || _disposing || !_processingEnabled || _processor == null || interleaved == null)
 		{
 			return false;
 		}
-		if (channels <= 0 || interleaved.Length == 0)
+		if (channels <= 0 || interleaved.Length < channels)
 		{
 			return true;
 		}
-		int num = interleaved.Length / channels;
+		int totalFrames = interleaved.Length / channels;
 		lock (_lock)
 		{
-			if (_disposed || _processor == null)
+			if (_disposed || _disposing || !_processingEnabled || _processor == null)
 			{
 				return false;
 			}
-			EnsureBuffers(num, _inChannels, _outChannels);
-			int num2 = Math.Min(channels, _inChannels);
-			for (int i = 0; i < _inChannels; i++)
+			int blockLimit = Math.Max(1, _maxBlock);
+			EnsureBuffers(Math.Min(totalFrames, blockLimit), _inChannels, _outChannels);
+
+			int frameOffset = 0;
+			while (frameOffset < totalFrames)
 			{
-				float[] array = _inPlanar[i];
-				if (i < num2)
+				int num = Math.Min(blockLimit, totalFrames - frameOffset);
+				int sampleBase = frameOffset * channels;
+
+				int num2 = Math.Min(channels, _inChannels);
+				for (int i = 0; i < _inChannels; i++)
 				{
+					float[] array = _inPlanar[i];
+					if (i < num2)
+					{
+						if (channels == 1)
+						{
+							for (int j = 0; j < num; j++)
+							{
+								array[j] = interleaved[sampleBase + j];
+							}
+						}
+						else
+						{
+							for (int k = 0; k < num; k++)
+							{
+								array[k] = interleaved[sampleBase + k * channels + i];
+							}
+						}
+					}
+					else if (channels == 1)
+					{
+						Array.Copy(_inPlanar[0], 0, array, 0, num);
+					}
+					else
+					{
+						Array.Clear(array, 0, num);
+					}
+				}
+
+				// Measure input peak level
+				float pIn = 0f;
+				for (int pi = 0; pi < num2; pi++)
+				{
+					float[] inArr = _inPlanar[pi];
+					for (int pk = 0; pk < num; pk++)
+					{
+						float a = Math.Abs(inArr[pk]);
+						if (a > pIn) pIn = a;
+					}
+				}
+				LastInPeak = pIn;
+
+				// Clear output planar buffers before process
+				for (int oj = 0; oj < _outChannels; oj++)
+				{
+					Array.Clear(_outPlanar[oj], 0, num);
+				}
+
+				// Ensure main input & output bus SilenceFlags are 0
+				if (_inAudioBusBuffersPtr != IntPtr.Zero)
+				{
+					Marshal.WriteInt64(_inAudioBusBuffersPtr, 8, 0L);
+				}
+				if (_outAudioBusBuffersPtr != IntPtr.Zero)
+				{
+					Marshal.WriteInt64(_outAudioBusBuffersPtr, 8, 0L);
+				}
+
+				int num4 = _numInputBusses;
+				int num5 = _numOutputBusses;
+				bool hasInputParams = _paramChanges.DrainInto(_inFlightParamChanges);
+				try
+				{
+					if (_processContextPtr != IntPtr.Zero)
+					{
+						bool isTransportPlaying = !_transportPaused;
+						if (_transportResetCountdown > 0)
+						{
+							_transportResetCountdown--;
+							isTransportPlaying = (_transportResetCountdown == 0 && !_transportPaused);
+							if (!isTransportPlaying)
+							{
+								_continuousSampleTime = 0;
+							}
+						}
+
+						long blockStartSamples = _continuousSampleTime;
+						if (isTransportPlaying)
+						{
+							_continuousSampleTime += num;
+						}
+
+						double currentSr = _sampleRate > 0 ? _sampleRate : 48000.0;
+						double tempo = 120.0;
+						double projectTimeMusic = (blockStartSamples / currentSr) * (tempo / 60.0);
+						double barPositionMusic = projectTimeMusic - (projectTimeMusic % 4.0);
+
+						uint stateFlags = (uint)(ProcessContextStates.kSystemTimeValid |
+											   ProcessContextStates.kContTimeValid |
+											   ProcessContextStates.kProjectTimeMusicValid |
+											   ProcessContextStates.kBarPositionValid |
+											   ProcessContextStates.kTempoValid |
+											   ProcessContextStates.kTimeSigValid);
+						if (isTransportPlaying)
+						{
+							stateFlags |= (uint)ProcessContextStates.kPlaying;
+						}
+
+						var context = new Vst3ProcessContext
+						{
+							State = stateFlags,
+							SampleRate = currentSr,
+							ProjectTimeSamples = blockStartSamples,
+							ContinousTimeSamples = blockStartSamples,
+							SystemTime = (long)((System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency) * 1_000_000_000.0),
+							ProjectTimeMusic = projectTimeMusic,
+							BarPositionMusic = barPositionMusic,
+							CycleStartMusic = 0.0,
+							CycleEndMusic = 4.0,
+							Tempo = tempo,
+							TimeSigNumerator = 4,
+							TimeSigDenominator = 4,
+							ChordKey = 0,
+							ChordRoot = 0,
+							ChordMask = 0,
+							SmpteOffsetSubframes = 0,
+							FrameRateFramesPerSecond = 30,
+							FrameRateFlags = 0,
+							SamplesToNextClock = 0
+						};
+						Marshal.StructureToPtr(context, _processContextPtr, fDeleteOld: false);
+					}
+
+					ProcessData data = new ProcessData
+					{
+						ProcessMode = 0,
+						SymbolicSampleSize = 0,
+						NumSamples = num,
+						NumInputs = num4,
+						NumOutputs = num5,
+						Inputs = _inAudioBusBuffersPtr,
+						Outputs = _outAudioBusBuffersPtr,
+						InputParameterChanges = ((!Vst3NativeHost.UseParameterChanges) ? IntPtr.Zero : (Vst3NativeHost.HackParamPointer ? _hostContextCcw : (hasInputParams ? _inFlightParamChangesCcw : _paramChangesCcw))),
+						OutputParameterChanges = _outputParamChangesCcw,
+						InputEvents = IntPtr.Zero,
+						OutputEvents = IntPtr.Zero,
+						ProcessContext = _processContextPtr
+					};
+					int num11 = _processor.Process(ref data);
+					LastProcessResult = num11;
+					ProcessCount++;
+
+					if (_outputParamChanges.GetParameterCount() > 0)
+					{
+						var changes = _outputParamChanges.DrainChanges();
+						if (_controller != null)
+						{
+							foreach (var (pid, val) in changes)
+							{
+								try { _controller.SetParamNormalized(pid, val); } catch { }
+							}
+						}
+					}
+
+					if (num11 != 0)
+					{
+						return false;
+					}
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine("[echo-vst3-host] Process exception: " + ex.Message);
+					return false;
+				}
+				finally
+				{
+					if (hasInputParams)
+					{
+						_inFlightParamChanges.Clear();
+					}
+				}
+
+				int num12 = Math.Min(channels, _outChannels);
+				float pOut = 0f;
+				for (int num13 = 0; num13 < num12; num13++)
+				{
+					float[] array2 = _outPlanar[num13];
 					if (channels == 1)
 					{
-						for (int j = 0; j < num; j++)
+						for (int num14 = 0; num14 < num; num14++)
 						{
-							array[j] = interleaved[j];
+							float val = array2[num14];
+							interleaved[sampleBase + num14] = val;
+							float a = Math.Abs(val);
+							if (a > pOut) pOut = a;
 						}
 					}
 					else
 					{
-						for (int k = 0; k < num; k++)
+						for (int num15 = 0; num15 < num; num15++)
 						{
-							array[k] = interleaved[k * channels + i];
+							float val = array2[num15];
+							interleaved[sampleBase + num15 * channels + num13] = val;
+							float a = Math.Abs(val);
+							if (a > pOut) pOut = a;
 						}
 					}
 				}
-				else
+				if (_outChannels == 1 && channels > 1)
 				{
-					Array.Clear(array, 0, num);
-				}
-			}
-
-			// Measure input peak level
-			float pIn = 0f;
-			for (int pi = 0; pi < num2; pi++)
-			{
-				float[] inArr = _inPlanar[pi];
-				for (int pk = 0; pk < num; pk++)
-				{
-					float a = Math.Abs(inArr[pk]);
-					if (a > pIn) pIn = a;
-				}
-			}
-			LastInPeak = pIn;
-
-			// Clear output planar buffers before process
-			for (int oj = 0; oj < _outChannels; oj++)
-			{
-				Array.Clear(_outPlanar[oj], 0, num);
-			}
-
-			// Ensure main input bus SilenceFlags is 0 (has active signal)
-			if (_inAudioBusBuffersPtr != IntPtr.Zero)
-			{
-				Marshal.WriteInt64(_inAudioBusBuffersPtr, 8, 0L);
-			}
-
-			int num4 = Math.Max(1, _numInputBusses);
-			int num5 = Math.Max(1, _numOutputBusses);
-			try
-			{
-				if (_processContextPtr != IntPtr.Zero)
-				{
-					bool isTransportPlaying = !_transportPaused;
-					if (_transportResetCountdown > 0)
+					float[] monoOut = _outPlanar[0];
+					for (int ch = 1; ch < channels; ch++)
 					{
-						_transportResetCountdown--;
-						isTransportPlaying = (_transportResetCountdown == 0 && !_transportPaused);
-						if (!isTransportPlaying)
+						for (int f = 0; f < num; f++)
 						{
-							_continuousSampleTime = 0;
-						}
-					}
-
-					long blockStartSamples = _continuousSampleTime;
-					if (isTransportPlaying)
-					{
-						_continuousSampleTime += num;
-					}
-
-					double currentSr = _sampleRate > 0 ? _sampleRate : 48000.0;
-					double tempo = 120.0;
-					double projectTimeMusic = (blockStartSamples / currentSr) * (tempo / 60.0);
-					double barPositionMusic = projectTimeMusic - (projectTimeMusic % 4.0);
-
-					uint stateFlags = (uint)(ProcessContextStates.kSystemTimeValid |
-										   ProcessContextStates.kContTimeValid |
-										   ProcessContextStates.kProjectTimeMusicValid |
-										   ProcessContextStates.kBarPositionValid |
-										   ProcessContextStates.kTempoValid |
-										   ProcessContextStates.kTimeSigValid);
-					if (isTransportPlaying)
-					{
-						stateFlags |= (uint)ProcessContextStates.kPlaying;
-					}
-
-					var context = new Vst3ProcessContext
-					{
-						State = stateFlags,
-						SampleRate = currentSr,
-						ProjectTimeSamples = blockStartSamples,
-						ContinousTimeSamples = blockStartSamples,
-						SystemTime = (long)((System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency) * 1_000_000_000.0),
-						ProjectTimeMusic = projectTimeMusic,
-						BarPositionMusic = barPositionMusic,
-						CycleStartMusic = 0.0,
-						CycleEndMusic = 4.0,
-						Tempo = tempo,
-						TimeSigNumerator = 4,
-						TimeSigDenominator = 4,
-						ChordKey = 0,
-						ChordRoot = 0,
-						ChordMask = 0,
-						SmpteOffsetSubframes = 0,
-						FrameRateFramesPerSecond = 30,
-						FrameRateFlags = 0,
-						SamplesToNextClock = 0
-					};
-					Marshal.StructureToPtr(context, _processContextPtr, fDeleteOld: false);
-				}
-
-				ProcessData data = new ProcessData
-				{
-					ProcessMode = 0,
-					SymbolicSampleSize = 0,
-					NumSamples = num,
-					NumInputs = num4,
-					NumOutputs = num5,
-					Inputs = _inAudioBusBuffersPtr,
-					Outputs = _outAudioBusBuffersPtr,
-					InputParameterChanges = ((!Vst3NativeHost.UseParameterChanges) ? IntPtr.Zero : (Vst3NativeHost.HackParamPointer ? _hostContextCcw : _paramChangesCcw)),
-					OutputParameterChanges = _outputParamChangesCcw,
-					InputEvents = IntPtr.Zero,
-					OutputEvents = IntPtr.Zero,
-					ProcessContext = _processContextPtr
-				};
-				int num11 = _processor.Process(ref data);
-				LastProcessResult = num11;
-				ProcessCount++;
-
-				if (_outputParamChanges.GetParameterCount() > 0)
-				{
-					var changes = _outputParamChanges.DrainChanges();
-					if (_controller != null)
-					{
-						foreach (var (pid, val) in changes)
-						{
-							try { _controller.SetParamNormalized(pid, val); } catch {}
+							interleaved[sampleBase + f * channels + ch] = monoOut[f];
 						}
 					}
 				}
-
-				if (num11 != 0)
-				{
-					return true;
-				}
+				LastOutPeak = pOut;
+				frameOffset += num;
 			}
-			catch (Exception ex)
-			{
-				Console.WriteLine("[echo-vst3-host] Process exception: " + ex.Message);
-				return true;
-			}
-
-			int num12 = Math.Min(channels, _outChannels);
-			float pOut = 0f;
-			for (int num13 = 0; num13 < num12; num13++)
-			{
-				float[] array2 = _outPlanar[num13];
-				if (channels == 1)
-				{
-					for (int num14 = 0; num14 < num; num14++)
-					{
-						float val = array2[num14];
-						interleaved[num14] = val;
-						float a = Math.Abs(val);
-						if (a > pOut) pOut = a;
-					}
-				}
-				else
-				{
-					for (int num15 = 0; num15 < num; num15++)
-					{
-						float val = array2[num15];
-						interleaved[num15 * channels + num13] = val;
-						float a = Math.Abs(val);
-						if (a > pOut) pOut = a;
-					}
-				}
-			}
-			LastOutPeak = pOut;
 			return true;
 		}
 	}
@@ -1042,7 +1196,7 @@ public sealed class Vst3NativeInstance : IDisposable
 
 		_silentBuffer = new float[requiredFrames];
 		_silentHandle = GCHandle.Alloc(_silentBuffer, GCHandleType.Pinned);
-		int auxInCh = Math.Max(2, inCh);
+		int auxInCh = Math.Max(8, inCh);
 		_silentChannelBuffersPtr = Marshal.AllocHGlobal(IntPtr.Size * auxInCh);
 		for (int s = 0; s < auxInCh; s++)
 		{
@@ -1051,7 +1205,7 @@ public sealed class Vst3NativeInstance : IDisposable
 
 		_scratchOutBuffer = new float[requiredFrames];
 		_scratchOutHandle = GCHandle.Alloc(_scratchOutBuffer, GCHandleType.Pinned);
-		int auxOutCh = Math.Max(2, outCh);
+		int auxOutCh = Math.Max(8, outCh);
 		_scratchOutChannelBuffersPtr = Marshal.AllocHGlobal(IntPtr.Size * auxOutCh);
 		for (int s = 0; s < auxOutCh; s++)
 		{
@@ -1062,9 +1216,10 @@ public sealed class Vst3NativeInstance : IDisposable
 		_inAudioBusBuffersPtr = Marshal.AllocHGlobal(busSize * numInBusses);
 		for (int n = 0; n < numInBusses; n++)
 		{
+			int busCh = (n == 0) ? inCh : Math.Clamp(GetBusInfo(0, n).ChannelCount, 1, auxInCh);
 			Marshal.StructureToPtr(new AudioBusBuffers
 			{
-				NumChannels = (n == 0) ? inCh : 2,
+				NumChannels = busCh,
 				SilenceFlags = (n == 0) ? 0UL : ulong.MaxValue,
 				ChannelBuffers = (n == 0) ? _inChannelBuffersPtr : _silentChannelBuffersPtr
 			}, _inAudioBusBuffersPtr + n * busSize, fDeleteOld: false);
@@ -1073,9 +1228,10 @@ public sealed class Vst3NativeInstance : IDisposable
 		_outAudioBusBuffersPtr = Marshal.AllocHGlobal(busSize * numOutBusses);
 		for (int m = 0; m < numOutBusses; m++)
 		{
+			int busCh = (m == 0) ? outCh : Math.Clamp(GetBusInfo(1, m).ChannelCount, 1, auxOutCh);
 			Marshal.StructureToPtr(new AudioBusBuffers
 			{
-				NumChannels = (m == 0) ? outCh : 2,
+				NumChannels = busCh,
 				SilenceFlags = (m == 0) ? 0UL : ulong.MaxValue,
 				ChannelBuffers = (m == 0) ? _outChannelBuffersPtr : _scratchOutChannelBuffersPtr
 			}, _outAudioBusBuffersPtr + m * busSize, fDeleteOld: false);
@@ -1091,6 +1247,116 @@ public sealed class Vst3NativeInstance : IDisposable
 	public void QueueParameterChange(uint id, double value)
 	{
 		_paramChanges.SetValue(id, value);
+		ParameterEdited?.Invoke();
+	}
+
+	public byte[]? ExportState()
+	{
+		lock (_lock)
+		{
+			if (_disposed || _disposing || _component == null)
+			{
+				return null;
+			}
+			try
+			{
+				if (_processor != null && _processingEnabled && _paramChanges.DrainInto(_inFlightParamChanges))
+				{
+					try
+					{
+						ProcessData flush = new ProcessData
+						{
+							ProcessMode = 0,
+							SymbolicSampleSize = 0,
+							NumSamples = 0,
+							NumInputs = _numInputBusses,
+							NumOutputs = _numOutputBusses,
+							Inputs = _inAudioBusBuffersPtr,
+							Outputs = _outAudioBusBuffersPtr,
+							InputParameterChanges = _inFlightParamChangesCcw,
+							OutputParameterChanges = _outputParamChangesCcw,
+							InputEvents = IntPtr.Zero,
+							OutputEvents = IntPtr.Zero,
+							ProcessContext = _processContextPtr
+						};
+						_processor.Process(ref flush);
+					}
+					catch
+					{
+					}
+					finally
+					{
+						_inFlightParamChanges.Clear();
+					}
+				}
+				var stream = new Vst3MemoryStreamImpl();
+				nint streamNative = Vst3Com.ToNative<IBStreamCom>(stream);
+				try
+				{
+					if (_component.GetState(streamNative) == 0 && stream.Length > 0)
+					{
+						return stream.ToArray();
+					}
+				}
+				finally
+				{
+					Marshal.Release(streamNative);
+				}
+			}
+			catch
+			{
+			}
+			return null;
+		}
+	}
+
+	public bool ImportState(byte[]? state)
+	{
+		if (state == null || state.Length == 0)
+		{
+			return false;
+		}
+		lock (_lock)
+		{
+			if (_disposed || _disposing || _component == null)
+			{
+				return false;
+			}
+			try
+			{
+				var stream = new Vst3MemoryStreamImpl();
+				nint streamNative = Vst3Com.ToNative<IBStreamCom>(stream);
+				try
+				{
+					unsafe
+					{
+						fixed (byte* p = state)
+						{
+							stream.Write((nint)p, state.Length, IntPtr.Zero);
+						}
+					}
+					stream.Seek(0, 0, IntPtr.Zero);
+					int res = _component.SetState(streamNative);
+					if (res == 0)
+					{
+						if (_controller != null)
+						{
+							stream.Seek(0, 0, IntPtr.Zero);
+							try { _controller.SetComponentState(streamNative); } catch { }
+						}
+						return true;
+					}
+				}
+				finally
+				{
+					Marshal.Release(streamNative);
+				}
+			}
+			catch
+			{
+			}
+			return false;
+		}
 	}
 
 	[DllImport("user32.dll")]
@@ -1100,7 +1366,7 @@ public sealed class Vst3NativeInstance : IDisposable
 	{
 		width = 640;
 		height = 480;
-		if (_disposed)
+		if (_disposed || _disposing)
 		{
 			return "插件已释放，无法打开界面";
 		}
@@ -1108,201 +1374,251 @@ public sealed class Vst3NativeInstance : IDisposable
 		{
 			return "宿主窗口句柄无效";
 		}
-		try
+		lock (_editorLock)
 		{
-			if (_view != null || _viewAttached)
+			if (_disposed || _disposing)
 			{
-				CloseEditor();
+				return "插件已释放，无法打开界面";
 			}
-
-			if (_controller == null && _componentRaw != IntPtr.Zero)
-			{
-				nint ctrlPtr = QueryInterface(_componentRaw, Vst3Ids.IEditController);
-				if (ctrlPtr != IntPtr.Zero)
-				{
-					_controllerRaw = ctrlPtr;
-					_controller = Vst3Com.ToManaged<IEditController>(_controllerRaw);
-					if (_hostContextCcw != IntPtr.Zero)
-					{
-						try { _controller.Initialize(_hostContextCcw); } catch {}
-					}
-					if (_hostContext != null)
-					{
-						try
-						{
-							nint handlerCcw = Vst3Com.ToNative((IComponentHandlerCom)_hostContext);
-							_controller.SetComponentHandler(handlerCcw);
-						}
-						catch {}
-					}
-					try
-					{
-						_controllerCpRaw = QueryInterface(_controllerRaw, Vst3Ids.IConnectionPoint);
-						if (_controllerCpRaw != IntPtr.Zero)
-						{
-							_controllerCp = Vst3Com.ToManaged<IConnectionPoint>(_controllerCpRaw);
-							if (_componentCp != null)
-							{
-								_componentCp.Connect(_controllerCpRaw);
-								_controllerCp.Connect(_componentCpRaw);
-							}
-						}
-					}
-					catch {}
-				}
-			}
-			if (_controller == null)
-			{
-				return "该插件未提供编辑控制器（无法打开自带界面）";
-			}
-
-			if (_hostContextCcw == IntPtr.Zero && _hostContext != null)
-			{
-				try { _hostContextCcw = Vst3Com.ToNative((IHostApplicationCom)_hostContext); } catch {}
-			}
-
-			nint num = _controller.CreateView(PinBytes(Vst3Const.EditorName));
-			if (num == IntPtr.Zero)
-			{
-				return "插件不支持编辑器视图（createView 返回空）";
-			}
-			_viewRaw = num;
-
-			nint viewQi = QueryInterface(num, Vst3Ids.IPlugView);
-			nint targetViewPtr = (viewQi != IntPtr.Zero) ? viewQi : num;
-
 			try
 			{
-				_view = Vst3Com.ToManaged<IPlugView>(targetViewPtr);
-			}
-			catch (Exception exToManaged)
-			{
-				return "获取插件 IPlugView 失败: " + exToManaged.Message;
-			}
+				if (_view != null || _viewAttached)
+				{
+					CloseEditorCore();
+				}
 
-			if (_view == null)
-			{
-				return "插件未返回有效 IPlugView 接口对象";
-			}
+				if (_controller == null && _componentRaw != IntPtr.Zero)
+				{
+					nint ctrlPtr = QueryInterface(_componentRaw, Vst3Ids.IEditController);
+					if (ctrlPtr != IntPtr.Zero)
+					{
+						_controllerRaw = ctrlPtr;
+						_controller = Vst3Com.ToManaged<IEditController>(_controllerRaw);
+						_controllerIsSeparate = _controllerRaw != _componentRaw;
+						if (_controllerIsSeparate && _hostContextCcw != IntPtr.Zero)
+						{
+							try { _controller.Initialize(_hostContextCcw); } catch { }
+						}
+						if (_hostContext != null)
+						{
+							try
+							{
+								if (_handlerCcw == IntPtr.Zero)
+								{
+									_handlerCcw = Vst3Com.ToNative((IComponentHandlerCom)_hostContext);
+								}
+								_controller.SetComponentHandler(_handlerCcw);
+							}
+							catch { }
+						}
+						if (_controllerIsSeparate)
+						{
+							try
+							{
+								_controllerCpRaw = QueryInterface(_controllerRaw, Vst3Ids.IConnectionPoint);
+								if (_controllerCpRaw != IntPtr.Zero)
+								{
+									_controllerCp = Vst3Com.ToManaged<IConnectionPoint>(_controllerCpRaw);
+									if (_componentCp != null && _componentCpRaw != IntPtr.Zero)
+									{
+										_componentCp.Connect(_controllerCpRaw);
+										_controllerCp.Connect(_componentCpRaw);
+									}
+								}
+							}
+							catch { }
+						}
+					}
+				}
+				if (_controller == null)
+				{
+					return "该插件未提供编辑控制器（无法打开自带界面）";
+				}
 
-			nint hwndPlatformPtr = PinBytes(Vst3Const.PlatformHwnd);
-			int sup = _view.IsPlatformTypeSupported(hwndPlatformPtr);
-			if (sup != 0)
-			{
-				return "插件界面不支持当前平台（HWND）";
-			}
+				if (_hostContextCcw == IntPtr.Zero && _hostContext != null)
+				{
+					try { _hostContextCcw = Vst3Com.ToNative((IHostApplicationCom)_hostContext); } catch { }
+				}
 
-			ViewRect viewRect = default;
-			if (_view.GetSize((nint)(&viewRect)) == 0)
-			{
-				width = Math.Max(64, viewRect.Right - viewRect.Left);
-				height = Math.Max(48, viewRect.Bottom - viewRect.Top);
-			}
+				nint num;
+				fixed (byte* editorNamePtr = Vst3Const.EditorName)
+				{
+					num = _controller.CreateView((nint)editorNamePtr);
+				}
+				if (num == IntPtr.Zero)
+				{
+					return "插件不支持编辑器视图（createView 返回空）";
+				}
 
-			if (_hostContext != null)
-			{
+				nint viewQi = QueryInterface(num, Vst3Ids.IPlugView);
+				nint targetViewPtr = num;
+				if (viewQi != IntPtr.Zero)
+				{
+					try { Marshal.Release(num); } catch { }
+					targetViewPtr = viewQi;
+				}
+				_viewRaw = targetViewPtr;
+
 				try
 				{
-					_viewFrameCcw = Vst3Com.ToNative((IPlugFrameCom)_hostContext);
-					if (_viewFrameCcw != IntPtr.Zero)
+					_view = Vst3Com.ToManaged<IPlugView>(targetViewPtr);
+				}
+				catch (Exception exToManaged)
+				{
+					CloseEditorCore();
+					return "获取插件 IPlugView 失败: " + exToManaged.Message;
+				}
+
+				if (_view == null)
+				{
+					CloseEditorCore();
+					return "插件未返回有效 IPlugView 接口对象";
+				}
+
+				int sup;
+				fixed (byte* hwndPlatformPtr = Vst3Const.PlatformHwnd)
+				{
+					sup = _view.IsPlatformTypeSupported((nint)hwndPlatformPtr);
+				}
+				if (sup != 0)
+				{
+					CloseEditorCore();
+					return "插件界面不支持当前平台（HWND）";
+				}
+
+				ViewRect viewRect = default;
+				if (_view.GetSize((nint)(&viewRect)) == 0)
+				{
+					width = Math.Max(64, viewRect.Right - viewRect.Left);
+					height = Math.Max(48, viewRect.Bottom - viewRect.Top);
+				}
+
+				if (_hostContext != null)
+				{
+					try
 					{
-						_view.SetFrame(_viewFrameCcw);
+						_viewFrameCcw = Vst3Com.ToNative((IPlugFrameCom)_hostContext);
+						if (_viewFrameCcw != IntPtr.Zero)
+						{
+							_view.SetFrame(_viewFrameCcw);
+						}
+					}
+					catch (Exception exF)
+					{
+						Console.WriteLine("[echo-vst3-host] SetFrame warning: " + exF.Message);
 					}
 				}
-				catch (Exception exF)
+
+				try
 				{
-					Console.WriteLine("[echo-vst3-host] SetFrame warning: " + exF.Message);
+					nint scaleQi = QueryInterface(targetViewPtr, new Guid("65ED9690-7164-4E13-8D2A-D5163FBECD9F"));
+					if (scaleQi != IntPtr.Zero)
+					{
+						var scaleSupport = Vst3Com.ToManaged<IPlugViewContentScaleSupport>(scaleQi);
+						scaleSupport?.SetContentScaleFactor(1.0f);
+						Marshal.Release(scaleQi);
+					}
 				}
-			}
+				catch { }
 
-			try
-			{
-				nint scaleQi = QueryInterface(targetViewPtr, new Guid("65ED9690-7164-4E13-8D2A-D5163FBECD9F"));
-				if (scaleQi != IntPtr.Zero)
+				fixed (byte* hwndPlatformPtr = Vst3Const.PlatformHwnd)
 				{
-					var scaleSupport = Vst3Com.ToManaged<IPlugViewContentScaleSupport>(scaleQi);
-					scaleSupport?.SetContentScaleFactor(1.0f);
-					Marshal.Release(scaleQi);
+					sup = _view.Attached(parentHwnd, (nint)hwndPlatformPtr);
 				}
-			}
-			catch {}
-			sup = _view.Attached(parentHwnd, hwndPlatformPtr);
-			if (sup != 0)
-			{
-				try { _view.Removed(); } catch {}
-				return "插件界面挂载失败（attached 返回 0x" + sup.ToString("X8") + "）";
-			}
+				if (sup != 0)
+				{
+					CloseEditorCore();
+					return "插件界面挂载失败（attached 返回 0x" + sup.ToString("X8") + "）";
+				}
 
-			_viewAttached = true;
-			_viewResizable = _view.CanResize() == 0;
-			ViewRect viewRect2 = new ViewRect
-			{
-				Left = 0,
-				Top = 0,
-				Right = width,
-				Bottom = height
-			};
-			_view.OnSize((nint)(&viewRect2));
-			_view.OnFocus(1);
-			return null;
-		}
-		catch (Exception ex)
-		{
-			string detail = $"{ex.GetType().Name}: {ex.Message} at {ex.TargetSite} in {ex.StackTrace}";
-			Console.WriteLine("[echo-vst3-host] OpenEditor exception: " + detail);
-			try { File.AppendAllText("editor_exception.log", $"{DateTime.Now}: {detail}\n"); } catch {}
-			return "打开插件界面异常：" + ex.Message;
-		}
-	}
-
-	public unsafe void EditorResized(int width, int height)
-	{
-		try
-		{
-			if (_view != null && _viewAttached)
-			{
-				ViewRect viewRect = new ViewRect
+				_viewAttached = true;
+				_viewResizable = _view.CanResize() == 0;
+				ViewRect viewRect2 = new ViewRect
 				{
 					Left = 0,
 					Top = 0,
 					Right = width,
 					Bottom = height
 				};
-				_view.OnSize((nint)(&viewRect));
+				_view.OnSize((nint)(&viewRect2));
+				_view.OnFocus(1);
+				return null;
+			}
+			catch (Exception ex)
+			{
+				CloseEditorCore();
+				string detail = $"{ex.GetType().Name}: {ex.Message} at {ex.TargetSite} in {ex.StackTrace}";
+				Console.WriteLine("[echo-vst3-host] OpenEditor exception: " + detail);
+				try { File.AppendAllText("editor_exception.log", $"{DateTime.Now}: {detail}\n"); } catch { }
+				return "打开插件界面异常：" + ex.Message;
 			}
 		}
-		catch
+	}
+
+	public unsafe void EditorResized(int width, int height)
+	{
+		lock (_editorLock)
 		{
+			if (_disposed || _disposing)
+			{
+				return;
+			}
+			try
+			{
+				if (_view != null && _viewAttached)
+				{
+					ViewRect viewRect = new ViewRect
+					{
+						Left = 0,
+						Top = 0,
+						Right = width,
+						Bottom = height
+					};
+					_view.OnSize((nint)(&viewRect));
+				}
+			}
+			catch
+			{
+			}
 		}
 	}
 
 	public void CloseEditor()
 	{
-		if (_disposed)
+		lock (_editorLock)
 		{
-			return;
+			if (_disposed)
+			{
+				return;
+			}
+			CloseEditorCore();
 		}
+	}
+
+	private void CloseEditorCore()
+	{
 		try
 		{
 			if (_view != null && _viewAttached)
 			{
-				try { _view.OnFocus(0); } catch {}
-				try { _view.Removed(); } catch {}
+				try { _view.OnFocus(0); } catch { }
+				try { _view.Removed(); } catch { }
 				_viewAttached = false;
 			}
 			if (_view != null)
 			{
-				try { _view.SetFrame(IntPtr.Zero); } catch {}
+				try { _view.SetFrame(IntPtr.Zero); } catch { }
+				try { GC.SuppressFinalize(_view); } catch { }
 				_view = null;
 			}
 			if (_viewFrameCcw != IntPtr.Zero)
 			{
-				try { Marshal.Release(_viewFrameCcw); } catch {}
+				try { Marshal.Release(_viewFrameCcw); } catch { }
 				_viewFrameCcw = IntPtr.Zero;
 			}
 			if (_viewRaw != IntPtr.Zero)
 			{
-				try { Marshal.Release(_viewRaw); } catch {}
+				try { Marshal.Release(_viewRaw); } catch { }
 				_viewRaw = IntPtr.Zero;
 			}
 		}
@@ -1331,24 +1647,31 @@ public sealed class Vst3NativeInstance : IDisposable
 	{
 		lock (_lock)
 		{
-			if (_disposed)
+			if (_disposed || _disposing)
 			{
 				return;
 			}
-			_disposed = true;
+			_disposing = true;
 			_processingEnabled = false;
+		}
+		lock (_editorLock)
+		{
+			try
+			{
+				CloseEditorCore();
+			}
+			catch
+			{
+			}
+		}
+		lock (_lock)
+		{
+			_disposed = true;
 			FreeBuffers();
 		}
 		try
 		{
-			CloseEditor();
-		}
-		catch
-		{
-		}
-		try
-		{
-			if (_componentCp != null && _controllerCp != null)
+			if (_componentCp != null && _controllerCp != null && _controllerCpRaw != IntPtr.Zero && _componentCpRaw != IntPtr.Zero)
 			{
 				_componentCp.Disconnect(_controllerCpRaw);
 				_controllerCp.Disconnect(_componentCpRaw);
@@ -1378,20 +1701,23 @@ public sealed class Vst3NativeInstance : IDisposable
 		catch
 		{
 		}
-		try
+		if (_controllerIsSeparate)
 		{
-			_controller?.Terminate();
+			try
+			{
+				_controller?.Terminate();
+			}
+			catch
+			{
+			}
 		}
-		catch
-		{
-		}
-		if (_factory != null) { try { GC.SuppressFinalize(_factory); } catch {} }
-		if (_component != null) { try { GC.SuppressFinalize(_component); } catch {} }
-		if (_controller != null) { try { GC.SuppressFinalize(_controller); } catch {} }
-		if (_processor != null) { try { GC.SuppressFinalize(_processor); } catch {} }
-		if (_componentCp != null) { try { GC.SuppressFinalize(_componentCp); } catch {} }
-		if (_controllerCp != null) { try { GC.SuppressFinalize(_controllerCp); } catch {} }
-		if (_view != null) { try { GC.SuppressFinalize(_view); } catch {} }
+		if (_factory != null) { try { GC.SuppressFinalize(_factory); } catch { } }
+		if (_component != null) { try { GC.SuppressFinalize(_component); } catch { } }
+		if (_controller != null) { try { GC.SuppressFinalize(_controller); } catch { } }
+		if (_processor != null) { try { GC.SuppressFinalize(_processor); } catch { } }
+		if (_componentCp != null) { try { GC.SuppressFinalize(_componentCp); } catch { } }
+		if (_controllerCp != null) { try { GC.SuppressFinalize(_controllerCp); } catch { } }
+		if (_view != null) { try { GC.SuppressFinalize(_view); } catch { } }
 		_factory = null;
 		_component = null;
 		_controller = null;
@@ -1401,9 +1727,21 @@ public sealed class Vst3NativeInstance : IDisposable
 		_view = null;
 		try
 		{
+			if (_handlerCcw != IntPtr.Zero)
+			{
+				Marshal.Release(_handlerCcw);
+				_handlerCcw = IntPtr.Zero;
+			}
+		}
+		catch
+		{
+		}
+		try
+		{
 			if (_hostContextCcw != IntPtr.Zero)
 			{
 				Marshal.Release(_hostContextCcw);
+				_hostContextCcw = IntPtr.Zero;
 			}
 		}
 		catch
@@ -1415,6 +1753,17 @@ public sealed class Vst3NativeInstance : IDisposable
 			{
 				Marshal.Release(_paramChangesCcw);
 				_paramChangesCcw = IntPtr.Zero;
+			}
+		}
+		catch
+		{
+		}
+		try
+		{
+			if (_inFlightParamChangesCcw != IntPtr.Zero)
+			{
+				Marshal.Release(_inFlightParamChangesCcw);
+				_inFlightParamChangesCcw = IntPtr.Zero;
 			}
 		}
 		catch
@@ -1444,7 +1793,7 @@ public sealed class Vst3NativeInstance : IDisposable
 		}
 	}
 
-	private static string ResolveModulePath(string pluginPath)
+	internal static string? ResolveModulePath(string pluginPath)
 	{
 		try
 		{
@@ -1460,7 +1809,9 @@ public sealed class Vst3NativeInstance : IDisposable
 					string path2 = System.IO.Path.Combine(pluginPath, "Contents", path);
 					if (Directory.Exists(path2))
 					{
-						string text = Directory.EnumerateFiles(path2, "*.vst3", SearchOption.TopDirectoryOnly).Concat(Directory.EnumerateFiles(path2, "*.dll", SearchOption.TopDirectoryOnly)).FirstOrDefault();
+						string? text = Directory.EnumerateFiles(path2, "*.vst3", SearchOption.TopDirectoryOnly)
+							.Concat(Directory.EnumerateFiles(path2, "*.dll", SearchOption.TopDirectoryOnly))
+							.FirstOrDefault();
 						if (text != null)
 						{
 							return text;
@@ -1477,35 +1828,43 @@ public sealed class Vst3NativeInstance : IDisposable
 
 	public bool SyncComponentStateToController()
 	{
-		if (_component == null || _controller == null)
+		bool ok = false;
+		lock (_lock)
 		{
-			return false;
-		}
-		try
-		{
-			var stream = new Vst3MemoryStreamImpl();
-			nint streamNative = Vst3Com.ToNative<IBStreamCom>(stream);
+			if (_disposed || _disposing || _component == null || _controller == null)
+			{
+				return false;
+			}
 			try
 			{
-				int resGet = _component.GetState(streamNative);
-				Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}): component.GetState returned 0x{resGet:X8}, bytes = {stream.Length}");
-				if (resGet == 0 && stream.Length > 0)
+				var stream = new Vst3MemoryStreamImpl();
+				nint streamNative = Vst3Com.ToNative<IBStreamCom>(stream);
+				try
 				{
-					stream.Seek(0, 0, IntPtr.Zero);
-					int resSet = _controller.SetComponentState(streamNative);
-					Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}): controller.SetComponentState returned 0x{resSet:X8}");
-					return resSet == 0;
+					int resGet = _component.GetState(streamNative);
+					Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}): component.GetState returned 0x{resGet:X8}, bytes = {stream.Length}");
+					if (resGet == 0 && stream.Length > 0)
+					{
+						stream.Seek(0, 0, IntPtr.Zero);
+						int resSet = _controller.SetComponentState(streamNative);
+						Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}): controller.SetComponentState returned 0x{resSet:X8}");
+						ok = resSet == 0;
+					}
+				}
+				finally
+				{
+					Marshal.Release(streamNative);
 				}
 			}
-			finally
+			catch (Exception ex)
 			{
-				Marshal.Release(streamNative);
+				Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}) exception: {ex.Message}");
 			}
 		}
-		catch (Exception ex)
+		if (ok)
 		{
-			Console.WriteLine($"[echo-vst3-host] SyncComponentState ({DisplayName}) exception: {ex.Message}");
+			ParameterEdited?.Invoke();
 		}
-		return false;
+		return ok;
 	}
 }

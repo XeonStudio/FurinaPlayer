@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -23,17 +24,27 @@ namespace FurinaPlayer.UI.Pages;
 public sealed partial class DspPage
 {
 	private Border? _multibandCompressorWorkbench;
+	private Grid? _mbRootGrid;
+	private Border? _mbTitleIconBorder;
+	private FontIcon? _mbTitleIcon;
 	private int _multibandSelectedBand = 1; // 0: 低频, 1: 中频, 2: 高频 (默认选中中频)
 	private DispatcherTimer? _multibandTimer;
 	private bool _isUpdatingMultibandUi = false;
 
+	// 主题追踪集合
+	private readonly List<TextBlock> _mbPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _mbSecondaryTextBlocks = new();
+	private readonly List<TextBlock> _mbMutedTextBlocks = new();
+	private readonly List<Button> _mbPresetButtons = new();
+
 	// 顶部与操作栏控件
-	private TextBlock? _mbActiveModulesBadge;
-	private TextBlock? _mbReadyBadge;
 	private Button? _mbPowerButton;
 	private FontIcon? _mbPowerIcon;
 	private TextBlock? _mbPowerText;
 	private Button? _mbRestoreDefaultBtn;
+	private FontIcon? _mbRestoreDefaultIcon;
+	private TextBlock? _mbRestoreDefaultText;
+	private Border? _mbBandSwitcherBorder;
 	private readonly List<Button> _mbBandSelectorButtons = new();
 
 	// 试听快捷预设
@@ -49,10 +60,12 @@ public sealed partial class DspPage
 	private TextBlock? _mbMaxGrSubTb;
 
 	// 中央分频可视化卡片
+	private Border? _mbCrossoverCardBorder;
 	private Canvas? _mbPlotCanvas;
 	private Border? _mbBandRegionLow;
 	private Border? _mbBandRegionMid;
 	private Border? _mbBandRegionHigh;
+	private readonly TextBlock?[] _mbBandRegionTitleTbs = new TextBlock?[3];
 	private TextBlock? _mbRegionLowGrTb;
 	private TextBlock? _mbRegionMidGrTb;
 	private TextBlock? _mbRegionHighGrTb;
@@ -95,9 +108,17 @@ public sealed partial class DspPage
 	{
 		if (_multibandCompressorWorkbench != null)
 		{
+			RefreshMultibandTheme(IsDspDark);
 			RefreshMultibandState();
 			return _multibandCompressorWorkbench;
 		}
+
+		bool isDark = IsDspDark;
+		_mbPrimaryTextBlocks.Clear();
+		_mbSecondaryTextBlocks.Clear();
+		_mbMutedTextBlocks.Clear();
+		_mbPresetButtons.Clear();
+		_mbBandSelectorButtons.Clear();
 
 		var sv = new ScrollViewer
 		{
@@ -107,10 +128,11 @@ public sealed partial class DspPage
 
 		var root = new Grid
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
+			Background = CreateMbSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0)),
 			Padding = new Thickness(28, 22, 28, 26),
 			RowSpacing = 16
 		};
+		_mbRootGrid = root;
 
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Header & Status Bar
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Power & Band Tabs
@@ -148,12 +170,17 @@ public sealed partial class DspPage
 		root.Children.Add(bottomGrid);
 
 		sv.Content = root;
-		_multibandCompressorWorkbench = new Border { Child = sv };
+		_multibandCompressorWorkbench = new Border
+		{
+			Child = sv,
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light
+		};
 
 		// Start real-time 30fps dynamic metering timer
 		StartMultibandMeterTimer();
 
 		// Initial sync
+		RefreshMultibandTheme(isDark);
 		RefreshMultibandState();
 
 		return _multibandCompressorWorkbench;
@@ -163,96 +190,44 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMultibandTopHeader()
 	{
+		bool isDark = IsDspDark;
 		var headerGrid = new Grid();
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		// Left Title with Layered/Stack Wave Icon
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var iconBorder = new Border
+		_mbTitleIcon = new FontIcon
+		{
+			Glyph = "\uE81E", // Stacked discs / layers
+			FontSize = 18,
+			Foreground = GetMbAccentTextBrush(isDark),
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_mbTitleIconBorder = new Border
 		{
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = GetMbAccentBgBrush(isDark),
+			BorderBrush = GetMbAccentBorderBrush(isDark),
 			BorderThickness = new Thickness(1),
-			Child = new FontIcon
-			{
-				Glyph = "\uE81E", // Stacked discs / layers
-				FontSize = 18,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Child = _mbTitleIcon
 		};
-		titleSp.Children.Add(iconBorder);
-		titleSp.Children.Add(new TextBlock
+		titleSp.Children.Add(_mbTitleIconBorder);
+		var titleTb = new TextBlock
 		{
 			Text = "三频段压缩",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_mbPrimaryTextBlocks.Add(titleTb);
+		titleSp.Children.Add(titleTb);
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		// Right Pills: "4 个模块启用", "就绪", "[刷新状态]"
-		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4)
-		};
-		var moduleContentSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		moduleContentSp.Children.Add(new FontIcon { Glyph = "\uE945", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) });
-		_mbActiveModulesBadge = new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = FontWeights.SemiBold };
-		moduleContentSp.Children.Add(_mbActiveModulesBadge);
-		modulePill.Child = moduleContentSp;
-
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4)
-		};
-		var readyContentSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		readyContentSp.Children.Add(new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) });
-		_mbReadyBadge = new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = FontWeights.SemiBold };
-		readyContentSp.Children.Add(_mbReadyBadge);
-		readyPill.Child = readyContentSp;
-
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240))
-		};
-		btnRefreshTop.Click += (s, e) => RefreshMultibandState();
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 
 		return headerGrid;
 	}
@@ -263,6 +238,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMultibandActionRow()
 	{
+		bool isDark = IsDspDark;
 		var rowGrid = new Grid();
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -270,8 +246,8 @@ public sealed partial class DspPage
 		// Left: Power Toggle + Restore Defaults
 		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
-		_mbPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		_mbPowerText = new TextBlock { Text = "多段压缩旁路", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) };
+		_mbPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = GetMbMutedTextBrush(isDark) };
+		_mbPowerText = new TextBlock { Text = "多段压缩旁路", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = GetMbSecondaryTextBrush(isDark) };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		powerSp.Children.Add(_mbPowerIcon);
 		powerSp.Children.Add(_mbPowerText);
@@ -281,9 +257,9 @@ public sealed partial class DspPage
 			Content = powerSp,
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240))
+			BorderThickness = new Thickness(1)
 		};
+		UpdateMultibandPowerButtonVisual(ViewModel?.FurinaMultibandEnabled ?? false, isDark);
 		_mbPowerButton.Click += (s, e) =>
 		{
 			bool enabled = !(ViewModel?.FurinaMultibandEnabled ?? false);
@@ -296,6 +272,8 @@ public sealed partial class DspPage
 		};
 		leftSp.Children.Add(_mbPowerButton);
 
+		_mbRestoreDefaultIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = GetMbMutedTextBrush(isDark) };
+		_mbRestoreDefaultText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = GetMbSubHeaderTextBrush(isDark) };
 		_mbRestoreDefaultBtn = new Button
 		{
 			Content = new StackPanel
@@ -304,15 +282,15 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) }
+					_mbRestoreDefaultIcon,
+					_mbRestoreDefaultText
 				}
 			},
 			Padding = new Thickness(10, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(160, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240))
+			BorderThickness = new Thickness(1)
 		};
+		ApplyMultibandRestoreDefaultTheme(isDark);
 		_mbRestoreDefaultBtn.Click += (s, e) =>
 		{
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
@@ -328,10 +306,10 @@ public sealed partial class DspPage
 		rowGrid.Children.Add(leftSp);
 
 		// Right: Band Switcher [低频] [中频] [高频]
-		var bandSwitcherBorder = new Border
+		_mbBandSwitcherBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(220, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetMbSoftSurfaceBrush(isDark),
+			BorderBrush = CreateMbRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(2)
@@ -355,11 +333,11 @@ public sealed partial class DspPage
 			_mbBandSelectorButtons.Add(btn);
 			bandTabsSp.Children.Add(btn);
 		}
-		bandSwitcherBorder.Child = bandTabsSp;
-		Grid.SetColumn(bandSwitcherBorder, 1);
-		rowGrid.Children.Add(bandSwitcherBorder);
+		_mbBandSwitcherBorder.Child = bandTabsSp;
+		Grid.SetColumn(_mbBandSwitcherBorder, 1);
+		rowGrid.Children.Add(_mbBandSwitcherBorder);
 
-		UpdateBandTabVisuals();
+		UpdateBandTabVisuals(isDark);
 		return rowGrid;
 	}
 
@@ -369,6 +347,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMultibandAuditionRow()
 	{
+		bool isDark = IsDspDark;
 		var rowGrid = new Grid();
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -377,31 +356,36 @@ public sealed partial class DspPage
 		var leftSp = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
 		var pillsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 
-		pillsRow.Children.Add(new TextBlock
+		var auditionTitleTb = new TextBlock
 		{
 			Text = "快捷试听",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = GetMbSecondaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_mbSecondaryTextBlocks.Add(auditionTitleTb);
+		pillsRow.Children.Add(auditionTitleTb);
 
-		_mbPresetGentleBtn = CreateAuditionPresetButton("轻柔均衡", "gentle");
-		_mbPresetBassBtn = CreateAuditionPresetButton("低频收紧", "bass");
-		_mbPresetStrongBtn = CreateAuditionPresetButton("明显压缩", "strong");
+		_mbPresetButtons.Clear();
+		_mbPresetGentleBtn = CreateAuditionPresetButton("轻柔均衡", "gentle", isDark);
+		_mbPresetBassBtn = CreateAuditionPresetButton("低频收紧", "bass", isDark);
+		_mbPresetStrongBtn = CreateAuditionPresetButton("明显压缩", "strong", isDark);
 
 		pillsRow.Children.Add(_mbPresetGentleBtn);
 		pillsRow.Children.Add(_mbPresetBassBtn);
 		pillsRow.Children.Add(_mbPresetStrongBtn);
 		leftSp.Children.Add(pillsRow);
 
-		leftSp.Children.Add(new TextBlock
+		var auditionHintTb = new TextBlock
 		{
 			Text = "听不出变化？试试“明显压缩”，再用上方开关对比原声。点击预设会开启压缩并替换本模块参数。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			TextWrapping = TextWrapping.Wrap
-		});
+		};
+		_mbMutedTextBlocks.Add(auditionHintTb);
+		leftSp.Children.Add(auditionHintTb);
 
 		Grid.SetColumn(leftSp, 0);
 		rowGrid.Children.Add(leftSp);
@@ -415,18 +399,20 @@ public sealed partial class DspPage
 			Text = "0.0",
 			FontSize = 38,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
+		_mbPrimaryTextBlocks.Add(_mbMaxGrNumberTb);
 		_mbMaxGrSubTb = new TextBlock
 		{
 			Text = "dB",
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			Margin = new Thickness(0, 0, 0, 8),
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
+		_mbMutedTextBlocks.Add(_mbMaxGrSubTb);
 		numberRow.Children.Add(_mbMaxGrNumberTb);
 		numberRow.Children.Add(_mbMaxGrSubTb);
 		rightSp.Children.Add(numberRow);
@@ -435,9 +421,10 @@ public sealed partial class DspPage
 		{
 			Text = "最大增益衰减：当前没有压缩",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
+		_mbMutedTextBlocks.Add(grLabelTb);
 		rightSp.Children.Add(grLabelTb);
 		Grid.SetColumn(rightSp, 1);
 		rowGrid.Children.Add(rightSp);
@@ -445,7 +432,7 @@ public sealed partial class DspPage
 		return rowGrid;
 	}
 
-	private Button CreateAuditionPresetButton(string label, string presetId)
+	private Button CreateAuditionPresetButton(string label, string presetId, bool isDark)
 	{
 		var btn = new Button
 		{
@@ -453,10 +440,10 @@ public sealed partial class DspPage
 			FontSize = 12,
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(14),
-			Background = new SolidColorBrush(Color.FromArgb(200, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85))
+			BorderThickness = new Thickness(1)
 		};
+		ApplyMultibandSurfaceButtonTheme(btn, isDark, GetMbSecondaryTextBrush(isDark));
+		_mbPresetButtons.Add(btn);
 		btn.Click += (s, e) =>
 		{
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
@@ -476,6 +463,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMultibandStatusRow()
 	{
+		bool isDark = IsDspDark;
 		var rowGrid = new Grid { Margin = new Thickness(0, 4, 0, -4) };
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -488,7 +476,7 @@ public sealed partial class DspPage
 		{
 			Text = "●",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_mbStatusTitle = new TextBlock
@@ -496,7 +484,7 @@ public sealed partial class DspPage
 			Text = "已旁路",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = GetMbSecondaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		statusHeaderSp.Children.Add(_mbStatusDot);
@@ -507,8 +495,9 @@ public sealed partial class DspPage
 		{
 			Text = "三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = GetMbMutedTextBrush(isDark)
 		};
+		_mbMutedTextBlocks.Add(_mbStatusDetail);
 		leftSp.Children.Add(_mbStatusDetail);
 		Grid.SetColumn(leftSp, 0);
 		rowGrid.Children.Add(leftSp);
@@ -518,9 +507,10 @@ public sealed partial class DspPage
 		{
 			Text = "拖动分频线改变分频点，点击频段编辑",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Bottom
 		};
+		_mbMutedTextBlocks.Add(hintTb);
 		Grid.SetColumn(hintTb, 1);
 		rowGrid.Children.Add(hintTb);
 
@@ -533,12 +523,13 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMultibandCrossoverCard()
 	{
-		var outerBorder = new Border
+		bool isDark = IsDspDark;
+		_mbCrossoverCardBorder = new Border
 		{
 			Height = 150,
 			CornerRadius = new CornerRadius(12),
-			Background = new SolidColorBrush(Color.FromArgb(220, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetMbSoftSurfaceBrush(isDark),
+			BorderBrush = CreateMbRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			Clip = new RectangleGeometry { Rect = new Rect(0, 0, 2000, 150) }
 		};
@@ -552,24 +543,25 @@ public sealed partial class DspPage
 		_mbPlotCanvas.SizeChanged += (s, e) => UpdateMultibandPlotLayout();
 
 		// Region 0: Low Band
-		_mbBandRegionLow = CreateBandRegionBorder(0, "低频", out _mbRegionLowGrTb);
+		_mbBandRegionLow = CreateBandRegionBorder(0, "低频", isDark, out _mbRegionLowGrTb);
 		_mbBandRegionLow.PointerPressed += (s, e) => SetSelectedBand(0);
 		_mbPlotCanvas.Children.Add(_mbBandRegionLow);
 
 		// Region 1: Mid Band
-		_mbBandRegionMid = CreateBandRegionBorder(1, "中频", out _mbRegionMidGrTb);
+		_mbBandRegionMid = CreateBandRegionBorder(1, "中频", isDark, out _mbRegionMidGrTb);
 		_mbBandRegionMid.PointerPressed += (s, e) => SetSelectedBand(1);
 		_mbPlotCanvas.Children.Add(_mbBandRegionMid);
 
 		// Region 2: High Band
-		_mbBandRegionHigh = CreateBandRegionBorder(2, "高频", out _mbRegionHighGrTb);
+		_mbBandRegionHigh = CreateBandRegionBorder(2, "高频", isDark, out _mbRegionHighGrTb);
 		_mbBandRegionHigh.PointerPressed += (s, e) => SetSelectedBand(2);
 		_mbPlotCanvas.Children.Add(_mbBandRegionHigh);
 
 		// Divider 1 (Low / Mid crossover): Line, handle, label
+		var dividerBrush = GetMbDividerLineBrush(isDark);
 		_mbDividerLowLine = new Line
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Stroke = dividerBrush,
 			StrokeThickness = 2.0,
 			Y1 = 0,
 			Y2 = 100
@@ -580,9 +572,10 @@ public sealed partial class DspPage
 			Text = "150 Hz",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			IsHitTestVisible = false
 		};
+		_mbPrimaryTextBlocks.Add(_mbDividerLowHzTb);
 		_mbPlotCanvas.Children.Add(_mbDividerLowLine);
 		_mbPlotCanvas.Children.Add(_mbDividerLowHandle);
 		_mbPlotCanvas.Children.Add(_mbDividerLowHzTb);
@@ -590,7 +583,7 @@ public sealed partial class DspPage
 		// Divider 2 (Mid / High crossover): Line, handle, label
 		_mbDividerHighLine = new Line
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Stroke = dividerBrush,
 			StrokeThickness = 2.0,
 			Y1 = 0,
 			Y2 = 100
@@ -601,23 +594,24 @@ public sealed partial class DspPage
 			Text = "2.5 kHz",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)),
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			IsHitTestVisible = false
 		};
+		_mbPrimaryTextBlocks.Add(_mbDividerHighHzTb);
 		_mbPlotCanvas.Children.Add(_mbDividerHighLine);
 		_mbPlotCanvas.Children.Add(_mbDividerHighHandle);
 		_mbPlotCanvas.Children.Add(_mbDividerHighHzTb);
 
-		outerBorder.Child = _mbPlotCanvas;
-		return outerBorder;
+		_mbCrossoverCardBorder.Child = _mbPlotCanvas;
+		return _mbCrossoverCardBorder;
 	}
 
-	private Border CreateBandRegionBorder(int bandIdx, string title, out TextBlock grTb)
+	private Border CreateBandRegionBorder(int bandIdx, string title, bool isDark, out TextBlock grTb)
 	{
 		var b = new Border
 		{
 			CornerRadius = new CornerRadius(0),
-			Background = new SolidColorBrush(Color.FromArgb(100, 248, 250, 252)),
+			Background = GetMbSoftSurfaceBrush(isDark),
 			Padding = new Thickness(10, 16, 10, 10)
 		};
 
@@ -633,16 +627,17 @@ public sealed partial class DspPage
 			Text = title,
 			FontSize = 24,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
+		_mbBandRegionTitleTbs[bandIdx] = titleTb;
 
 		grTb = new TextBlock
 		{
 			Text = "0.0 dB",
 			FontSize = 18,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = GetMbSecondaryTextBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 
@@ -805,11 +800,16 @@ public sealed partial class DspPage
 		return $"{Math.Round(hz)} Hz";
 	}
 
-	private void UpdateBandRegionHighlight()
+	private void UpdateBandRegionHighlight(bool? isDarkOverride = null)
 	{
-		// Selected region styling (Lavender/periwinkle card tint)
-		var selectedBrush = new SolidColorBrush(Color.FromArgb(200, 224, 231, 255)); // Soft Indigo-100 / Lavender
-		var unselectedBrush = new SolidColorBrush(Color.FromArgb(70, 248, 250, 252));
+		bool isDark = isDarkOverride ?? IsDspDark;
+
+		var selectedBrush = new SolidColorBrush(isDark
+			? Color.FromArgb(105, 99, 102, 241)
+			: Color.FromArgb(200, 224, 231, 255));
+		var unselectedBrush = new SolidColorBrush(isDark
+			? Color.FromArgb(35, 15, 23, 42)
+			: Color.FromArgb(70, 248, 250, 252));
 
 		if (_mbBandRegionLow != null)
 			_mbBandRegionLow.Background = _multibandSelectedBand == 0 ? selectedBrush : unselectedBrush;
@@ -817,6 +817,27 @@ public sealed partial class DspPage
 			_mbBandRegionMid.Background = _multibandSelectedBand == 1 ? selectedBrush : unselectedBrush;
 		if (_mbBandRegionHigh != null)
 			_mbBandRegionHigh.Background = _multibandSelectedBand == 2 ? selectedBrush : unselectedBrush;
+
+		Brush primaryText = GetMbPrimaryTextBrush(isDark);
+		Brush secondaryText = GetMbSecondaryTextBrush(isDark);
+		Brush selectedTitleText = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 30, 27, 75));
+		Brush selectedGrText = new SolidColorBrush(isDark ? Color.FromArgb(255, 224, 231, 255) : Color.FromArgb(255, 67, 56, 202));
+
+		for (int i = 0; i < _mbBandRegionTitleTbs.Length; i++)
+		{
+			var tb = _mbBandRegionTitleTbs[i];
+			if (tb != null)
+			{
+				tb.Foreground = i == _multibandSelectedBand ? selectedTitleText : primaryText;
+			}
+		}
+
+		if (_mbRegionLowGrTb != null)
+			_mbRegionLowGrTb.Foreground = _multibandSelectedBand == 0 ? selectedGrText : secondaryText;
+		if (_mbRegionMidGrTb != null)
+			_mbRegionMidGrTb.Foreground = _multibandSelectedBand == 1 ? selectedGrText : secondaryText;
+		if (_mbRegionHighGrTb != null)
+			_mbRegionHighGrTb.Foreground = _multibandSelectedBand == 2 ? selectedGrText : secondaryText;
 	}
 
 	#endregion
@@ -850,6 +871,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateMasterColumn()
 	{
+		bool isDark = IsDspDark;
 		var sp = new StackPanel { Spacing = 14 };
 
 		// Header: "整机" + "分频点把频谱切开"
@@ -862,15 +884,17 @@ public sealed partial class DspPage
 			Text = "整机",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(titleTb);
 		var subTb = new TextBlock
 		{
 			Text = "分频点把频谱切开",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_mbMutedTextBlocks.Add(subTb);
 		Grid.SetColumn(titleTb, 0);
 		Grid.SetColumn(subTb, 1);
 		headerGrid.Children.Add(titleTb);
@@ -912,6 +936,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateBandDynamicsColumn()
 	{
+		bool isDark = IsDspDark;
 		var sp = new StackPanel { Spacing = 14 };
 
 		// Header: [当前频带名] + [当前GR 0.0 dB]
@@ -924,16 +949,18 @@ public sealed partial class DspPage
 			Text = "中频",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(_mbBandPanelTitleTb);
 		_mbBandPanelGrTb = new TextBlock
 		{
 			Text = "0.0 dB",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_mbMutedTextBlocks.Add(_mbBandPanelGrTb);
 		Grid.SetColumn(_mbBandPanelTitleTb, 0);
 		Grid.SetColumn(_mbBandPanelGrTb, 1);
 		headerGrid.Children.Add(_mbBandPanelTitleTb);
@@ -951,14 +978,16 @@ public sealed partial class DspPage
 			Text = "中频启用",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(enableLabel);
 		_mbBandEnableStateTb = new TextBlock
 		{
 			Text = "开",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = GetMbMutedTextBrush(isDark)
 		};
+		_mbMutedTextBlocks.Add(_mbBandEnableStateTb);
 		labelSp.Children.Add(enableLabel);
 		labelSp.Children.Add(_mbBandEnableStateTb);
 		Grid.SetColumn(labelSp, 0);
@@ -969,6 +998,7 @@ public sealed partial class DspPage
 			IsOn = true,
 			OnContent = null,
 			OffContent = null,
+			Foreground = GetMbPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_mbBandEnableSwitch.Toggled += (s, e) =>
@@ -999,6 +1029,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateSpeedColumn()
 	{
+		bool isDark = IsDspDark;
 		var sp = new StackPanel { Spacing = 14 };
 
 		// Header: "快慢" + "只作用于中频"
@@ -1011,15 +1042,17 @@ public sealed partial class DspPage
 			Text = "快慢",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(_mbSpeedTitleTb);
 		_mbSpeedScopeTb = new TextBlock
 		{
 			Text = "只作用于中频",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_mbMutedTextBlocks.Add(_mbSpeedScopeTb);
 		Grid.SetColumn(_mbSpeedTitleTb, 0);
 		Grid.SetColumn(_mbSpeedScopeTb, 1);
 		headerGrid.Children.Add(_mbSpeedTitleTb);
@@ -1043,6 +1076,7 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateSliderControl(string label, double min, double max, double defaultVal, double step, out Slider slider, out TextBlock valueTb, string unit, Action<double> onChanged, bool isDb = false)
 	{
+		bool isDark = IsDspDark;
 		var sp = new StackPanel { Spacing = 4 };
 
 		var labelRow = new Grid();
@@ -1054,15 +1088,17 @@ public sealed partial class DspPage
 			Text = label,
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(lbl);
 		var val = new TextBlock
 		{
 			Text = isDb ? $"{defaultVal:F1}{unit}" : (unit.Contains("ms") || unit.Contains(": 1") ? $"{defaultVal:F1}{unit}" : $"{defaultVal:F0}{unit}"),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = GetMbPrimaryTextBrush(isDark)
 		};
+		_mbPrimaryTextBlocks.Add(val);
 		Grid.SetColumn(lbl, 0);
 		Grid.SetColumn(val, 1);
 		labelRow.Children.Add(lbl);
@@ -1108,19 +1144,49 @@ public sealed partial class DspPage
 		LoadSelectedBandDataToInputs();
 	}
 
-	private void UpdateBandTabVisuals()
+	private void UpdateBandTabVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+		Brush mutedBrush = GetMbMutedTextBrush(isDark);
+		Brush primaryBrush = GetMbPrimaryTextBrush(isDark);
+		Brush transparentBorder = new SolidColorBrush(Colors.Transparent);
+
 		for (int i = 0; i < _mbBandSelectorButtons.Count; i++)
 		{
 			var btn = _mbBandSelectorButtons[i];
 			bool isSelected = i == _multibandSelectedBand;
-			btn.Background = isSelected
-				? new SolidColorBrush(Colors.White)
-				: new SolidColorBrush(Colors.Transparent);
-			btn.Foreground = isSelected
-				? new SolidColorBrush(Color.FromArgb(255, 59, 130, 246)) // Blue-500
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-			btn.FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal;
+			if (isSelected)
+			{
+				Brush normalBg = new SolidColorBrush(isDark ? Color.FromArgb(95, 59, 130, 246) : Colors.White);
+				Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(125, 59, 130, 246) : Color.FromArgb(255, 248, 250, 252));
+				Brush pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(145, 37, 99, 235) : Color.FromArgb(255, 241, 245, 249));
+				Brush normalBorder = new SolidColorBrush(isDark ? Color.FromArgb(170, 96, 165, 250) : Color.FromArgb(180, 191, 219, 254));
+				Brush hoverBorder = new SolidColorBrush(isDark ? Color.FromArgb(220, 147, 197, 253) : Color.FromArgb(255, 147, 197, 253));
+				Brush fg = new SolidColorBrush(isDark ? Color.FromArgb(255, 224, 242, 254) : Color.FromArgb(255, 59, 130, 246));
+				Brush hoverFg = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 37, 99, 235));
+
+				ApplyMultibandButtonVisualResources(
+					btn,
+					normalBg, hoverBg, pressedBg,
+					normalBorder, hoverBorder, normalBorder,
+					fg, hoverFg, fg,
+					new Thickness(1));
+				btn.FontWeight = FontWeights.Bold;
+			}
+			else
+			{
+				Brush normalBg = new SolidColorBrush(Colors.Transparent);
+				Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(140, 255, 255, 255));
+				Brush pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(65, 255, 255, 255) : Color.FromArgb(180, 226, 232, 240));
+
+				ApplyMultibandButtonVisualResources(
+					btn,
+					normalBg, hoverBg, pressedBg,
+					transparentBorder, transparentBorder, transparentBorder,
+					mutedBrush, primaryBrush, primaryBrush,
+					new Thickness(0));
+				btn.FontWeight = FontWeights.Normal;
+			}
 		}
 	}
 
@@ -1409,50 +1475,223 @@ public sealed partial class DspPage
 		}
 	}
 
-	private void UpdateMultibandPowerButtonVisual(bool isEnabled)
+	private void UpdateMultibandPowerButtonVisual(bool isEnabled, bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		if (_mbPowerButton != null)
 		{
-			_mbPowerButton.Background = isEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
-				: new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
-			_mbPowerButton.BorderBrush = isEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 199, 210, 254))
-				: new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+			if (isEnabled)
+			{
+				Brush normalBg = GetMbAccentBgBrush(isDark);
+				Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(115, 99, 102, 241) : Color.FromArgb(255, 224, 231, 255));
+				Brush pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(135, 79, 70, 229) : Color.FromArgb(255, 199, 210, 254));
+				Brush normalBorder = GetMbAccentBorderBrush(isDark);
+				Brush hoverBorder = new SolidColorBrush(isDark ? Color.FromArgb(220, 165, 180, 252) : Color.FromArgb(255, 129, 140, 248));
+				Brush accentFg = GetMbAccentTextBrush(isDark);
+				Brush hoverFg = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 67, 56, 202));
+
+				ApplyMultibandButtonVisualResources(
+					_mbPowerButton,
+					normalBg, hoverBg, pressedBg,
+					normalBorder, hoverBorder, normalBorder,
+					accentFg, hoverFg, accentFg,
+					new Thickness(1));
+			}
+			else
+			{
+				ApplyMultibandSurfaceButtonTheme(_mbPowerButton, isDark, GetMbSecondaryTextBrush(isDark));
+			}
 		}
+
 		if (_mbPowerIcon != null)
 		{
 			_mbPowerIcon.Foreground = isEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				? GetMbAccentTextBrush(isDark)
+				: GetMbMutedTextBrush(isDark);
 		}
 		if (_mbPowerText != null)
 		{
 			_mbPowerText.Text = isEnabled ? "多段压缩已启用" : "多段压缩旁路";
 			_mbPowerText.Foreground = isEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
+				? GetMbAccentTextBrush(isDark)
+				: GetMbSecondaryTextBrush(isDark);
 		}
 	}
 
-	private void UpdateMultibandStatusVisual(bool isEnabled)
+	private void UpdateMultibandStatusVisual(bool isEnabled, bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		if (_mbStatusDot != null)
 		{
 			_mbStatusDot.Foreground = isEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) // Green
-				: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)); // Slate
+				? new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74))
+				: GetMbMutedTextBrush(isDark);
 		}
 		if (_mbStatusTitle != null)
 		{
 			_mbStatusTitle.Text = isEnabled ? "已启用" : "已旁路";
+			_mbStatusTitle.Foreground = isEnabled ? GetMbPrimaryTextBrush(isDark) : GetMbSecondaryTextBrush(isDark);
 		}
 		if (_mbStatusDetail != null)
 		{
 			_mbStatusDetail.Text = isEnabled
 				? "三段压缩正全速运作中。超过各自阈值的频段正被动态规整。"
 				: "三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。";
+			_mbStatusDetail.Foreground = GetMbMutedTextBrush(isDark);
 		}
+	}
+
+	private void ApplyMultibandRestoreDefaultTheme(bool isDark)
+	{
+		Brush subHeaderBrush = GetMbSubHeaderTextBrush(isDark);
+		Brush mutedBrush = GetMbMutedTextBrush(isDark);
+		ApplyMultibandSurfaceButtonTheme(_mbRestoreDefaultBtn, isDark, subHeaderBrush);
+		if (_mbRestoreDefaultIcon != null) _mbRestoreDefaultIcon.Foreground = mutedBrush;
+		if (_mbRestoreDefaultText != null) _mbRestoreDefaultText.Foreground = subHeaderBrush;
+	}
+
+	private static Brush CreateMbSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
+	{
+		return LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
+	}
+
+	private static Brush CreateMbRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: isDark,
+			isHovered: isHovered,
+			isSelected: isSelected);
+	}
+
+	private static Brush GetMbSoftSurfaceBrush(bool isDark)
+	{
+		return isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+	}
+
+	private static Brush GetMbDividerLineBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241));
+	}
+
+	private static Brush GetMbPrimaryTextBrush(bool isDark) => new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+	private static Brush GetMbSecondaryTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+	private static Brush GetMbSubHeaderTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+	private static Brush GetMbMutedTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+	private static Brush GetMbAccentBgBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+	private static Brush GetMbAccentBorderBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+	private static Brush GetMbAccentTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+	private static void ApplyMultibandButtonVisualResources(
+		Button? btn,
+		Brush normalBg,
+		Brush hoverBg,
+		Brush pressedBg,
+		Brush normalBorder,
+		Brush hoverBorder,
+		Brush pressedBorder,
+		Brush normalFg,
+		Brush hoverFg,
+		Brush pressedFg,
+		Thickness? borderThickness = null)
+	{
+		if (btn == null) return;
+		btn.Background = normalBg;
+		btn.BorderBrush = normalBorder;
+		btn.BorderThickness = borderThickness ?? new Thickness(1);
+		btn.Foreground = normalFg;
+
+		btn.Resources["ButtonBackground"] = normalBg;
+		btn.Resources["ButtonBackgroundPointerOver"] = hoverBg;
+		btn.Resources["ButtonBackgroundPressed"] = pressedBg;
+		btn.Resources["ButtonBorderBrush"] = normalBorder;
+		btn.Resources["ButtonBorderBrushPointerOver"] = hoverBorder;
+		btn.Resources["ButtonBorderBrushPressed"] = pressedBorder;
+		btn.Resources["ButtonForeground"] = normalFg;
+		btn.Resources["ButtonForegroundPointerOver"] = hoverFg;
+		btn.Resources["ButtonForegroundPressed"] = pressedFg;
+	}
+
+	private static void ApplyMultibandSurfaceButtonTheme(Button? btn, bool isDark, Brush foregroundBrush)
+	{
+		if (btn == null) return;
+		Brush normalBg = CreateMbSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		Brush hoverBg = CreateMbSurfaceBrush(LiquidGlassVariant.Regular, isDark, 1.0);
+		Brush pressedBg = CreateMbSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.80);
+		Brush normalBorder = CreateMbRimBrush(isDark);
+		Brush hoverBorder = CreateMbRimBrush(isDark, isHovered: true);
+		Brush hoverFg = GetMbPrimaryTextBrush(isDark);
+
+		ApplyMultibandButtonVisualResources(
+			btn,
+			normalBg, hoverBg, pressedBg,
+			normalBorder, hoverBorder, normalBorder,
+			foregroundBrush, hoverFg, foregroundBrush,
+			new Thickness(1));
+	}
+
+	public void RefreshMultibandTheme(bool isDark)
+	{
+		if (_multibandCompressorWorkbench == null) return;
+
+		_multibandCompressorWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+
+		Brush primaryText = GetMbPrimaryTextBrush(isDark);
+		Brush secondaryText = GetMbSecondaryTextBrush(isDark);
+		Brush mutedText = GetMbMutedTextBrush(isDark);
+		Brush softBg = GetMbSoftSurfaceBrush(isDark);
+		Brush rimBrush = CreateMbRimBrush(isDark);
+
+		if (_mbRootGrid != null)
+		{
+			_mbRootGrid.Background = CreateMbSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+		}
+		if (_mbTitleIconBorder != null)
+		{
+			_mbTitleIconBorder.Background = GetMbAccentBgBrush(isDark);
+			_mbTitleIconBorder.BorderBrush = GetMbAccentBorderBrush(isDark);
+		}
+		if (_mbTitleIcon != null)
+		{
+			_mbTitleIcon.Foreground = GetMbAccentTextBrush(isDark);
+		}
+
+		foreach (var tb in _mbPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _mbSecondaryTextBlocks) tb.Foreground = secondaryText;
+		foreach (var tb in _mbMutedTextBlocks) tb.Foreground = mutedText;
+
+		if (_mbBandSwitcherBorder != null)
+		{
+			_mbBandSwitcherBorder.Background = softBg;
+			_mbBandSwitcherBorder.BorderBrush = rimBrush;
+		}
+		if (_mbCrossoverCardBorder != null)
+		{
+			_mbCrossoverCardBorder.Background = softBg;
+			_mbCrossoverCardBorder.BorderBrush = rimBrush;
+		}
+
+		Brush dividerBrush = GetMbDividerLineBrush(isDark);
+		if (_mbDividerLowLine != null) _mbDividerLowLine.Stroke = dividerBrush;
+		if (_mbDividerHighLine != null) _mbDividerHighLine.Stroke = dividerBrush;
+
+		if (_mbBandEnableSwitch != null) _mbBandEnableSwitch.Foreground = primaryText;
+
+		ApplyMultibandRestoreDefaultTheme(isDark);
+		foreach (var btn in _mbPresetButtons)
+		{
+			ApplyMultibandSurfaceButtonTheme(btn, isDark, secondaryText);
+		}
+
+		bool isEnabled = ViewModel?.FurinaMultibandEnabled ?? false;
+		UpdateMultibandPowerButtonVisual(isEnabled, isDark);
+		UpdateMultibandStatusVisual(isEnabled, isDark);
+		UpdateBandTabVisuals(isDark);
+		UpdateBandRegionHighlight(isDark);
 	}
 
 	#endregion

@@ -1,4 +1,4 @@
-﻿using IOPath = System.IO.Path;
+using IOPath = System.IO.Path;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -68,6 +68,19 @@ public sealed partial class DspPage
 	private Button? _hcSourceAutoEqBtn;
 
 	private Grid? _hcContentHost;
+	private Grid? _hcRootGrid;
+	private Border? _hcTitleIconBorder;
+	private FontIcon? _hcTitleIcon;
+	private Border? _hcSourceContainer;
+	private Button? _hcRefreshBtn;
+	private Border? _hcBannerBorder;
+	private Border? _hcBannerIconBox;
+	private Button? _hcBackBtn;
+	private Border? _hcDetailPanelBorder;
+	private Border? _hcCurveBorder;
+	private Button? _hcRestorePreampBtn;
+	private readonly List<Border> _hcVendorCards = new();
+	private readonly List<Border> _hcModelRows = new();
 	private HeadphoneCurveControl? _curveControl;
 	private Slider? _hpPreampSlider;
 	private TextBlock? _hpPreampValueTb;
@@ -85,14 +98,11 @@ public sealed partial class DspPage
 	private Grid? _detailPanel;
 	private Grid? _emptyDetailPanel;
 
-	// Top Pills
-	private TextBlock? _pillModulesTb;
-	private TextBlock? _pillStatusTb;
-
 	public FrameworkElement CreateHeadphoneCorrectionWorkbench()
 	{
 		if (_headphoneCorrectionWorkbench != null)
 		{
+			RefreshHeadphoneCorrectionTheme(IsDspDark);
 			return _headphoneCorrectionWorkbench;
 		}
 
@@ -104,6 +114,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(24, 18, 24, 20),
 			RowSpacing = 12
 		};
+		_hcRootGrid = root;
 
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Status Bar
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Preset Status & Breadcrumbs Banner
@@ -121,28 +132,30 @@ public sealed partial class DspPage
 
 		// Left Title
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
+		_hcTitleIcon = new FontIcon
+		{
+			Glyph = "\uE7F5",
+			FontSize = 17,
+			Foreground = DspAccentSoftTextBrush,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
 		var iconBorder = new Border
 		{
 			Width = 34,
 			Height = 34,
 			CornerRadius = new CornerRadius(17),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE7F5",
-				FontSize = 17,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = DspAccentSoftBgBrush,
+			Child = _hcTitleIcon
 		};
+		_hcTitleIconBorder = iconBorder;
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
 			Text = "耳机校正",
 			FontSize = 18,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetColumn(titleSp, 0);
@@ -151,14 +164,15 @@ public sealed partial class DspPage
 		// Source Selector [OPRA] [AutoEQ]
 		var sourceContainer = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(16),
 			Padding = new Thickness(2),
 			Margin = new Thickness(18, 0, 16, 0),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_hcSourceContainer = sourceContainer;
 		var sourceSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
 
 		_hcSourceOpraBtn = CreateSourceButton("OPRA", true);
@@ -181,8 +195,9 @@ public sealed partial class DspPage
 			Width = 270,
 			Height = 34,
 			CornerRadius = new CornerRadius(17),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(140, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_hcSearchBox.TextChanged += (s, e) =>
@@ -198,10 +213,11 @@ public sealed partial class DspPage
 			Height = 34,
 			CornerRadius = new CornerRadius(17),
 			Padding = new Thickness(0),
-			Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
-			Content = new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Content = new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = DspTextMutedBrush }
 		};
+		_hcRefreshBtn = refreshBtn;
 		ToolTipService.SetToolTip(refreshBtn, "刷新库");
 		refreshBtn.Click += (s, e) =>
 		{
@@ -228,75 +244,6 @@ public sealed partial class DspPage
 		_hcMasterSwitch.Toggled += (s, e) => ToggleCalibration(_hcMasterSwitch.IsOn);
 		rightSp.Children.Add(_hcMasterSwitch);
 
-		// Pill 1: Modules count
-		var pill1 = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 224, 231, 255)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(10, 4, 10, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var pill1Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		pill1Sp.Children.Add(new FontIcon { Glyph = "\uE945", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-		_pillModulesTb = new TextBlock
-		{
-			Text = "4 个模块启用",
-			FontSize = 11,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-		};
-		pill1Sp.Children.Add(_pillModulesTb);
-		pill1.Child = pill1Sp;
-		rightSp.Children.Add(pill1);
-
-		// Pill 2: Ready Status
-		var pill2 = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 220, 252, 231)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(10, 4, 10, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var pill2Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		pill2Sp.Children.Add(new FontIcon { Glyph = "\uE995", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) });
-		_pillStatusTb = new TextBlock
-		{
-			Text = "就绪",
-			FontSize = 11,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
-		};
-		pill2Sp.Children.Add(_pillStatusTb);
-		pill2.Child = pill2Sp;
-		rightSp.Children.Add(pill2);
-
-		// Pill 3: Refresh Status button
-		var pill3Btn = new Button
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(10, 4, 10, 4),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var pill3Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		pill3Sp.Children.Add(new FontIcon { Glyph = "\uE72C", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) });
-		pill3Sp.Children.Add(new TextBlock
-		{
-			Text = "刷新状态",
-			FontSize = 11,
-			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
-		});
-		pill3Btn.Content = pill3Sp;
-		pill3Btn.Click += (s, e) => UpdateEngineStatusPills();
-		rightSp.Children.Add(pill3Btn);
-
 		Grid.SetColumn(rightSp, 3);
 		topBar.Children.Add(rightSp);
 
@@ -308,12 +255,13 @@ public sealed partial class DspPage
 		// ==========================================
 		var banner = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(170, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(160, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(170, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(160, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(18, 12, 18, 12)
 		};
+		_hcBannerBorder = banner;
 
 		var bannerGrid = new Grid();
 		bannerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -325,7 +273,7 @@ public sealed partial class DspPage
 			Width = 42,
 			Height = 42,
 			CornerRadius = new CornerRadius(10),
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(255, 49, 46, 129)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
 			Child = new FontIcon
 			{
 				Glyph = "\uE7F5",
@@ -335,6 +283,7 @@ public sealed partial class DspPage
 				VerticalAlignment = VerticalAlignment.Center
 			}
 		};
+		_hcBannerIconBox = bannerIconBox;
 		bannerLeftSp.Children.Add(bannerIconBox);
 
 		var bannerTextSp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
@@ -343,19 +292,19 @@ public sealed partial class DspPage
 			Text = "未选择预设",
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
 		_hcBannerSubtitleTb = new TextBlock
 		{
 			Text = "按生产商或型号浏览，找到合适的校正预设。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		_hcBannerStatsTb = new TextBlock
 		{
 			Text = "714 个品牌  6230 款耳机",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextSubHeaderBrush
 		};
 		bannerTextSp.Children.Add(_hcBannerTitleTb);
 		bannerTextSp.Children.Add(_hcBannerSubtitleTb);
@@ -371,7 +320,7 @@ public sealed partial class DspPage
 		_btnBreadcrumbVendor = CreateBreadcrumbButton("\uE71D", "制造商", true);
 		_btnBreadcrumbVendor.Click += (s, e) => ShowAllVendorsView();
 
-		_chevronBreadcrumb1 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		_chevronBreadcrumb1 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = DspTextMutedBrush };
 
 		_btnBreadcrumbModel = CreateBreadcrumbButton("\uE7F5", "型号", false);
 		_btnBreadcrumbModel.Click += (s, e) =>
@@ -379,7 +328,7 @@ public sealed partial class DspPage
 			if (_currentVendor != null) ShowVendorModelsView(_currentVendor);
 		};
 
-		_chevronBreadcrumb2 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		_chevronBreadcrumb2 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = DspTextMutedBrush };
 
 		_btnBreadcrumbSource = CreateBreadcrumbButton("\uE995", "校正来源", false);
 
@@ -426,7 +375,7 @@ public sealed partial class DspPage
 			Text = "714",
 			FontSize = 13,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center,
 			Margin = new Thickness(0, 0, 8, 0)
 		};
@@ -461,7 +410,6 @@ public sealed partial class DspPage
 			}
 		}
 
-		UpdateEngineStatusPills();
 		return _headphoneCorrectionWorkbench;
 	}
 
@@ -473,6 +421,12 @@ public sealed partial class DspPage
 	{
 		if (_hcContentHost == null) return;
 		_currentVendor = null;
+		_hcBackBtn = null;
+		_hcDetailPanelBorder = null;
+		_hcCurveBorder = null;
+		_hcRestorePreampBtn = null;
+		_hcVendorCards.Clear();
+		_hcModelRows.Clear();
 		UpdateBreadcrumbs();
 
 		_hcContentHost.Children.Clear();
@@ -488,7 +442,7 @@ public sealed partial class DspPage
 			Text = "所有生产商",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		var (vCount, pCount, eqCount) = OpraDatabaseService.GetDatabaseStats();
@@ -496,24 +450,24 @@ public sealed partial class DspPage
 		{
 			Text = $"{pCount} 款耳机 · {eqCount} 条曲线",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetRow(subHeaderSp, 0);
 		container.Children.Add(subHeaderSp);
 
-		// Brand Cards Grid in ScrollViewer
+		// Brand Cards Grid in ScrollViewer with ample breathing padding
 		var sv = new ScrollViewer
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-			Padding = new Thickness(0, 0, 8, 16)
+			Padding = new Thickness(16, 12, 20, 28)
 		};
 
 		var wrapPanel = new SimpleWrapPanel
 		{
-			ItemWidth = 116,
-			ItemHeight = 128
+			ItemWidth = 164,
+			ItemHeight = 154
 		};
 
 		var vendors = OpraDatabaseService.GetVendors(_activeSource);
@@ -527,21 +481,26 @@ public sealed partial class DspPage
 		container.Children.Add(sv);
 
 		_hcContentHost.Children.Add(container);
+		ApplyThemeToHcContentHost(IsDspDark, container);
 	}
 
 	private FrameworkElement CreateVendorCard(OpraVendor vendor)
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Width = 114,
-			Height = 126,
-			Margin = new Thickness(4),
-			CornerRadius = new CornerRadius(10),
-			Background = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Padding = new Thickness(6, 8, 6, 6)
+			Width = 146,
+			Height = 138,
+			MinWidth = 146,
+			MinHeight = 138,
+			Margin = new Thickness(8),
+			CornerRadius = new CornerRadius(14),
+			Background = isDark ? new SolidColorBrush(Color.FromArgb(160, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(245, 255, 255, 255)),
+			BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(85, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			BorderThickness = new Thickness(1.2),
+			Padding = new Thickness(10, 12, 10, 10)
 		};
+		_hcVendorCards.Add(card);
 
 		var sp = new StackPanel
 		{
@@ -553,8 +512,8 @@ public sealed partial class DspPage
 		// Logo Container
 		var logoBox = new Border
 		{
-			Width = 80,
-			Height = 44,
+			Width = 96,
+			Height = 46,
 			HorizontalAlignment = HorizontalAlignment.Center,
 			VerticalAlignment = VerticalAlignment.Center
 		};
@@ -566,8 +525,8 @@ public sealed partial class DspPage
 				var img = new Image
 				{
 					Source = new BitmapImage(new Uri(vendor.LogoUrl)),
-					MaxWidth = 72,
-					MaxHeight = 36,
+					MaxWidth = 88,
+					MaxHeight = 38,
 					Stretch = Stretch.Uniform,
 					HorizontalAlignment = HorizontalAlignment.Center,
 					VerticalAlignment = VerticalAlignment.Center
@@ -576,12 +535,12 @@ public sealed partial class DspPage
 			}
 			catch
 			{
-				logoBox.Child = CreateBrandTypography(vendor.Name);
+				logoBox.Child = CreateBrandTypography(vendor.Name, isDark);
 			}
 		}
 		else
 		{
-			logoBox.Child = CreateBrandTypography(vendor.Name);
+			logoBox.Child = CreateBrandTypography(vendor.Name, isDark);
 		}
 
 		sp.Children.Add(logoBox);
@@ -590,43 +549,45 @@ public sealed partial class DspPage
 		sp.Children.Add(new TextBlock
 		{
 			Text = vendor.Name,
-			FontSize = 12,
+			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			TextAlignment = TextAlignment.Center,
 			TextTrimming = TextTrimming.CharacterEllipsis,
-			MaxWidth = 102
+			MaxWidth = 120
 		});
 
 		// Count stats: e.g. "278 款 / 763 个预设"
 		sp.Children.Add(new TextBlock
 		{
 			Text = $"{vendor.ProductCount} 款 / {vendor.EqCount} 个预设",
-			FontSize = 10,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			FontSize = 11,
+			Foreground = DspTextMutedBrush,
 			TextAlignment = TextAlignment.Center,
-			MaxWidth = 102
+			MaxWidth = 120
 		});
 
 		card.Child = sp;
 
-		// Hover and Click
+		// Hover and Click (evaluate IsDspDark dynamically so cached cards adapt after theme switches)
 		card.PointerEntered += (s, e) =>
 		{
+			bool darkNow = IsDspDark;
 			card.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 129, 140, 248));
-			card.Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
+			card.Background = darkNow ? new SolidColorBrush(Color.FromArgb(190, 51, 65, 85)) : new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
 		};
 		card.PointerExited += (s, e) =>
 		{
-			card.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
-			card.Background = new SolidColorBrush(Color.FromArgb(240, 255, 255, 255));
+			bool darkNow = IsDspDark;
+			card.BorderBrush = darkNow ? new SolidColorBrush(Color.FromArgb(85, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+			card.Background = darkNow ? new SolidColorBrush(Color.FromArgb(160, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(245, 255, 255, 255));
 		};
 		card.Tapped += (s, e) => ShowVendorModelsView(vendor);
 
 		return card;
 	}
 
-	private static FrameworkElement CreateBrandTypography(string brandName)
+	private static FrameworkElement CreateBrandTypography(string brandName, bool isDark = false)
 	{
 		return new Border
 		{
@@ -634,9 +595,9 @@ public sealed partial class DspPage
 			Child = new TextBlock
 			{
 				Text = brandName,
-				FontSize = brandName.Length > 8 ? 11 : 13,
+				FontSize = brandName.Length > 10 ? 11 : (brandName.Length > 7 ? 12 : 14),
 				FontWeight = FontWeights.Bold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+				Foreground = isDark ? new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)) : new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
 				HorizontalAlignment = HorizontalAlignment.Center,
 				VerticalAlignment = VerticalAlignment.Center,
 				TextAlignment = TextAlignment.Center,
@@ -649,6 +610,8 @@ public sealed partial class DspPage
 	{
 		if (_hcContentHost == null) return;
 		_currentVendor = vendor;
+		_hcVendorCards.Clear();
+		_hcModelRows.Clear();
 		UpdateBreadcrumbs();
 
 		_hcContentHost.Children.Clear();
@@ -673,16 +636,19 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE72B", FontSize = 12 },
-					new TextBlock { Text = "所有生产商", FontSize = 12, FontWeight = FontWeights.Medium }
+					new FontIcon { Glyph = "\uE72B", FontSize = 12, Foreground = DspTextPrimaryBrush },
+					new TextBlock { Text = "所有生产商", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush }
 				}
 			},
 			Padding = new Thickness(8, 4, 10, 4),
 			CornerRadius = new CornerRadius(14),
-			Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_hcBackBtn = backBtn;
 		backBtn.Click += (s, e) => ShowAllVendorsView();
 		headerSp.Children.Add(backBtn);
 
@@ -691,14 +657,14 @@ public sealed partial class DspPage
 			Text = vendor.Name,
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		headerSp.Children.Add(new TextBlock
 		{
 			Text = $"{vendor.ProductCount} 款耳机 · {vendor.EqCount} 个校正预设",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		Grid.SetRow(headerSp, 0);
@@ -710,8 +676,8 @@ public sealed partial class DspPage
 		colHeaders.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
 		colHeaders.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
 
-		colHeaders.Children.Add(new TextBlock { Text = "型号", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
-		var th2 = new TextBlock { Text = "可用曲线", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)), TextAlignment = TextAlignment.Center };
+		colHeaders.Children.Add(new TextBlock { Text = "型号", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush });
+		var th2 = new TextBlock { Text = "可用曲线", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center };
 		Grid.SetColumn(th2, 1);
 		colHeaders.Children.Add(th2);
 
@@ -756,18 +722,23 @@ public sealed partial class DspPage
 		{
 			SelectModel(models[0]);
 		}
+
+		ApplyThemeToHcContentHost(IsDspDark, splitGrid);
 	}
 
 	private FrameworkElement CreateModelRow(OpraProduct prod)
 	{
+		bool isDark = IsDspDark;
 		var row = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateAcrylicCardBrush(0.78, 220),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(12, 8, 12, 8)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(row, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		_hcModelRows.Add(row);
 
 		var rowGrid = new Grid();
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -781,8 +752,8 @@ public sealed partial class DspPage
 			Width = 32,
 			Height = 32,
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			Child = new FontIcon { Glyph = "\uE7F5", FontSize = 15, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
+			Child = new FontIcon { Glyph = "\uE7F5", FontSize = 15, Foreground = DspTextMutedBrush }
 		};
 		nameSp.Children.Add(artIcon);
 
@@ -792,7 +763,7 @@ public sealed partial class DspPage
 			Text = prod.Name,
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		});
 		if (!string.IsNullOrEmpty(prod.Subtype))
@@ -808,7 +779,7 @@ public sealed partial class DspPage
 			{
 				Text = subtypeCn,
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+				Foreground = DspTextMutedBrush
 			});
 		}
 		nameSp.Children.Add(labelSp);
@@ -818,7 +789,7 @@ public sealed partial class DspPage
 		// Col 1: Preset Count badge
 		var countBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
+			Background = IsDspDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(8, 2, 8, 2),
 			HorizontalAlignment = HorizontalAlignment.Center,
@@ -827,7 +798,7 @@ public sealed partial class DspPage
 			{
 				Text = $"{prod.PresetCount} 个预设",
 				FontSize = 10,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+				Foreground = DspTextSubHeaderBrush
 			}
 		};
 		Grid.SetColumn(countBadge, 1);
@@ -845,7 +816,7 @@ public sealed partial class DspPage
 			{
 				Glyph = isFav ? "\uE735" : "\uE734",
 				FontSize = 13,
-				Foreground = new SolidColorBrush(isFav ? Color.FromArgb(255, 234, 179, 8) : Color.FromArgb(255, 148, 163, 184))
+				Foreground = isFav ? new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) : DspTextMutedBrush
 			}
 		};
 		starBtn.Click += (s, e) =>
@@ -855,11 +826,11 @@ public sealed partial class DspPage
 			if (starBtn.Content is FontIcon fi)
 			{
 				fi.Glyph = nowFav ? "\uE735" : "\uE734";
-				fi.Foreground = new SolidColorBrush(nowFav ? Color.FromArgb(255, 234, 179, 8) : Color.FromArgb(255, 148, 163, 184));
+				fi.Foreground = nowFav ? new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) : DspTextMutedBrush;
 			}
 		};
 		actionsSp.Children.Add(starBtn);
-		actionsSp.Children.Add(new FontIcon { Glyph = "\uE76C", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
+		actionsSp.Children.Add(new FontIcon { Glyph = "\uE76C", FontSize = 11, Foreground = DspTextMutedBrush });
 
 		Grid.SetColumn(actionsSp, 2);
 		rowGrid.Children.Add(actionsSp);
@@ -874,23 +845,26 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateDetailAndCurvePanel()
 	{
+		bool isDark = IsDspDark;
 		var panelBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = CreateAcrylicCardBrush(0.88, 235),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(16, 14, 16, 14)
 		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(panelBorder, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		_hcDetailPanelBorder = panelBorder;
 
 		var mainGrid = new Grid();
 
 		// Empty State
 		_emptyDetailPanel = new Grid { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
 		var emptySp = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
-		emptySp.Children.Add(new FontIcon { Glyph = "\uE7F5", FontSize = 36, Foreground = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)), HorizontalAlignment = HorizontalAlignment.Center });
-		emptySp.Children.Add(new TextBlock { Text = "未选择预设", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)), TextAlignment = TextAlignment.Center });
-		emptySp.Children.Add(new TextBlock { Text = "从左侧选择耳机型号，查看并应用校正曲线。", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)), TextAlignment = TextAlignment.Center });
+		emptySp.Children.Add(new FontIcon { Glyph = "\uE7F5", FontSize = 36, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center });
+		emptySp.Children.Add(new TextBlock { Text = "未选择预设", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, TextAlignment = TextAlignment.Center });
+		emptySp.Children.Add(new TextBlock { Text = "从左侧选择耳机型号，查看并应用校正曲线。", FontSize = 12, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center });
 		_emptyDetailPanel.Children.Add(emptySp);
 		mainGrid.Children.Add(_emptyDetailPanel);
 
@@ -909,8 +883,8 @@ public sealed partial class DspPage
 		headGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var headTitleSp = new StackPanel { Spacing = 2 };
-		_detailVendorTb = new TextBlock { Text = "Sennheiser", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		_detailProductTb = new TextBlock { Text = "HD 650", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
+		_detailVendorTb = new TextBlock { Text = "Sennheiser", FontSize = 11, Foreground = DspTextMutedBrush };
+		_detailProductTb = new TextBlock { Text = "HD 650", FontSize = 16, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
 		headTitleSp.Children.Add(_detailVendorTb);
 		headTitleSp.Children.Add(_detailProductTb);
 		Grid.SetColumn(headTitleSp, 0);
@@ -934,9 +908,10 @@ public sealed partial class DspPage
 		{
 			Padding = new Thickness(6),
 			CornerRadius = new CornerRadius(14),
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			BorderThickness = new Thickness(0),
-			Content = new FontIcon { Glyph = "\uE734", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) }
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
+			BorderThickness = new Thickness(1),
+			Content = new FontIcon { Glyph = "\uE734", FontSize = 13, Foreground = DspTextMutedBrush }
 		};
 		_btnFavPreset.Click += (s, e) =>
 		{
@@ -947,7 +922,7 @@ public sealed partial class DspPage
 				if (_btnFavPreset.Content is FontIcon fi)
 				{
 					fi.Glyph = nowFav ? "\uE735" : "\uE734";
-					fi.Foreground = new SolidColorBrush(nowFav ? Color.FromArgb(255, 234, 179, 8) : Color.FromArgb(255, 100, 116, 139));
+					fi.Foreground = nowFav ? new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) : DspTextMutedBrush;
 				}
 			}
 		};
@@ -963,8 +938,8 @@ public sealed partial class DspPage
 		curveHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		curveHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		curveHeadGrid.Children.Add(new TextBlock { Text = "EQ 频率响应", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) });
-		_curveAuthorTb = new TextBlock { Text = "Oratory1990", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		curveHeadGrid.Children.Add(new TextBlock { Text = "EQ 频率响应", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		_curveAuthorTb = new TextBlock { Text = "Oratory1990", FontSize = 11, Foreground = DspTextMutedBrush };
 		Grid.SetColumn(_curveAuthorTb, 1);
 		curveHeadGrid.Children.Add(_curveAuthorTb);
 		curveSec.Children.Add(curveHeadGrid);
@@ -973,18 +948,20 @@ public sealed partial class DspPage
 		{
 			Height = 170,
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = isDark ? new SolidColorBrush(Color.FromArgb(140, 15, 23, 42)) : new SolidColorBrush(Color.FromArgb(255, 248, 250, 252)),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
+		_hcCurveBorder = curveBorder;
 		_curveControl = new HeadphoneCurveControl();
+		_curveControl.SetDarkTheme(isDark);
 		curveBorder.Child = _curveControl;
 		curveSec.Children.Add(curveBorder);
 		detailSp.Children.Add(curveSec);
 
 		// 3. Correction Source Selector
 		var srcSec = new StackPanel { Spacing = 6 };
-		srcSec.Children.Add(new TextBlock { Text = "校正来源", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) });
+		srcSec.Children.Add(new TextBlock { Text = "校正来源", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_sourcesStack = new StackPanel { Spacing = 4 };
 		srcSec.Children.Add(_sourcesStack);
 		detailSp.Children.Add(srcSec);
@@ -999,8 +976,7 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-			Foreground = new SolidColorBrush(Colors.White)
+			BorderThickness = new Thickness(1)
 		};
 		_modeOriginalBtn.Click += (s, e) => SetCalibrationMode("original");
 
@@ -1011,8 +987,7 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(6),
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			BorderThickness = new Thickness(1)
 		};
 		_modeListeningBtn.Click += (s, e) => SetCalibrationMode("listening");
 
@@ -1024,10 +999,11 @@ public sealed partial class DspPage
 		{
 			Text = "保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。",
 			FontSize = 10,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
 		modeSec.Children.Add(_modeDescTb);
+		UpdateCalibrationModeButtonStyles(isDark);
 		detailSp.Children.Add(modeSec);
 
 		// 5. Preamp Control
@@ -1037,14 +1013,14 @@ public sealed partial class DspPage
 		preampHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		preampHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		preampHead.Children.Add(new TextBlock { Text = "前级", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) });
+		preampHead.Children.Add(new TextBlock { Text = "前级", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 
 		_hpPreampValueTb = new TextBlock
 		{
 			Text = "-6.4 dB",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = DspAccentSoftTextBrush,
 			Margin = new Thickness(0, 0, 8, 0)
 		};
 		Grid.SetColumn(_hpPreampValueTb, 1);
@@ -1054,11 +1030,14 @@ public sealed partial class DspPage
 		{
 			Content = "恢复默认",
 			FontSize = 10,
-			Padding = new Thickness(6, 2, 6, 2),
+			Padding = new Thickness(8, 3, 8, 3),
 			CornerRadius = new CornerRadius(4),
-			Background = new SolidColorBrush(Color.FromArgb(255, 241, 245, 249)),
-			BorderThickness = new Thickness(0)
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
+			BorderThickness = new Thickness(1),
+			Foreground = DspTextSecondaryBrush
 		};
+		_hcRestorePreampBtn = restoreBtn;
 		restoreBtn.Click += (s, e) =>
 		{
 			if (_currentPreset != null)
@@ -1094,15 +1073,15 @@ public sealed partial class DspPage
 		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		var m1Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		m1Sp.Children.Add(new TextBlock { Text = "OPRA 滤波器:", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
-		_metricsFiltersTb = new TextBlock { Text = "6/6", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
+		m1Sp.Children.Add(new TextBlock { Text = "OPRA 滤波器:", FontSize = 11, Foreground = DspTextMutedBrush });
+		_metricsFiltersTb = new TextBlock { Text = "6/6", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		m1Sp.Children.Add(_metricsFiltersTb);
 		Grid.SetColumn(m1Sp, 0);
 		metricsGrid.Children.Add(m1Sp);
 
 		var m2Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
-		m2Sp.Children.Add(new TextBlock { Text = "调整:", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
-		_metricsAdjustedTb = new TextBlock { Text = "0", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) };
+		m2Sp.Children.Add(new TextBlock { Text = "调整:", FontSize = 11, Foreground = DspTextMutedBrush });
+		_metricsAdjustedTb = new TextBlock { Text = "0", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		m2Sp.Children.Add(_metricsAdjustedTb);
 		Grid.SetColumn(m2Sp, 1);
 		metricsGrid.Children.Add(m2Sp);
@@ -1142,17 +1121,18 @@ public sealed partial class DspPage
 		if (_btnFavPreset != null && _btnFavPreset.Content is FontIcon fi)
 		{
 			fi.Glyph = isFav ? "\uE735" : "\uE734";
-			fi.Foreground = new SolidColorBrush(isFav ? Color.FromArgb(255, 234, 179, 8) : Color.FromArgb(255, 100, 116, 139));
+			fi.Foreground = isFav ? new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) : DspTextMutedBrush;
 		}
 
 		// Populate source buttons
 		if (_sourcesStack != null)
 		{
 			_sourcesStack.Children.Clear();
+			bool hasMatchingPreset = _currentPreset != null && prod.Eqs.Any(x => x.Id == _currentPreset.Id);
 			for (int i = 0; i < prod.Eqs.Count; i++)
 			{
 				var eq = prod.Eqs[i];
-				bool isSelected = (_currentPreset != null && _currentPreset.Id == eq.Id) || (i == 0 && _currentPreset == null);
+				bool isSelected = hasMatchingPreset ? (_currentPreset!.Id == eq.Id) : (i == 0);
 				if (isSelected) _currentPreset = eq;
 
 				var srcBtn = CreateSourcePresetRow(eq, isSelected);
@@ -1168,19 +1148,15 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateSourcePresetRow(OpraHeadphonePreset eq, bool isSelected)
 	{
+		bool isDark = IsDspDark;
 		var btn = new Button
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			HorizontalContentAlignment = HorizontalAlignment.Stretch,
 			Padding = new Thickness(10, 6, 10, 6),
 			CornerRadius = new CornerRadius(6),
-			Background = isSelected
-				? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
-				: new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)),
-			BorderBrush = isSelected
-				? new SolidColorBrush(Color.FromArgb(255, 129, 140, 248))
-				: new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
+			BorderThickness = new Thickness(1),
+			Tag = eq
 		};
 
 		var g = new Grid();
@@ -1192,34 +1168,75 @@ public sealed partial class DspPage
 		{
 			Text = eq.MeasurementSource,
 			FontSize = 12,
-			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(isSelected ? Color.FromArgb(255, 79, 70, 229) : Color.FromArgb(255, 15, 23, 42))
+			FontWeight = FontWeights.SemiBold
 		});
 		sp.Children.Add(new TextBlock
 		{
 			Text = $"{eq.TargetCurve} · {eq.Filters.Count} 个 OPRA 滤波器",
-			FontSize = 10,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			FontSize = 10
 		});
 		Grid.SetColumn(sp, 0);
 		g.Children.Add(sp);
 
-		if (isSelected)
+		var check = new FontIcon
 		{
-			var check = new FontIcon
-			{
-				Glyph = "\uE73E",
-				FontSize = 11,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
-				VerticalAlignment = VerticalAlignment.Center
-			};
-			Grid.SetColumn(check, 1);
-			g.Children.Add(check);
-		}
+			Glyph = "\uE73E",
+			FontSize = 11,
+			VerticalAlignment = VerticalAlignment.Center,
+			Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed
+		};
+		Grid.SetColumn(check, 1);
+		g.Children.Add(check);
 
 		btn.Content = g;
+		ApplySourcePresetRowStyle(btn, isSelected, isDark);
 		btn.Click += (s, e) => SelectPreset(eq);
 		return btn;
+	}
+
+	private static void ApplySourcePresetRowStyle(Button btn, bool isSelected, bool isDark)
+	{
+		btn.Background = isSelected
+			? new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255))
+			: (isDark
+				? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+				: new SolidColorBrush(Color.FromArgb(215, 241, 245, 249)));
+		btn.BorderBrush = isSelected
+			? new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 129, 140, 248))
+			: LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+
+		var titleFg = isSelected
+			? new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229))
+			: new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		var subFg = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		var checkFg = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+		if (btn.Content is Grid g)
+		{
+			if (g.Children.Count > 0 && g.Children[0] is StackPanel sp)
+			{
+				if (sp.Children.Count > 0 && sp.Children[0] is TextBlock t1) t1.Foreground = titleFg;
+				if (sp.Children.Count > 1 && sp.Children[1] is TextBlock t2) t2.Foreground = subFg;
+			}
+			if (g.Children.Count > 1 && g.Children[1] is FontIcon check)
+			{
+				check.Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed;
+				check.Foreground = checkFg;
+			}
+		}
+	}
+
+	private void UpdateSourcePresetRowsStyles(bool isDark)
+	{
+		if (_sourcesStack == null) return;
+		foreach (var child in _sourcesStack.Children)
+		{
+			if (child is Button btn && btn.Tag is OpraHeadphonePreset eq)
+			{
+				bool isSelected = _currentPreset != null && _currentPreset.Id == eq.Id;
+				ApplySourcePresetRowStyle(btn, isSelected, isDark);
+			}
+		}
 	}
 
 	private void SelectPreset(OpraHeadphonePreset preset)
@@ -1232,6 +1249,7 @@ public sealed partial class DspPage
 		if (_metricsFiltersTb != null) _metricsFiltersTb.Text = $"{preset.Filters.Count}/{preset.Filters.Count}";
 		if (_metricsAdjustedTb != null) _metricsAdjustedTb.Text = "0";
 
+		UpdateSourcePresetRowsStyles(IsDspDark);
 		UpdateApplyButtonState();
 		UpdatePreampDisplay();
 		UpdateCurveView();
@@ -1343,20 +1361,30 @@ public sealed partial class DspPage
 		SaveHeadphoneState();
 	}
 
-	private void SetCalibrationMode(string mode)
+	private void UpdateCalibrationModeButtonStyles(bool? isDarkOverride = null)
 	{
-		_calibrationMode = mode;
-		bool isOrig = mode == "original";
+		bool isDark = isDarkOverride ?? IsDspDark;
+		bool isOrig = _calibrationMode == "original";
+		Brush activeBg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+		Brush activeBorder = new SolidColorBrush(Color.FromArgb(255, 129, 140, 248));
+		Brush activeFg = new SolidColorBrush(Colors.White);
+		Brush inactiveBg = isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
+		Brush inactiveBorder = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+		Brush inactiveFg = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
 
 		if (_modeOriginalBtn != null)
 		{
-			_modeOriginalBtn.Background = isOrig ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
-			_modeOriginalBtn.Foreground = isOrig ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			_modeOriginalBtn.Background = isOrig ? activeBg : inactiveBg;
+			_modeOriginalBtn.BorderBrush = isOrig ? activeBorder : inactiveBorder;
+			_modeOriginalBtn.Foreground = isOrig ? activeFg : inactiveFg;
 		}
 		if (_modeListeningBtn != null)
 		{
-			_modeListeningBtn.Background = !isOrig ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
-			_modeListeningBtn.Foreground = !isOrig ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			_modeListeningBtn.Background = !isOrig ? activeBg : inactiveBg;
+			_modeListeningBtn.BorderBrush = !isOrig ? activeBorder : inactiveBorder;
+			_modeListeningBtn.Foreground = !isOrig ? activeFg : inactiveFg;
 		}
 		if (_modeDescTb != null)
 		{
@@ -1364,6 +1392,12 @@ public sealed partial class DspPage
 				? "保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。"
 				: "可选调整：减轻宽中频下切、收回部分提升并重算前级，偏离作者曲线。";
 		}
+	}
+
+	private void SetCalibrationMode(string mode)
+	{
+		_calibrationMode = mode;
+		UpdateCalibrationModeButtonStyles();
 
 		UpdateCurveView();
 
@@ -1462,14 +1496,21 @@ public sealed partial class DspPage
 	private void ShowFavoritesListView()
 	{
 		if (_hcContentHost == null) return;
+		_hcVendorCards.Clear();
+		_hcModelRows.Clear();
+		_hcBackBtn = null;
+		_hcDetailPanelBorder = null;
+		_hcCurveBorder = null;
+		_hcRestorePreampBtn = null;
+
 		var container = new Grid { RowSpacing = 10 };
 		container.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		container.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(4, 2, 0, 4) };
 		headSp.Children.Add(new FontIcon { Glyph = "\uE734", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) });
-		headSp.Children.Add(new TextBlock { Text = "收藏型号", FontSize = 14, FontWeight = FontWeights.Bold });
-		headSp.Children.Add(new TextBlock { Text = $"({_favorites.Count} 款)", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
+		headSp.Children.Add(new TextBlock { Text = "收藏型号", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		headSp.Children.Add(new TextBlock { Text = $"({_favorites.Count} 款)", FontSize = 12, Foreground = DspTextMutedBrush });
 		Grid.SetRow(headSp, 0);
 		container.Children.Add(headSp);
 
@@ -1491,7 +1532,7 @@ public sealed partial class DspPage
 			{
 				Text = "还没有收藏型号。点击耳机型号旁的星星图标即可收藏。",
 				FontSize = 13,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 24, 0, 0)
 			});
 		}
@@ -1501,19 +1542,27 @@ public sealed partial class DspPage
 		container.Children.Add(sv);
 
 		_hcContentHost.Children.Add(container);
+		ApplyThemeToHcContentHost(IsDspDark, container);
 	}
 
 	private void ShowRecentListView()
 	{
 		if (_hcContentHost == null) return;
+		_hcVendorCards.Clear();
+		_hcModelRows.Clear();
+		_hcBackBtn = null;
+		_hcDetailPanelBorder = null;
+		_hcCurveBorder = null;
+		_hcRestorePreampBtn = null;
+
 		var container = new Grid { RowSpacing = 10 };
 		container.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		container.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(4, 2, 0, 4) };
 		headSp.Children.Add(new FontIcon { Glyph = "\uE81C", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-		headSp.Children.Add(new TextBlock { Text = "最近使用", FontSize = 14, FontWeight = FontWeights.Bold });
-		headSp.Children.Add(new TextBlock { Text = $"({_recents.Count} 款)", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) });
+		headSp.Children.Add(new TextBlock { Text = "最近使用", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		headSp.Children.Add(new TextBlock { Text = $"({_recents.Count} 款)", FontSize = 12, Foreground = DspTextMutedBrush });
 		Grid.SetRow(headSp, 0);
 		container.Children.Add(headSp);
 
@@ -1535,7 +1584,7 @@ public sealed partial class DspPage
 			{
 				Text = "应用校正后，最近使用的型号会显示在这里。",
 				FontSize = 13,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 24, 0, 0)
 			});
 		}
@@ -1545,6 +1594,7 @@ public sealed partial class DspPage
 		container.Children.Add(sv);
 
 		_hcContentHost.Children.Add(container);
+		ApplyThemeToHcContentHost(IsDspDark, container);
 	}
 
 	private void OnSearchChanged()
@@ -1558,6 +1608,12 @@ public sealed partial class DspPage
 		}
 
 		if (_hcContentHost == null) return;
+		_hcVendorCards.Clear();
+		_hcModelRows.Clear();
+		_hcBackBtn = null;
+		_hcDetailPanelBorder = null;
+		_hcCurveBorder = null;
+		_hcRestorePreampBtn = null;
 		_hcContentHost.Children.Clear();
 
 		var container = new Grid { RowSpacing = 8 };
@@ -1569,7 +1625,7 @@ public sealed partial class DspPage
 			Text = $"搜索结果: “{_searchQuery}”",
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			Margin = new Thickness(4, 2, 0, 4)
 		};
 		Grid.SetRow(head, 0);
@@ -1590,7 +1646,7 @@ public sealed partial class DspPage
 			{
 				Text = "未找到匹配的耳机型号，请尝试搜索品牌 (如 Sennheiser, Sony) 或型号 (如 HD 650, Blessing)。",
 				FontSize = 13,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 20, 0, 0)
 			});
 		}
@@ -1600,6 +1656,7 @@ public sealed partial class DspPage
 		container.Children.Add(sv);
 
 		_hcContentHost.Children.Add(container);
+		ApplyThemeToHcContentHost(IsDspDark, container);
 	}
 
 	private void SwitchSource(string source)
@@ -1609,13 +1666,13 @@ public sealed partial class DspPage
 
 		if (_hcSourceOpraBtn != null)
 		{
-			_hcSourceOpraBtn.Background = isOpra ? new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Colors.Transparent);
-			_hcSourceOpraBtn.Foreground = isOpra ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			_hcSourceOpraBtn.Background = isOpra ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Colors.Transparent);
+			_hcSourceOpraBtn.Foreground = isOpra ? new SolidColorBrush(Colors.White) : DspTextMutedBrush;
 		}
 		if (_hcSourceAutoEqBtn != null)
 		{
-			_hcSourceAutoEqBtn.Background = !isOpra ? new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Colors.Transparent);
-			_hcSourceAutoEqBtn.Foreground = !isOpra ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			_hcSourceAutoEqBtn.Background = !isOpra ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Colors.Transparent);
+			_hcSourceAutoEqBtn.Foreground = !isOpra ? new SolidColorBrush(Colors.White) : DspTextMutedBrush;
 		}
 
 		RefreshCurrentView();
@@ -1645,21 +1702,21 @@ public sealed partial class DspPage
 
 		if (_btnBreadcrumbVendor != null)
 		{
-			_btnBreadcrumbVendor.Foreground = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235));
+			_btnBreadcrumbVendor.Foreground = new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 147, 197, 253) : Color.FromArgb(255, 37, 99, 235));
 			_btnBreadcrumbVendor.FontWeight = FontWeights.SemiBold;
 		}
 		if (_btnBreadcrumbModel != null)
 		{
 			_btnBreadcrumbModel.Foreground = inVendor
-				? new SolidColorBrush(Color.FromArgb(255, 37, 99, 235))
-				: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				? new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 147, 197, 253) : Color.FromArgb(255, 37, 99, 235))
+				: DspTextMutedBrush;
 			_btnBreadcrumbModel.FontWeight = inVendor ? FontWeights.SemiBold : FontWeights.Normal;
 		}
 		if (_btnBreadcrumbSource != null)
 		{
 			_btnBreadcrumbSource.Foreground = inModel
-				? new SolidColorBrush(Color.FromArgb(255, 37, 99, 235))
-				: new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+				? new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 147, 197, 253) : Color.FromArgb(255, 37, 99, 235))
+				: DspTextMutedBrush;
 			_btnBreadcrumbSource.FontWeight = inModel ? FontWeights.SemiBold : FontWeights.Normal;
 		}
 	}
@@ -1671,11 +1728,15 @@ public sealed partial class DspPage
 		SetTabActive(_btnTabRecent, _activeTab == "recent");
 	}
 
-	private static void SetTabActive(Button? btn, bool active)
+	private void SetTabActive(Button? btn, bool active)
 	{
 		if (btn == null) return;
-		btn.Background = active ? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)) : new SolidColorBrush(Colors.Transparent);
-		btn.Foreground = active ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+		btn.Background = active
+			? (IsDspDark ? new SolidColorBrush(Color.FromArgb(65, 99, 102, 241)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)))
+			: new SolidColorBrush(Colors.Transparent);
+		btn.Foreground = active
+			? new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 224, 231, 255) : Color.FromArgb(255, 79, 70, 229))
+			: DspTextMutedBrush;
 		btn.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
 	}
 
@@ -1688,28 +1749,11 @@ public sealed partial class DspPage
 		if (_tabRecentBadge != null) _tabRecentBadge.Visibility = _recents.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
 	}
 
-	private void UpdateEngineStatusPills()
-	{
-		if (_pillModulesTb != null)
-		{
-			int activeModules = 1;
-			if (_isCalibrationEnabled) activeModules++;
-			if (ViewModel?.EchoHeadroomEnabled == true) activeModules++;
-			if (ViewModel?.EchoEqEnabled == true) activeModules++;
-			if (ViewModel?.SpatialWidth > 0.0) activeModules++;
-			_pillModulesTb.Text = $"{activeModules} 个模块启用";
-		}
-		if (_pillStatusTb != null)
-		{
-			_pillStatusTb.Text = "就绪";
-		}
-	}
-
 	// ----------------------------------------------------
 	// HELPERS & FACTORIES
 	// ----------------------------------------------------
 
-	private static Button CreateSourceButton(string text, bool isSelected)
+	private Button CreateSourceButton(string text, bool isSelected)
 	{
 		return new Button
 		{
@@ -1718,13 +1762,13 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(14, 4, 14, 4),
 			CornerRadius = new CornerRadius(14),
-			Background = isSelected ? new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Colors.Transparent),
-			Foreground = isSelected ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Background = isSelected ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Colors.Transparent),
+			Foreground = isSelected ? new SolidColorBrush(Colors.White) : DspTextMutedBrush,
 			BorderThickness = new Thickness(0)
 		};
 	}
 
-	private static Button CreateBreadcrumbButton(string glyph, string text, bool isActive)
+	private Button CreateBreadcrumbButton(string glyph, string text, bool isActive)
 	{
 		var btn = new Button
 		{
@@ -1737,25 +1781,31 @@ public sealed partial class DspPage
 		sp.Children.Add(new FontIcon { Glyph = glyph, FontSize = 12 });
 		sp.Children.Add(new TextBlock { Text = text, FontSize = 12 });
 		btn.Content = sp;
-		btn.Foreground = isActive ? new SolidColorBrush(Color.FromArgb(255, 37, 99, 235)) : new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+		btn.Foreground = isActive
+			? new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 147, 197, 253) : Color.FromArgb(255, 37, 99, 235))
+			: DspTextMutedBrush;
 		btn.FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal;
 		return btn;
 	}
 
-	private static Button CreateCategoryTabButton(string glyph, string text, bool isActive)
+	private Button CreateCategoryTabButton(string glyph, string text, bool isActive)
 	{
 		return CreateCategoryTabButton(glyph, text, isActive, out _, out _);
 	}
 
-	private static Button CreateCategoryTabButton(string glyph, string text, bool isActive, out Border badgeBorder, out TextBlock badgeCountTb)
+	private Button CreateCategoryTabButton(string glyph, string text, bool isActive, out Border badgeBorder, out TextBlock badgeCountTb)
 	{
 		var btn = new Button
 		{
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(14),
-			Background = isActive ? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)) : new SolidColorBrush(Colors.Transparent),
+			Background = isActive
+				? (IsDspDark ? new SolidColorBrush(Color.FromArgb(65, 99, 102, 241)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)))
+				: new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
-			Foreground = isActive ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = isActive
+				? new SolidColorBrush(IsDspDark ? Color.FromArgb(255, 224, 231, 255) : Color.FromArgb(255, 79, 70, 229))
+				: DspTextMutedBrush,
 			FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal
 		};
 		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
@@ -1764,17 +1814,172 @@ public sealed partial class DspPage
 
 		badgeBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 224, 231, 255)),
+			Background = DspAccentSoftBgBrush,
 			CornerRadius = new CornerRadius(8),
 			Padding = new Thickness(6, 1, 6, 1),
 			Visibility = Visibility.Collapsed
 		};
-		badgeCountTb = new TextBlock { Text = "0", FontSize = 10, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) };
+		badgeCountTb = new TextBlock { Text = "0", FontSize = 10, Foreground = DspAccentSoftTextBrush };
 		badgeBorder.Child = badgeCountTb;
 		sp.Children.Add(badgeBorder);
 
 		btn.Content = sp;
 		return btn;
+	}
+
+	public void RefreshHeadphoneCorrectionTheme(bool isDark)
+	{
+		if (_headphoneCorrectionWorkbench == null) return;
+
+		Brush rootBg = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: isDark, opacityScale: Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+		Brush rimBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+		Brush accentSoftBg = new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+		Brush accentSoftText = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+		Brush primaryText = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		Brush mutedText = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+
+		if (_hcRootGrid != null) _hcRootGrid.Background = rootBg;
+		if (_hcTitleIconBorder != null) _hcTitleIconBorder.Background = accentSoftBg;
+		if (_hcTitleIcon != null) _hcTitleIcon.Foreground = accentSoftText;
+
+		if (_hcSourceContainer != null)
+		{
+			_hcSourceContainer.Background = isDark ? new SolidColorBrush(Color.FromArgb(255, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
+			_hcSourceContainer.BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+		}
+		if (_hcSourceOpraBtn != null)
+		{
+			bool isOpra = _activeSource == "opra";
+			_hcSourceOpraBtn.Background = isOpra ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Colors.Transparent);
+			_hcSourceOpraBtn.Foreground = isOpra ? new SolidColorBrush(Colors.White) : mutedText;
+		}
+		if (_hcSourceAutoEqBtn != null)
+		{
+			bool isOpra = _activeSource == "opra";
+			_hcSourceAutoEqBtn.Background = !isOpra ? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) : new SolidColorBrush(Colors.Transparent);
+			_hcSourceAutoEqBtn.Foreground = !isOpra ? new SolidColorBrush(Colors.White) : mutedText;
+		}
+		if (_hcSearchBox != null)
+		{
+			_hcSearchBox.Background = isDark ? new SolidColorBrush(Color.FromArgb(140, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
+			_hcSearchBox.BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+			_hcSearchBox.Foreground = primaryText;
+		}
+		if (_hcRefreshBtn != null)
+		{
+			_hcRefreshBtn.Background = isDark ? new SolidColorBrush(Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(200, 255, 255, 255));
+			_hcRefreshBtn.BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+			if (_hcRefreshBtn.Content is FontIcon rIcon) rIcon.Foreground = mutedText;
+		}
+		if (_hcBannerBorder != null)
+		{
+			_hcBannerBorder.Background = isDark ? new SolidColorBrush(Color.FromArgb(160, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(170, 255, 255, 255));
+			_hcBannerBorder.BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(80, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(160, 226, 232, 240));
+		}
+		if (_hcBannerIconBox != null)
+		{
+			_hcBannerIconBox.Background = isDark ? new SolidColorBrush(Color.FromArgb(255, 49, 46, 129)) : new SolidColorBrush(Color.FromArgb(255, 241, 245, 249));
+		}
+		if (_tabFavoritesBadge != null) _tabFavoritesBadge.Background = accentSoftBg;
+		if (_tabFavoritesCountTb != null) _tabFavoritesCountTb.Foreground = accentSoftText;
+		if (_tabRecentBadge != null) _tabRecentBadge.Background = accentSoftBg;
+		if (_tabRecentCountTb != null) _tabRecentCountTb.Foreground = accentSoftText;
+
+		UpdateBreadcrumbs();
+		UpdateTabButtonStyles();
+		ApplyThemeToHcContentHost(isDark);
+	}
+
+	private void ApplyThemeToHcContentHost(bool isDark, FrameworkElement? newlyAddedContainer = null)
+	{
+		Brush cardBg = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Regular, isDark: isDark, opacityScale: Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark);
+		Brush softBg = isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+		Brush primaryText = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		Brush secondaryText = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+		Brush accentSoftText = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+		foreach (var card in _hcVendorCards)
+		{
+			card.Background = isDark ? new SolidColorBrush(Color.FromArgb(160, 30, 41, 59)) : new SolidColorBrush(Color.FromArgb(245, 255, 255, 255));
+			card.BorderBrush = isDark ? new SolidColorBrush(Color.FromArgb(85, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 226, 232, 240));
+		}
+
+		foreach (var row in _hcModelRows)
+		{
+			row.Background = cardBg;
+			row.BorderBrush = rimBrush;
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(row, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		}
+
+		if (_hcBackBtn != null)
+		{
+			_hcBackBtn.Background = softBg;
+			_hcBackBtn.BorderBrush = rimBrush;
+			_hcBackBtn.Foreground = primaryText;
+			if (_hcBackBtn.Content is StackPanel bsp)
+			{
+				foreach (var ch in bsp.Children)
+				{
+					if (ch is FontIcon bfi) bfi.Foreground = primaryText;
+					else if (ch is TextBlock btb) btb.Foreground = primaryText;
+				}
+			}
+		}
+
+		if (_hcDetailPanelBorder != null)
+		{
+			_hcDetailPanelBorder.Background = cardBg;
+			_hcDetailPanelBorder.BorderBrush = rimBrush;
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_hcDetailPanelBorder, LiquidGlassVariant.Regular, isDark: isDark, enablePointerTracking: false);
+		}
+
+		if (_btnFavPreset != null)
+		{
+			_btnFavPreset.Background = softBg;
+			_btnFavPreset.BorderBrush = rimBrush;
+		}
+
+		if (_hcCurveBorder != null)
+		{
+			_hcCurveBorder.Background = isDark ? new SolidColorBrush(Color.FromArgb(140, 15, 23, 42)) : new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
+			_hcCurveBorder.BorderBrush = rimBrush;
+		}
+		_curveControl?.SetDarkTheme(isDark);
+
+		if (_hpPreampValueTb != null) _hpPreampValueTb.Foreground = accentSoftText;
+		if (_hcRestorePreampBtn != null)
+		{
+			_hcRestorePreampBtn.Background = softBg;
+			_hcRestorePreampBtn.BorderBrush = rimBrush;
+			_hcRestorePreampBtn.Foreground = secondaryText;
+		}
+
+		UpdateCalibrationModeButtonStyles(isDark);
+		UpdateSourcePresetRowsStyles(isDark);
+
+		if (_hcContentHost != null)
+		{
+			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(_hcContentHost, isDark: isDark);
+			RefreshWorkbenchTextContrast(_hcContentHost, isDark);
+		}
+
+		if (newlyAddedContainer != null && !newlyAddedContainer.IsLoaded)
+		{
+			void OnContainerLoaded(object s, RoutedEventArgs e)
+			{
+				newlyAddedContainer.Loaded -= OnContainerLoaded;
+				bool currentDark = IsDspDark;
+				if (_hcContentHost != null)
+				{
+					LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(_hcContentHost, isDark: currentDark);
+					RefreshWorkbenchTextContrast(_hcContentHost, currentDark);
+				}
+			}
+			newlyAddedContainer.Loaded += OnContainerLoaded;
+		}
 	}
 
 	// ----------------------------------------------------
@@ -1865,6 +2070,7 @@ public sealed class HeadphoneCurveControl : UserControl
 	private OpraHeadphonePreset? _preset;
 	private string _mode = "original";
 	private double? _customPreamp = null;
+	private bool _isDark = false;
 	private readonly List<EchoBiquadFilter> _filters = new();
 
 	public HeadphoneCurveControl()
@@ -1873,6 +2079,14 @@ public sealed class HeadphoneCurveControl : UserControl
 		_canvas.PaintSurface += OnPaintSurface;
 		Content = _canvas;
 		MinHeight = 160;
+		_isDark = FurinaPlayer.UI.Controls.LiquidGlassEngine.IsElementDarkTheme(this);
+	}
+
+	public void SetDarkTheme(bool isDark)
+	{
+		if (_isDark == isDark) return;
+		_isDark = isDark;
+		_canvas.Invalidate();
 	}
 
 	public void SetCurve(OpraHeadphonePreset? preset, string mode, double? customPreamp)
@@ -1903,7 +2117,8 @@ public sealed class HeadphoneCurveControl : UserControl
 	private void OnPaintSurface(object? sender, SKPaintSurfaceEventArgs e)
 	{
 		var canvas = e.Surface.Canvas;
-		canvas.Clear(new SKColor(248, 250, 252));
+		bool isDark = _isDark;
+		canvas.Clear(isDark ? new SKColor(15, 23, 42, 165) : new SKColor(248, 250, 252));
 
 		float w = e.Info.Width;
 		float h = e.Info.Height;
@@ -1919,19 +2134,19 @@ public sealed class HeadphoneCurveControl : UserControl
 
 		using var gridPaint = new SKPaint
 		{
-			Color = new SKColor(226, 232, 240),
+			Color = isDark ? new SKColor(255, 255, 255, 28) : new SKColor(226, 232, 240),
 			StrokeWidth = 1f,
 			Style = SKPaintStyle.Stroke
 		};
 		using var zeroLinePaint = new SKPaint
 		{
-			Color = new SKColor(203, 213, 225),
+			Color = isDark ? new SKColor(255, 255, 255, 72) : new SKColor(203, 213, 225),
 			StrokeWidth = 1.2f,
 			Style = SKPaintStyle.Stroke
 		};
 		using var textPaint = new SKPaint
 		{
-			Color = new SKColor(148, 163, 184),
+			Color = isDark ? new SKColor(203, 213, 225) : new SKColor(148, 163, 184),
 			TextSize = 10f,
 			IsAntialias = true
 		};
@@ -2004,7 +2219,7 @@ public sealed class HeadphoneCurveControl : UserControl
 		{
 			using var dashedPaint = new SKPaint
 			{
-				Color = new SKColor(148, 163, 184, 180),
+				Color = isDark ? new SKColor(148, 163, 184, 210) : new SKColor(148, 163, 184, 180),
 				StrokeWidth = 1.5f,
 				Style = SKPaintStyle.Stroke,
 				PathEffect = SKPathEffect.CreateDash(new float[] { 5f, 4f }, 0),
@@ -2027,7 +2242,7 @@ public sealed class HeadphoneCurveControl : UserControl
 
 		using var fillPaint = new SKPaint
 		{
-			Color = new SKColor(99, 102, 241, 35),
+			Color = isDark ? new SKColor(129, 140, 248, 52) : new SKColor(99, 102, 241, 35),
 			Style = SKPaintStyle.Fill,
 			IsAntialias = true
 		};
@@ -2036,7 +2251,7 @@ public sealed class HeadphoneCurveControl : UserControl
 		// Draw active curve stroke
 		using var curvePaint = new SKPaint
 		{
-			Color = new SKColor(99, 102, 241),
+			Color = isDark ? new SKColor(129, 140, 248) : new SKColor(99, 102, 241),
 			StrokeWidth = 2.5f,
 			Style = SKPaintStyle.Stroke,
 			IsAntialias = true

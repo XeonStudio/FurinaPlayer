@@ -2134,6 +2134,10 @@
     liveQueue: [],
     queueTab: "tracks",
     envRev: 0,
+    telemetryTrackId: "",
+    envelopeRetryCount: 0,
+    envelopeRetryStartedAt: 0,
+    envelopeRetryAt: 0,
     envelopes: new Map(), // trackId -> { p: Float32Array, r: Float32Array, filled: number }
     rmsHistory: [],       // [{ t, db }] real host rms samples
     peakHoldDb: -Infinity,
@@ -2489,6 +2493,57 @@
   }
 
   // ── derived data ──────────────────────────────────────────────────────────
+  const normTrackId = (id) => (id === null || id === undefined ? "" : String(id));
+  const activeTrackId = () => normTrackId(state.playback?.currentTrackId ?? state.track?.id);
+
+  function resetTrackTelemetry(nextTrackId) {
+    const tid = normTrackId(nextTrackId);
+    state.telemetryTrackId = tid;
+    state.levels = { peakDb: null, rmsDb: null, source: null };
+    state.spectrum = { bands: [], energy: 0, transient: 0, state: "none", vectorPoints: [] };
+    state.rmsHistory = [];
+    state.peakHoldDb = -Infinity;
+    state.peakHoldAt = 0;
+    state.view.zoomed = false;
+    if (state.scan.active) state.scan.cancel = true;
+    state.scan.active = false;
+    state.scan.progress = 0;
+    state.scan.message = "";
+    state.scan.lastAutoAt = 0;
+    state.envelopeRetryCount = 0;
+    state.envelopeRetryStartedAt = performance.now();
+    state.envelopeRetryAt = 0;
+
+    const waveEntry = canvases.get("waveform-canvas");
+    if (waveEntry) {
+      waveEntry.layer = null;
+      waveEntry.layerKey = null;
+      waveEntry.layerAt = 0;
+    }
+    const specEntry = canvases.get("spectrogram-canvas");
+    if (specEntry) {
+      specEntry.layer = null;
+      specEntry.layerKey = null;
+    }
+    const spectrumEntry = canvases.get("spectrum-canvas");
+    if (spectrumEntry) {
+      spectrumEntry.smoothBands = null;
+      spectrumEntry.peakHold = null;
+    }
+    const radarEntry = canvases.get("radar-canvas");
+    if (radarEntry) {
+      radarEntry.slots = null;
+    }
+    const gonioEntry = canvases.get("goniometer-canvas");
+    if (gonioEntry) {
+      gonioEntry.held = null;
+      gonioEntry.particles = [];
+      gonioEntry.rays = null;
+      gonioEntry.lissAmp = 0;
+      gonioEntry.corrVal = 1.0;
+    }
+  }
+
   const currentDuration = () =>
     num(state.clock?.durationSeconds, 0) || num(state.playback.durationSeconds, 0) ||
     num(state.track?.durationSeconds, 0) || 0;
@@ -2498,8 +2553,9 @@
       return state.previewPosition;
     }
     const clock = state.clock;
-    const activeTrackId = state.playback?.currentTrackId || state.track?.id;
-    if (!clock || (clock.currentTrackId && activeTrackId && clock.currentTrackId !== activeTrackId)) {
+    const activeTid = activeTrackId();
+    const clockTid = normTrackId(clock?.currentTrackId);
+    if (!clock || (clockTid && activeTid && clockTid !== activeTid)) {
       return num(state.playback.positionSeconds, 0) || 0;
     }
     const now = performance.now();
@@ -2547,11 +2603,11 @@
 
   const loudnessStats = () => {
     const now = performance.now();
-    const recent = state.rmsHistory.filter((s) => now - s.t < 4000);
+    const recent = state.rmsHistory.filter((s) => now - s.t < 4000 && s.db > -89.5);
     const currRms = num(state.levels.rmsDb, null);
     const pick = (windowMs) => {
       const slice = recent.filter((s) => now - s.t <= windowMs);
-      if (slice.length === 0) return (currRms !== null && currRms > -90) ? currRms : null;
+      if (slice.length === 0) return (currRms !== null && currRms > -89.5) ? currRms : null;
       let sum = 0;
       for (const s of slice) sum += Math.pow(10, s.db / 10);
       return 10 * Math.log10(sum / slice.length);
@@ -2566,7 +2622,7 @@
       return 10 * Math.log10(sum / gated.length);
     })();
     const range = (() => {
-      if (recent.length < 5) return (currRms !== null && currRms > -90) ? 6.5 : null;
+      if (recent.length < 5) return (currRms !== null && currRms > -89.5) ? 6.5 : null;
       let min = Infinity;
       let max = -Infinity;
       for (let i = 0; i + 5 <= recent.length; i += 2) {
@@ -2589,8 +2645,9 @@
 
   // ── envelope capture ──────────────────────────────────────────────────────
   function envelopeFor(trackId) {
-    if (!trackId) return null;
-    let series = state.envelopes.get(trackId) || state.envelopes.get(String(trackId));
+    const key = normTrackId(trackId);
+    if (!key) return null;
+    let series = state.envelopes.get(key);
     if (!series) {
       const p = new Float32Array(ENV_BUCKETS);
       const r = new Float32Array(ENV_BUCKETS);
@@ -2598,12 +2655,11 @@
       const lMax = new Float32Array(ENV_BUCKETS);
       const rMin = new Float32Array(ENV_BUCKETS);
       const rMax = new Float32Array(ENV_BUCKETS);
-      series = { p, r, lMin, lMax, rMin, rMax, filled: 0, isTruePcm: false };
-      state.envelopes.set(trackId, series);
-      state.envelopes.set(String(trackId), series);
-      while (state.envelopes.size > MAX_ENV_CACHE * 4) {
+      series = { p, r, lMin, lMax, rMin, rMax, filled: 0, isTruePcm: false, hasSignal: false };
+      state.envelopes.set(key, series);
+      while (state.envelopes.size > MAX_ENV_CACHE * 2) {
         const oldest = state.envelopes.keys().next().value;
-        if (oldest === trackId || oldest === String(trackId)) break;
+        if (oldest === key) break;
         state.envelopes.delete(oldest);
       }
     }
@@ -2612,12 +2668,18 @@
 
   function captureEnvelope() {
     const duration = currentDuration();
-    const trackId = state.playback.currentTrackId || state.track?.id;
+    const trackId = activeTrackId();
     if (!trackId || duration <= 0) return;
     if (state.playback.state !== "playing" && state.playback.state !== "loading") return;
     const peak = num(state.levels.peakDb, null);
     const rms = num(state.levels.rmsDb, null);
-    if (rms !== null) {
+    const energy = num(state.spectrum.energy, 0) || 0;
+    const hasBandSignal = hasSignal(state.spectrum.bands);
+    const hasRealRms = rms !== null && rms > -89.5;
+    const hasRealPeak = peak !== null && peak > -89.5;
+    if (!hasRealRms && !hasRealPeak && energy <= 0.001 && !hasBandSignal) return;
+
+    if (hasRealRms) {
       const now = performance.now();
       state.rmsHistory.push({ t: now, db: rms });
       if (state.rmsHistory.length > 600) state.rmsHistory.splice(0, state.rmsHistory.length - 600);
@@ -2627,10 +2689,9 @@
     const pos = positionSeconds();
     const len = series.p.length || ENV_BUCKETS;
     const bucket = clamp(Math.floor((pos / duration) * len), 0, len - 1);
-    const energy = num(state.spectrum.energy, 0) || 0;
     const isLinear = state.prefs.waveScale !== "db";
-    const pv = peak === null ? (isLinear ? energy : clamp(energy, 0, 1)) : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
-    const rv = rms === null ? (isLinear ? pv * 0.7 : energy * 0.8) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
+    const pv = !hasRealPeak ? (isLinear ? energy : clamp(energy, 0, 1)) : (isLinear ? dbToLinearRatio(peak, -60) : dbToRatio(peak, -60));
+    const rv = !hasRealRms ? (isLinear ? pv * 0.7 : energy * 0.8) : (isLinear ? dbToLinearRatio(rms, -60) : dbToRatio(rms, -60));
     const wasEmpty = series.p[bucket] <= 0;
     if (pv > series.p[bucket]) series.p[bucket] = pv;
     if (rv > series.r[bucket]) series.r[bucket] = rv;
@@ -2678,6 +2739,9 @@
       }
     }
 
+    if (pv > 0 || rv > 0 || hasBandSignal) {
+      series.hasSignal = true;
+    }
     state.envRev += 1;
     if (wasEmpty && pv > 0) {
       series.filled = Math.min(len, series.filled + 1);
@@ -2702,7 +2766,7 @@
     const statusNode = el("wave-scan-state");
     const button = el("btn-scan-wave");
     const mode = el("btn-scan-mode");
-    const trackId = state.playback.currentTrackId || state.track?.id;
+    const trackId = activeTrackId();
     const series = trackId ? state.envelopes.get(trackId) : null;
     const coverage = Math.round(envelopeCoverage(series) * 100);
     const remaining =
@@ -2751,7 +2815,7 @@
   }
 
   async function scanWaveform() {
-    const trackId = state.playback.currentTrackId || state.track?.id;
+    const trackId = activeTrackId();
     if (!trackId) {
       state.scan.message = t("scan.noTrack");
       updateScanUi();
@@ -2765,13 +2829,18 @@
   }
 
   function maybeAutoScan() {
-    const trackId = state.playback.currentTrackId || state.track?.id;
-    if (!trackId) return;
-    const series = state.envelopes.get(trackId) || state.envelopes.get(String(trackId));
+    const trackId = activeTrackId();
+    if (!trackId || !isPlayingState()) return;
+    const series = state.envelopes.get(trackId);
     if (series && (series.isTruePcm || envelopeCoverage(series) >= 0.55)) return;
     const now = performance.now();
-    if (now - state.scan.lastAutoAt < 5000) return;
+    if (!state.envelopeRetryStartedAt) state.envelopeRetryStartedAt = now;
+    if (now - state.envelopeRetryStartedAt < 1500) return;
+    if (state.envelopeRetryCount >= 5) return;
+    if (now - state.scan.lastAutoAt < 1500) return;
     state.scan.lastAutoAt = now;
+    state.envelopeRetryAt = now;
+    state.envelopeRetryCount += 1;
     post({ type: "echo:audition:getEnvelope", trackId });
   }
 
@@ -2803,11 +2872,8 @@
     ctx.fillStyle = isLight ? "#dfe3e8" : "#0b0e12";
     ctx.fillRect(0, 0, w, h);
     const duration = currentDuration();
-    const tid = String(state.playback.currentTrackId || state.track?.id || "");
-    let series = state.envelopes.get(tid) || state.envelopes.get(Number(tid));
-    if (!series && state.envelopes.size > 0) {
-      series = state.envelopes.values().next().value;
-    }
+    const tid = activeTrackId();
+    const series = tid ? state.envelopes.get(tid) : null;
     if (series && duration > 0 && series.p && series.p.length > 0) {
       const palette = (WAVE_PALETTES[state.waveColor] || WAVE_PALETTES.blue)[isLight ? "light" : "dark"];
       const waveFill = palette.nav;
@@ -2902,9 +2968,6 @@
   }
 
   function drawWaveformLayer(lctx, w, h, vr, duration, series) {
-    if (!series) {
-      series = envelopeFor(state.track?.id || state.playback.currentTrackId || "default");
-    }
     const isLight = isLightMode();
     const span = Math.max(0.001, vr.end - vr.start);
     lctx.fillStyle = isLight ? "#f4f6f9" : COL_BG;
@@ -3022,7 +3085,7 @@
     lctx.lineTo(w, laneH);
     lctx.stroke();
 
-    if (!series || (series.filled === 0 && !series.isTruePcm)) {
+    if (!series || (series.filled === 0 && !series.isTruePcm && !series.hasSignal)) {
       lctx.fillStyle = isLight ? "rgba(55, 65, 81, 0.65)" : "rgba(255,255,255,0.34)";
       lctx.font = "11px var(--font-ui, sans-serif)";
       lctx.textAlign = "center";
@@ -3037,14 +3100,12 @@
     const { canvas, ctx, w, h } = resizeCanvas(entry);
     const vr = viewRange();
     const duration = currentDuration();
-    const tid = String(state.playback.currentTrackId || state.track?.id || "");
-    let series = state.envelopes.get(tid) || state.envelopes.get(Number(tid));
-    if (!series && state.envelopes.size > 0) {
-      series = state.envelopes.values().next().value;
-    }
+    const tid = activeTrackId();
+    const series = tid ? state.envelopes.get(tid) : null;
 
     const layerKey = [
-      state.playback.currentTrackId ?? "",
+      tid,
+      duration.toFixed(2),
       vr.start.toFixed(3),
       vr.end.toFixed(3),
       canvas.width,
@@ -3281,14 +3342,12 @@
     const { canvas, ctx, w, h } = resizeCanvas(entry);
     const vr = viewRange();
     const duration = currentDuration();
-    const tid = String(state.playback.currentTrackId || state.track?.id || "");
-    let series = state.envelopes.get(tid) || state.envelopes.get(Number(tid));
-    if (!series && state.envelopes.size > 0) {
-      series = state.envelopes.values().next().value;
-    }
+    const tid = activeTrackId();
+    const series = tid ? state.envelopes.get(tid) : null;
 
     const layerKey = [
-      state.playback.currentTrackId ?? "",
+      tid,
+      duration.toFixed(2),
       vr.start.toFixed(3),
       vr.end.toFixed(3),
       w,
@@ -3577,7 +3636,9 @@
     if (fresh) entry.held = bands;
     const energy = num(state.spectrum.energy, 0) || 0;
     const transient = num(state.spectrum.transient, 0) || 0;
-    const isPlaying = isPlayingState() && (fresh || energy > 0.001);
+    const vecPts = Array.isArray(state.spectrum.vectorPoints) ? state.spectrum.vectorPoints : [];
+    const hasVecSignal = vecPts.some((v) => Math.abs(Number(v) || 0) > 0.002);
+    const isPlaying = isPlayingState() && (fresh || energy > 0.001 || hasVecSignal);
     const mode = state.soundfieldMode || "polar-sample";
 
     // Real measurement values from C# DSP engine
@@ -4534,7 +4595,7 @@
         const trimmed = c.trim();
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
           try {
-            parent.postMessage({ type: "echo:audition:getCover", trackId: track.id, url: trimmed }, "*");
+            post({ type: "echo:audition:getCover", trackId: track.id, url: trimmed });
           } catch {}
           return null;
         }
@@ -4550,11 +4611,12 @@
   let coverRecoveryTimer = null;
   function scheduleCoverRecovery(trackId) {
     if (coverRecoveryTimer) clearTimeout(coverRecoveryTimer);
+    const targetTid = normTrackId(trackId);
     coverRecoveryTimer = setTimeout(() => {
       coverRecoveryTimer = null;
-      if (state.track?.id === trackId && !state.track.coverUrl) {
+      if (normTrackId(state.track?.id) === targetTid && !state.track.coverUrl) {
         command("library:getTrack", { trackId }).then((res) => {
-          if (res?.track && state.track?.id === trackId) {
+          if (res?.track && normTrackId(state.track?.id) === targetTid) {
             const recovered = resolveCoverUrl(res.track);
             if (recovered) {
               state.track.coverUrl = recovered;
@@ -4571,11 +4633,16 @@
 
   function applyTrack(track) {
     if (!track) return;
-    const changed = track.id && track.id !== state.track?.id;
+    const prevTid = normTrackId(state.track?.id);
+    const nextTid = normTrackId(track.id);
+    const changed = Boolean(nextTid && nextTid !== prevTid);
     const incomingCover = resolveCoverUrl(track);
     const cover = incomingCover || (changed ? null : (state.track?.coverUrl || null));
 
     state.track = { ...(state.track ?? {}), ...track, coverUrl: cover };
+    if (nextTid && !normTrackId(state.playback.currentTrackId)) {
+      state.playback.currentTrackId = track.id;
+    }
     const title = state.track.title || t("track.unknown");
     const artist = state.track.artist || t("track.unknownArtist");
     const album = state.track.album || "";
@@ -4591,26 +4658,28 @@
     setCover("np-cover", cover, false);
     setText("art-source", cover ? ((cover.startsWith("http") || cover.startsWith("data:")) ? t("art.streamCover") : t("art.hostCover")) : t("art.noCover"));
 
-    if (!cover && state.track.id) {
+    if (!cover && nextTid) {
       scheduleCoverRecovery(state.track.id);
       try {
-        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track.id }, "*");
+        post({ type: "echo:audition:getCover", trackId: state.track.id });
       } catch {}
     }
 
-    if (state.track.id && state.track.id.startsWith("streaming:")) {
+    if (nextTid.startsWith("streaming:")) {
       try {
-        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track.id }, "*");
-        parent.postMessage({ type: "echo:audition:getLyrics", trackId: state.track.id }, "*");
+        post({ type: "echo:audition:getCover", trackId: state.track.id });
+        post({ type: "echo:audition:getLyrics", trackId: state.track.id });
       } catch {}
+    }
+
+    if (nextTid && nextTid !== state.telemetryTrackId) {
+      resetTrackTelemetry(nextTid);
     }
 
     if (changed) {
       // The user switched tracks: stop any running pre-scan, it belongs to the
       // previous song. A fresh scan is scheduled for the new track below.
       if (state.scan.active) state.scan.cancel = true;
-      state.rmsHistory = [];
-      state.peakHoldDb = -Infinity;
       state.lyricsRequested = null;
       state.customLyricsTrackId = null;
 
@@ -4630,12 +4699,12 @@
       }
 
       rememberTrack(state.track);
-      parent.postMessage({ type: "echo:audition:getQueue" }, "*");
+      post({ type: "echo:audition:getQueue" });
       renderQueueList();
       maybeAutoScan();
-      if (state.track?.id?.startsWith("streaming:")) {
+      if (nextTid.startsWith("streaming:")) {
         try {
-          parent.postMessage({ type: "echo:audition:getLyrics", trackId: state.track.id }, "*");
+          post({ type: "echo:audition:getLyrics", trackId: state.track.id });
         } catch {}
       }
     }
@@ -4660,7 +4729,7 @@
 
     if (url.startsWith("http://") || url.startsWith("https://")) {
       try {
-        parent.postMessage({ type: "echo:audition:getCover", trackId: state.track?.id, url }, "*");
+        post({ type: "echo:audition:getCover", trackId: state.track?.id, url });
       } catch {}
       return;
     }
@@ -4899,11 +4968,10 @@
     setText("v-db-r", fmtDb(rms));
 
     const stats = loudnessStats();
-    const hasTrack = Boolean(state.track?.title || state.playback.currentTrackId);
-    setText("metric-integrated", fmtDb(stats.integrated ?? (hasTrack ? -23.4 : null)));
-    setText("metric-shortterm", fmtDb(stats.shortTerm ?? (hasTrack ? -18.2 : null)));
-    setText("metric-momentary", fmtDb(stats.momentary ?? (hasTrack ? -16.5 : null)));
-    setText("metric-lra", stats.range !== null ? stats.range.toFixed(1) : (hasTrack ? "6.8" : "—"));
+    setText("metric-integrated", fmtDb(stats.integrated));
+    setText("metric-shortterm", fmtDb(stats.shortTerm));
+    setText("metric-momentary", fmtDb(stats.momentary));
+    setText("metric-lra", stats.range !== null ? stats.range.toFixed(1) : "—");
   }
 
   function applyVolume() {
@@ -5311,14 +5379,14 @@
       } else if (event.key === "ArrowLeft") {
         if (event.ctrlKey) {
           event.preventDefault();
-          commandNoWait("previous");
+          if (!event.repeat) commandNoWait("previous");
         } else {
           seekTo(positionSeconds() - 5);
         }
       } else if (event.key === "ArrowRight") {
         if (event.ctrlKey) {
           event.preventDefault();
-          commandNoWait("next");
+          if (!event.repeat) commandNoWait("next");
         } else {
           seekTo(positionSeconds() + 5);
         }
@@ -5413,7 +5481,9 @@
     if (!msg) return;
 
     if (msg.type === "echo:audition:coverData" && msg.coverDataUrl) {
-      if (!state.track?.id || state.track.id === msg.trackId) {
+      const msgTid = normTrackId(msg.trackId);
+      const curTid = activeTrackId();
+      if (!msgTid || !curTid || msgTid === curTid) {
         state.track = { ...(state.track ?? {}), coverUrl: msg.coverDataUrl };
         setCover("cover-img", msg.coverDataUrl, true);
         setCover("pill-cover", msg.coverDataUrl, false);
@@ -5427,7 +5497,7 @@
       if (Array.isArray(msg.items) && msg.items.length > 0) {
         state.liveQueue = msg.items.map((it) => ({
           queueId: it.queueId,
-          id: it.track?.id || it.id,
+          id: it.track?.id ?? it.id,
           title: it.track?.title || it.title || t("track.unknown"),
           artist: it.track?.artist || it.artist || "",
           album: it.track?.album || it.album || "",
@@ -5439,8 +5509,10 @@
     }
 
     if (msg.type === "echo:audition:lyricsData" && msg.lyrics) {
-      if (!state.track?.id || state.track.id === msg.trackId) {
-        state.customLyricsTrackId = msg.trackId || state.track?.id;
+      const msgTid = normTrackId(msg.trackId);
+      const curTid = activeTrackId();
+      if (!msgTid || !curTid || msgTid === curTid) {
+        state.customLyricsTrackId = msgTid || curTid || state.track?.id;
         renderLyricsMessage(msg.lyrics);
       }
       return;
@@ -5452,7 +5524,9 @@
     }
 
     if (msg.type === "echo:audition:envelopeData" && Array.isArray(msg.p)) {
-      const rawTid = msg.trackId ?? state.playback.currentTrackId ?? state.track?.id ?? "current";
+      const msgTid = normTrackId(msg.trackId);
+      const curTid = activeTrackId();
+      const rawTid = msgTid || curTid || "current";
       const len = msg.p.length;
       if (len > 0) {
         const p = new Float32Array(len);
@@ -5496,6 +5570,7 @@
           rMax,
           filled: len,
           isTruePcm: true,
+          hasSignal: true,
           specL,
           specR,
           specCols,
@@ -5503,30 +5578,29 @@
           sampleRate,
         };
         state.envelopes.set(rawTid, envData);
-        state.envelopes.set(String(rawTid), envData);
-        if (typeof rawTid === "string" && !isNaN(Number(rawTid))) {
-          state.envelopes.set(Number(rawTid), envData);
+        const isActiveTarget = !msgTid || !curTid || msgTid === curTid;
+        if (isActiveTarget) {
+          if (curTid && curTid !== rawTid) {
+            state.envelopes.set(curTid, envData);
+          }
+          state.envelopeRetryCount = 0;
+          state.envelopeRetryAt = 0;
+          state.envRev += 1;
+          const waveEntry = canvases.get("waveform-canvas");
+          if (waveEntry) {
+            waveEntry.layer = null;
+            waveEntry.layerKey = null;
+          }
+          const specEntry = canvases.get("spectrogram-canvas");
+          if (specEntry) {
+            specEntry.layer = null;
+            specEntry.layerKey = null;
+          }
+          renderWaveform();
+          renderSpectrogram();
+          renderNavigator();
+          updateScanUi();
         }
-        const curTid = state.playback.currentTrackId || state.track?.id;
-        if (curTid) {
-          state.envelopes.set(curTid, envData);
-          state.envelopes.set(String(curTid), envData);
-        }
-        state.envRev += 1;
-        const waveEntry = canvases.get("waveform-canvas");
-        if (waveEntry) {
-          waveEntry.layer = null;
-          waveEntry.layerKey = null;
-        }
-        const specEntry = canvases.get("spectrogram-canvas");
-        if (specEntry) {
-          specEntry.layer = null;
-          specEntry.layerKey = null;
-        }
-        renderWaveform();
-        renderSpectrogram();
-        renderNavigator();
-        updateScanUi();
       }
       return;
     }
@@ -5555,6 +5629,10 @@
       case "echo:workshop-ui:state": {
         state.connected = true;
         if (msg.playback) {
+          const nextPbTid = normTrackId(msg.playback.currentTrackId ?? msg.currentTrack?.id);
+          if (nextPbTid && nextPbTid !== state.telemetryTrackId) {
+            resetTrackTelemetry(nextPbTid);
+          }
           const nowPerf = performance.now();
           const recentlyToggled = state.lastPlayPauseClickAt && (nowPerf - state.lastPlayPauseClickAt < 240);
           const mergedPlayback = { ...state.playback, ...msg.playback };
@@ -5579,12 +5657,12 @@
           }
         }
         if (isPlayingState() && (!lyricState.lines || lyricState.lines.length === 0)) {
-          const tid = state.playback.currentTrackId || state.track?.id;
+          const tid = activeTrackId();
           if (tid && state.lyricsRequested !== tid) {
             state.lyricsRequested = tid;
-            if (String(tid).startsWith("streaming:")) {
+            if (tid.startsWith("streaming:")) {
               try {
-                post({ type: "echo:audition:getLyrics", trackId: tid });
+                post({ type: "echo:audition:getLyrics", trackId: state.playback.currentTrackId ?? state.track?.id });
               } catch {}
             } else {
               command("lyrics:get", { trackId: tid }).then((res) => {
@@ -5599,7 +5677,7 @@
         break;
       }
       case "echo:workshop-ui:lyrics": {
-        const isCurrentCustom = state.customLyricsTrackId && (state.customLyricsTrackId === (msg.trackId ?? state.track?.id));
+        const isCurrentCustom = state.customLyricsTrackId && (normTrackId(state.customLyricsTrackId) === normTrackId(msg.trackId ?? state.track?.id));
         if (msg.lyrics && Array.isArray(msg.lyrics.lines) && msg.lyrics.lines.length > 0) {
           state.customLyricsTrackId = null;
           renderLyricsMessage(msg.lyrics);
@@ -5631,6 +5709,10 @@
           }
         }
         if (incoming) {
+          const incomingTid = normTrackId(incoming.currentTrackId);
+          if (incomingTid && incomingTid !== state.telemetryTrackId) {
+            resetTrackTelemetry(incomingTid);
+          }
           const nowPerf = performance.now();
           const prevClock = state.clock;
           const curInterp = positionSeconds();
@@ -5643,7 +5725,7 @@
             prevClock &&
             effectiveState === "playing" &&
             prevClock.state === "playing" &&
-            prevClock.currentTrackId === incoming.currentTrackId
+            normTrackId(prevClock.currentTrackId) === incomingTid
           ) {
             const drift = rawPos - curInterp;
             if (Math.abs(drift) < 0.32) {
@@ -5666,7 +5748,7 @@
             }
             state.spectrum.vectorPoints = [];
           }
-          if (incoming.currentTrackId) state.playback.currentTrackId = incoming.currentTrackId;
+          if (incomingTid) state.playback.currentTrackId = incoming.currentTrackId;
         } else {
           state.clock = null;
         }
@@ -5677,38 +5759,30 @@
         break;
       }
       case "echo:workshop-ui:audio": {
-        if (msg.trackId && state.playback.currentTrackId && msg.trackId !== state.playback.currentTrackId) break;
+        const msgTid = normTrackId(msg.trackId);
+        const curTid = activeTrackId();
+        if (msgTid && curTid && msgTid !== curTid) break;
         if (msg.audio) applyMeta(msg.audio);
         if (msg.levels) {
           state.levels = { ...state.levels, ...msg.levels };
           const r = num(msg.levels.rmsDb, null);
-          if (r !== null && r > -90) {
+          if (r !== null && r > -89.5) {
             state.rmsHistory.push({ t: performance.now(), db: r });
             if (state.rmsHistory.length > 600) state.rmsHistory.splice(0, state.rmsHistory.length - 600);
           }
+          applyLevels();
         }
-        if (msg.spectrum) state.spectrum = { ...state.spectrum, ...msg.spectrum };
-        break;
-      }
-      case "echo:audition:envelopeData": {
-        const rawTid = msg.trackId || state.playback.currentTrackId || state.track?.id || "current";
-        if (Array.isArray(msg.p) && Array.isArray(msg.r)) {
-          const p = new Float32Array(ENV_BUCKETS);
-          const r = new Float32Array(ENV_BUCKETS);
-          const len = Math.min(ENV_BUCKETS, msg.p.length);
-          for (let i = 0; i < len; i++) {
-            p[i] = num(msg.p[i], 0) || 0;
-            r[i] = num(msg.r[i], 0) || 0;
+        if (msg.spectrum) {
+          const nextSpectrum = { ...state.spectrum, ...msg.spectrum };
+          if (!Array.isArray(msg.spectrum.bands) || msg.spectrum.bands.length === 0) {
+            if (isPlayingState() && Array.isArray(state.spectrum.bands) && state.spectrum.bands.length > 0) {
+              nextSpectrum.bands = state.spectrum.bands;
+            }
           }
-          const envData = { p, r, filled: len };
-          state.envelopes.set(rawTid, envData);
-          state.envelopes.set(String(rawTid), envData);
-          if (typeof rawTid === "string" && !isNaN(Number(rawTid))) {
-            state.envelopes.set(Number(rawTid), envData);
+          if (!Array.isArray(msg.spectrum.vectorPoints)) {
+            nextSpectrum.vectorPoints = state.spectrum.vectorPoints || [];
           }
-          state.envRev += 1;
-          renderWaveform();
-          renderNavigator();
+          state.spectrum = nextSpectrum;
         }
         break;
       }

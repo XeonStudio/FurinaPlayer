@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -41,17 +42,26 @@ public sealed partial class DspPage
 	private bool _deEsserAudition = false;
 
 	// 顶部与操作栏控件
+	private Border? _deEsserTitleIconBorder;
+	private FontIcon? _deEsserTitleIcon;
+	private TextBlock? _deEsserTitleTb;
 	private Button? _deEsserPowerBtn;
 	private FontIcon? _deEsserPowerIcon;
 	private TextBlock? _deEsserPowerText;
 	private Button? _deEsserAuditionBtn;
+	private FontIcon? _deEsserAuditionIcon;
+	private TextBlock? _deEsserAuditionText;
 	private Button? _deEsserResetBtn;
+	private FontIcon? _deEsserResetIcon;
+	private TextBlock? _deEsserResetText;
 
 	// 状态说明与增益降低读数
 	private Ellipse? _deEsserStatusDot;
 	private TextBlock? _deEsserStatusTitleTb;
 	private TextBlock? _deEsserStatusDetailTb;
 	private TextBlock? _deEsserGrReadoutTb;
+	private TextBlock? _deEsserGrUnitTb;
+	private Border? _deEsserGrTrackContainer;
 	private Border? _deEsserGrTrackBar;
 	private TextBlock? _deEsserGrSubTb;
 
@@ -62,6 +72,7 @@ public sealed partial class DspPage
 	private Path? _deEsserBandCutPath;
 	private Path? _deEsserBandLinePath;
 	private Line? _deEsserBandCenterLine;
+	private Line? _deEsserBandBaseLine;
 	private TextBlock? _deEsserBandCenterLabelTb;
 	private bool _isDraggingDeEsserBand = false;
 
@@ -73,6 +84,16 @@ public sealed partial class DspPage
 	private readonly float[] _deEsserGrHistory = new float[96];
 	private int _deEsserGrHistoryIndex = 0;
 	private float _deEsserCurrentGrDb = 0f;
+
+	// 主题刷新追踪集合
+	private readonly List<Border> _deEsserCardBorders = new();
+	private readonly List<Border> _deEsserPlotBorders = new();
+	private readonly List<TextBlock> _deEsserPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _deEsserSecondaryTextBlocks = new();
+	private readonly List<TextBlock> _deEsserMutedTextBlocks = new();
+	private readonly List<Line> _deEsserBandGridLines = new();
+	private readonly List<Line> _deEsserHistoryGridLines = new();
+	private readonly List<Slider> _deEsserSliders = new();
 
 	// 三组参数滑块与数值显示控件
 	// 找齿音
@@ -114,8 +135,18 @@ public sealed partial class DspPage
 			UpdateDeEsserBandVisuals();
 			UpdateDeEsserHistoryVisuals();
 			UpdateDeEsserVerdict();
+			RefreshDeEsserTheme(IsDspDark);
 			return _deEsserWorkbench;
 		}
+
+		_deEsserCardBorders.Clear();
+		_deEsserPlotBorders.Clear();
+		_deEsserPrimaryTextBlocks.Clear();
+		_deEsserSecondaryTextBlocks.Clear();
+		_deEsserMutedTextBlocks.Clear();
+		_deEsserBandGridLines.Clear();
+		_deEsserHistoryGridLines.Clear();
+		_deEsserSliders.Clear();
 
 		// 从底层处理器同步现有状态（若已初始化）
 		try
@@ -137,10 +168,13 @@ public sealed partial class DspPage
 		}
 		catch { }
 
+		bool isDark = IsDspDark;
+
 		var rootBorder = new Border
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
-			CornerRadius = new CornerRadius(0)
+			Background = CreateDeEsserSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0)),
+			CornerRadius = new CornerRadius(0),
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light
 		};
 
 		var sv = new ScrollViewer
@@ -182,9 +216,8 @@ public sealed partial class DspPage
 		rootBorder.Child = sv;
 		_deEsserWorkbench = rootBorder;
 
-		// 初始化视觉呈现
-		UpdateDeEsserPowerButtonVisuals();
-		UpdateDeEsserAuditionButtonVisuals();
+		// 初始化视觉呈现与主题资源
+		RefreshDeEsserTheme(isDark);
 		UpdateDeEsserBandVisuals();
 		UpdateDeEsserHistoryVisuals();
 		UpdateDeEsserVerdict();
@@ -210,115 +243,37 @@ public sealed partial class DspPage
 			VerticalAlignment = VerticalAlignment.Center
 		};
 
-		var iconBorder = new Border
+		_deEsserTitleIcon = new FontIcon
+		{
+			Glyph = "\uE74F", // 去齿音 / 频带滤波标志
+			FontSize = 18,
+			Foreground = DspAccentSoftTextBrush,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_deEsserTitleIconBorder = new Border
 		{
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = DspAccentSoftBgBrush,
+			BorderBrush = DspAccentSoftBorderBrush,
 			BorderThickness = new Thickness(1),
-			Child = new FontIcon
-			{
-				Glyph = "\uE74F", // 去齿音 / 频带滤波标志
-				FontSize = 18,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Child = _deEsserTitleIcon
 		};
-		titleSp.Children.Add(iconBorder);
-		titleSp.Children.Add(new TextBlock
+		titleSp.Children.Add(_deEsserTitleIconBorder);
+		_deEsserTitleTb = new TextBlock
 		{
 			Text = "去齿音",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_deEsserPrimaryTextBlocks.Add(_deEsserTitleTb);
+		titleSp.Children.Add(_deEsserTitleTb);
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		// 右侧状态与操作药丸徽章
-		var topActionsSp = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 10,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-
-		// 模块状态 Pill
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		// 就绪 Pill
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = FontWeights.SemiBold }
-				}
-			}
-		};
-
-		// 刷新状态按钮
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)), FontWeight = FontWeights.Medium }
-				}
-			},
-			Padding = new Thickness(10, 4, 10, 4),
-			CornerRadius = new CornerRadius(14),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		btnRefreshTop.Click += (s, e) =>
-		{
-			SyncDeEsserControls();
-			UpdateDeEsserBandVisuals();
-			UpdateDeEsserHistoryVisuals();
-			UpdateDeEsserVerdict();
-		};
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 
 		return headerGrid;
 	}
@@ -327,6 +282,7 @@ public sealed partial class DspPage
 	#region 2. 顶部操作工具栏
 	private FrameworkElement CreateDeEsserActionToolbar()
 	{
+		bool isDark = IsDspDark;
 		var toolbarGrid = new Grid();
 		toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -343,13 +299,14 @@ public sealed partial class DspPage
 		{
 			Glyph = "\uE7E8",
 			FontSize = 14,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
 		_deEsserPowerText = new TextBlock
 		{
 			Text = _deEsserEnabled ? "去齿音开启" : "去齿音旁路",
 			FontSize = 13,
-			FontWeight = FontWeights.Medium
+			FontWeight = FontWeights.Medium,
+			Foreground = DspTextSubHeaderBrush
 		};
 		var powerSp = new StackPanel
 		{
@@ -363,38 +320,37 @@ public sealed partial class DspPage
 			Content = powerSp,
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		UpdateDeEsserPowerButtonVisuals(isDark);
 		_deEsserPowerBtn.Click += (s, e) =>
 		{
 			_deEsserEnabled = !_deEsserEnabled;
-			UpdateDeEsserPowerButtonVisuals();
+			UpdateDeEsserPowerButtonVisuals(IsDspDark);
 			SyncDeEsserToEngine();
 			UpdateDeEsserVerdict();
 		};
 		leftSp.Children.Add(_deEsserPowerBtn);
 
 		// 2. 【按住试听齿音频带】独听按钮 (按住开启独听，松开恢复)
-		var auditionIcon = new FontIcon
+		_deEsserAuditionIcon = new FontIcon
 		{
 			Glyph = "\uE7F5", // 耳机/独听标志
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
-		var auditionText = new TextBlock
+		_deEsserAuditionText = new TextBlock
 		{
 			Text = "按住试听齿音频带",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = DspTextSecondaryBrush,
 			FontWeight = FontWeights.Medium
 		};
 		var auditionSp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
 			Spacing = 6,
-			Children = { auditionIcon, auditionText }
+			Children = { _deEsserAuditionIcon, _deEsserAuditionText }
 		};
 
 		_deEsserAuditionBtn = new Button
@@ -402,10 +358,9 @@ public sealed partial class DspPage
 			Content = auditionSp,
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		UpdateDeEsserAuditionButtonVisuals(isDark);
 
 		// 独听按住交互绑定 (指针与键盘)
 		_deEsserAuditionBtn.PointerPressed += (s, e) =>
@@ -425,6 +380,14 @@ public sealed partial class DspPage
 				SetDeEsserAuditionState(false);
 				e.Handled = true;
 			}
+		};
+		_deEsserAuditionBtn.PointerExited += (s, e) =>
+		{
+			if (!e.Pointer.IsInContact || (s is UIElement el && (el.PointerCaptures == null || el.PointerCaptures.Count == 0)))
+			{
+				SetDeEsserAuditionState(false);
+			}
+			UpdateDeEsserAuditionButtonVisuals(IsDspDark);
 		};
 		_deEsserAuditionBtn.PointerCanceled += (s, e) =>
 		{
@@ -462,6 +425,8 @@ public sealed partial class DspPage
 		leftSp.Children.Add(_deEsserAuditionBtn);
 
 		// 3. 【恢复默认】按钮
+		_deEsserResetIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = DspTextSubHeaderBrush };
+		_deEsserResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSecondaryBrush, FontWeight = FontWeights.Medium };
 		_deEsserResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -470,16 +435,15 @@ public sealed partial class DspPage
 				Spacing = 6,
 				Children =
 				{
-					new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)), FontWeight = FontWeights.Medium }
+					_deEsserResetIcon,
+					_deEsserResetText
 				}
 			},
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		UpdateDeEsserResetButtonVisuals(isDark);
 		_deEsserResetBtn.Click += (s, e) =>
 		{
 			_deEsserFrequencyHz = 6500.0;
@@ -510,6 +474,7 @@ public sealed partial class DspPage
 	#region 3. 状态说明与增益降低读数行
 	private FrameworkElement CreateDeEsserStatusRow()
 	{
+		bool isDark = IsDspDark;
 		var grid = new Grid
 		{
 			Margin = new Thickness(0, 4, 0, 4)
@@ -526,7 +491,7 @@ public sealed partial class DspPage
 		{
 			Width = 8,
 			Height = 8,
-			Fill = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Fill = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Top,
 			Margin = new Thickness(0, 6, 12, 0)
 		};
@@ -539,16 +504,18 @@ public sealed partial class DspPage
 			Text = "已旁路",
 			FontSize = 18,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
+		_deEsserPrimaryTextBlocks.Add(_deEsserStatusTitleTb);
 		_deEsserStatusDetailTb = new TextBlock
 		{
 			Text = "齿音会原样通过。打开之后，只有检测带里超出阈值的成分会被衰减。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			MaxWidth = 720
 		};
+		_deEsserMutedTextBlocks.Add(_deEsserStatusDetailTb);
 		textSp.Children.Add(_deEsserStatusTitleTb);
 		textSp.Children.Add(_deEsserStatusDetailTb);
 		Grid.SetColumn(textSp, 1);
@@ -575,54 +542,56 @@ public sealed partial class DspPage
 			Text = "0.0",
 			FontSize = 40,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			FontFamily = new FontFamily("Segoe UI Variable Display, Consolas, Segoe UI")
 		};
 		Grid.SetColumn(_deEsserGrReadoutTb, 0);
 		readoutGrid.Children.Add(_deEsserGrReadoutTb);
 
-		var dbUnitTb = new TextBlock
+		_deEsserGrUnitTb = new TextBlock
 		{
 			Text = "dB",
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(4, 0, 0, 7)
 		};
-		Grid.SetColumn(dbUnitTb, 1);
-		readoutGrid.Children.Add(dbUnitTb);
+		_deEsserMutedTextBlocks.Add(_deEsserGrUnitTb);
+		Grid.SetColumn(_deEsserGrUnitTb, 1);
+		readoutGrid.Children.Add(_deEsserGrUnitTb);
 
 		grSp.Children.Add(readoutGrid);
 
 		// 动态衰减刻度条
-		var trackBorder = new Border
+		_deEsserGrTrackContainer = new Border
 		{
 			Height = 4,
 			CornerRadius = new CornerRadius(2),
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetDeEsserMeterTrackBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
 		_deEsserGrTrackBar = new Border
 		{
 			Height = 4,
 			CornerRadius = new CornerRadius(2),
-			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Background = GetDeEsserIndigoStrokeBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Left,
 			Width = 0
 		};
-		trackBorder.Child = _deEsserGrTrackBar;
-		grSp.Children.Add(trackBorder);
+		_deEsserGrTrackContainer.Child = _deEsserGrTrackBar;
+		grSp.Children.Add(_deEsserGrTrackContainer);
 
 		_deEsserGrSubTb = new TextBlock
 		{
 			Text = "增益降低  当前没有衰减",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Right,
 			Margin = new Thickness(0, 2, 0, 0)
 		};
+		_deEsserMutedTextBlocks.Add(_deEsserGrSubTb);
 		grSp.Children.Add(_deEsserGrSubTb);
 
 		Grid.SetColumn(grSp, 1);
@@ -635,14 +604,8 @@ public sealed partial class DspPage
 	#region 4. 检测带高斯钟形曲线卡片
 	private FrameworkElement CreateDeEsserBandCard()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		bool isDark = IsDspDark;
+		var card = CreateDeEsserCardBorder(isDark, new Thickness(18, 14, 18, 14));
 
 		var stack = new StackPanel { Spacing = 10 };
 
@@ -655,16 +618,18 @@ public sealed partial class DspPage
 			Text = "检测带",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
+		_deEsserPrimaryTextBlocks.Add(tbTitle);
 		double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
 		_deEsserBandHeaderSubTb = new TextBlock
 		{
 			Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_deEsserMutedTextBlocks.Add(_deEsserBandHeaderSubTb);
 		Grid.SetColumn(tbTitle, 0); Grid.SetColumn(_deEsserBandHeaderSubTb, 1);
 		head.Children.Add(tbTitle); head.Children.Add(_deEsserBandHeaderSubTb);
 		stack.Children.Add(head);
@@ -673,10 +638,11 @@ public sealed partial class DspPage
 		var plotBorder = new Border
 		{
 			CornerRadius = new CornerRadius(8),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(100, 226, 232, 240)),
+			BorderBrush = CreateDeEsserRimBrush(isDark),
 			BorderThickness = new Thickness(1),
-			Background = new SolidColorBrush(Color.FromArgb(120, 248, 250, 252))
+			Background = GetDeEsserSoftSurfaceBrush(isDark)
 		};
+		_deEsserPlotBorders.Add(plotBorder);
 
 		var viewbox = new Viewbox
 		{
@@ -707,18 +673,20 @@ public sealed partial class DspPage
 		// 绘制频率网格垂直线与标签：2k, 4k, 8k, 12k
 		double[] ticks = { 2000, 4000, 8000, 12000 };
 		var monoFont = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI");
-		var tickBrush = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
-		var gridLineBrush = new SolidColorBrush(Color.FromArgb(50, 148, 163, 184));
+		var tickBrush = DspTextMutedBrush;
+		var gridLineBrush = GetDeEsserGridLineBrush(isDark, isBand: true);
 
 		foreach (double tk in ticks)
 		{
 			double x = XForDeEsserHz(tk);
-			_deEsserBandCanvas.Children.Add(new Line
+			var gridLine = new Line
 			{
 				X1 = x, X2 = x, Y1 = 18, Y2 = 122,
 				Stroke = gridLineBrush,
 				StrokeThickness = 1
-			});
+			};
+			_deEsserBandGridLines.Add(gridLine);
+			_deEsserBandCanvas.Children.Add(gridLine);
 			string label = $"{Math.Round(tk / 1000.0):F0}k";
 			double leftPos = tk switch
 			{
@@ -726,32 +694,34 @@ public sealed partial class DspPage
 				12000 => x - 22,
 				_ => x - 8
 			};
-			AddDeEsserCanvasText(_deEsserBandCanvas, label, leftPos, 126, tickBrush, monoFont, 11);
+			var tickTb = AddDeEsserCanvasText(_deEsserBandCanvas, label, leftPos, 126, tickBrush, monoFont, 11);
+			_deEsserMutedTextBlocks.Add(tickTb);
 		}
 
 		// 底部水平基准线 (y = 122)
-		_deEsserBandCanvas.Children.Add(new Line
+		_deEsserBandBaseLine = new Line
 		{
 			X1 = 18, X2 = 622, Y1 = 122, Y2 = 122,
-			Stroke = new SolidColorBrush(Color.FromArgb(90, 148, 163, 184)),
+			Stroke = GetDeEsserBaseLineBrush(isDark),
 			StrokeThickness = 1
-		});
+		};
+		_deEsserBandCanvas.Children.Add(_deEsserBandBaseLine);
 
 		// 高斯钟形曲线填充区
 		_deEsserBandAreaPath = new Path
 		{
-			Fill = new SolidColorBrush(Color.FromArgb(36, 99, 102, 241))
+			Fill = GetDeEsserBandAreaBrush(isDark)
 		};
 		// 动态衰减切片切角填充区
 		_deEsserBandCutPath = new Path
 		{
-			Fill = new SolidColorBrush(Color.FromArgb(95, 99, 102, 241)),
+			Fill = GetDeEsserBandCutBrush(isDark),
 			Visibility = Visibility.Collapsed
 		};
 		// 高斯曲线轮廓线
 		_deEsserBandLinePath = new Path
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Stroke = GetDeEsserIndigoStrokeBrush(isDark),
 			StrokeThickness = 2.0,
 			StrokeStartLineCap = PenLineCap.Round,
 			StrokeEndLineCap = PenLineCap.Round,
@@ -761,7 +731,7 @@ public sealed partial class DspPage
 		// 中心频率虚线
 		_deEsserBandCenterLine = new Line
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Stroke = GetDeEsserIndigoStrokeBrush(isDark),
 			StrokeThickness = 1.0,
 			StrokeDashArray = new DoubleCollection { 3, 3 }
 		};
@@ -772,9 +742,10 @@ public sealed partial class DspPage
 			Text = FormatDeEsserFrequency(_deEsserFrequencyHz),
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			FontFamily = monoFont
 		};
+		_deEsserPrimaryTextBlocks.Add(_deEsserBandCenterLabelTb);
 
 		_deEsserBandCanvas.Children.Add(_deEsserBandAreaPath);
 		_deEsserBandCanvas.Children.Add(_deEsserBandCutPath);
@@ -942,14 +913,8 @@ public sealed partial class DspPage
 	#region 5. 衰减轨迹历史折线图卡片
 	private FrameworkElement CreateDeEsserHistoryCard()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		bool isDark = IsDspDark;
+		var card = CreateDeEsserCardBorder(isDark, new Thickness(18, 14, 18, 14));
 
 		var stack = new StackPanel { Spacing = 10 };
 
@@ -962,15 +927,17 @@ public sealed partial class DspPage
 			Text = "衰减轨迹",
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
+		_deEsserPrimaryTextBlocks.Add(tbTitle);
 		_deEsserHistoryWindowTb = new TextBlock
 		{
 			Text = "播放后开始记录",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_deEsserMutedTextBlocks.Add(_deEsserHistoryWindowTb);
 		Grid.SetColumn(tbTitle, 0); Grid.SetColumn(_deEsserHistoryWindowTb, 1);
 		head.Children.Add(tbTitle); head.Children.Add(_deEsserHistoryWindowTb);
 		stack.Children.Add(head);
@@ -978,10 +945,11 @@ public sealed partial class DspPage
 		var plotBorder = new Border
 		{
 			CornerRadius = new CornerRadius(8),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(100, 226, 232, 240)),
+			BorderBrush = CreateDeEsserRimBrush(isDark),
 			BorderThickness = new Thickness(1),
-			Background = new SolidColorBrush(Color.FromArgb(120, 248, 250, 252))
+			Background = GetDeEsserSoftSurfaceBrush(isDark)
 		};
+		_deEsserPlotBorders.Add(plotBorder);
 
 		var viewbox = new Viewbox
 		{
@@ -1000,29 +968,32 @@ public sealed partial class DspPage
 		// 标尺水平线: 0, -12, -24 dB
 		double[] ticks = { 0, 12, 24 };
 		var monoFont = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI");
-		var labelBrush = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
-		var gridLineBrush = new SolidColorBrush(Color.FromArgb(40, 148, 163, 184));
+		var labelBrush = DspTextMutedBrush;
+		var gridLineBrush = GetDeEsserGridLineBrush(isDark, isBand: false);
 
 		foreach (double t in ticks)
 		{
 			double y = 86.0 - (t / 24.0) * 74.0;
-			_deEsserHistoryCanvas.Children.Add(new Line
+			var gridLine = new Line
 			{
 				X1 = 28, X2 = 640, Y1 = y, Y2 = y,
 				Stroke = gridLineBrush,
 				StrokeThickness = 1
-			});
+			};
+			_deEsserHistoryGridLines.Add(gridLine);
+			_deEsserHistoryCanvas.Children.Add(gridLine);
 			string txt = t == 0 ? "0" : $"-{t:F0}";
-			AddDeEsserCanvasText(_deEsserHistoryCanvas, txt, 4, y - 7, labelBrush, monoFont, 9.5);
+			var tickTb = AddDeEsserCanvasText(_deEsserHistoryCanvas, txt, 4, y - 7, labelBrush, monoFont, 9.5);
+			_deEsserMutedTextBlocks.Add(tickTb);
 		}
 
 		_deEsserHistoryAreaPath = new Path
 		{
-			Fill = new SolidColorBrush(Color.FromArgb(30, 99, 102, 241))
+			Fill = GetDeEsserHistoryAreaBrush(isDark)
 		};
 		_deEsserHistoryLinePath = new Path
 		{
-			Stroke = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Stroke = GetDeEsserIndigoStrokeBrush(isDark),
 			StrokeThickness = 1.8,
 			StrokeStartLineCap = PenLineCap.Round,
 			StrokeEndLineCap = PenLineCap.Round
@@ -1080,26 +1051,23 @@ public sealed partial class DspPage
 	#region 6. 三组参数控制网格
 	private FrameworkElement CreateDeEsserControlColumnsGrid()
 	{
+		bool isDark = IsDspDark;
 		var grid = new Grid { ColumnSpacing = 20 };
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// 列 0: 找齿音
-		var card0 = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 16, 18, 16)
-		};
+		var card0 = CreateDeEsserCardBorder(isDark, new Thickness(18, 16, 18, 16));
 		var sp0 = new StackPanel { Spacing = 14 };
 		var h0 = new Grid();
 		h0.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h0.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		h0.Children.Add(new TextBlock { Text = "找齿音", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) });
-		var sub0 = new TextBlock { Text = "Q 越大越窄", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		var title0 = new TextBlock { Text = "找齿音", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		_deEsserPrimaryTextBlocks.Add(title0);
+		h0.Children.Add(title0);
+		var sub0 = new TextBlock { Text = "Q 越大越窄", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		_deEsserMutedTextBlocks.Add(sub0);
 		Grid.SetColumn(sub0, 1); h0.Children.Add(sub0);
 		sp0.Children.Add(h0);
 
@@ -1134,20 +1102,16 @@ public sealed partial class DspPage
 		grid.Children.Add(card0);
 
 		// 列 1: 衰减多少
-		var card1 = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 16, 18, 16)
-		};
+		var card1 = CreateDeEsserCardBorder(isDark, new Thickness(18, 16, 18, 16));
 		var sp1 = new StackPanel { Spacing = 14 };
 		var h1 = new Grid();
 		h1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		h1.Children.Add(new TextBlock { Text = "衰减多少", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) });
-		var sub1 = new TextBlock { Text = "阈值越低越容易触发", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		var title1 = new TextBlock { Text = "衰减多少", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		_deEsserPrimaryTextBlocks.Add(title1);
+		h1.Children.Add(title1);
+		var sub1 = new TextBlock { Text = "阈值越低越容易触发", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		_deEsserMutedTextBlocks.Add(sub1);
 		Grid.SetColumn(sub1, 1); h1.Children.Add(sub1);
 		sp1.Children.Add(h1);
 
@@ -1193,20 +1157,16 @@ public sealed partial class DspPage
 		grid.Children.Add(card1);
 
 		// 列 2: 快慢
-		var card2 = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 16, 18, 16)
-		};
+		var card2 = CreateDeEsserCardBorder(isDark, new Thickness(18, 16, 18, 16));
 		var sp2 = new StackPanel { Spacing = 14 };
 		var h2 = new Grid();
 		h2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h2.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		h2.Children.Add(new TextBlock { Text = "快慢", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)) });
-		var sub2 = new TextBlock { Text = "齿音很短", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		var title2 = new TextBlock { Text = "快慢", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		_deEsserPrimaryTextBlocks.Add(title2);
+		h2.Children.Add(title2);
+		var sub2 = new TextBlock { Text = "齿音很短", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		_deEsserMutedTextBlocks.Add(sub2);
 		Grid.SetColumn(sub2, 1); h2.Children.Add(sub2);
 		sp2.Children.Add(h2);
 
@@ -1233,16 +1193,18 @@ public sealed partial class DspPage
 	#endregion
 
 	#region 7. 底部提示说明卡片
-	private static FrameworkElement CreateDeEsserBottomHintNote()
+	private FrameworkElement CreateDeEsserBottomHintNote()
 	{
-		return new TextBlock
+		var noteTb = new TextBlock
 		{
 			Text = "增益降低离开 0，就说明这一级正在压齿音；一直是 0，说明检测带还没超过阈值，不是没接上。按住试听只听这一段，松手恢复。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(4, 4, 4, 0)
 		};
+		_deEsserMutedTextBlocks.Add(noteTb);
+		return noteTb;
 	}
 	#endregion
 
@@ -1260,10 +1222,11 @@ public sealed partial class DspPage
 		// 1. 刷新大号读数与刻度条
 		if (_deEsserGrReadoutTb != null)
 		{
+			bool isDark = IsDspDark;
 			_deEsserGrReadoutTb.Text = grDb > 0.05f ? $"{grDb:F1}" : "0.0";
 			_deEsserGrReadoutTb.Foreground = grDb >= 0.2f
-				? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-				: new SolidColorBrush(Color.FromArgb(255, 15, 23, 42));
+				? GetDeEsserIndigoReadoutBrush(isDark)
+				: GetDeEsserPrimaryTextBrush(isDark);
 		}
 		if (_deEsserGrTrackBar != null)
 		{
@@ -1337,66 +1300,154 @@ public sealed partial class DspPage
 	{
 		if (_deEsserAudition == audition) return;
 		_deEsserAudition = audition;
-		UpdateDeEsserAuditionButtonVisuals();
+		UpdateDeEsserAuditionButtonVisuals(IsDspDark);
 		SyncDeEsserToEngine();
 		UpdateDeEsserVerdict();
 	}
 
-	private void UpdateDeEsserPowerButtonVisuals()
+	public void RefreshDeEsserTheme(bool isDark)
+	{
+		if (_deEsserWorkbench == null) return;
+
+		_deEsserWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		_deEsserWorkbench.Background = CreateDeEsserSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+
+		Brush primaryText = GetDeEsserPrimaryTextBrush(isDark);
+		Brush secondaryText = GetDeEsserSecondaryTextBrush(isDark);
+		Brush mutedText = GetDeEsserMutedTextBrush(isDark);
+		Brush accentSoftBg = GetDeEsserAccentSoftBgBrush(isDark);
+		Brush accentSoftBorder = GetDeEsserAccentSoftBorderBrush(isDark);
+		Brush accentSoftText = GetDeEsserAccentSoftTextBrush(isDark);
+
+		Brush cardBg = CreateDeEsserSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = CreateDeEsserRimBrush(isDark);
+		Brush softBg = GetDeEsserSoftSurfaceBrush(isDark);
+
+		if (_deEsserTitleIconBorder != null)
+		{
+			_deEsserTitleIconBorder.Background = accentSoftBg;
+			_deEsserTitleIconBorder.BorderBrush = accentSoftBorder;
+		}
+		if (_deEsserTitleIcon != null) _deEsserTitleIcon.Foreground = accentSoftText;
+
+		foreach (var card in _deEsserCardBorders)
+		{
+			card.Background = cardBg;
+			card.BorderBrush = rimBrush;
+		}
+		foreach (var plot in _deEsserPlotBorders)
+		{
+			plot.Background = softBg;
+			plot.BorderBrush = rimBrush;
+		}
+
+		foreach (var tb in _deEsserPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _deEsserSecondaryTextBlocks) tb.Foreground = secondaryText;
+		foreach (var tb in _deEsserMutedTextBlocks) tb.Foreground = mutedText;
+
+		if (_deEsserGrReadoutTb != null)
+		{
+			_deEsserGrReadoutTb.Foreground = _deEsserCurrentGrDb >= 0.2f
+				? GetDeEsserIndigoReadoutBrush(isDark)
+				: primaryText;
+		}
+		if (_deEsserGrTrackContainer != null) _deEsserGrTrackContainer.Background = GetDeEsserMeterTrackBrush(isDark);
+		if (_deEsserGrTrackBar != null) _deEsserGrTrackBar.Background = GetDeEsserIndigoStrokeBrush(isDark);
+
+		Brush bandGridBrush = GetDeEsserGridLineBrush(isDark, isBand: true);
+		foreach (var line in _deEsserBandGridLines) line.Stroke = bandGridBrush;
+		if (_deEsserBandBaseLine != null) _deEsserBandBaseLine.Stroke = GetDeEsserBaseLineBrush(isDark);
+		if (_deEsserBandAreaPath != null) _deEsserBandAreaPath.Fill = GetDeEsserBandAreaBrush(isDark);
+		if (_deEsserBandCutPath != null) _deEsserBandCutPath.Fill = GetDeEsserBandCutBrush(isDark);
+		if (_deEsserBandLinePath != null) _deEsserBandLinePath.Stroke = GetDeEsserIndigoStrokeBrush(isDark);
+		if (_deEsserBandCenterLine != null) _deEsserBandCenterLine.Stroke = GetDeEsserIndigoStrokeBrush(isDark);
+
+		Brush historyGridBrush = GetDeEsserGridLineBrush(isDark, isBand: false);
+		foreach (var line in _deEsserHistoryGridLines) line.Stroke = historyGridBrush;
+		if (_deEsserHistoryAreaPath != null) _deEsserHistoryAreaPath.Fill = GetDeEsserHistoryAreaBrush(isDark);
+		if (_deEsserHistoryLinePath != null) _deEsserHistoryLinePath.Stroke = GetDeEsserIndigoStrokeBrush(isDark);
+
+		foreach (var slider in _deEsserSliders)
+		{
+			slider.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		}
+
+		UpdateDeEsserPowerButtonVisuals(isDark);
+		UpdateDeEsserAuditionButtonVisuals(isDark);
+		UpdateDeEsserResetButtonVisuals(isDark);
+		UpdateDeEsserVerdict(isDark);
+	}
+
+	private void UpdateDeEsserPowerButtonVisuals(bool? isDarkOverride = null)
 	{
 		if (_deEsserPowerBtn == null || _deEsserPowerIcon == null || _deEsserPowerText == null) return;
+		bool isDark = isDarkOverride ?? IsDspDark;
 
 		if (_deEsserEnabled)
 		{
 			_deEsserPowerText.Text = "去齿音开启";
-			_deEsserPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-			_deEsserPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-			_deEsserPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255));
-			_deEsserPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254));
+			Brush activeFg = GetDeEsserAccentSoftTextBrush(isDark);
+			Brush activeBg = GetDeEsserAccentSoftBgBrush(isDark);
+			Brush activeHoverBg = new SolidColorBrush(isDark ? Color.FromArgb(115, 99, 102, 241) : Color.FromArgb(255, 224, 231, 255));
+			Brush activePressedBg = new SolidColorBrush(isDark ? Color.FromArgb(145, 99, 102, 241) : Color.FromArgb(255, 199, 210, 254));
+			Brush activeBorder = GetDeEsserAccentSoftBorderBrush(isDark);
+
+			_deEsserPowerText.Foreground = activeFg;
+			_deEsserPowerIcon.Foreground = activeFg;
+			ApplyDeEsserButtonResources(_deEsserPowerBtn, activeBg, activeHoverBg, activePressedBg, activeBorder, activeBorder, activeFg, activeFg);
 		}
 		else
 		{
 			_deEsserPowerText.Text = "去齿音旁路";
-			_deEsserPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-			_deEsserPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-			_deEsserPowerBtn.Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			_deEsserPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240));
+			Brush textFg = GetDeEsserSubHeaderTextBrush(isDark);
+			Brush iconFg = GetDeEsserMutedTextBrush(isDark);
+			_deEsserPowerText.Foreground = textFg;
+			_deEsserPowerIcon.Foreground = iconFg;
+			ApplyDeEsserNeutralButtonSurface(_deEsserPowerBtn, isDark, textFg);
 		}
 	}
 
-	private void UpdateDeEsserAuditionButtonVisuals()
+	private void UpdateDeEsserAuditionButtonVisuals(bool? isDarkOverride = null)
 	{
 		if (_deEsserAuditionBtn == null) return;
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		if (_deEsserAudition)
 		{
-			_deEsserAuditionBtn.Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
-			_deEsserAuditionBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
-			if (_deEsserAuditionBtn.Content is StackPanel sp)
-			{
-				foreach (var child in sp.Children)
-				{
-					if (child is TextBlock tb) tb.Foreground = new SolidColorBrush(Colors.White);
-					else if (child is FontIcon fi) fi.Foreground = new SolidColorBrush(Colors.White);
-				}
-			}
+			Brush activeBg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+			Brush activeHoverBg = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+			Brush activePressedBg = new SolidColorBrush(Color.FromArgb(255, 67, 56, 202));
+			Brush activeBorder = new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 79, 70, 229));
+			Brush activeFg = new SolidColorBrush(Colors.White);
+
+			if (_deEsserAuditionText != null) _deEsserAuditionText.Foreground = activeFg;
+			if (_deEsserAuditionIcon != null) _deEsserAuditionIcon.Foreground = activeFg;
+			ApplyDeEsserButtonResources(_deEsserAuditionBtn, activeBg, activeHoverBg, activePressedBg, activeBorder, activeBorder, activeFg, activeFg);
 		}
 		else
 		{
-			_deEsserAuditionBtn.Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			_deEsserAuditionBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240));
-			if (_deEsserAuditionBtn.Content is StackPanel sp)
-			{
-				foreach (var child in sp.Children)
-				{
-					if (child is TextBlock tb) tb.Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
-					else if (child is FontIcon fi) fi.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-				}
-			}
+			Brush textFg = GetDeEsserSecondaryTextBrush(isDark);
+			Brush iconFg = GetDeEsserSubHeaderTextBrush(isDark);
+			if (_deEsserAuditionText != null) _deEsserAuditionText.Foreground = textFg;
+			if (_deEsserAuditionIcon != null) _deEsserAuditionIcon.Foreground = iconFg;
+			ApplyDeEsserNeutralButtonSurface(_deEsserAuditionBtn, isDark, textFg);
 		}
 	}
 
-	private void UpdateDeEsserVerdict()
+	private void UpdateDeEsserResetButtonVisuals(bool? isDarkOverride = null)
 	{
+		if (_deEsserResetBtn == null) return;
+		bool isDark = isDarkOverride ?? IsDspDark;
+		Brush textFg = GetDeEsserSecondaryTextBrush(isDark);
+		Brush iconFg = GetDeEsserSubHeaderTextBrush(isDark);
+		if (_deEsserResetText != null) _deEsserResetText.Foreground = textFg;
+		if (_deEsserResetIcon != null) _deEsserResetIcon.Foreground = iconFg;
+		ApplyDeEsserNeutralButtonSurface(_deEsserResetBtn, isDark, textFg);
+	}
+
+	private void UpdateDeEsserVerdict(bool? isDarkOverride = null)
+	{
+		bool isDark = isDarkOverride ?? IsDspDark;
 		bool isPlaying = ViewModel?.AudioEngine?.State == PlaybackState.Playing;
 		string title;
 		string detail;
@@ -1406,7 +1457,7 @@ public sealed partial class DspPage
 		{
 			title = "正在只听齿音带";
 			detail = "用来确认频率有没有对准齿音。松开按钮恢复整段声音，试听不会写入存档。";
-			dotColor = Color.FromArgb(255, 99, 102, 241);
+			dotColor = isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241);
 		}
 		else if (!_deEsserEnabled)
 		{
@@ -1424,19 +1475,19 @@ public sealed partial class DspPage
 		{
 			title = "已接入，等待播放开始";
 			detail = "模块已经在链路里。开始播放后，超过阈值时右边的增益降低会离开 0。";
-			dotColor = Color.FromArgb(255, 59, 130, 246);
+			dotColor = isDark ? Color.FromArgb(255, 96, 165, 250) : Color.FromArgb(255, 59, 130, 246);
 		}
 		else if (_deEsserCurrentGrDb >= 0.2f)
 		{
 			title = "正在衰减齿音";
 			detail = "检测带里超出阈值的成分正在被压下去，其余频段保持原样。";
-			dotColor = Color.FromArgb(255, 16, 185, 129);
+			dotColor = isDark ? Color.FromArgb(255, 52, 211, 153) : Color.FromArgb(255, 16, 185, 129);
 		}
 		else
 		{
 			title = "已接入，还没触发";
 			detail = $"播放中，检测带还没超过 {_deEsserThresholdDb:F1} dB，所以增益降低停在 0。齿音还在的话，把频率对准齿音，或把阈值再调低。";
-			dotColor = Color.FromArgb(255, 99, 102, 241);
+			dotColor = isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241);
 		}
 
 		if (_deEsserStatusTitleTb != null) _deEsserStatusTitleTb.Text = title;
@@ -1479,12 +1530,122 @@ public sealed partial class DspPage
 			_deEsserBandHeaderSubTb.Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率";
 		}
 
-		UpdateDeEsserPowerButtonVisuals();
-		UpdateDeEsserAuditionButtonVisuals();
+		bool isDark = IsDspDark;
+		UpdateDeEsserPowerButtonVisuals(isDark);
+		UpdateDeEsserAuditionButtonVisuals(isDark);
+		UpdateDeEsserResetButtonVisuals(isDark);
 	}
 	#endregion
 
 	#region 9. 辅助坐标转换与控件工厂
+	private static Brush CreateDeEsserSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
+		=> LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
+
+	private static Brush CreateDeEsserRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+		=> LiquidGlassEngine.CreateSpecularRimBrush(LiquidGlassVariant.Regular, isDark: isDark, isHovered: isHovered, isSelected: isSelected);
+
+	private static Brush GetDeEsserSoftSurfaceBrush(bool isDark)
+		=> isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+
+	private static Brush GetDeEsserPrimaryTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+
+	private static Brush GetDeEsserSecondaryTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+
+	private static Brush GetDeEsserSubHeaderTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+
+	private static Brush GetDeEsserMutedTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+
+	private static Brush GetDeEsserAccentSoftBgBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+
+	private static Brush GetDeEsserAccentSoftBorderBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+
+	private static Brush GetDeEsserAccentSoftTextBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+	private static Brush GetDeEsserMeterTrackBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(255, 226, 232, 240));
+
+	private static Brush GetDeEsserIndigoStrokeBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241));
+
+	private static Brush GetDeEsserIndigoReadoutBrush(bool isDark)
+		=> new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241));
+
+	private static Brush GetDeEsserBandAreaBrush(bool isDark)
+		=> new SolidColorBrush(Color.FromArgb(isDark ? (byte)48 : (byte)36, 99, 102, 241));
+
+	private static Brush GetDeEsserBandCutBrush(bool isDark)
+		=> new SolidColorBrush(Color.FromArgb(isDark ? (byte)115 : (byte)95, 99, 102, 241));
+
+	private static Brush GetDeEsserHistoryAreaBrush(bool isDark)
+		=> new SolidColorBrush(Color.FromArgb(isDark ? (byte)44 : (byte)30, 99, 102, 241));
+
+	private static Brush GetDeEsserGridLineBrush(bool isDark, bool isBand)
+		=> new SolidColorBrush(Color.FromArgb(isBand ? (isDark ? (byte)64 : (byte)50) : (isDark ? (byte)56 : (byte)40), 148, 163, 184));
+
+	private static Brush GetDeEsserBaseLineBrush(bool isDark)
+		=> new SolidColorBrush(Color.FromArgb(isDark ? (byte)115 : (byte)90, 148, 163, 184));
+
+	private Border CreateDeEsserCardBorder(bool isDark, Thickness padding)
+	{
+		var card = new Border
+		{
+			Background = CreateDeEsserSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateDeEsserRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = padding
+		};
+		_deEsserCardBorders.Add(card);
+		return card;
+	}
+
+	private static void ApplyDeEsserNeutralButtonSurface(Button btn, bool isDark, Brush foregroundBrush)
+	{
+		Brush bg = CreateDeEsserSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(185, 51, 65, 85) : Color.FromArgb(240, 241, 245, 249));
+		Brush pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(215, 30, 41, 59) : Color.FromArgb(245, 226, 232, 240));
+		Brush border = CreateDeEsserRimBrush(isDark);
+		Brush hoverBorder = CreateDeEsserRimBrush(isDark, isHovered: true);
+		Brush hoverFg = GetDeEsserPrimaryTextBrush(isDark);
+
+		ApplyDeEsserButtonResources(btn, bg, hoverBg, pressedBg, border, hoverBorder, foregroundBrush, hoverFg);
+	}
+
+	private static void ApplyDeEsserButtonResources(
+		Button btn,
+		Brush background,
+		Brush pointerOverBackground,
+		Brush pressedBackground,
+		Brush borderBrush,
+		Brush pointerOverBorderBrush,
+		Brush foreground,
+		Brush pointerOverForeground)
+	{
+		btn.Background = background;
+		btn.BorderBrush = borderBrush;
+		btn.BorderThickness = new Thickness(1);
+		btn.Foreground = foreground;
+
+		btn.Resources["ButtonBackground"] = background;
+		btn.Resources["ButtonBackgroundPointerOver"] = pointerOverBackground;
+		btn.Resources["ButtonBackgroundPressed"] = pressedBackground;
+		btn.Resources["ButtonBorderBrush"] = borderBrush;
+		btn.Resources["ButtonBorderBrushPointerOver"] = pointerOverBorderBrush;
+		btn.Resources["ButtonBorderBrushPressed"] = pointerOverBorderBrush;
+		btn.Resources["ButtonForeground"] = foreground;
+		btn.Resources["ButtonForegroundPointerOver"] = pointerOverForeground;
+		btn.Resources["ButtonForegroundPressed"] = pointerOverForeground;
+	}
+
 	private static double XForDeEsserHz(double hz)
 	{
 		const double MarginB = 18.0;
@@ -1520,7 +1681,7 @@ public sealed partial class DspPage
 		return $"{freq:F0} Hz";
 	}
 
-	private static void AddDeEsserCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
+	private static TextBlock AddDeEsserCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
 	{
 		var tb = new TextBlock
 		{
@@ -1532,9 +1693,10 @@ public sealed partial class DspPage
 		Canvas.SetLeft(tb, left);
 		Canvas.SetTop(tb, top);
 		canvas.Children.Add(tb);
+		return tb;
 	}
 
-	private static FrameworkElement CreateDeEsserSliderControl(
+	private FrameworkElement CreateDeEsserSliderControl(
 		string label,
 		string initialValueText,
 		double min,
@@ -1556,8 +1718,9 @@ public sealed partial class DspPage
 			Text = label,
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
+		_deEsserSecondaryTextBlocks.Add(tbLabel);
 		Grid.SetColumn(tbLabel, 0);
 		head.Children.Add(tbLabel);
 
@@ -1566,9 +1729,10 @@ public sealed partial class DspPage
 			Text = initialValueText,
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			FontFamily = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI")
 		};
+		_deEsserPrimaryTextBlocks.Add(valueTb);
 		Grid.SetColumn(valueTb, 1);
 		head.Children.Add(valueTb);
 		sp.Children.Add(head);
@@ -1579,8 +1743,10 @@ public sealed partial class DspPage
 			Maximum = max,
 			StepFrequency = step,
 			Value = initialValue,
-			Margin = new Thickness(0, -2, 0, 0)
+			Margin = new Thickness(0, -2, 0, 0),
+			RequestedTheme = IsDspDark ? ElementTheme.Dark : ElementTheme.Light
 		};
+		_deEsserSliders.Add(slider);
 		slider.ValueChanged += (s, e) => onValueChanged(e.NewValue);
 		sp.Children.Add(slider);
 

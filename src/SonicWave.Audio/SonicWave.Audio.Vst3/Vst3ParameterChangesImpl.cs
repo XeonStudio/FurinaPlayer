@@ -43,7 +43,8 @@ internal sealed class Vst3ParameterChangesImpl : IParameterChangesCom
 					return;
 				}
 			}
-			var q = new Vst3ParamValueQueueImpl(id, () => value);
+			var q = new Vst3ParamValueQueueImpl(id);
+			q.AddPoint(0, value, out _);
 			nint ccw = Vst3Com.ToNative((IParamValueQueueCom)q);
 			_entries.Add(new QueueEntry
 			{
@@ -52,6 +53,29 @@ internal sealed class Vst3ParameterChangesImpl : IParameterChangesCom
 				QueueCcw = ccw
 			});
 		}
+	}
+
+	public bool DrainInto(Vst3ParameterChangesImpl target)
+	{
+		List<(uint id, double value)> drained;
+		lock (_lock)
+		{
+			if (_entries.Count == 0)
+			{
+				return false;
+			}
+			drained = new List<(uint, double)>(_entries.Count);
+			foreach (QueueEntry e in _entries)
+			{
+				drained.Add((e.Id, e.Queue.GetLastValue()));
+			}
+			Clear();
+		}
+		foreach (var (id, value) in drained)
+		{
+			target.SetValue(id, value);
+		}
+		return true;
 	}
 
 	public int GetParameterCount()

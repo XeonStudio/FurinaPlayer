@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Text;
@@ -41,12 +42,21 @@ public sealed partial class DspPage
 	private bool _isDraggingRadar = false;
 
 	// 顶部与操作栏控件
+	private Border? _sfRootBorder;
+	private Border? _sfTitleIconBorder;
+	private FontIcon? _sfTitleIcon;
+	private TextBlock? _sfSubtitleCatTb;
 	private Button? _sfPowerBtn;
 	private FontIcon? _sfPowerIcon;
 	private TextBlock? _sfPowerText;
 	private Button? _sfResetBtn;
+	private FontIcon? _sfResetIcon;
+	private TextBlock? _sfResetText;
 	private Button? _sfApplyBtn;
+	private FontIcon? _sfApplyIcon;
+	private TextBlock? _sfApplyText;
 	private Border? _sfPendingBadge;
+	private TextBlock? _sfPendingBadgeText;
 	private TextBlock? _sfHeaderWidthBigTb;
 	private TextBlock? _sfHeaderWidthSubTb;
 
@@ -55,6 +65,10 @@ public sealed partial class DspPage
 	private Ellipse? _radarGhostEllipse;
 	private Ellipse? _radarActiveEllipse;
 	private Ellipse? _radarWidthHandle;
+	private Border? _sfRadarDragTag;
+	private FontIcon? _sfRadarDragIcon;
+	private TextBlock? _sfRadarDragText;
+	private Border? _sfRadarCorrTrackBorder;
 	private TextBlock? _radarStatMidTb;
 	private TextBlock? _radarStatSideTb;
 	private TextBlock? _radarCorrelationTb;
@@ -62,6 +76,9 @@ public sealed partial class DspPage
 
 	// 右侧预设与参数滑块
 	private readonly List<Button> _stereoPresetButtons = new();
+	private FontIcon? _sfPresetsIcon;
+	private Border? _sfControlsDivider;
+	private FontIcon? _sfControlsIcon;
 	private Slider? _sliderWidth;
 	private TextBlock? _tbWidthVal;
 	private Slider? _sliderMidGain;
@@ -71,13 +88,24 @@ public sealed partial class DspPage
 	private Slider? _sliderMonoBass;
 	private TextBlock? _tbMonoBassVal;
 
-	// 底部大号读数卡片
+	// 底部大号读数卡片与提示横幅
 	private TextBlock? _bottomWidthBigTb;
 	private TextBlock? _bottomWidthSubTb;
 	private TextBlock? _bottomMidBigTb;
 	private TextBlock? _bottomMidSubTb;
 	private TextBlock? _bottomSideBigTb;
 	private TextBlock? _bottomSideSubTb;
+	private FontIcon? _sfTipIcon;
+
+	// 主题刷新追踪集合
+	private readonly List<Border> _sfCardBorders = new();
+	private readonly List<Border> _sfSoftBorders = new();
+	private readonly List<TextBlock> _sfPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _sfSecondaryTextBlocks = new();
+	private readonly List<TextBlock> _sfSubHeaderTextBlocks = new();
+	private readonly List<TextBlock> _sfMutedTextBlocks = new();
+	private readonly List<TextBlock> _sfAccentTextBlocks = new();
+	private readonly List<(FontIcon Icon, TextBlock BigTb, Color LightAccent, Color DarkAccent)> _sfBottomStatAccents = new();
 
 	// 常量定义
 	private const double RadarCanvasSize = 320.0;
@@ -111,12 +139,24 @@ public sealed partial class DspPage
 	#region Main Entry: CreateStereoFieldWorkbench
 	public FrameworkElement CreateStereoFieldWorkbench()
 	{
+		bool isDark = IsDspDark;
 		if (_stereoFieldWorkbench != null)
 		{
 			InitStereoFieldDraftState();
+			RefreshStereoFieldTheme(isDark);
 			UpdateStereoFieldVisuals();
 			return _stereoFieldWorkbench;
 		}
+
+		_sfCardBorders.Clear();
+		_sfSoftBorders.Clear();
+		_sfPrimaryTextBlocks.Clear();
+		_sfSecondaryTextBlocks.Clear();
+		_sfSubHeaderTextBlocks.Clear();
+		_sfMutedTextBlocks.Clear();
+		_sfAccentTextBlocks.Clear();
+		_sfBottomStatAccents.Clear();
+		_stereoPresetButtons.Clear();
 
 		InitStereoFieldDraftState();
 
@@ -150,12 +190,15 @@ public sealed partial class DspPage
 		sv.Content = mainStack;
 		var rootBorder = new Border
 		{
-			Background = CreateWhiteAcrylicBrush(0.70, 190),
+			Background = CreateStereoSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.70 / 0.85, 0.55, 1.0)),
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light,
 			Child = sv
 		};
 
+		_sfRootBorder = rootBorder;
 		_stereoFieldWorkbench = rootBorder;
 
+		RefreshStereoFieldTheme(isDark);
 		UpdateStereoFieldVisuals();
 		return _stereoFieldWorkbench;
 	}
@@ -170,39 +213,44 @@ public sealed partial class DspPage
 
 		// 左侧图标 + 标题 + 面包屑
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var iconBorder = new Border
+		_sfTitleIcon = new FontIcon
+		{
+			Glyph = "\uE895",
+			FontSize = 20,
+			Foreground = DspAccentSoftTextBrush,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_sfTitleIconBorder = new Border
 		{
 			Width = 40,
 			Height = 40,
 			CornerRadius = new CornerRadius(20),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE895",
-				FontSize = 20,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = DspAccentSoftBgBrush,
+			Child = _sfTitleIcon
 		};
-		titleSp.Children.Add(iconBorder);
+		titleSp.Children.Add(_sfTitleIconBorder);
 
 		var textSp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
-		var catTb = new TextBlock
+		_sfSubtitleCatTb = new TextBlock
 		{
 			Text = "FurinaPlayer Spatial Workbench · Mid / Side 声像重塑",
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
+			Foreground = DspAccentSoftTextBrush
 		};
+		_sfAccentTextBlocks.Add(_sfSubtitleCatTb);
+
 		var mainTitleTb = new TextBlock
 		{
 			Text = "立体声场 (Stereo Field)",
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		};
-		textSp.Children.Add(catTb);
+		_sfPrimaryTextBlocks.Add(mainTitleTb);
+
+		textSp.Children.Add(_sfSubtitleCatTb);
 		textSp.Children.Add(mainTitleTb);
 		titleSp.Children.Add(textSp);
 
@@ -216,17 +264,21 @@ public sealed partial class DspPage
 			Text = "100%",
 			FontSize = 28,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
+		_sfAccentTextBlocks.Add(_sfHeaderWidthBigTb);
+
 		_sfHeaderWidthSubTb = new TextBlock
 		{
 			Text = "原声平衡",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
+		_sfMutedTextBlocks.Add(_sfHeaderWidthSubTb);
+
 		readoutSp.Children.Add(_sfHeaderWidthBigTb);
 		readoutSp.Children.Add(_sfHeaderWidthSubTb);
 
@@ -240,6 +292,7 @@ public sealed partial class DspPage
 	#region 2. Operation Bar
 	private FrameworkElement CreateStereoFieldOperationBar()
 	{
+		bool isDark = IsDspDark;
 		var container = new StackPanel { Spacing = 10 };
 
 		var barGrid = new Grid();
@@ -250,8 +303,8 @@ public sealed partial class DspPage
 		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
 		// 开关按钮
-		_sfPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		_sfPowerText = new TextBlock { Text = "立体声场已旁路", FontSize = 13, FontWeight = FontWeights.Medium };
+		_sfPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = DspTextMutedBrush };
+		_sfPowerText = new TextBlock { Text = "立体声场已旁路", FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSubHeaderBrush };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _sfPowerIcon, _sfPowerText } };
 		_sfPowerBtn = new Button
 		{
@@ -269,69 +322,62 @@ public sealed partial class DspPage
 		leftSp.Children.Add(_sfPowerBtn);
 
 		// 恢复默认按钮
+		_sfResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = DspTextSubHeaderBrush };
+		_sfResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSecondaryBrush };
 		var resetSp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
 			Spacing = 6,
-			Children =
-			{
-				new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-				new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-			}
+			Children = { _sfResetIcon, _sfResetText }
 		};
 		_sfResetBtn = new Button
 		{
 			Content = resetSp,
 			Height = 36,
 			CornerRadius = new CornerRadius(8),
-			Padding = new Thickness(12, 0, 12, 0),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 203, 213, 225))
+			Padding = new Thickness(12, 0, 12, 0)
 		};
+		ApplyStereoNeutralButtonSurface(_sfResetBtn, isDark, DspTextSecondaryBrush);
 		_sfResetBtn.Click += (s, e) => ResetStereoFieldDefaults();
 		leftSp.Children.Add(_sfResetBtn);
 
 		// 应用参数按钮
+		_sfApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = DspTextSubHeaderBrush };
+		_sfApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSecondaryBrush };
 		var applySp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
 			Spacing = 6,
-			Children =
-			{
-				new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-				new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-			}
+			Children = { _sfApplyIcon, _sfApplyText }
 		};
 		_sfApplyBtn = new Button
 		{
 			Content = applySp,
 			Height = 36,
 			CornerRadius = new CornerRadius(8),
-			Padding = new Thickness(14, 0, 14, 0),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 203, 213, 225))
+			Padding = new Thickness(14, 0, 14, 0)
 		};
+		ApplyStereoNeutralButtonSurface(_sfApplyBtn, isDark, DspTextSecondaryBrush);
 		_sfApplyBtn.Click += (s, e) => ApplyStereoFieldSettings();
 		leftSp.Children.Add(_sfApplyBtn);
 
 		// 未应用状态胶囊 (Dirty Badge)
+		_sfPendingBadgeText = new TextBlock
+		{
+			Text = "未应用修改",
+			FontSize = 11.5,
+			FontWeight = FontWeights.SemiBold
+		};
 		_sfPendingBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 254, 243, 199)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 245, 158, 11)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(8, 4, 8, 4),
 			VerticalAlignment = VerticalAlignment.Center,
 			Visibility = Visibility.Collapsed,
-			Child = new TextBlock
-			{
-				Text = "未应用修改",
-				FontSize = 11.5,
-				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 180, 83, 9))
-			}
+			Child = _sfPendingBadgeText
 		};
+		ApplyStereoPendingBadgeTheme(isDark);
 		leftSp.Children.Add(_sfPendingBadge);
 
 		Grid.SetColumn(leftSp, 0);
@@ -344,9 +390,10 @@ public sealed partial class DspPage
 		{
 			Text = "在 Mid / Side 域调节立体声场宽度、中央人声专注度与侧向空间感。0% 为完全单声道，100% 为原始立体声，200% 为超宽空间。",
 			FontSize = 12.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
 		};
+		_sfMutedTextBlocks.Add(descTb);
 		container.Children.Add(descTb);
 
 		return container;
@@ -375,14 +422,16 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateStereoRadarGoniometerCard()
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateStereoSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(18, 16, 18, 16)
 		};
+		_sfCardBorders.Add(card);
 
 		var stack = new StackPanel { Spacing = 12 };
 
@@ -392,26 +441,33 @@ public sealed partial class DspPage
 		head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var headLeft = new StackPanel { Spacing = 2 };
-		headLeft.Children.Add(new TextBlock
+		var radarTitleTb = new TextBlock
 		{
 			Text = "M/S 声像仪",
 			FontSize = 15,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
-		headLeft.Children.Add(new TextBlock
+			Foreground = DspTextPrimaryBrush
+		};
+		_sfPrimaryTextBlocks.Add(radarTitleTb);
+		headLeft.Children.Add(radarTitleTb);
+
+		var radarSubTb = new TextBlock
 		{
 			Text = "由宽度与增益推导的能量分布椭圆；虚线圆为 0dB 参考。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
-		});
+			Foreground = DspTextMutedBrush
+		};
+		_sfMutedTextBlocks.Add(radarSubTb);
+		headLeft.Children.Add(radarSubTb);
 		Grid.SetColumn(headLeft, 0);
 		head.Children.Add(headLeft);
 
-		var dragTag = new Border
+		_sfRadarDragIcon = new FontIcon { Glyph = "\uE749", FontSize = 10, Foreground = DspAccentSoftTextBrush };
+		_sfRadarDragText = new TextBlock { Text = "可拖动 · 调整场宽", FontSize = 10.5, FontWeight = FontWeights.Medium, Foreground = DspAccentSoftTextBrush };
+		_sfRadarDragTag = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = DspAccentSoftBgBrush,
+			BorderBrush = DspAccentSoftBorderBrush,
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(8, 3, 8, 3),
@@ -420,15 +476,11 @@ public sealed partial class DspPage
 			{
 				Orientation = Orientation.Horizontal,
 				Spacing = 4,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE749", FontSize = 10, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "可拖动 · 调整场宽", FontSize = 10.5, FontWeight = FontWeights.Medium, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) }
-				}
+				Children = { _sfRadarDragIcon, _sfRadarDragText }
 			}
 		};
-		Grid.SetColumn(dragTag, 1);
-		head.Children.Add(dragTag);
+		Grid.SetColumn(_sfRadarDragTag, 1);
+		head.Children.Add(_sfRadarDragTag);
 
 		stack.Children.Add(head);
 
@@ -578,12 +630,13 @@ public sealed partial class DspPage
 		// 底部读数与相位相关度卡片
 		var footerCard = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(180, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(100, 203, 213, 225)),
+			Background = GetStereoSoftSurfaceBrush(isDark),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(12, 10, 12, 10)
 		};
+		_sfSoftBorders.Add(footerCard);
 
 		var footerStack = new StackPanel { Spacing = 6 };
 
@@ -596,8 +649,9 @@ public sealed partial class DspPage
 			Text = "中置能量: M × 1.00 (0.0 dB)",
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
+		_sfSecondaryTextBlocks.Add(_radarStatMidTb);
 		Grid.SetColumn(_radarStatMidTb, 0);
 		energyRow.Children.Add(_radarStatMidTb);
 
@@ -606,9 +660,10 @@ public sealed partial class DspPage
 			Text = "侧向能量: S × 1.00 (0.0 dB)",
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = DspTextSecondaryBrush,
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
+		_sfSecondaryTextBlocks.Add(_radarStatSideTb);
 		Grid.SetColumn(_radarStatSideTb, 1);
 		energyRow.Children.Add(_radarStatSideTb);
 
@@ -624,19 +679,20 @@ public sealed partial class DspPage
 		{
 			Text = "声像相关性",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center,
 			Margin = new Thickness(0, 0, 8, 0)
 		};
+		_sfMutedTextBlocks.Add(corrLabel);
 		Grid.SetColumn(corrLabel, 0);
 		corrRow.Children.Add(corrLabel);
 
 		// 相关度指示槽 (-1.0 到 +1.0)
-		var trackBorder = new Border
+		_sfRadarCorrTrackBorder = new Border
 		{
 			Height = 6,
 			CornerRadius = new CornerRadius(3),
-			Background = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)),
+			Background = GetStereoMeterTrackBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center,
 			Margin = new Thickness(4, 0, 8, 0)
 		};
@@ -650,9 +706,9 @@ public sealed partial class DspPage
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		trackGrid.Children.Add(_radarCorrIndicatorFill);
-		trackBorder.Child = trackGrid;
-		Grid.SetColumn(trackBorder, 1);
-		corrRow.Children.Add(trackBorder);
+		_sfRadarCorrTrackBorder.Child = trackGrid;
+		Grid.SetColumn(_sfRadarCorrTrackBorder, 1);
+		corrRow.Children.Add(_sfRadarCorrTrackBorder);
 
 		_radarCorrelationTb = new TextBlock
 		{
@@ -717,14 +773,16 @@ public sealed partial class DspPage
 	#region 4. Presets and Controls Card
 	private FrameworkElement CreateStereoPresetsAndControlsCard()
 	{
+		bool isDark = IsDspDark;
 		var card = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateStereoSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(20, 16, 20, 16)
 		};
+		_sfCardBorders.Add(card);
 
 		var stack = new StackPanel { Spacing = 16 };
 
@@ -735,14 +793,17 @@ public sealed partial class DspPage
 		presetsHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var presetsTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		presetsTitleSp.Children.Add(new FontIcon { Glyph = "\uE8B7", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-		presetsTitleSp.Children.Add(new TextBlock
+		_sfPresetsIcon = new FontIcon { Glyph = "\uE8B7", FontSize = 13, Foreground = DspAccentSoftTextBrush };
+		var presetsTitleTb = new TextBlock
 		{
 			Text = "快速预设 (PRESETS)",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
+			Foreground = DspTextPrimaryBrush
+		};
+		_sfPrimaryTextBlocks.Add(presetsTitleTb);
+		presetsTitleSp.Children.Add(_sfPresetsIcon);
+		presetsTitleSp.Children.Add(presetsTitleTb);
 		Grid.SetColumn(presetsTitleSp, 0);
 		presetsHead.Children.Add(presetsTitleSp);
 
@@ -750,9 +811,10 @@ public sealed partial class DspPage
 		{
 			Text = "一键套用经典声像比例",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_sfMutedTextBlocks.Add(presetsSub);
 		Grid.SetColumn(presetsSub, 1);
 		presetsHead.Children.Add(presetsSub);
 		presetsSection.Children.Add(presetsHead);
@@ -770,7 +832,7 @@ public sealed partial class DspPage
 		for (int i = 0; i < StereoPresets.Length; i++)
 		{
 			var preset = StereoPresets[i];
-			var btn = CreateStereoPresetCapsuleButton(preset);
+			var btn = CreateStereoPresetCapsuleButton(preset, isDark);
 			_stereoPresetButtons.Add(btn);
 
 			int row = i < 3 ? 0 : 1;
@@ -788,12 +850,13 @@ public sealed partial class DspPage
 		stack.Children.Add(presetsSection);
 
 		// 分割线
-		stack.Children.Add(new Border
+		_sfControlsDivider = new Border
 		{
 			Height = 1,
-			Background = new SolidColorBrush(Color.FromArgb(60, 203, 213, 225)),
+			Background = GetStereoDividerBrush(isDark),
 			Margin = new Thickness(0, 4, 0, 4)
-		});
+		};
+		stack.Children.Add(_sfControlsDivider);
 
 		// Section B: 参数控制
 		var controlsSection = new StackPanel { Spacing = 12 };
@@ -802,14 +865,17 @@ public sealed partial class DspPage
 		controlsHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var controlsTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		controlsTitleSp.Children.Add(new FontIcon { Glyph = "\uE994", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-		controlsTitleSp.Children.Add(new TextBlock
+		_sfControlsIcon = new FontIcon { Glyph = "\uE994", FontSize = 13, Foreground = DspAccentSoftTextBrush };
+		var controlsTitleTb = new TextBlock
 		{
 			Text = "参数控制 (CONTROLS)",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
-		});
+			Foreground = DspTextPrimaryBrush
+		};
+		_sfPrimaryTextBlocks.Add(controlsTitleTb);
+		controlsTitleSp.Children.Add(_sfControlsIcon);
+		controlsTitleSp.Children.Add(controlsTitleTb);
 		Grid.SetColumn(controlsTitleSp, 0);
 		controlsHead.Children.Add(controlsTitleSp);
 
@@ -817,9 +883,10 @@ public sealed partial class DspPage
 		{
 			Text = "双击滑块可恢复默认",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_sfMutedTextBlocks.Add(controlsHint);
 		Grid.SetColumn(controlsHint, 1);
 		controlsHead.Children.Add(controlsHint);
 		controlsSection.Children.Add(controlsHead);
@@ -885,7 +952,7 @@ public sealed partial class DspPage
 		return card;
 	}
 
-	private Button CreateStereoPresetCapsuleButton(StereoPreset preset)
+	private Button CreateStereoPresetCapsuleButton(StereoPreset preset, bool isDark)
 	{
 		var btn = new Button
 		{
@@ -894,11 +961,9 @@ public sealed partial class DspPage
 			Padding = new Thickness(10, 4, 10, 4),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			HorizontalContentAlignment = HorizontalAlignment.Center,
-			Background = new SolidColorBrush(Color.FromArgb(220, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(160, 203, 213, 225)),
-			BorderThickness = new Thickness(1),
 			Tag = preset
 		};
+		ApplyStereoNeutralButtonSurface(btn, isDark, DspTextSecondaryBrush);
 
 		var sp = new StackPanel { Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center };
 		var titleTb = new TextBlock
@@ -906,14 +971,14 @@ public sealed partial class DspPage
 			Text = preset.Name,
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)),
+			Foreground = DspTextSecondaryBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		var subTb = new TextBlock
 		{
 			Text = preset.Subtitle,
 			FontSize = 9.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
 		};
 		sp.Children.Add(titleTb);
@@ -937,14 +1002,16 @@ public sealed partial class DspPage
 		out TextBlock outValTb,
 		Action<double> onValueChanged)
 	{
+		bool isDark = IsDspDark;
 		var container = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(120, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(80, 226, 232, 240)),
+			Background = GetStereoSoftSurfaceBrush(isDark),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(12, 8, 12, 8)
 		};
+		_sfSoftBorders.Add(container);
 
 		var stack = new StackPanel { Spacing = 4 };
 
@@ -958,14 +1025,18 @@ public sealed partial class DspPage
 			Text = label,
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
+		_sfPrimaryTextBlocks.Add(labelTb);
+
 		var tipTb = new TextBlock
 		{
 			Text = tip,
 			FontSize = 10,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184))
+			Foreground = DspTextMutedBrush
 		};
+		_sfMutedTextBlocks.Add(tipTb);
+
 		labelSp.Children.Add(labelTb);
 		labelSp.Children.Add(tipTb);
 		Grid.SetColumn(labelSp, 0);
@@ -976,9 +1047,10 @@ public sealed partial class DspPage
 			Text = formatVal(initialVal),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = DspAccentSoftTextBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_sfAccentTextBlocks.Add(valTb);
 		Grid.SetColumn(valTb, 1);
 		headerGrid.Children.Add(valTb);
 		stack.Children.Add(headerGrid);
@@ -1035,6 +1107,7 @@ public sealed partial class DspPage
 			"100%",
 			"原声平衡",
 			Color.FromArgb(255, 79, 70, 229),
+			Color.FromArgb(255, 165, 180, 252),
 			out _bottomWidthBigTb,
 			out _bottomWidthSubTb);
 		Grid.SetColumn(card1, 0);
@@ -1047,6 +1120,7 @@ public sealed partial class DspPage
 			"0.0 dB",
 			"中央人声基准",
 			Color.FromArgb(255, 5, 150, 105),
+			Color.FromArgb(255, 52, 211, 153),
 			out _bottomMidBigTb,
 			out _bottomMidSubTb);
 		Grid.SetColumn(card2, 1);
@@ -1059,6 +1133,7 @@ public sealed partial class DspPage
 			"0.0 dB",
 			"空间氛围自然",
 			Color.FromArgb(255, 139, 92, 246),
+			Color.FromArgb(255, 196, 181, 253),
 			out _bottomSideBigTb,
 			out _bottomSideSubTb);
 		Grid.SetColumn(card3, 2);
@@ -1072,18 +1147,22 @@ public sealed partial class DspPage
 		string glyph,
 		string initialBig,
 		string initialSub,
-		Color accentColor,
+		Color lightAccentColor,
+		Color darkAccentColor,
 		out TextBlock outBigTb,
 		out TextBlock outSubTb)
 	{
+		bool isDark = IsDspDark;
+		var accentBrush = new SolidColorBrush(isDark ? darkAccentColor : lightAccentColor);
 		var card = new Border
 		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = CreateStereoSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(16, 14, 16, 14)
 		};
+		_sfCardBorders.Add(card);
 
 		var stack = new StackPanel { Spacing = 6 };
 
@@ -1096,8 +1175,9 @@ public sealed partial class DspPage
 			Text = title,
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_sfMutedTextBlocks.Add(titleTb);
 		Grid.SetColumn(titleTb, 0);
 		topGrid.Children.Add(titleTb);
 
@@ -1105,7 +1185,7 @@ public sealed partial class DspPage
 		{
 			Glyph = glyph,
 			FontSize = 14,
-			Foreground = new SolidColorBrush(accentColor)
+			Foreground = accentBrush
 		};
 		Grid.SetColumn(icon, 1);
 		topGrid.Children.Add(icon);
@@ -1116,7 +1196,7 @@ public sealed partial class DspPage
 			Text = initialBig,
 			FontSize = 24,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(accentColor)
+			Foreground = accentBrush
 		};
 		stack.Children.Add(bigTb);
 
@@ -1124,9 +1204,12 @@ public sealed partial class DspPage
 		{
 			Text = initialSub,
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		};
+		_sfMutedTextBlocks.Add(subTb);
 		stack.Children.Add(subTb);
+
+		_sfBottomStatAccents.Add((icon, bigTb, lightAccentColor, darkAccentColor));
 
 		card.Child = stack;
 		outBigTb = bigTb;
@@ -1138,31 +1221,36 @@ public sealed partial class DspPage
 	#region 6. Bottom Tip Banner
 	private FrameworkElement CreateStereoBottomTipBanner()
 	{
+		bool isDark = IsDspDark;
 		var border = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(200, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
+			Background = GetStereoSoftSurfaceBrush(isDark),
+			BorderBrush = CreateStereoRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(16, 12, 16, 12)
 		};
+		_sfSoftBorders.Add(border);
 
 		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		sp.Children.Add(new FontIcon
+		_sfTipIcon = new FontIcon
 		{
 			Glyph = "\uE946",
 			FontSize = 16,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = DspAccentSoftTextBrush,
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		sp.Children.Add(_sfTipIcon);
 
-		sp.Children.Add(new TextBlock
+		var tipTextTb = new TextBlock
 		{
 			Text = "双击滑块可恢复默认值。高宽度的侧向声场建议配合低频保留，以保持低音下潜扎实。",
 			FontSize = 12.5,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)),
+			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_sfSubHeaderTextBlocks.Add(tipTextTb);
+		sp.Children.Add(tipTextTb);
 
 		border.Child = sp;
 		return border;
@@ -1337,37 +1425,218 @@ public sealed partial class DspPage
 	#endregion
 
 	#region Visuals Refresh & Radar Math
-	private void UpdateStereoFieldVisuals()
+	private static Brush CreateStereoSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
 	{
-		UpdateStereoPowerButtonVisuals();
-		UpdateStereoHeaderReadouts();
-		UpdateStereoRadarVisuals();
-		UpdateStereoPresetsSelection();
-		UpdateStereoBottomStats();
-		UpdateStereoDirtyStateBadge();
+		return LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
 	}
 
-	private void UpdateStereoPowerButtonVisuals()
+	private static Brush CreateStereoRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: isDark,
+			isHovered: isHovered,
+			isSelected: isSelected);
+	}
+
+	private static Brush GetStereoSoftSurfaceBrush(bool isDark)
+	{
+		return isDark
+			? LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+	}
+
+	private static Brush GetStereoMeterTrackBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(255, 203, 213, 225));
+	}
+
+	private static Brush GetStereoDividerBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(50, 255, 255, 255) : Color.FromArgb(120, 203, 213, 225));
+	}
+
+	private static void ApplyStereoButtonChrome(
+		Button? btn,
+		Brush normalBg,
+		Brush hoverBg,
+		Brush pressedBg,
+		Brush normalBorder,
+		Brush hoverBorder,
+		Brush foregroundBrush)
+	{
+		if (btn == null) return;
+		btn.Background = normalBg;
+		btn.BorderBrush = normalBorder;
+		btn.BorderThickness = new Thickness(1);
+		btn.Foreground = foregroundBrush;
+
+		btn.Resources["ButtonBackground"] = normalBg;
+		btn.Resources["ButtonBackgroundPointerOver"] = hoverBg;
+		btn.Resources["ButtonBackgroundPressed"] = pressedBg;
+		btn.Resources["ButtonBorderBrush"] = normalBorder;
+		btn.Resources["ButtonBorderBrushPointerOver"] = hoverBorder;
+		btn.Resources["ButtonBorderBrushPressed"] = hoverBorder;
+		btn.Resources["ButtonForeground"] = foregroundBrush;
+		btn.Resources["ButtonForegroundPointerOver"] = foregroundBrush;
+		btn.Resources["ButtonForegroundPressed"] = foregroundBrush;
+	}
+
+	private static void ApplyStereoNeutralButtonSurface(Button? btn, bool isDark, Brush foregroundBrush)
+	{
+		if (btn == null) return;
+		Brush normalBg = CreateStereoSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		Brush hoverBg = CreateStereoSurfaceBrush(LiquidGlassVariant.Regular, isDark, isDark ? 0.95 : 1.0);
+		Brush pressedBg = CreateStereoSurfaceBrush(LiquidGlassVariant.Clear, isDark, isDark ? 0.72 : 0.80);
+		Brush normalBorder = CreateStereoRimBrush(isDark);
+		Brush hoverBorder = CreateStereoRimBrush(isDark, isHovered: true);
+		ApplyStereoButtonChrome(btn, normalBg, hoverBg, pressedBg, normalBorder, hoverBorder, foregroundBrush);
+	}
+
+	private static void ApplyStereoIndigoAccentButton(Button? btn, bool isDark, Brush foregroundBrush)
+	{
+		if (btn == null) return;
+		Brush normalBg = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+		Brush hoverBg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+		Brush pressedBg = new SolidColorBrush(Color.FromArgb(255, 67, 56, 202));
+		Brush normalBorder = new SolidColorBrush(isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241));
+		Brush hoverBorder = new SolidColorBrush(Color.FromArgb(255, 165, 180, 252));
+		ApplyStereoButtonChrome(btn, normalBg, hoverBg, pressedBg, normalBorder, hoverBorder, foregroundBrush);
+	}
+
+	private void ApplyStereoPendingBadgeTheme(bool isDark)
+	{
+		if (_sfPendingBadge != null)
+		{
+			_sfPendingBadge.Background = new SolidColorBrush(isDark ? Color.FromArgb(75, 245, 158, 11) : Color.FromArgb(255, 254, 243, 199));
+			_sfPendingBadge.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(190, 251, 191, 36) : Color.FromArgb(255, 245, 158, 11));
+		}
+		if (_sfPendingBadgeText != null)
+		{
+			_sfPendingBadgeText.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 253, 230, 138) : Color.FromArgb(255, 180, 83, 9));
+		}
+	}
+
+	public void RefreshStereoFieldTheme(bool isDark)
+	{
+		if (_stereoFieldWorkbench == null) return;
+
+		_stereoFieldWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+
+		Brush primaryText = new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+		Brush secondaryText = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+		Brush subHeaderText = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+		Brush mutedText = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		Brush accentSoftBg = new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+		Brush accentSoftBorder = new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+		Brush accentSoftText = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+		Brush cardBg = CreateStereoSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = CreateStereoRimBrush(isDark);
+		Brush softBg = GetStereoSoftSurfaceBrush(isDark);
+
+		if (_sfRootBorder != null)
+		{
+			_sfRootBorder.Background = CreateStereoSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.70 / 0.85, 0.55, 1.0));
+		}
+
+		if (_sfTitleIconBorder != null) _sfTitleIconBorder.Background = accentSoftBg;
+		if (_sfTitleIcon != null) _sfTitleIcon.Foreground = accentSoftText;
+
+		if (_sfRadarDragTag != null)
+		{
+			_sfRadarDragTag.Background = accentSoftBg;
+			_sfRadarDragTag.BorderBrush = accentSoftBorder;
+		}
+		if (_sfRadarDragIcon != null) _sfRadarDragIcon.Foreground = accentSoftText;
+		if (_sfRadarDragText != null) _sfRadarDragText.Foreground = accentSoftText;
+
+		if (_sfPresetsIcon != null) _sfPresetsIcon.Foreground = accentSoftText;
+		if (_sfControlsIcon != null) _sfControlsIcon.Foreground = accentSoftText;
+		if (_sfTipIcon != null) _sfTipIcon.Foreground = accentSoftText;
+		if (_sfControlsDivider != null) _sfControlsDivider.Background = GetStereoDividerBrush(isDark);
+		if (_sfRadarCorrTrackBorder != null) _sfRadarCorrTrackBorder.Background = GetStereoMeterTrackBrush(isDark);
+
+		foreach (var card in _sfCardBorders)
+		{
+			card.Background = cardBg;
+			card.BorderBrush = rimBrush;
+		}
+		foreach (var box in _sfSoftBorders)
+		{
+			box.Background = softBg;
+			box.BorderBrush = rimBrush;
+		}
+
+		foreach (var tb in _sfPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _sfSecondaryTextBlocks) tb.Foreground = secondaryText;
+		foreach (var tb in _sfSubHeaderTextBlocks) tb.Foreground = subHeaderText;
+		foreach (var tb in _sfMutedTextBlocks) tb.Foreground = mutedText;
+		foreach (var tb in _sfAccentTextBlocks) tb.Foreground = accentSoftText;
+
+		foreach (var (icon, bigTb, lightAccent, darkAccent) in _sfBottomStatAccents)
+		{
+			var brush = new SolidColorBrush(isDark ? darkAccent : lightAccent);
+			icon.Foreground = brush;
+			bigTb.Foreground = brush;
+		}
+
+		if (_sfResetBtn != null)
+		{
+			ApplyStereoNeutralButtonSurface(_sfResetBtn, isDark, secondaryText);
+			if (_sfResetIcon != null) _sfResetIcon.Foreground = subHeaderText;
+			if (_sfResetText != null) _sfResetText.Foreground = secondaryText;
+		}
+
+		ApplyStereoPendingBadgeTheme(isDark);
+		UpdateStereoPowerButtonVisuals(isDark);
+		UpdateStereoDirtyStateBadge(isDark);
+		UpdateStereoPresetsSelection(isDark);
+		UpdateStereoRadarVisuals(isDark);
+	}
+
+	private void UpdateStereoFieldVisuals()
+	{
+		bool isDark = IsDspDark;
+		UpdateStereoPowerButtonVisuals(isDark);
+		UpdateStereoHeaderReadouts();
+		UpdateStereoRadarVisuals(isDark);
+		UpdateStereoPresetsSelection(isDark);
+		UpdateStereoBottomStats();
+		UpdateStereoDirtyStateBadge(isDark);
+	}
+
+	private void UpdateStereoPowerButtonVisuals(bool? isDarkOverride = null)
 	{
 		if (_sfPowerBtn == null || _sfPowerText == null || _sfPowerIcon == null) return;
 
+		bool isDark = isDarkOverride ?? IsDspDark;
+
 		if (_stereoFieldEnabled)
 		{
-			_sfPowerBtn.Background = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)); // Emerald 500
-			_sfPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 5, 150, 105));
+			Brush whiteBrush = new SolidColorBrush(Colors.White);
+			Brush normalBg = new SolidColorBrush(isDark ? Color.FromArgb(255, 5, 150, 105) : Color.FromArgb(255, 16, 185, 129));
+			Brush hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(255, 16, 185, 129) : Color.FromArgb(255, 5, 150, 105));
+			Brush pressedBg = new SolidColorBrush(Color.FromArgb(255, 4, 120, 87));
+			Brush normalBorder = new SolidColorBrush(isDark ? Color.FromArgb(255, 52, 211, 153) : Color.FromArgb(255, 5, 150, 105));
+			Brush hoverBorder = new SolidColorBrush(Color.FromArgb(255, 110, 231, 183));
+			ApplyStereoButtonChrome(_sfPowerBtn, normalBg, hoverBg, pressedBg, normalBorder, hoverBorder, whiteBrush);
+
 			_sfPowerIcon.Glyph = "\uE7E8";
-			_sfPowerIcon.Foreground = new SolidColorBrush(Colors.White);
+			_sfPowerIcon.Foreground = whiteBrush;
 			_sfPowerText.Text = "立体声场已开启";
-			_sfPowerText.Foreground = new SolidColorBrush(Colors.White);
+			_sfPowerText.Foreground = whiteBrush;
 		}
 		else
 		{
-			_sfPowerBtn.Background = new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
-			_sfPowerBtn.BorderBrush = new SolidColorBrush(Color.FromArgb(160, 203, 213, 225));
+			Brush subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+			Brush mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+			ApplyStereoNeutralButtonSurface(_sfPowerBtn, isDark, subHeaderBrush);
+
 			_sfPowerIcon.Glyph = "\uE7E8";
-			_sfPowerIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			_sfPowerIcon.Foreground = mutedBrush;
 			_sfPowerText.Text = "立体声场已旁路";
-			_sfPowerText.Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
+			_sfPowerText.Foreground = subHeaderBrush;
 		}
 	}
 
@@ -1380,9 +1649,10 @@ public sealed partial class DspPage
 		if (_sfHeaderWidthSubTb != null) _sfHeaderWidthSubTb.Text = widthDescStr;
 	}
 
-	private void UpdateStereoRadarVisuals()
+	private void UpdateStereoRadarVisuals(bool? isDarkOverride = null)
 	{
 		if (_radarCanvas == null || _radarActiveEllipse == null || _radarWidthHandle == null) return;
+		bool isDark = isDarkOverride ?? IsDspDark;
 
 		// 1. 计算当前声像尺寸
 		double midLevel = Math.Pow(10.0, _stereoFieldMidGainDb / 20.0);
@@ -1452,9 +1722,9 @@ public sealed partial class DspPage
 			};
 			Color corrColor = corr switch
 			{
-				> 0.30 => Color.FromArgb(255, 16, 185, 129), // Emerald
-				> 0.0 => Color.FromArgb(255, 14, 165, 233),  // Sky
-				_ => Color.FromArgb(255, 245, 158, 11)       // Amber
+				> 0.30 => isDark ? Color.FromArgb(255, 52, 211, 153) : Color.FromArgb(255, 16, 185, 129), // Emerald
+				> 0.0 => isDark ? Color.FromArgb(255, 56, 189, 248) : Color.FromArgb(255, 2, 132, 199),   // Sky
+				_ => isDark ? Color.FromArgb(255, 251, 191, 36) : Color.FromArgb(255, 217, 119, 6)       // Amber
 			};
 			_radarCorrelationTb.Text = $"{corr:+0.00;-0.00;0.00} ({corrDesc})";
 			_radarCorrelationTb.Foreground = new SolidColorBrush(corrColor);
@@ -1469,8 +1739,14 @@ public sealed partial class DspPage
 		}
 	}
 
-	private void UpdateStereoPresetsSelection()
+	private void UpdateStereoPresetsSelection(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
+		Brush secondaryBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+		Brush mutedBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+		Brush whiteBrush = new SolidColorBrush(Colors.White);
+		Brush selectedSubBrush = new SolidColorBrush(Color.FromArgb(235, 224, 231, 255));
+
 		foreach (var btn in _stereoPresetButtons)
 		{
 			if (btn.Tag is not StereoPreset p) continue;
@@ -1483,27 +1759,21 @@ public sealed partial class DspPage
 			{
 				if (sp.Children[0] is TextBlock t1)
 				{
-					t1.Foreground = isMatch
-						? new SolidColorBrush(Colors.White)
-						: new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
+					t1.Foreground = isMatch ? whiteBrush : secondaryBrush;
 				}
 				if (sp.Children[1] is TextBlock t2)
 				{
-					t2.Foreground = isMatch
-						? new SolidColorBrush(Color.FromArgb(220, 238, 242, 255))
-						: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+					t2.Foreground = isMatch ? selectedSubBrush : mutedBrush;
 				}
 			}
 
 			if (isMatch)
 			{
-				btn.Background = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)); // Indigo
-				btn.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+				ApplyStereoIndigoAccentButton(btn, isDark, whiteBrush);
 			}
 			else
 			{
-				btn.Background = new SolidColorBrush(Color.FromArgb(220, 248, 250, 252));
-				btn.BorderBrush = new SolidColorBrush(Color.FromArgb(160, 203, 213, 225));
+				ApplyStereoNeutralButtonSurface(btn, isDark, secondaryBrush);
 			}
 		}
 	}
@@ -1548,38 +1818,33 @@ public sealed partial class DspPage
 			|| _stereoFieldEnabled != _appliedStereoFieldEnabled;
 	}
 
-	private void UpdateStereoDirtyStateBadge()
+	private void UpdateStereoDirtyStateBadge(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
 		bool isDirty = IsStereoFieldDirty();
 
 		if (_sfPendingBadge != null)
 		{
 			_sfPendingBadge.Visibility = isDirty ? Visibility.Visible : Visibility.Collapsed;
+			ApplyStereoPendingBadgeTheme(isDark);
 		}
 
 		if (_sfApplyBtn != null)
 		{
-			_sfApplyBtn.Background = isDirty
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			_sfApplyBtn.BorderBrush = isDirty
-				? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241))
-				: new SolidColorBrush(Color.FromArgb(160, 203, 213, 225));
-
-			if (_sfApplyBtn.Content is StackPanel sp && sp.Children.Count >= 2)
+			if (isDirty)
 			{
-				if (sp.Children[0] is FontIcon icon)
-				{
-					icon.Foreground = isDirty
-						? new SolidColorBrush(Colors.White)
-						: new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-				}
-				if (sp.Children[1] is TextBlock tb)
-				{
-					tb.Foreground = isDirty
-						? new SolidColorBrush(Colors.White)
-						: new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
-				}
+				Brush whiteBrush = new SolidColorBrush(Colors.White);
+				ApplyStereoIndigoAccentButton(_sfApplyBtn, isDark, whiteBrush);
+				if (_sfApplyIcon != null) _sfApplyIcon.Foreground = whiteBrush;
+				if (_sfApplyText != null) _sfApplyText.Foreground = whiteBrush;
+			}
+			else
+			{
+				Brush secondaryBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+				Brush subHeaderBrush = new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+				ApplyStereoNeutralButtonSurface(_sfApplyBtn, isDark, secondaryBrush);
+				if (_sfApplyIcon != null) _sfApplyIcon.Foreground = subHeaderBrush;
+				if (_sfApplyText != null) _sfApplyText.Foreground = secondaryBrush;
 			}
 		}
 	}

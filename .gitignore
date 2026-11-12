@@ -17,6 +17,8 @@ settings.json
 *.secret
 FurinaPlayer_StreamCache/
 Releases/
+Screenshots/
+capture_out/
 *.zip
 
 # 编译生成临时目录

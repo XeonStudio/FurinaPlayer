@@ -68,5 +68,16 @@
       <HintPath>..\..\LiveChartsCore.SkiaSharpView.WinUI.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <Target Name="StampFurinaBuildVersion" BeforeTargets="BeforeCompile">
+    <PropertyGroup>
+      <_FurinaBuildVersion>v1.28.08.0012.1112（第 28 次迭代 · 8 项新增功能 · 12 项修复 · 11-12 编译）</_FurinaBuildVersion>
+      <_FurinaVersionFile>$(IntermediateOutputPath)FurinaBuildVersion.g.cs</_FurinaVersionFile>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(_FurinaVersionFile)" Lines="[assembly: System.Reflection.AssemblyMetadata(&quot;FurinaBuildVersion&quot;, &quot;$(_FurinaBuildVersion)&quot;)]" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(_FurinaVersionFile)" />
+      <FileWrites Include="$(_FurinaVersionFile)" />
+    </ItemGroup>
+  </Target>
 </Project>
 

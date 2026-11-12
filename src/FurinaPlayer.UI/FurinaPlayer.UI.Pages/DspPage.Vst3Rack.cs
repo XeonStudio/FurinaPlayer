@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -25,11 +26,6 @@ public sealed partial class DspPage
 {
 	private FrameworkElement? _vst3RackWorkbench;
 	private TextBlock? _vst3NavSubTb;
-
-	// Header Status Elements
-	private Border? _vst3HeaderStatusPill;
-	private Ellipse? _vst3HeaderStatusDot;
-	private TextBlock? _vst3HeaderStatusTb;
 
 	// Hero Signal Flow & Telemetry Elements
 	private Border? _vst3NodeSlotBorder;
@@ -67,9 +63,46 @@ public sealed partial class DspPage
 	private TextBlock? _vst3FilterEnabledTb;
 	private TextBlock? _vst3TotalCountTb;
 	private StackPanel? _vst3PluginSlotsStack;
+	private DspViewModel? _hookedVst3ViewModel;
+	private bool _isRefreshingVst3RackUi;
+
+	private void EnsureVst3ViewModelHooked()
+	{
+		if (ViewModel == null || ReferenceEquals(_hookedVst3ViewModel, ViewModel))
+		{
+			return;
+		}
+		if (_hookedVst3ViewModel != null)
+		{
+			_hookedVst3ViewModel.PropertyChanged -= OnVst3ViewModelPropertyChanged;
+		}
+		_hookedVst3ViewModel = ViewModel;
+		_hookedVst3ViewModel.PropertyChanged += OnVst3ViewModelPropertyChanged;
+	}
+
+	private void OnVst3ViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+	{
+		if (_vst3RackWorkbench == null || ViewModel == null)
+		{
+			return;
+		}
+		if (e.PropertyName == nameof(DspViewModel.Vst3StatusText))
+		{
+			if (_vst3LiveStatusTb != null)
+			{
+				_vst3LiveStatusTb.Text = ViewModel.Vst3StatusText;
+			}
+			return;
+		}
+		if (e.PropertyName == nameof(DspViewModel.Vst3Plugins) && !_isRefreshingVst3RackUi)
+		{
+			RefreshVst3RackUi();
+		}
+	}
 
 	public FrameworkElement CreateVst3RackWorkbench()
 	{
+		EnsureVst3ViewModelHooked();
 		if (_vst3RackWorkbench != null)
 		{
 			RefreshVst3RackUi();
@@ -161,51 +194,21 @@ public sealed partial class DspPage
 			Text = "VST3 机架 / 插件管理器",
 			FontSize = 20,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		titleStack.Children.Add(new TextBlock
 		{
 			Text = "Steinberg VST3 64位原生宿主 · 支持实时音频流宿主渲染与原生插件 GUI 窗口交互",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		leftStack.Children.Add(titleStack);
 
 		Grid.SetColumn(leftStack, 0);
 		headerGrid.Children.Add(leftStack);
 
-		// Right: Status pill + Action buttons
+		// Right: Action buttons
 		var rightStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-
-		_vst3HeaderStatusPill = new Border
-		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(16),
-			Padding = new Thickness(12, 5, 12, 5),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		var pillRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		_vst3HeaderStatusDot = new Ellipse
-		{
-			Width = 8,
-			Height = 8,
-			Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		_vst3HeaderStatusTb = new TextBlock
-		{
-			Text = "宿主就绪",
-			FontSize = 12,
-			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		pillRow.Children.Add(_vst3HeaderStatusDot);
-		pillRow.Children.Add(_vst3HeaderStatusTb);
-		_vst3HeaderStatusPill.Child = pillRow;
-		rightStack.Children.Add(_vst3HeaderStatusPill);
 
 		var btnScan = new Button
 		{
@@ -214,10 +217,10 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(50, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		btnScan.Click += (s, e) =>
 		{
@@ -240,21 +243,6 @@ public sealed partial class DspPage
 		};
 		btnLoadFile.Click += OnLoadSingleVst3FileClick;
 		rightStack.Children.Add(btnLoadFile);
-
-		var btnRefresh = new Button
-		{
-			Content = "🔄 刷新状态",
-			FontSize = 12,
-			FontWeight = FontWeights.Medium,
-			Padding = new Thickness(12, 6, 12, 6),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
-		};
-		btnRefresh.Click += (s, e) => RefreshVst3RackUi();
-		rightStack.Children.Add(btnRefresh);
 
 		Grid.SetColumn(rightStack, 1);
 		headerGrid.Children.Add(rightStack);
@@ -286,12 +274,12 @@ public sealed partial class DspPage
 			Text = "实时 VST3 宿主信号链路 (Active VST3 Signal Chain)",
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		});
 		var archBadge = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 199, 210, 254)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(7, 2, 7, 2),
@@ -300,7 +288,7 @@ public sealed partial class DspPage
 				Text = "Steinberg IAudioProcessor / IEditController / IPlugView",
 				FontSize = 10,
 				FontWeight = FontWeights.SemiBold,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
+				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 129, 140, 248))
 			}
 		};
 		flowTitleSp.Children.Add(archBadge);
@@ -311,7 +299,7 @@ public sealed partial class DspPage
 		{
 			Text = ViewModel?.Vst3StatusText ?? "宿主就绪",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_vst3LiveStatusTb, 1);
@@ -387,7 +375,7 @@ public sealed partial class DspPage
 			Text = "当前挂载插件：",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		});
 		_vst3ActiveNameTb = new TextBlock
@@ -395,15 +383,15 @@ public sealed partial class DspPage
 			Text = "未启用插件 (直通模式)",
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		activeTitleRow.Children.Add(_vst3ActiveNameTb);
 
 		_vst3ActiveStateBadge = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(8, 2, 8, 2),
@@ -414,7 +402,7 @@ public sealed partial class DspPage
 			Text = "待命 (直通)",
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		_vst3ActiveStateBadge.Child = _vst3ActiveStateBadgeTb;
 		activeTitleRow.Children.Add(_vst3ActiveStateBadge);
@@ -432,7 +420,7 @@ public sealed partial class DspPage
 		{
 			Text = "插件路径：可在下方机架列表中启用任意 VST3 插件，或直接点击“🎛️ 界面”一键挂载并打开原生窗口。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		};
 		detailsStack.Children.Add(_vst3ActivePathTb);
@@ -467,8 +455,8 @@ public sealed partial class DspPage
 		{
 			Padding = new Thickness(12, 8, 12, 8),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			Background = CreateWhiteAcrylicBrush(0.75, 210),
+			BorderBrush = CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1)
 		};
 		_vst3HeroBypassBtnTb = new TextBlock
@@ -476,7 +464,7 @@ public sealed partial class DspPage
 			Text = "⏸ 旁通当前插件",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+			Foreground = DspTextSecondaryBrush
 		};
 		_vst3HeroBypassBtn.Content = _vst3HeroBypassBtnTb;
 		_vst3HeroBypassBtn.Click += OnHeroToggleBypassClick;
@@ -489,10 +477,10 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 8, 12, 8),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 242, 242)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 202, 202)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 239, 68, 68)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 242, 242)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(100, 248, 113, 113)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 202, 202)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38))
+			Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 252, 165, 165) : Windows.UI.Color.FromArgb(255, 220, 38, 38))
 		};
 		_vst3HeroUnloadAllBtn.Click += OnHeroUnloadAllClick;
 		quickActionsStack.Children.Add(_vst3HeroUnloadAllBtn);
@@ -505,12 +493,12 @@ public sealed partial class DspPage
 		return card;
 	}
 
-	private static Border CreateVst3FlowNode(string glyph, string title, string subtitle, out TextBlock subTb, out Border borderRef)
+	private Border CreateVst3FlowNode(string glyph, string title, string subtitle, out TextBlock subTb, out Border borderRef)
 	{
 		var border = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(65, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(10, 8, 10, 8)
@@ -523,12 +511,12 @@ public sealed partial class DspPage
 			Width = 28,
 			Height = 28,
 			CornerRadius = new CornerRadius(7),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255)),
 			Child = new FontIcon
 			{
 				Glyph = glyph,
 				FontSize = 13,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
+				Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 199, 210, 254) : Windows.UI.Color.FromArgb(255, 79, 70, 229)),
 				HorizontalAlignment = HorizontalAlignment.Center,
 				VerticalAlignment = VerticalAlignment.Center
 			}
@@ -541,14 +529,14 @@ public sealed partial class DspPage
 			Text = title,
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+			Foreground = DspTextPrimaryBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		});
 		subTb = new TextBlock
 		{
 			Text = subtitle,
 			FontSize = 10,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		};
 		textStack.Children.Add(subTb);
@@ -558,33 +546,33 @@ public sealed partial class DspPage
 		return border;
 	}
 
-	private static FrameworkElement CreateVst3FlowArrow()
+	private FrameworkElement CreateVst3FlowArrow()
 	{
 		return new FontIcon
 		{
 			Glyph = "\uE76C",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 	}
 
-	private static StackPanel CreateTelemetryMetric(string label, out TextBlock valueTb, string defaultVal)
+	private StackPanel CreateTelemetryMetric(string label, out TextBlock valueTb, string defaultVal)
 	{
 		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
 		sp.Children.Add(new TextBlock
 		{
 			Text = label + "：",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		valueTb = new TextBlock
 		{
 			Text = defaultVal,
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		sp.Children.Add(valueTb);
 		return sp;
@@ -632,21 +620,21 @@ public sealed partial class DspPage
 			Text = "扫描目录管理",
 			FontSize = 15,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			Foreground = DspTextPrimaryBrush
 		});
 		titleStack.Children.Add(new TextBlock
 		{
 			Text = "管理 VST3 插件搜索目录（无高度截断）",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139))
+			Foreground = DspTextMutedBrush
 		});
 		Grid.SetColumn(titleStack, 0);
 		headerGrid.Children.Add(titleStack);
 
 		var countBadge = new Border
 		{
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(8, 2, 8, 2),
@@ -657,7 +645,7 @@ public sealed partial class DspPage
 			Text = "0 个目录",
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		countBadge.Child = _vst3FolderCountBadgeTb;
 		Grid.SetColumn(countBadge, 1);
@@ -699,10 +687,10 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(8, 7, 8, 7),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59))
+			Foreground = DspTextPrimaryBrush
 		};
 		btnAddFolder.Click += OnAddVst3FolderAndRefreshClick;
 		Grid.SetColumn(btnAddFolder, 0);
@@ -716,10 +704,10 @@ public sealed partial class DspPage
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(8, 7, 8, 7),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-			BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(30, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(50, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 			BorderThickness = new Thickness(1),
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			Foreground = DspTextSubHeaderBrush
 		};
 		btnRestoreDefault.Click += (s, e) =>
 		{
@@ -829,7 +817,7 @@ public sealed partial class DspPage
 			Text = "共发现 0 个 VST3 插件",
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		Grid.SetColumn(_vst3TotalCountTb, 2);
@@ -860,8 +848,14 @@ public sealed partial class DspPage
 
 	public void RefreshVst3RackUi()
 	{
+		if (_isRefreshingVst3RackUi)
+		{
+			return;
+		}
+		_isRefreshingVst3RackUi = true;
 		try
 		{
+			EnsureVst3ViewModelHooked();
 			UpdateVst3SidebarSubtitle();
 			if (_vst3RackWorkbench == null || ViewModel == null)
 			{
@@ -876,36 +870,7 @@ public sealed partial class DspPage
 
 			bool hostLoaded = Vst3NativeHost.Instance.IsLoaded;
 			bool editorOpen = _vst3EditorWindow != null;
-			int sampleRate = (ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 48000;
-
-			// 1. Update Top Header Status Pill
-			if (_vst3HeaderStatusTb != null && _vst3HeaderStatusDot != null && _vst3HeaderStatusPill != null)
-			{
-				if (activePlugin != null && activePlugin.IsActive)
-				{
-					_vst3HeaderStatusTb.Text = $"正在运行: {activePlugin.Name}";
-					_vst3HeaderStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 21, 128, 61));
-					_vst3HeaderStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94));
-					_vst3HeaderStatusPill.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244));
-					_vst3HeaderStatusPill.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 187, 247, 208));
-				}
-				else if (activePlugin != null && activePlugin.Bypass)
-				{
-					_vst3HeaderStatusTb.Text = $"已旁通: {activePlugin.Name}";
-					_vst3HeaderStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 83, 9));
-					_vst3HeaderStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11));
-					_vst3HeaderStatusPill.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 252, 232));
-					_vst3HeaderStatusPill.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 253, 230, 138));
-				}
-				else
-				{
-					_vst3HeaderStatusTb.Text = $"宿主就绪 · 已发现 {totalCount} 个插件";
-					_vst3HeaderStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229));
-					_vst3HeaderStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229));
-					_vst3HeaderStatusPill.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255));
-					_vst3HeaderStatusPill.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 210, 254));
-				}
-			}
+			int sampleRate = (ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100;
 
 			// 2. Update Hero Card Signal Chain & Telemetry
 			if (_vst3NodeInputSubTb != null)
@@ -962,25 +927,25 @@ public sealed partial class DspPage
 					if (activePlugin.IsActive)
 					{
 						_vst3ActiveStateBadgeTb.Text = "实时运行中";
-						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 21, 128, 61));
-						_vst3ActiveStateBadge.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231));
-						_vst3ActiveStateBadge.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172));
+						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 134, 239, 172) : Windows.UI.Color.FromArgb(255, 21, 128, 61));
+						_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231));
+						_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(90, 134, 239, 172)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172));
 					}
 					else
 					{
 						_vst3ActiveStateBadgeTb.Text = "已旁通 (Bypass)";
-						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 83, 9));
-						_vst3ActiveStateBadge.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199));
-						_vst3ActiveStateBadge.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77));
+						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 253, 224, 71) : Windows.UI.Color.FromArgb(255, 180, 83, 9));
+						_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 245, 158, 11)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199));
+						_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(90, 252, 211, 77)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77));
 					}
 				}
 				else
 				{
 					_vst3ActiveNameTb.Text = "未启用插件 (直通模式)";
 					_vst3ActiveStateBadgeTb.Text = "待命 (直通)";
-					_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105));
-					_vst3ActiveStateBadge.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249));
-					_vst3ActiveStateBadge.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225));
+					_vst3ActiveStateBadgeTb.Foreground = DspTextSubHeaderBrush;
+					_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249));
+					_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(65, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225));
 				}
 			}
 
@@ -1028,22 +993,26 @@ public sealed partial class DspPage
 		{
 			Debug.WriteLine("RefreshVst3RackUi error: " + ex.Message);
 		}
+		finally
+		{
+			_isRefreshingVst3RackUi = false;
+		}
 	}
 
-	private static void UpdateFilterButtonVisual(Button? btn, TextBlock? tb, bool isSelected)
+	private void UpdateFilterButtonVisual(Button? btn, TextBlock? tb, bool isSelected)
 	{
 		if (btn == null || tb == null) return;
 		if (isSelected)
 		{
-			btn.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255));
-			btn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 165, 180, 252));
-			tb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229));
+			btn.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(65, 99, 102, 241)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255));
+			btn.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(140, 165, 180, 252)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 165, 180, 252));
+			tb.Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 224, 231, 255) : Windows.UI.Color.FromArgb(255, 79, 70, 229));
 		}
 		else
 		{
-			btn.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252));
-			btn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240));
-			tb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139));
+			btn.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(35, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252));
+			btn.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240));
+			tb.Foreground = DspTextMutedBrush;
 		}
 	}
 
@@ -1062,8 +1031,8 @@ public sealed partial class DspPage
 		{
 			var emptyBorder = new Border
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(35, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(10),
 				Padding = new Thickness(14, 16, 14, 16),
@@ -1071,7 +1040,7 @@ public sealed partial class DspPage
 				{
 					Text = "暂未配置扫描目录。可点击“恢复默认目录”或“📁 添加扫描目录”。",
 					FontSize = 12,
-					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+					Foreground = DspTextMutedBrush,
 					TextWrapping = TextWrapping.Wrap
 				}
 			};
@@ -1086,8 +1055,8 @@ public sealed partial class DspPage
 
 			var rowBorder = new Border
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(35, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(10),
 				Padding = new Thickness(12, 10, 12, 10)
@@ -1103,9 +1072,9 @@ public sealed partial class DspPage
 			{
 				Glyph = "\uE8B7",
 				FontSize = 15,
-				Foreground = new SolidColorBrush(exists
-					? Windows.UI.Color.FromArgb(255, 79, 70, 229)
-					: Windows.UI.Color.FromArgb(255, 148, 163, 184)),
+				Foreground = exists
+					? new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 79, 70, 229))
+					: DspTextMutedBrush,
 				VerticalAlignment = VerticalAlignment.Top,
 				Margin = new Thickness(0, 2, 0, 0)
 			};
@@ -1117,7 +1086,7 @@ public sealed partial class DspPage
 				Text = currentFolder,
 				FontSize = 12,
 				FontWeight = FontWeights.Medium,
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 30, 41, 59)),
+				Foreground = DspTextPrimaryBrush,
 				TextWrapping = TextWrapping.Wrap
 			};
 			ToolTipService.SetToolTip(pathTb, currentFolder);
@@ -1138,10 +1107,10 @@ public sealed partial class DspPage
 				FontSize = 11,
 				Padding = new Thickness(8, 3, 8, 3),
 				CornerRadius = new CornerRadius(6),
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+				Background = CreateWhiteAcrylicBrush(0.75, 210),
+				BorderBrush = CreateLiquidGlassRimBrush(),
 				BorderThickness = new Thickness(1),
-				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+				Foreground = DspTextSecondaryBrush
 			};
 			btnOpenDir.Click += async (s, e) =>
 			{
@@ -1223,8 +1192,8 @@ public sealed partial class DspPage
 		{
 			var emptyCard = new Border
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(35, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(60, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(12),
 				Padding = new Thickness(24, 28, 24, 28),
@@ -1239,7 +1208,7 @@ public sealed partial class DspPage
 							Text = ViewModel.Vst3Plugins.Count == 0 ? "尚未发现任何 VST3 插件" : "没有符合当前筛选或搜索条件的插件",
 							FontSize = 14,
 							FontWeight = FontWeights.Bold,
-							Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85)),
+							Foreground = DspTextSecondaryBrush,
 							HorizontalAlignment = HorizontalAlignment.Center
 						},
 						new TextBlock
@@ -1248,7 +1217,7 @@ public sealed partial class DspPage
 								? "点击左侧“⚡ 立即扫描全部目录”自动发现系统中的 Steinberg VST3 插件，或点击顶部“➕ 加载 .vst3 文件”直接载入。"
 								: "请尝试清空搜索关键词或切换回“全部插件”视图。",
 							FontSize = 12,
-							Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+							Foreground = DspTextMutedBrush,
 							HorizontalAlignment = HorizontalAlignment.Center,
 							TextWrapping = TextWrapping.Wrap
 						}
@@ -1277,11 +1246,11 @@ public sealed partial class DspPage
 		var slotBorder = new Border
 		{
 			Background = isActive
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 247, 255))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+				? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 79, 70, 229)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 247, 255)))
+				: CreateAcrylicCardBrush(0.78, 220),
 			BorderBrush = isActive
 				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 165, 180, 252))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				: CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(isActive ? 1.5 : 1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(14, 12, 14, 12)
@@ -1304,7 +1273,7 @@ public sealed partial class DspPage
 		{
 			Background = isActive
 				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
+				: (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249))),
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(7, 3, 7, 3),
 			VerticalAlignment = VerticalAlignment.Center,
@@ -1315,7 +1284,7 @@ public sealed partial class DspPage
 				FontWeight = FontWeights.Bold,
 				Foreground = isActive
 					? new SolidColorBrush(Colors.White)
-					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+					: DspTextSubHeaderBrush
 			}
 		};
 		leftStack.Children.Add(indexBadge);
@@ -1348,7 +1317,7 @@ public sealed partial class DspPage
 			Text = string.IsNullOrWhiteSpace(plugin.Name) ? System.IO.Path.GetFileNameWithoutExtension(plugin.Path) : plugin.Name,
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 15, 23, 42)),
+			Foreground = DspTextPrimaryBrush,
 			VerticalAlignment = VerticalAlignment.Center,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		});
@@ -1357,8 +1326,8 @@ public sealed partial class DspPage
 		{
 			nameRow.Children.Add(new Border
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172)),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(50, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 134, 239, 172)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(6),
 				Padding = new Thickness(6, 1, 6, 1),
@@ -1368,7 +1337,7 @@ public sealed partial class DspPage
 					Text = isEditorOpenForThis ? "运行中 · 界面已开" : "运行中",
 					FontSize = 10,
 					FontWeight = FontWeights.Bold,
-					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 21, 128, 61))
+					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94))
 				}
 			});
 		}
@@ -1376,8 +1345,8 @@ public sealed partial class DspPage
 		{
 			nameRow.Children.Add(new Border
 			{
-				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199)),
-				BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77)),
+				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(50, 245, 158, 11)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199)),
+				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(80, 252, 211, 77)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77)),
 				BorderThickness = new Thickness(1),
 				CornerRadius = new CornerRadius(6),
 				Padding = new Thickness(6, 1, 6, 1),
@@ -1387,7 +1356,7 @@ public sealed partial class DspPage
 					Text = "已旁通",
 					FontSize = 10,
 					FontWeight = FontWeights.Bold,
-					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 83, 9))
+					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11))
 				}
 			});
 		}
@@ -1402,7 +1371,7 @@ public sealed partial class DspPage
 		{
 			Text = $"{vendor} · v{version} · {fileName}",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
+			Foreground = DspTextMutedBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
 		};
 		ToolTipService.SetToolTip(subInfoTb, plugin.Path);
@@ -1428,15 +1397,15 @@ public sealed partial class DspPage
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
 			Background = plugin.Enabled
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252)),
+				? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231)))
+				: CreateWhiteAcrylicBrush(0.75, 210),
 			BorderBrush = plugin.Enabled
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225)),
+				? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(100, 134, 239, 172)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172)))
+				: CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			Foreground = plugin.Enabled
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 21, 128, 61))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 51, 65, 85))
+				? new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 134, 239, 172) : Windows.UI.Color.FromArgb(255, 21, 128, 61))
+				: DspTextSecondaryBrush
 		};
 		btnEnable.Click += (s, e) => TogglePluginEnabled(plugin);
 		rightControls.Children.Add(btnEnable);
@@ -1450,34 +1419,40 @@ public sealed partial class DspPage
 			Padding = new Thickness(10, 6, 10, 6),
 			CornerRadius = new CornerRadius(8),
 			Background = plugin.Bypass
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 255, 255)),
+				? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 245, 158, 11)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199)))
+				: CreateWhiteAcrylicBrush(0.75, 210),
 			BorderBrush = plugin.Bypass
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240)),
+				? (IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(100, 252, 211, 77)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77)))
+				: CreateLiquidGlassRimBrush(),
 			BorderThickness = new Thickness(1),
 			Foreground = plugin.Bypass
-				? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 180, 83, 9))
-				: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 71, 85, 105))
+				? new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 253, 224, 71) : Windows.UI.Color.FromArgb(255, 180, 83, 9))
+				: DspTextSubHeaderBrush
 		};
 		btnBypass.Click += (s, e) =>
 		{
+			if (ViewModel == null) return;
 			if (!plugin.Enabled)
 			{
+				DisableOtherVst3Plugins(plugin);
 				plugin.Enabled = true;
 				plugin.Bypass = true;
+				CloseMismatchedVst3Editor(plugin.Path);
 			}
 			else
 			{
-				plugin.Bypass = !plugin.Bypass;
+				bool nextBypass = !plugin.Bypass;
+				if (!nextBypass)
+				{
+					DisableOtherVst3Plugins(plugin);
+					CloseMismatchedVst3Editor(plugin.Path);
+				}
+				plugin.Bypass = nextBypass;
 			}
-			ViewModel?.ApplyVst3Command.Execute(null);
-			if (ViewModel != null)
-			{
-				ViewModel.Vst3StatusText = plugin.Bypass
-					? $"已旁通插件：{plugin.Name}"
-					: $"已恢复插件处理：{plugin.Name}";
-			}
+			ViewModel.ApplyVst3Command.Execute(null);
+			ViewModel.Vst3StatusText = plugin.Bypass
+				? $"已旁通插件：{plugin.Name}"
+				: $"已恢复插件处理：{plugin.Name}";
 			RefreshVst3RackUi();
 		};
 		rightControls.Children.Add(btnBypass);
@@ -1505,23 +1480,41 @@ public sealed partial class DspPage
 		return slotBorder;
 	}
 
+	private void DisableOtherVst3Plugins(Vst3PluginState? keepPlugin)
+	{
+		if (ViewModel == null) return;
+		foreach (var item in ViewModel.Vst3Plugins)
+		{
+			if (item != null && !ReferenceEquals(item, keepPlugin))
+			{
+				item.Enabled = false;
+				item.Bypass = false;
+			}
+		}
+	}
+
+	private void CloseMismatchedVst3Editor(string? keepPluginPath)
+	{
+		if (_vst3EditorWindow == null) return;
+		if (!string.IsNullOrWhiteSpace(keepPluginPath) &&
+			string.Equals(_vst3EditorWindow.PluginPath, keepPluginPath, StringComparison.OrdinalIgnoreCase))
+		{
+			return;
+		}
+		CloseVst3Editor();
+	}
+
 	private void TogglePluginEnabled(Vst3PluginState plugin)
 	{
 		if (ViewModel == null) return;
 		bool targetState = !plugin.Enabled;
 		if (targetState)
 		{
-			// Single active native host slot: disable others so the selected plugin takes the active slot cleanly
-			foreach (var item in ViewModel.Vst3Plugins)
-			{
-				if (item != null && item != plugin)
-				{
-					item.Enabled = false;
-					item.Bypass = false;
-				}
-			}
+			// Single active native host slot: disable others and close any other plugin's GUI before loading the new slot
+			DisableOtherVst3Plugins(plugin);
 			plugin.Enabled = true;
 			plugin.Bypass = false;
+			CloseMismatchedVst3Editor(plugin.Path);
 			ViewModel.Vst3StatusText = $"已启用 VST3 插件：{plugin.Name} ({plugin.Vendor})";
 		}
 		else
@@ -1546,28 +1539,48 @@ public sealed partial class DspPage
 			if (_vst3EditorWindow != null && string.Equals(_vst3EditorWindow.PluginPath, tag.Path, StringComparison.OrdinalIgnoreCase))
 			{
 				_vst3EditorWindow.BringToFront();
+				bool needsActivate = !tag.Enabled || tag.Bypass || ViewModel.Vst3Plugins.Any(p => p != null && !ReferenceEquals(p, tag) && p.Enabled);
+				if (needsActivate)
+				{
+					DisableOtherVst3Plugins(tag);
+					tag.Enabled = true;
+					tag.Bypass = false;
+					ViewModel.ApplyVst3Command.Execute(null);
+				}
 				RefreshVst3RackUi();
 				return;
 			}
-			CloseVst3Editor();
-			int sampleRate = (ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 48000;
+
+			// Snapshot previous state and clear active flags BEFORE closing any old editor window,
+			// so DspPage.CloseVst3Editor -> OnVst3EditorClosed does not re-apply the old plugin mid-switch.
+			var previousStates = ViewModel.Vst3Plugins
+				.Where(p => p != null)
+				.Select(p => (Plugin: p, p.Enabled, p.Bypass))
+				.ToList();
+			if (_vst3EditorWindow != null)
+			{
+				DisableOtherVst3Plugins(null);
+				CloseVst3Editor();
+			}
+
+			int sampleRate = (ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100;
 			Vst3EditorWindow? editor = Vst3EditorWindow.Open(tag.Path, sampleRate, 2, out string error);
 			if (editor == null)
 			{
+				foreach (var prev in previousStates)
+				{
+					bool stillLoaded = !string.IsNullOrWhiteSpace(prev.Plugin.Path) && Vst3NativeHost.Instance.IsLoadedFor(prev.Plugin.Path);
+					prev.Plugin.Enabled = stillLoaded && prev.Enabled;
+					prev.Plugin.Bypass = stillLoaded && prev.Bypass;
+				}
+				ViewModel.ApplyVst3Command.Execute(null);
 				ViewModel.Vst3StatusText = "打开插件界面失败：" + error;
 				RefreshVst3RackUi();
 				return;
 			}
 			_vst3EditorWindow = editor;
 			editor.Closed += () => OnVst3EditorClosed(editor);
-			foreach (Vst3PluginState vst3Plugin in ViewModel.Vst3Plugins)
-			{
-				if (vst3Plugin != null && vst3Plugin != tag)
-				{
-					vst3Plugin.Enabled = false;
-					vst3Plugin.Bypass = false;
-				}
-			}
+			DisableOtherVst3Plugins(tag);
 			tag.Enabled = true;
 			tag.Bypass = false;
 			ViewModel.ApplyVst3Command.Execute(null);
@@ -1606,7 +1619,13 @@ public sealed partial class DspPage
 			RefreshVst3RackUi();
 			return;
 		}
-		active.Bypass = !active.Bypass;
+		bool nextBypass = !active.Bypass;
+		if (!nextBypass)
+		{
+			DisableOtherVst3Plugins(active);
+			CloseMismatchedVst3Editor(active.Path);
+		}
+		active.Bypass = nextBypass;
 		ViewModel.ApplyVst3Command.Execute(null);
 		ViewModel.Vst3StatusText = active.Bypass
 			? $"已旁通当前插件：{active.Name}"
@@ -1617,17 +1636,13 @@ public sealed partial class DspPage
 	private void OnHeroUnloadAllClick(object sender, RoutedEventArgs e)
 	{
 		if (ViewModel == null) return;
+		DisableOtherVst3Plugins(null);
 		CloseVst3Editor();
-		foreach (var p in ViewModel.Vst3Plugins)
-		{
-			if (p != null)
-			{
-				p.Enabled = false;
-				p.Bypass = false;
-			}
-		}
-		Vst3NativeHost.Instance.Unload();
 		ViewModel.ApplyVst3Command.Execute(null);
+		if (Vst3NativeHost.Instance.IsLoaded)
+		{
+			Vst3NativeHost.Instance.Unload();
+		}
 		ViewModel.Vst3StatusText = "已全部停用并卸载 VST3 原生宿主，音频恢复直通";
 		RefreshVst3RackUi();
 	}

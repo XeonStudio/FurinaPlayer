@@ -76,7 +76,7 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 		// Grid & Guide Paints
 		using var polarGridPaint = new SKPaint
 		{
-			Color = new SKColor(38, 45, 54, 180),
+			Color = new SKColor(58, 69, 84, 190),
 			Style = SKPaintStyle.Stroke,
 			StrokeWidth = 1f,
 			IsAntialias = true
@@ -84,7 +84,7 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 
 		using var axisPaint = new SKPaint
 		{
-			Color = new SKColor(48, 56, 68),
+			Color = new SKColor(76, 90, 108),
 			Style = SKPaintStyle.Stroke,
 			StrokeWidth = 1f,
 			IsAntialias = true
@@ -92,7 +92,7 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 
 		using var stereoAxisPaint = new SKPaint
 		{
-			Color = new SKColor(58, 197, 236, 120), // #3ac5ec with alpha
+			Color = new SKColor(58, 197, 236, 155), // #3ac5ec with alpha
 			Style = SKPaintStyle.Stroke,
 			StrokeWidth = 1.2f,
 			IsAntialias = true
@@ -100,14 +100,14 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 
 		using var textPaint = new SKPaint
 		{
-			Color = new SKColor(127, 140, 155),
+			Color = new SKColor(203, 213, 225), // #CBD5E1 high contrast on #16191d
 			TextSize = 10f,
 			IsAntialias = true
 		};
 
 		using var labelPaint = new SKPaint
 		{
-			Color = new SKColor(58, 197, 236),
+			Color = new SKColor(125, 211, 252), // #7DD3FC
 			TextSize = 11f,
 			IsAntialias = true,
 			FakeBoldText = true
@@ -176,7 +176,7 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 		// Track
 		using var meterTrackPaint = new SKPaint
 		{
-			Color = new SKColor(32, 38, 46),
+			Color = new SKColor(46, 55, 68),
 			Style = SKPaintStyle.Fill,
 			IsAntialias = true
 		};
@@ -218,9 +218,10 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 		string infoText = $"相位差: {_phaseDifference:F1}°   相关度: {_stereoCorrelation:+0.00;-0.00;0.00}";
 		using var hudTextPaint = new SKPaint
 		{
-			Color = new SKColor(160, 175, 192),
+			Color = new SKColor(226, 232, 240), // #E2E8F0 high contrast on #16191d
 			TextSize = 10f,
-			IsAntialias = true
+			IsAntialias = true,
+			Typeface = WaveformControl.CjkTypeface
 		};
 		float hudWidth = hudTextPaint.MeasureText(infoText);
 		canvas.DrawText(infoText, plotW - hudWidth - 8f, height - 8f, hudTextPaint);

@@ -4,11 +4,13 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using SonicWave.Audio;
+using SonicWave.Audio.Decoders;
 using SonicWave.Core.Models;
 using SonicWave.Core.Services;
 
@@ -76,8 +78,22 @@ public class StreamingViewModel : ObservableObject
 	private readonly AudioEngine _engine;
 	private readonly LibraryService? _library;
 	private readonly AlbumArtService? _albumArt;
+	private readonly SettingsService? _settingsService;
 	private readonly StreamingService _streamingService;
+	public StreamingService StreamingService => _streamingService;
 	private readonly DispatcherQueue? _dispatcherQueue;
+
+	public AppSettings? GetCurrentSettings()
+	{
+		try
+		{
+			return (_settingsService ?? new SettingsService()).Load();
+		}
+		catch
+		{
+			return null;
+		}
+	}
 
 	public event Action? AccountStateChanged;
 
@@ -199,6 +215,7 @@ public class StreamingViewModel : ObservableObject
 	public ObservableCollection<StreamingItemViewModel> Results { get; } = new();
 
 	private int _currentOffset = 0;
+	private int _searchRequestSeq = 0;
 	private const int PageSize = 25;
 
 	public StreamingViewModel(AudioEngine engine, LibraryService? library = null, AlbumArtService? albumArt = null, SettingsService? settingsService = null)
@@ -206,6 +223,7 @@ public class StreamingViewModel : ObservableObject
 		_engine = engine;
 		_library = library;
 		_albumArt = albumArt;
+		_settingsService = settingsService;
 		_streamingService = new StreamingService(settingsService);
 
 		try
@@ -472,8 +490,15 @@ public class StreamingViewModel : ObservableObject
 		string q = (query ?? SearchQuery).Trim();
 		if (string.IsNullOrWhiteSpace(q)) return;
 
+		int requestSeq = Interlocked.Increment(ref _searchRequestSeq);
+		string targetTab = SelectedTab;
+		string targetPlatform = SelectedPlatform;
+		string targetQuality = SelectedQuality;
+		int requestOffset = isNew ? 0 : _currentOffset;
+
 		RunOnUi(() =>
 		{
+			if (requestSeq != _searchRequestSeq) return;
 			SearchQuery = q;
 			if (isNew)
 			{
@@ -489,7 +514,7 @@ public class StreamingViewModel : ObservableObject
 
 		try
 		{
-			int searchType = SelectedTab switch
+			int searchType = targetTab switch
 			{
 				"专辑" => 10,
 				"艺人" => 100,
@@ -497,10 +522,11 @@ public class StreamingViewModel : ObservableObject
 				_ => 1
 			};
 
-			var items = await _streamingService.SearchOnlineTracksAsync(q, offset: _currentOffset, limit: PageSize, searchType: searchType, platform: SelectedPlatform, quality: SelectedQuality);
+			var items = await _streamingService.SearchOnlineTracksAsync(q, offset: requestOffset, limit: PageSize, searchType: searchType, platform: targetPlatform, quality: targetQuality);
 
 			RunOnUi(() =>
 			{
+				if (requestSeq != _searchRequestSeq) return;
 				if (isNew) Results.Clear();
 
 				int startIdx = Results.Count + 1;
@@ -519,13 +545,26 @@ public class StreamingViewModel : ObservableObject
 					});
 				}
 
-				_currentOffset += items.Count;
-				StatusMessage = $"已检索到 {Results.Count} 首高品质流媒体曲目 · 数据来源于 {SelectedPlatform}";
+				_currentOffset = requestOffset + items.Count;
+				string unitLabel = targetTab switch
+				{
+					"专辑" => "张专辑",
+					"艺人" => "位艺人",
+					"歌单" => "个歌单",
+					_ => "首高品质流媒体曲目"
+				};
+				StatusMessage = $"已检索到 {Results.Count} {unitLabel} · 数据来源于 {targetPlatform}";
 			});
 		}
 		finally
 		{
-			RunOnUi(() => IsSearching = false);
+			RunOnUi(() =>
+			{
+				if (requestSeq == _searchRequestSeq)
+				{
+					IsSearching = false;
+				}
+			});
 		}
 	}
 
@@ -535,20 +574,109 @@ public class StreamingViewModel : ObservableObject
 		await SearchAsync(SearchQuery, isNew: false);
 	}
 
+	private int _playRequestSeq;
+	private CancellationTokenSource? _playRequestCts;
+
 	public async Task PlayTrackAsync(StreamingItemViewModel? item)
 	{
 		if (item == null) return;
 
-		// 尝试解析真实高保真/VIP播放流 (携带已登录凭据认证)
+		int requestSeq = Interlocked.Increment(ref _playRequestSeq);
+		CancellationTokenSource cts = new CancellationTokenSource();
+		CancellationTokenSource? prevCts = Interlocked.Exchange(ref _playRequestCts, cts);
+		try { prevCts?.Cancel(); prevCts?.Dispose(); } catch { }
+		CancellationToken ct = cts.Token;
+
+		// 1. 若用户点击非单曲项（专辑/艺人/歌单），自动解析其首曲；杜绝直接送入解码器
+		if (StreamingService.IsCollectionItem(item.RawInfo))
+		{
+			StatusMessage = $"正在解析《{item.Title}》中的首首曲目...";
+			try
+			{
+				var firstTrack = await _streamingService.ResolveCollectionFirstTrackAsync(item.RawInfo);
+				if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
+				if (firstTrack != null && !StreamingService.IsCollectionItem(firstTrack))
+				{
+					StatusMessage = $"已自动解析《{item.Title}》首曲：《{firstTrack.Title}》，准备播放...";
+					item = new StreamingItemViewModel
+					{
+						DisplayIndex = item.DisplayIndex,
+						Id = firstTrack.Id,
+						Title = firstTrack.Title,
+						ArtistAndAlbum = $"{firstTrack.Artist} / {firstTrack.Album}",
+						CoverUrl = firstTrack.CoverUrl ?? item.CoverUrl,
+						SourceAndQuality = firstTrack.Quality,
+						DurationText = firstTrack.Duration.TotalSeconds > 0 ? firstTrack.Duration.ToString("m\\:ss") : "--:--",
+						RawInfo = firstTrack
+					};
+				}
+				else
+				{
+					StatusMessage = $"提示：《{item.Title}》为集合项（专辑/艺人），未包含可解析单曲，无法作为单曲直接播放。";
+					return;
+				}
+			}
+			catch (Exception ex)
+			{
+				if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
+				StatusMessage = $"解析《{item.Title}》首曲失败: {ex.Message}，已杜绝直接送入解码器。";
+				return;
+			}
+		}
+
+		// 2. 二次防线：若 StreamUrl 依然为非音频流的网页链接，坚决杜绝送入解码器
+		if (StreamAudioCache.IsNonPlayableWebUrl(item.RawInfo.StreamUrl))
+		{
+			StatusMessage = $"提示：《{item.Title}》的串流地址为网页页面，无法作为单曲直接播放。";
+			return;
+		}
+
+		// 3. 尝试解析真实高保真/VIP播放流 (携带已登录凭据认证)
+		StatusMessage = $"正在解析与准备《{item.Title}》...";
+		string resolvedStreamUrl = item.RawInfo.StreamUrl;
 		try
 		{
-			string realStreamUrl = await _streamingService.ResolvePlayUrlAsync(item.Id, item.RawInfo.Source);
+			string realStreamUrl = await _streamingService.ResolvePlayUrlAsync(item.Id, item.RawInfo.Source, ct);
+			if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
 			if (!string.IsNullOrEmpty(realStreamUrl) && Uri.IsWellFormedUriString(realStreamUrl, UriKind.Absolute))
 			{
+				resolvedStreamUrl = realStreamUrl;
 				item.RawInfo.StreamUrl = realStreamUrl;
 			}
 		}
-		catch { }
+		catch
+		{
+			if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
+		}
+
+		// 4. 后台异步缓冲网络音频流至本地缓存（不覆盖原 URL，不阻塞 UI 线程）
+		string? cachedLocalAudioPath = null;
+		if (StreamAudioCache.IsNetworkUrl(resolvedStreamUrl))
+		{
+			if (StreamAudioCache.TryGetCachedFilePathIfReady(resolvedStreamUrl, out string instantPath) && File.Exists(instantPath))
+			{
+				cachedLocalAudioPath = instantPath;
+			}
+			else
+			{
+				StatusMessage = $"正在缓冲《{item.Title}》...";
+				try
+				{
+					var (cached, localPath) = await StreamAudioCache.TryGetOrDownloadCachedFileAsync(resolvedStreamUrl, timeoutMs: 8000, ct);
+					if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
+					if (cached && File.Exists(localPath))
+					{
+						cachedLocalAudioPath = localPath;
+					}
+				}
+				catch
+				{
+					if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
+				}
+			}
+		}
+
+		if (requestSeq != Volatile.Read(ref _playRequestSeq) || ct.IsCancellationRequested) return;
 
 		string coverDir = _library?.CoverDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer", "covers");
 		try { Directory.CreateDirectory(coverDir); } catch { }
@@ -556,6 +684,10 @@ public class StreamingViewModel : ObservableObject
 
 		string? initialCover = File.Exists(coverFile) ? coverFile : (!string.IsNullOrEmpty(item.CoverUrl) ? item.CoverUrl : null);
 		Track track = _streamingService.ToTrack(item.RawInfo, initialCover);
+		if (!string.IsNullOrEmpty(cachedLocalAudioPath))
+		{
+			track.FilePath = cachedLocalAudioPath;
+		}
 
 		if (string.IsNullOrWhiteSpace(track.Title)) track.Title = item.Title;
 		if (string.IsNullOrWhiteSpace(track.Artist)) track.Artist = item.RawInfo.Artist;
@@ -578,8 +710,8 @@ public class StreamingViewModel : ObservableObject
 					try
 					{
 						using var hc = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-						var bytes = await hc.GetByteArrayAsync(item.CoverUrl);
-						await File.WriteAllBytesAsync(coverFile, bytes);
+						var bytes = await hc.GetByteArrayAsync(item.CoverUrl, ct);
+						await File.WriteAllBytesAsync(coverFile, bytes, ct);
 						track.CoverPath = coverFile;
 						if (_engine.CurrentTrack?.Id == track.Id)
 						{
@@ -587,17 +719,60 @@ public class StreamingViewModel : ObservableObject
 						}
 					}
 					catch { }
-				});
+				}, ct);
 			}
 		}
 
-		_engine.PlayTrack(track);
-		await Task.CompletedTask;
+		await _engine.PlayTrackAsync(track, ct);
+		if (requestSeq == Volatile.Read(ref _playRequestSeq) && !ct.IsCancellationRequested && _engine.State != SonicWave.Audio.PlaybackState.Error)
+		{
+			StatusMessage = $"正在播放《{track.Title}》 - {track.Artist}";
+		}
 	}
 
 	public async Task AddToQueueAsync(StreamingItemViewModel? item)
 	{
 		if (item == null) return;
+
+		// 若为合集项，尝试解析首曲后再加入队列
+		if (StreamingService.IsCollectionItem(item.RawInfo))
+		{
+			try
+			{
+				var firstTrack = await _streamingService.ResolveCollectionFirstTrackAsync(item.RawInfo);
+				if (firstTrack != null && !StreamingService.IsCollectionItem(firstTrack))
+				{
+					item = new StreamingItemViewModel
+					{
+						DisplayIndex = item.DisplayIndex,
+						Id = firstTrack.Id,
+						Title = firstTrack.Title,
+						ArtistAndAlbum = $"{firstTrack.Artist} / {firstTrack.Album}",
+						CoverUrl = firstTrack.CoverUrl ?? item.CoverUrl,
+						SourceAndQuality = firstTrack.Quality,
+						DurationText = firstTrack.Duration.TotalSeconds > 0 ? firstTrack.Duration.ToString("m\\:ss") : "--:--",
+						RawInfo = firstTrack
+					};
+				}
+				else
+				{
+					StatusMessage = $"提示：《{item.Title}》为集合项，无法直接加入单曲播放队列。";
+					return;
+				}
+			}
+			catch
+			{
+				StatusMessage = $"提示：《{item.Title}》为集合项，解析首曲失败，无法加入队列。";
+				return;
+			}
+		}
+
+		if (StreamAudioCache.IsNonPlayableWebUrl(item.RawInfo.StreamUrl))
+		{
+			StatusMessage = $"提示：《{item.Title}》为网页地址，无法作为单曲加入播放队列。";
+			return;
+		}
+
 		string coverDir = _library?.CoverDirectory ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer", "covers");
 		string coverFile = Path.Combine(coverDir, $"stream_{Math.Abs(item.Id)}.jpg");
 		string? initialCover = File.Exists(coverFile) ? coverFile : (!string.IsNullOrEmpty(item.CoverUrl) ? item.CoverUrl : null);
@@ -618,7 +793,47 @@ public class StreamingViewModel : ObservableObject
 
 	public async Task DownloadTrackAsync(StreamingItemViewModel? item)
 	{
-		if (item == null || string.IsNullOrEmpty(item.RawInfo.StreamUrl)) return;
+		if (item == null) return;
+
+		// 若为合集项，尝试解析首曲后再下载
+		if (StreamingService.IsCollectionItem(item.RawInfo))
+		{
+			try
+			{
+				var firstTrack = await _streamingService.ResolveCollectionFirstTrackAsync(item.RawInfo);
+				if (firstTrack != null && !StreamingService.IsCollectionItem(firstTrack))
+				{
+					item = new StreamingItemViewModel
+					{
+						DisplayIndex = item.DisplayIndex,
+						Id = firstTrack.Id,
+						Title = firstTrack.Title,
+						ArtistAndAlbum = $"{firstTrack.Artist} / {firstTrack.Album}",
+						CoverUrl = firstTrack.CoverUrl ?? item.CoverUrl,
+						SourceAndQuality = firstTrack.Quality,
+						DurationText = firstTrack.Duration.TotalSeconds > 0 ? firstTrack.Duration.ToString("m\\:ss") : "--:--",
+						RawInfo = firstTrack
+					};
+				}
+				else
+				{
+					StatusMessage = $"提示：《{item.Title}》为集合项，无法直接下载为单曲文件。";
+					return;
+				}
+			}
+			catch
+			{
+				StatusMessage = $"提示：《{item.Title}》为集合项，解析首曲失败，无法下载。";
+				return;
+			}
+		}
+
+		if (string.IsNullOrEmpty(item.RawInfo.StreamUrl) || StreamAudioCache.IsNonPlayableWebUrl(item.RawInfo.StreamUrl))
+		{
+			StatusMessage = $"提示：《{item.Title}》的串流地址非有效音频流，无法直接下载。";
+			return;
+		}
+
 		try
 		{
 			StatusMessage = $"正在缓冲与下载《{item.Title}》...";

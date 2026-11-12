@@ -16,7 +16,7 @@ public sealed class ParametricEqCurveControl : UserControl
 	private int _selectedBandIndex = 0;
 	private double _preampDb = 0.0;
 	private double _dbRange = 12.0; // ±12 dB
-	private bool _showSpectrum = false;
+	private bool _showSpectrum = true;
 	private float[]? _spectrumData;
 
 	private int _draggingBandIndex = -1;
@@ -229,7 +229,8 @@ public sealed class ParametricEqCurveControl : UserControl
 			Color = new SKColor(100, 116, 139), // Slate 500
 			TextSize = 10.5f,
 			IsAntialias = true,
-			FakeBoldText = true
+			FakeBoldText = true,
+			Typeface = WaveformControl.CjkTypeface
 		};
 
 		foreach (var r in regions)
@@ -242,6 +243,42 @@ public sealed class ParametricEqCurveControl : UserControl
 			float tw = regionTextPaint.MeasureText(r.Name);
 			float center = (x1 + x2) / 2f - tw / 2f;
 			canvas.DrawText(r.Name, center, padTop - 10f, regionTextPaint);
+		}
+
+		// 1b. Optional real-time spectrum backdrop
+		if (_showSpectrum && _spectrumData != null && _spectrumData.Length > 1)
+		{
+			using var specPath = new SKPath();
+			int n = _spectrumData.Length;
+			for (int i = 0; i < n; i++)
+			{
+				float normX = (float)i / (n - 1);
+				float x = padLeft + normX * plotW;
+				float mag01 = Math.Clamp(_spectrumData[i], 0f, 1f);
+				float y = padTop + (1f - mag01 * 0.85f) * plotH;
+				if (i == 0) specPath.MoveTo(x, y);
+				else specPath.LineTo(x, y);
+			}
+			using var specFillPath = new SKPath(specPath);
+			specFillPath.LineTo(padLeft + plotW, padTop + plotH);
+			specFillPath.LineTo(padLeft, padTop + plotH);
+			specFillPath.Close();
+
+			using var specFillPaint = new SKPaint
+			{
+				Color = new SKColor(14, 165, 233, 38),
+				Style = SKPaintStyle.Fill,
+				IsAntialias = true
+			};
+			using var specStrokePaint = new SKPaint
+			{
+				Color = new SKColor(14, 165, 233, 140),
+				Style = SKPaintStyle.Stroke,
+				StrokeWidth = 1.3f,
+				IsAntialias = true
+			};
+			canvas.DrawPath(specFillPath, specFillPaint);
+			canvas.DrawPath(specPath, specStrokePaint);
 		}
 
 		// 2. Frequency Vertical Grid Lines
@@ -259,7 +296,8 @@ public sealed class ParametricEqCurveControl : UserControl
 		{
 			Color = new SKColor(71, 85, 105), // Slate 600
 			TextSize = 10f,
-			IsAntialias = true
+			IsAntialias = true,
+			Typeface = WaveformControl.CjkTypeface
 		};
 
 		for (int i = 0; i < freqTicks.Length; i++)

@@ -2,7 +2,10 @@
 using System.IO;
 using SonicWave.Audio;
 using SonicWave.Audio.Decoders;
+using System.Threading;
 using SonicWave.Audio.Dsp;
+using SonicWave.Audio.Renderers;
+using SonicWave.Core.Models;
 
 namespace EchoDspTests;
 
@@ -31,6 +34,7 @@ public static class NewFeatureTests
 		TestStreamAudioCacheAndDawEnvelope();
 		TestEchoAppearanceAndThemePersistence();
 		TestVst3RackVendorAndManager();
+		TestQQMusicAuthHelper();
 
 		Console.WriteLine("=================================================");
 		Console.WriteLine("  All New Feature Tests Passed Successfully!     ");
@@ -874,5 +878,754 @@ public static class NewFeatureTests
 			throw new Exception($"Legacy VST3 vendor failed to upgrade during Merge: '{merged[0].Vendor}'");
 
 		Console.WriteLine($"[PASS] Vst3Manager accurately resolved vendors ({p1.Vendor}, {p2.Vendor}, {p3.Vendor}) and upgraded legacy saved states");
+	}
+
+	private static void TestQQMusicAuthHelper()
+	{
+		Console.WriteLine("--- Testing QQ Music Auth Helper (OAuth/WeChat URLs & Cookie Extraction) ---");
+
+		if (SonicWave.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl.Contains("which=error", StringComparison.OrdinalIgnoreCase) ||
+			!SonicWave.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl.Contains("client_id=100497308", StringComparison.Ordinal) ||
+			!SonicWave.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl.Contains("wx_redirect.html", StringComparison.Ordinal))
+		{
+			throw new Exception("QQLoginAuthorizeUrl is malformed");
+		}
+
+		if (!SonicWave.Core.Services.QQMusicAuthHelper.WeChatLoginQrUrl.Contains("appid=wx48db31d50e334801", StringComparison.Ordinal) ||
+			!SonicWave.Core.Services.QQMusicAuthHelper.WeChatLoginQrUrl.Contains("wx_redirect.html", StringComparison.Ordinal))
+		{
+			throw new Exception("WeChatLoginQrUrl is malformed");
+		}
+
+		// 1. Intermediate ptlogin2 cookies on graph.qq.com must NOT trigger premature completion
+		var intermediateCookies = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+		{
+			["uin"] = "o0100012345",
+			["p_skey"] = "temp_pskey_only",
+			["skey"] = "@tempSkey"
+		};
+		if (SonicWave.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
+				intermediateCookies,
+				"https://graph.qq.com/oauth2.0/show?which=Login&client_id=100497308",
+				out _,
+				out _))
+		{
+			throw new Exception("Should not accept intermediate graph.qq.com p_skey before wx_redirect finishes");
+		}
+
+		// 2. Final qqmusic_key / qm_keyst with o-prefixed UIN must extract clean numeric UIN
+		var qqFinalCookies = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+		{
+			["uin"] = "o0100012345",
+			["qqmusic_key"] = "Q_H_L_REAL_MUSIC_KEY_123",
+			["qm_keyst"] = "Q_H_L_REAL_MUSIC_KEY_123"
+		};
+		if (!SonicWave.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
+				qqFinalCookies,
+				"https://y.qq.com/",
+				out string qqUserId,
+				out string qqHeader) ||
+			qqUserId != "100012345" ||
+			!qqHeader.Contains("qqmusic_key=Q_H_L_REAL_MUSIC_KEY_123", StringComparison.Ordinal))
+		{
+			throw new Exception($"Expected QQ userId 100012345, got '{qqUserId}'");
+		}
+
+		// 3. WeChat login cookies (wxuin / euin + qqmusic_key)
+		var wxFinalCookies = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+		{
+			["wxuin"] = "1152921504606846977",
+			["qqmusic_key"] = "W_X_WECHAT_MUSIC_KEY",
+			["wxopenid"] = "o_wechat_openid_123"
+		};
+		if (!SonicWave.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
+				wxFinalCookies,
+				"https://y.qq.com/",
+				out string wxUserId,
+				out string wxHeader) ||
+			wxUserId != "1152921504606846977" ||
+			!wxHeader.Contains("uin=o1152921504606846977", StringComparison.Ordinal))
+		{
+			throw new Exception($"Expected WeChat numeric wxuin, got '{wxUserId}' / '{wxHeader}'");
+		}
+
+		// 4. StreamingService VerifyAndFetchQQAccountAsync handles o-prefixed UIN and rejects garbage
+		string tempSettingsFile = Path.Combine(Path.GetTempPath(), $"furina_qq_test_{Guid.NewGuid():N}.json");
+		try
+		{
+			var svc = new SonicWave.Core.Services.StreamingService(new SonicWave.Core.Services.SettingsService(tempSettingsFile));
+			var oPrefixed = svc.VerifyAndFetchQQAccountAsync("uin=o0100012345; qqmusic_key=Q_H_L_TEST;").GetAwaiter().GetResult();
+			if (oPrefixed == null || !oPrefixed.IsLoggedIn || oPrefixed.UserIdStr != "100012345")
+				throw new Exception($"o-prefixed UIN verification failed: {oPrefixed?.UserIdStr}");
+
+			var invalid = svc.VerifyAndFetchQQAccountAsync("not_a_valid_cookie").GetAwaiter().GetResult();
+			if (invalid != null)
+				throw new Exception("Garbage cookie string should have been rejected");
+		}
+		finally
+		{
+			try { if (File.Exists(tempSettingsFile)) File.Delete(tempSettingsFile); } catch { }
+		}
+
+		Console.WriteLine("[PASS] QQMusicAuthHelper & o-prefixed/WeChat QQ cookie parsing verified");
+	}
+
+	private static Action<bool, string> ResolveAssert(Action<bool, string>? assert)
+	{
+		return assert ?? ((condition, name) =>
+		{
+			if (!condition)
+			{
+				throw new Exception(name);
+			}
+			Console.WriteLine($"[PASS] {name}");
+		});
+	}
+
+	private static bool AreAllFinite(double[] values)
+	{
+		for (int i = 0; i < values.Length; i++)
+		{
+			if (!double.IsFinite(values[i]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static bool AreAllFinite(float[] values)
+	{
+		for (int i = 0; i < values.Length; i++)
+		{
+			if (!float.IsFinite(values[i]))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static void WriteSyntheticStereoWav(
+		string path,
+		int sampleRate,
+		double durationSeconds,
+		double leftFreqHz,
+		double rightFreqHz,
+		double amplitude)
+	{
+		const int channels = 2;
+		const int bitsPerSample = 16;
+		int frames = Math.Max(1, (int)Math.Round(sampleRate * durationSeconds));
+		int byteRate = sampleRate * channels * (bitsPerSample / 8);
+		int dataSize = frames * channels * (bitsPerSample / 8);
+
+		using var fs = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+		using var bw = new BinaryWriter(fs);
+		bw.Write(System.Text.Encoding.ASCII.GetBytes("RIFF"));
+		bw.Write(36 + dataSize);
+		bw.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt "));
+		bw.Write(16);
+		bw.Write((short)1);
+		bw.Write((short)channels);
+		bw.Write(sampleRate);
+		bw.Write(byteRate);
+		bw.Write((short)(channels * (bitsPerSample / 8)));
+		bw.Write((short)bitsPerSample);
+		bw.Write(System.Text.Encoding.ASCII.GetBytes("data"));
+		bw.Write(dataSize);
+
+		double amp = Math.Clamp(amplitude, 0.0, 0.99) * 32767.0;
+		for (int i = 0; i < frames; i++)
+		{
+			double t = (double)i / sampleRate;
+			short l = (short)Math.Round(Math.Sin(2.0 * Math.PI * leftFreqHz * t) * amp);
+			short r = (short)Math.Round(Math.Sin(2.0 * Math.PI * rightFreqHz * t) * amp);
+			bw.Write(l);
+			bw.Write(r);
+		}
+	}
+
+	public static void TestLibVlcTranscoderAndOggWaveform(Action<bool, string>? assert = null)
+	{
+		var check = ResolveAssert(assert);
+		Console.WriteLine("\n--- Testing LibVlcPcmTranscoder & OGG Waveform Decoding ---");
+
+		check(LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(".ogg"),
+			"LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(\".ogg\") == true");
+
+		check(!LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(".flac")
+			&& !LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(".wav")
+			&& !LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension(".mp3"),
+			"LibVlcPcmTranscoder.NeedsLibVlcFallbackExtension false for .flac/.wav/.mp3");
+
+		bool leakedException = false;
+		bool decodeMissing = false;
+		string decodedOut = string.Empty;
+		try
+		{
+			decodeMissing = LibVlcPcmTranscoder.TryDecodeToWav("nonexistent.ogg", out decodedOut);
+		}
+		catch
+		{
+			leakedException = true;
+		}
+		check(!leakedException && !decodeMissing && string.IsNullOrEmpty(decodedOut),
+			"LibVlcPcmTranscoder.TryDecodeToWav(\"nonexistent.ogg\") returns false without throwing");
+
+		const string sampleOggPath = @"C:\Users\Xeon\Music\Cassie Wei&HOYO-MiX - Ripples of Past Reverie [mqms2].ogg";
+		if (File.Exists(sampleOggPath))
+		{
+			using var reader = new SafeAudioFileReader(sampleOggPath);
+			check(reader.WaveFormat.SampleRate > 0 && reader.WaveFormat.Channels > 0,
+				$"SafeAudioFileReader opened OGG cleanly ({reader.WaveFormat.SampleRate} Hz, {reader.WaveFormat.Channels} ch)");
+
+			var env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(sampleOggPath, 512);
+			bool shapeValid = env != null
+				&& env.Peak.Length == 512
+				&& env.Rms.Length == 512
+				&& env.LeftMin.Length == 512
+				&& env.LeftMax.Length == 512;
+
+			float maxPeak = 0f;
+			bool noNonFinite = false;
+			if (env != null && shapeValid)
+			{
+				noNonFinite = AreAllFinite(env.Peak)
+					&& AreAllFinite(env.Rms)
+					&& AreAllFinite(env.LeftMin)
+					&& AreAllFinite(env.LeftMax);
+				for (int i = 0; i < env.Peak.Length; i++)
+				{
+					if (env.Peak[i] > maxPeak) maxPeak = env.Peak[i];
+				}
+			}
+
+			check(shapeValid && maxPeak > 0.001f && noNonFinite,
+				$"WaveformRenderer.ComputeAuditionEnvelopeFromFile OGG envelope valid (Peak.Length={env?.Peak.Length ?? 0}, maxPeak={maxPeak:F4}, allFinite={noNonFinite})");
+		}
+		else
+		{
+			Console.WriteLine($"[INFO] Sample OGG file not found at '{sampleOggPath}'; skipping live OGG decode assertions.");
+		}
+	}
+
+	public static void TestAudioSessionSwitchAndMeterInvariants(Action<bool, string>? assert = null)
+	{
+		var check = ResolveAssert(assert);
+		Console.WriteLine("\n--- Testing AudioSession Queue Switching & Live Meter Invariants ---");
+
+		string wavA = Path.Combine(Path.GetTempPath(), $"echo_session_a_{Guid.NewGuid():N}.wav");
+		string wavB = Path.Combine(Path.GetTempPath(), $"echo_session_b_{Guid.NewGuid():N}.wav");
+
+		static bool ValidateSessionMeters(AudioSession session, out string summary)
+		{
+			var meters = session.GetLiveAudioMeters();
+			double inputPeak = session.LatestInputPeakDb;
+			double truePeak = session.LatestTruePeakDb;
+
+			bool finiteScalars = double.IsFinite(meters.PeakDb)
+				&& double.IsFinite(meters.RmsDb)
+				&& double.IsFinite(inputPeak)
+				&& double.IsFinite(truePeak)
+				&& float.IsFinite(meters.StereoBalance)
+				&& float.IsFinite(meters.PhaseCorrelation);
+
+			bool boundedStereo = meters.PhaseCorrelation >= -1.0f && meters.PhaseCorrelation <= 1.0f
+				&& meters.StereoBalance >= -1.0f && meters.StereoBalance <= 1.0f;
+
+			bool finiteArrays = AreAllFinite(meters.Bands) && AreAllFinite(meters.VectorPoints);
+
+			summary = $"Peak={meters.PeakDb:F1}dB, Rms={meters.RmsDb:F1}dB, In={inputPeak:F1}dB, TP={truePeak:F1}dB, Corr={meters.PhaseCorrelation:F3}";
+			return finiteScalars && boundedStereo && finiteArrays;
+		}
+
+		try
+		{
+			WriteSyntheticStereoWav(wavA, 48000, 1.5, 440.0, 440.0, 0.25);
+			WriteSyntheticStereoWav(wavB, 48000, 1.5, 880.0, 660.0, 0.25);
+
+			var env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(wavA, 512);
+			float synthMaxPeak = 0f;
+			if (env != null)
+			{
+				for (int i = 0; i < env.Peak.Length; i++)
+				{
+					if (env.Peak[i] > synthMaxPeak) synthMaxPeak = env.Peak[i];
+				}
+			}
+			check(env != null && env.Peak.Length == 512 && synthMaxPeak > 0.1f && AreAllFinite(env.Peak),
+				$"WaveformRenderer.ComputeAuditionEnvelopeFromFile synthetic WAV valid (Peak.Length={env?.Peak.Length ?? 0}, maxPeak={synthMaxPeak:F3})");
+
+			using var engine = new AudioEngine();
+			AudioSession session = engine.Session;
+			session.Volume = 0;
+
+			var trackA = new Track
+			{
+				Id = 91001,
+				FilePath = wavA,
+				Title = "Synthetic Tone A",
+				SampleRate = 48000,
+				BitDepth = 16,
+				DurationMilliseconds = 1500
+			};
+			var trackB = new Track
+			{
+				Id = 91002,
+				FilePath = wavB,
+				Title = "Synthetic Tone B",
+				SampleRate = 48000,
+				BitDepth = 16,
+				DurationMilliseconds = 1500
+			};
+
+			session.SetQueue(new[] { trackA, trackB }, 0);
+			bool initMetersOk = ValidateSessionMeters(session, out string initSummary);
+			check(session.Queue.Count == 2 && session.QueueIndex == 0 && initMetersOk,
+				$"AudioSession.SetQueue initialized 2 tracks with finite meters ({initSummary})");
+
+			session.PlayTrack(trackA);
+			Thread.Sleep(60);
+			bool playMetersOk = ValidateSessionMeters(session, out string playSummary);
+			check(session.CurrentTrack?.Id == trackA.Id && playMetersOk,
+				$"AudioSession.PlayTrack(A) meter invariants valid ({playSummary})");
+
+			bool nextOk = session.Next();
+			Thread.Sleep(60);
+			bool nextMetersOk = ValidateSessionMeters(session, out string nextSummary);
+			check(nextOk && session.CurrentTrack?.Id == trackB.Id && nextMetersOk,
+				$"AudioSession.Next() switched to Track B with finite meters ({nextSummary})");
+
+			bool prevOk = session.Previous();
+			Thread.Sleep(60);
+			bool prevMetersOk = ValidateSessionMeters(session, out string prevSummary);
+			check(prevOk && session.CurrentTrack?.Id == trackA.Id && prevMetersOk,
+				$"AudioSession.Previous() switched back to Track A with finite meters ({prevSummary})");
+
+			session.Pause();
+			bool pauseMetersOk = ValidateSessionMeters(session, out string pauseSummary);
+			check(session.State == PlaybackState.Paused && pauseMetersOk,
+				$"AudioSession.Pause() entered Paused state with finite meters ({pauseSummary})");
+
+			session.Stop();
+			bool stopMetersOk = ValidateSessionMeters(session, out string stopSummary);
+			check(session.State == PlaybackState.Stopped && stopMetersOk,
+				$"AudioSession.Stop() entered Stopped state with finite meters ({stopSummary})");
+		}
+		finally
+		{
+			try { if (File.Exists(wavA)) File.Delete(wavA); } catch { }
+			try { if (File.Exists(wavB)) File.Delete(wavB); } catch { }
+		}
+	}
+
+	public static void TestMixAssistantAndParametricOfflineRender(Action<bool, string>? assert = null)
+	{
+		var check = ResolveAssert(assert);
+		Console.WriteLine("\n--- Testing MixAssistantEngine & Parametric Offline Render ---");
+
+		const int sampleRate = 48000;
+		const int frames = sampleRate * 2;
+
+		// 1. Harsh sub-bass heavy + 4kHz spike stereo signal
+		float[] harshSignal = new float[frames * 2];
+		for (int i = 0; i < frames; i++)
+		{
+			double t = (double)i / sampleRate;
+			float s = (float)(0.45 * Math.Sin(2.0 * Math.PI * 45.0 * t)
+				+ 0.35 * Math.Sin(2.0 * Math.PI * 4000.0 * t)
+				+ 0.08 * Math.Sin(2.0 * Math.PI * 1000.0 * t));
+			harshSignal[i * 2] = s;
+			harshSignal[i * 2 + 1] = s;
+		}
+
+		// 2. Flat broadband pink-like sum of log-spaced sines (-3 dB/octave amplitude weighting)
+		const int toneCount = 24;
+		double[] freqs = new double[toneCount];
+		double[] weights = new double[toneCount];
+		double logMin = Math.Log10(30.0);
+		double logMax = Math.Log10(16000.0);
+		double maxAbsSum = 0.0;
+		for (int k = 0; k < toneCount; k++)
+		{
+			freqs[k] = Math.Pow(10.0, logMin + (logMax - logMin) * k / (toneCount - 1));
+			weights[k] = 1.0 / Math.Sqrt(freqs[k] / 1000.0);
+			maxAbsSum += weights[k];
+		}
+		double pinkScale = 0.65 / maxAbsSum;
+		float[] pinkSignal = new float[frames * 2];
+		for (int i = 0; i < frames; i++)
+		{
+			double t = (double)i / sampleRate;
+			double val = 0.0;
+			for (int k = 0; k < toneCount; k++)
+			{
+				val += weights[k] * Math.Sin(2.0 * Math.PI * freqs[k] * t + k * 0.7);
+			}
+			float s = (float)(val * pinkScale);
+			pinkSignal[i * 2] = s;
+			pinkSignal[i * 2 + 1] = s;
+		}
+
+		var assistant = new MixAssistantEngine();
+		var harshProfile = assistant.AnalyzeSamples(harshSignal, 2, sampleRate);
+		check(harshProfile.AnalyzedFrames > 0
+			&& harshProfile.Bins32Db.Length == 32
+			&& AreAllFinite(harshProfile.Bins32Db)
+			&& harshProfile.Confidence01 > 0.0
+			&& harshProfile.Confidence01 <= 1.0,
+			$"MixAssistantEngine.AnalyzeSamples (harsh) valid (frames={harshProfile.AnalyzedFrames}, conf={harshProfile.Confidence01:F2})");
+
+		var pinkProfile = assistant.AnalyzeSamples(pinkSignal, 2, sampleRate);
+		check(pinkProfile.AnalyzedFrames > 0
+			&& pinkProfile.Bins32Db.Length == 32
+			&& AreAllFinite(pinkProfile.Bins32Db)
+			&& pinkProfile.Confidence01 > 0.0
+			&& pinkProfile.Confidence01 <= 1.0,
+			$"MixAssistantEngine.AnalyzeSamples (broadband) valid (frames={pinkProfile.AnalyzedFrames}, conf={pinkProfile.Confidence01:F2})");
+
+		// 3. Streaming learning lifecycle: BeginLearning / AccumulateSpectrum64 / EndLearning
+		assistant.BeginLearning();
+		bool startedLearning = assistant.IsLearning;
+		float[] specFrame = new float[64];
+		for (int b = 0; b < 64; b++)
+		{
+			specFrame[b] = 0.58f - 0.12f * (b / 63.0f);
+		}
+		for (int f = 0; f < 30; f++)
+		{
+			assistant.AccumulateSpectrum64(specFrame);
+		}
+		var learnedProfile = assistant.EndLearning();
+		check(startedLearning
+			&& !assistant.IsLearning
+			&& assistant.LearnedFrames == 30
+			&& learnedProfile.AnalyzedFrames == 30
+			&& learnedProfile.Bins32Db.Length == 32
+			&& AreAllFinite(learnedProfile.Bins32Db)
+			&& learnedProfile.Confidence01 > 0.0,
+			$"MixAssistantEngine streaming learning accumulated {learnedProfile.AnalyzedFrames} frames cleanly");
+
+		// 4. SolveEqCurve across multiple targets
+		string[] targets = { "balanced_master", "warm_vocals", "acg_vibrant", "late_night" };
+		foreach (string targetId in targets)
+		{
+			var sol = assistant.SolveEqCurve(harshProfile, targetId, matchAmount01: 0.85, bassSculptDb: 1.0, trebleSculptDb: -0.5, demaskMidMud: true);
+			bool offsetsInBounds = sol.BandOffsetsDb.Length == 10 && sol.Filters.Length == 10;
+			if (offsetsInBounds)
+			{
+				for (int i = 0; i < 10; i++)
+				{
+					double off = sol.BandOffsetsDb[i];
+					double fGain = sol.Filters[i].GainDb;
+					if (!double.IsFinite(off) || off < -9.0 || off > 9.0
+						|| !double.IsFinite(fGain) || fGain < -9.0 || fGain > 9.0)
+					{
+						offsetsInBounds = false;
+						break;
+					}
+				}
+			}
+
+			check(sol.TargetId == targetId
+				&& offsetsInBounds
+				&& double.IsFinite(sol.RecommendedPreampDb)
+				&& sol.PredictedCurve64Db.Length == 64
+				&& AreAllFinite(sol.PredictedCurve64Db),
+				$"MixAssistantEngine.SolveEqCurve('{targetId}') produced 10 bounded filters & 64-pt curve (preamp={sol.RecommendedPreampDb:F1} dB)");
+		}
+
+		// 5. OfflineEffectRenderer.RenderSamplesWithParametricEqAsync (+6 dB @ 1 kHz on -12 dBFS 1 kHz sine)
+		float ampNeg12Dbfs = MathF.Pow(10.0f, -12.0f / 20.0f);
+		int renderFrames = sampleRate;
+		float[] sine1k = new float[renderFrames * 2];
+		for (int i = 0; i < renderFrames; i++)
+		{
+			float s = ampNeg12Dbfs * (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / sampleRate);
+			sine1k[i * 2] = s;
+			sine1k[i * 2 + 1] = s;
+		}
+
+		var peakingPlus6 = new EchoBiquadFilter
+		{
+			FilterType = EchoFilterType.Peaking,
+			FrequencyHz = 1000.0,
+			GainDb = 6.0,
+			Q = 1.414,
+			Enabled = true
+		};
+		peakingPlus6.UpdateCoefficients(sampleRate);
+
+		var rendered = OfflineEffectRenderer.RenderSamplesWithParametricEqAsync(
+			sine1k,
+			sampleRate,
+			2,
+			RenderSettings.Flat,
+			new[] { peakingPlus6 },
+			0.0,
+			null,
+			CancellationToken.None).GetAwaiter().GetResult();
+
+		double inSq = 0.0;
+		double outSq = 0.0;
+		int steadyStart = sampleRate / 10;
+		for (int f = steadyStart; f < renderFrames; f++)
+		{
+			int idx = f * 2;
+			inSq += (double)sine1k[idx] * sine1k[idx];
+			outSq += (double)rendered.Samples[idx] * rendered.Samples[idx];
+		}
+		double rmsRatio = Math.Sqrt(outSq / Math.Max(1e-12, inSq));
+		check(rendered.Samples.Length == sine1k.Length && rmsRatio >= 1.8 && rmsRatio <= 2.2,
+			$"OfflineEffectRenderer.RenderSamplesWithParametricEqAsync (+6dB @ 1kHz) boosted -12dBFS sine cleanly (RMS ratio={rmsRatio:F3}x)");
+	}
+
+	public static void TestInsightProAnalyzerPrecision(Action<bool, string>? assert = null)
+	{
+		var check = ResolveAssert(assert);
+		Console.WriteLine("\n--- Testing InsightProAnalyzer Precision (LUFS, dBTP, Correlation, FFT, Targets & Reset) ---");
+
+		const int sampleRate = 48000;
+		const int frames = sampleRate * 5;
+		float[] sine5s = new float[frames * 2];
+		for (int i = 0; i < frames; i++)
+		{
+			float s = 0.1f * (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / sampleRate);
+			sine5s[i * 2] = s;
+			sine5s[i * 2 + 1] = s;
+		}
+
+		var analyzer = new InsightProAnalyzer();
+		analyzer.TargetPreset = InsightTargetPreset.CdLoudMinus9;
+		var snap = analyzer.AnalyzeWindow(sine5s, 2, sampleRate, 0, frames);
+
+		// For a stereo 1kHz sine with peak 0.1 (-20 dBFS peak), per-channel RMS is -23.01 dBFS,
+		// stereo sum is -20.0 dBFS, and BS.1770-4 K-weighting + offset yields ~ -20.0 LUFS.
+		check(Math.Abs(snap.MomentaryLufs - (-20.0f)) <= 1.5f
+			&& Math.Abs(snap.ShortTermLufs - (-20.0f)) <= 1.5f
+			&& Math.Abs(snap.IntegratedLufs - (-20.0f)) <= 1.5f,
+			$"InsightProAnalyzer LUFS precision within ±1.5 LU of -20.0 LUFS (M={snap.MomentaryLufs:F2}, S={snap.ShortTermLufs:F2}, I={snap.IntegratedLufs:F2})");
+
+		check(snap.TruePeakDbTp >= -20.5f && snap.TruePeakDbTp <= -19.0f,
+			$"InsightProAnalyzer 4x True Peak accurate for -20 dBFS sine ({snap.TruePeakDbTp:F2} dBTP)");
+
+		check(snap.StereoCorrelation > 0.99f,
+			$"InsightProAnalyzer correlation > 0.99 for identical L/R ({snap.StereoCorrelation:F4})");
+
+		int peakBin = 0;
+		float peakMagDb = float.NegativeInfinity;
+		for (int b = 0; b < snap.SpectrumDb.Length; b++)
+		{
+			if (snap.SpectrumDb[b] > peakMagDb)
+			{
+				peakMagDb = snap.SpectrumDb[b];
+				peakBin = b;
+			}
+		}
+		float peakFreqHz = snap.SpectrumFrequenciesHz.Length > peakBin ? snap.SpectrumFrequenciesHz[peakBin] : 0f;
+		bool specFramesValid = snap.SpectrogramFrames.Length > 0;
+		for (int i = 0; i < snap.SpectrogramFrames.Length; i++)
+		{
+			if (snap.SpectrogramFrames[i].Length != InsightProAnalyzer.SpectrogramFreqBins)
+			{
+				specFramesValid = false;
+				break;
+			}
+		}
+		check(snap.SpectrumDb.Length == 128 && peakFreqHz >= 850.0f && peakFreqHz <= 1150.0f && peakMagDb > -30.0f,
+			$"InsightProAnalyzer 128-band spectrum peaked near 1kHz (bin={peakBin}, freq={peakFreqHz:F1} Hz, mag={peakMagDb:F1} dBFS)");
+
+		check(specFramesValid && snap.HistorySamples.Length > 0,
+			$"InsightProAnalyzer populated spectrogram ({snap.SpectrogramFrames.Length}x64) and history ({snap.HistorySamples.Length} pts)");
+
+		check(!snap.MomentaryExceedsTarget && !snap.ShortTermExceedsTarget && !snap.IntegratedExceedsTarget && !snap.TruePeakExceedsTarget,
+			"InsightProAnalyzer CdLoudMinus9 (-9 LUFS / -0.3 dBTP) target flags remain clear for -20 LUFS signal");
+
+		analyzer.TargetPreset = InsightTargetPreset.EbuR128Minus23;
+		var snapEbu = analyzer.GetSnapshot();
+		check(snapEbu.MomentaryExceedsTarget && snapEbu.ShortTermExceedsTarget && snapEbu.IntegratedExceedsTarget && !snapEbu.TruePeakExceedsTarget,
+			"InsightProAnalyzer EbuR128Minus23 (-23 LUFS / -1.0 dBTP) flagged loudness exceed while TruePeak stayed safe");
+
+		// Anti-phase correlation check (R == -L)
+		int antiFrames = sampleRate * 2;
+		float[] antiPhase = new float[antiFrames * 2];
+		for (int i = 0; i < antiFrames; i++)
+		{
+			float s = 0.1f * (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / sampleRate);
+			antiPhase[i * 2] = s;
+			antiPhase[i * 2 + 1] = -s;
+		}
+		var antiSnap = analyzer.AnalyzeWindow(antiPhase, 2, sampleRate, 0, antiFrames);
+		check(antiSnap.StereoCorrelation < -0.99f,
+			$"InsightProAnalyzer correlation < -0.99 for anti-phase R == -L ({antiSnap.StereoCorrelation:F4})");
+
+		// ResetIntegrated() vs Reset()
+		analyzer.AnalyzeWindow(sine5s, 2, sampleRate, 0, frames);
+		analyzer.ResetIntegrated();
+		var afterResetInt = analyzer.GetSnapshot();
+		bool spectrumPreserved = afterResetInt.SpectrumDb.Length == 128 && afterResetInt.SpectrumDb[peakBin] > -35.0f;
+		check(afterResetInt.IntegratedLufs <= -69.9f
+			&& afterResetInt.MomentaryLufs <= -69.9f
+			&& afterResetInt.ShortTermLufs <= -69.9f
+			&& afterResetInt.TruePeakDbTp <= -109.9f
+			&& afterResetInt.HistorySamples.Length == 0
+			&& spectrumPreserved,
+			"InsightProAnalyzer.ResetIntegrated() cleared loudness/history/true-peak while preserving realtime spectrum");
+
+		analyzer.Reset();
+		var afterFullReset = analyzer.GetSnapshot();
+		bool spectrumCleared = afterFullReset.SpectrumDb.Length == 128;
+		for (int b = 0; b < afterFullReset.SpectrumDb.Length; b++)
+		{
+			if (afterFullReset.SpectrumDb[b] > -109.9f)
+			{
+				spectrumCleared = false;
+				break;
+			}
+		}
+		check(afterFullReset.IntegratedLufs <= -69.9f
+			&& afterFullReset.HistorySamples.Length == 0
+			&& afterFullReset.SpectrogramFrames.Length == 0
+			&& spectrumCleared,
+			"InsightProAnalyzer.Reset() cleared loudness, history, spectrogram, and realtime spectrum");
+	}
+
+	public static void TestStreamingNonBlockingAndCancellation(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Streaming Non-Blocking AudioEngine & Cache Cooldown/Cancellation ---");
+
+		string uncachedUrl = $"http://127.0.0.1:9/uncached_{Guid.NewGuid():N}.mp3";
+		var sw = System.Diagnostics.Stopwatch.StartNew();
+		bool readyMissing = StreamAudioCache.TryGetCachedFilePathIfReady(uncachedUrl, out _);
+		sw.Stop();
+		check(!readyMissing && sw.ElapsedMilliseconds < 100,
+			$"TryGetCachedFilePathIfReady returned false immediately for uncached URL ({sw.ElapsedMilliseconds}ms)");
+
+		// Create a cached file and confirm TryGetCachedFilePathIfReady finds it immediately without network I/O
+		string cachedUrl = $"https://music.example.com/nonblock_ready_{Guid.NewGuid():N}.wav";
+		string cachedPath = StreamAudioCache.GetExpectedCacheFilePath(cachedUrl);
+		System.Net.Sockets.TcpListener? stallListener = null;
+		System.Net.Sockets.TcpListener? failListener = null;
+		var heldSockets = new System.Collections.Generic.List<System.Net.Sockets.Socket>();
+		using var serverCts = new CancellationTokenSource();
+
+		try
+		{
+			File.WriteAllBytes(cachedPath, new byte[4096]);
+			sw.Restart();
+			bool readyPresent = StreamAudioCache.TryGetCachedFilePathIfReady(cachedUrl, out string resolvedPath);
+			sw.Stop();
+			check(readyPresent && resolvedPath == cachedPath && sw.ElapsedMilliseconds < 100,
+				$"TryGetCachedFilePathIfReady resolved cached file with zero network I/O ({sw.ElapsedMilliseconds}ms)");
+
+			// 1. Failure cooldown server (returns 404 immediately and counts hits)
+			failListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+			failListener.Start();
+			int failPort = ((System.Net.IPEndPoint)failListener.LocalEndpoint).Port;
+			int failHits = 0;
+			_ = System.Threading.Tasks.Task.Run(async () =>
+			{
+				while (!serverCts.IsCancellationRequested)
+				{
+					try
+					{
+						var client = await failListener.AcceptSocketAsync(serverCts.Token);
+						Interlocked.Increment(ref failHits);
+						byte[] resp = System.Text.Encoding.ASCII.GetBytes(
+							"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+						await client.SendAsync(resp, System.Net.Sockets.SocketFlags.None, serverCts.Token);
+						client.Dispose();
+					}
+					catch { break; }
+				}
+			});
+
+			string badUrl = $"http://127.0.0.1:{failPort}/missing_{Guid.NewGuid():N}.mp3";
+			bool firstOk = StreamAudioCache.TryGetOrDownloadCachedFile(badUrl, out _, 3000, CancellationToken.None);
+			int hitsAfterFirst = Volatile.Read(ref failHits);
+			sw.Restart();
+			bool secondOk = StreamAudioCache.TryGetOrDownloadCachedFile(badUrl, out _, 3000, CancellationToken.None);
+			sw.Stop();
+			int hitsAfterSecond = Volatile.Read(ref failHits);
+			check(!firstOk && !secondOk && hitsAfterFirst >= 1 && hitsAfterSecond == hitsAfterFirst && sw.ElapsedMilliseconds < 100,
+				$"StreamAudioCache 12s failure cooldown skipped redundant network retry ({hitsAfterSecond} hits, {sw.ElapsedMilliseconds}ms)");
+
+			// 2. Stalled HTTP server (accepts TCP connection and holds without replying)
+			stallListener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+			stallListener.Start();
+			int stallPort = ((System.Net.IPEndPoint)stallListener.LocalEndpoint).Port;
+			_ = System.Threading.Tasks.Task.Run(async () =>
+			{
+				while (!serverCts.IsCancellationRequested)
+				{
+					try
+					{
+						var sock = await stallListener.AcceptSocketAsync(serverCts.Token);
+						lock (heldSockets) heldSockets.Add(sock);
+					}
+					catch { break; }
+				}
+			});
+
+			string stallUrl = $"http://127.0.0.1:{stallPort}/stalled_stream_{Guid.NewGuid():N}.mp3";
+			using (var cancelDownloadCts = new CancellationTokenSource(60))
+			{
+				sw.Restart();
+				bool dlOk = StreamAudioCache.TryGetOrDownloadCachedFile(stallUrl, out _, 5000, cancelDownloadCts.Token);
+				sw.Stop();
+				check(!dlOk && sw.ElapsedMilliseconds < 450,
+					$"StreamAudioCache.TryGetOrDownloadCachedFile honored cancellation on stalled TCP socket ({sw.ElapsedMilliseconds}ms)");
+			}
+
+			// 3. AudioEngine non-blocking caller contract + rapid switch cancellation
+			using var engine = new AudioEngine();
+			var slowTrack1 = new Track { Id = 1, Title = "Stall 1", Artist = "Net", FilePath = $"http://127.0.0.1:{stallPort}/track1_{Guid.NewGuid():N}.mp3" };
+			var slowTrack2 = new Track { Id = 2, Title = "Stall 2", Artist = "Net", FilePath = $"http://127.0.0.1:{stallPort}/track2_{Guid.NewGuid():N}.mp3" };
+
+			sw.Restart();
+			engine.SetQueue(new[] { slowTrack1, slowTrack2 }, 0);
+			engine.PlayTrack(slowTrack1);
+			long playCallMs = sw.ElapsedMilliseconds;
+
+			sw.Restart();
+			engine.Next();
+			engine.PlayTrack(slowTrack2);
+			engine.Seek(TimeSpan.FromSeconds(5));
+			engine.Pause();
+			engine.Stop();
+			long burstCallsMs = sw.ElapsedMilliseconds;
+
+			check(playCallMs < 150 && burstCallsMs < 150,
+				$"AudioEngine caller methods stayed non-blocking against stalled stream (play={playCallMs}ms, burst={burstCallsMs}ms)");
+
+			using var asyncCancelCts = new CancellationTokenSource(60);
+			sw.Restart();
+			try
+			{
+				engine.PlayTrackAsync(slowTrack1, asyncCancelCts.Token).GetAwaiter().GetResult();
+			}
+			catch (OperationCanceledException) { }
+			catch (Exception) { }
+			sw.Stop();
+			engine.Stop();
+			check(sw.ElapsedMilliseconds < 600,
+				$"AudioEngine.PlayTrackAsync aborted cleanly on CancellationToken ({sw.ElapsedMilliseconds}ms)");
+		}
+		finally
+		{
+			serverCts.Cancel();
+			try { stallListener?.Stop(); } catch { }
+			try { failListener?.Stop(); } catch { }
+			lock (heldSockets)
+			{
+				foreach (var s in heldSockets)
+				{
+					try { s.Dispose(); } catch { }
+				}
+				heldSockets.Clear();
+			}
+			try { if (File.Exists(cachedPath)) File.Delete(cachedPath); } catch { }
+		}
 	}
 }

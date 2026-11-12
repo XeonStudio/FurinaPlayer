@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using SonicWave.Audio.Core;
 using SonicWave.Audio.Decoders;
 using SonicWave.Audio.Dsp;
@@ -7,9 +8,85 @@ using SonicWave.Core.Models;
 
 namespace SonicWave.Audio.Backends;
 
-internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
+internal interface ISwitchStoppableBackend
+{
+	void ForceStopAndClose();
+}
+
+internal static class ActiveBackendCoordinator
+{
+	private static readonly object s_lock = new object();
+
+	private static ISwitchStoppableBackend? s_active;
+
+	public static void Activate(ISwitchStoppableBackend backend)
+	{
+		ISwitchStoppableBackend? previous = null;
+		lock (s_lock)
+		{
+			if (!ReferenceEquals(s_active, backend))
+			{
+				previous = s_active;
+				s_active = backend;
+			}
+		}
+		if (previous != null)
+		{
+			try
+			{
+				previous.ForceStopAndClose();
+			}
+			catch
+			{
+			}
+		}
+	}
+
+	public static bool IsActive(ISwitchStoppableBackend backend)
+	{
+		lock (s_lock)
+		{
+			return ReferenceEquals(s_active, backend);
+		}
+	}
+
+	public static void Deactivate(ISwitchStoppableBackend backend)
+	{
+		lock (s_lock)
+		{
+			if (ReferenceEquals(s_active, backend))
+			{
+				s_active = null;
+			}
+		}
+	}
+
+	public static void StopAll()
+	{
+		ISwitchStoppableBackend? current;
+		lock (s_lock)
+		{
+			current = s_active;
+			s_active = null;
+		}
+		if (current != null)
+		{
+			try
+			{
+				current.ForceStopAndClose();
+			}
+			catch
+			{
+			}
+		}
+	}
+}
+
+internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBackend, IDisposable
 {
 	private readonly NAudioDecoder _naudio = new NAudioDecoder();
+
+	private readonly object _opLock = new object();
 
 	private string? _deviceId;
 
@@ -18,6 +95,10 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 	private int _bufferMs = 200;
 
 	private int _gen;
+
+	private int _stoppedSinceOpen = 1;
+
+	private int _disposed;
 
 	private int _volume = 80;
 
@@ -109,15 +190,38 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	public bool Open(string filePath, bool startPaused)
 	{
-		_gen++;
-		_naudio.Generation = _gen;
-		if (!_naudio.Open(filePath, _deviceId, _asioDriver, _bufferMs))
+		if (Volatile.Read(ref _disposed) != 0)
 		{
 			return false;
 		}
-		ApplyDspLocked();
-		_naudio.Volume = (float)_volume / 100f;
-		return true;
+		ActiveBackendCoordinator.Activate(this);
+		bool opened = false;
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0 || !ActiveBackendCoordinator.IsActive(this))
+			{
+				return false;
+			}
+			int gen = Interlocked.Increment(ref _gen);
+			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
+			_naudio.Generation = gen;
+			if (!_naudio.Open(filePath, _deviceId, _asioDriver, _bufferMs))
+			{
+				opened = false;
+			}
+			else
+			{
+				ApplyDspLocked();
+				_naudio.Volume = (float)_volume / 100f;
+				Interlocked.Exchange(ref _stoppedSinceOpen, 0);
+				opened = true;
+			}
+		}
+		if (!opened)
+		{
+			ActiveBackendCoordinator.Deactivate(this);
+		}
+		return opened;
 	}
 
 	public bool WaitUntilReady(int timeoutMs)
@@ -127,17 +231,53 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	public void Play()
 	{
-		_naudio.Play();
+		if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _stoppedSinceOpen) != 0)
+		{
+			return;
+		}
+		ActiveBackendCoordinator.Activate(this);
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _stoppedSinceOpen) != 0 || !ActiveBackendCoordinator.IsActive(this))
+			{
+				return;
+			}
+			_naudio.Play();
+		}
 	}
 
 	public void Pause()
 	{
-		_naudio.Pause();
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0)
+			{
+				return;
+			}
+			_naudio.Pause();
+		}
 	}
 
 	public void Stop()
 	{
-		_naudio.Stop();
+		lock (_opLock)
+		{
+			Interlocked.Increment(ref _gen);
+			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
+			_naudio.Stop();
+		}
+		ActiveBackendCoordinator.Deactivate(this);
+	}
+
+	public void ForceStopAndClose()
+	{
+		lock (_opLock)
+		{
+			Interlocked.Increment(ref _gen);
+			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
+			_naudio.Close();
+		}
+		ActiveBackendCoordinator.Deactivate(this);
 	}
 
 	public bool Seek(TimeSpan position)
@@ -193,7 +333,7 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	private void OnPlaybackStopped(int gen, bool error)
 	{
-		if (gen == _gen)
+		if (Volatile.Read(ref _disposed) == 0 && gen == Volatile.Read(ref _gen))
 		{
 			if (error)
 			{
@@ -208,6 +348,15 @@ internal sealed class NaudioAudioBackend : IAudioBackend, IDisposable
 
 	public void Dispose()
 	{
-		_naudio.Dispose();
+		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		{
+			return;
+		}
+		ForceStopAndClose();
+		lock (_opLock)
+		{
+			_naudio.PlaybackStopped -= OnPlaybackStopped;
+			_naudio.Dispose();
+		}
 	}
 }

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading;
 using SonicWave.Audio.Core;
 using SonicWave.Audio.Decoders;
 using SonicWave.Audio.Dsp;
@@ -7,9 +9,21 @@ using SonicWave.Core.Models;
 
 namespace SonicWave.Audio.Backends;
 
-internal sealed class VlcAudioBackend : IAudioBackend, IDisposable
+internal sealed class VlcAudioBackend : IAudioBackend, ISwitchStoppableBackend, IDisposable
 {
 	private readonly LibVLCDecoder _vlc = new LibVLCDecoder();
+
+	private readonly object _opLock = new object();
+
+	private int _gen;
+
+	private int _acceptEvents;
+
+	private int _stoppedSinceOpen = 1;
+
+	private int _disposed;
+
+	private long _openedTimestamp;
 
 	public string Name => "vlc";
 
@@ -53,14 +67,36 @@ internal sealed class VlcAudioBackend : IAudioBackend, IDisposable
 
 	public VlcAudioBackend()
 	{
-		_vlc.EndReached += () =>
+		_vlc.EndReached += OnVlcEndReached;
+		_vlc.EncounteredError += OnVlcEncounteredError;
+	}
+
+	private void OnVlcEndReached()
+	{
+		if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _acceptEvents) == 0)
 		{
-			Ended?.Invoke();
-		};
-		_vlc.EncounteredError += () =>
+			return;
+		}
+		long openedTs = Volatile.Read(ref _openedTimestamp);
+		if (openedTs > 0 && (Stopwatch.GetTimestamp() - openedTs) * 1000.0 / Stopwatch.Frequency < 250.0)
 		{
-			Failed?.Invoke();
-		};
+			TimeSpan pos = _vlc.Position;
+			TimeSpan dur = _vlc.Duration;
+			if (pos < TimeSpan.FromMilliseconds(500) && dur > TimeSpan.FromSeconds(2))
+			{
+				return;
+			}
+		}
+		Ended?.Invoke();
+	}
+
+	private void OnVlcEncounteredError()
+	{
+		if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _acceptEvents) == 0)
+		{
+			return;
+		}
+		Failed?.Invoke();
 	}
 
 	public void Configure(string? deviceId, string? asioDriver, int bufferMs)
@@ -77,35 +113,102 @@ internal sealed class VlcAudioBackend : IAudioBackend, IDisposable
 
 	public bool Open(string filePath, bool startPaused)
 	{
-		if (!_vlc.IsAvailable)
-		{
-			_vlc.Initialize();
-		}
-		if (!_vlc.IsAvailable)
+		if (Volatile.Read(ref _disposed) != 0)
 		{
 			return false;
 		}
-		return _vlc.Open(filePath, startPaused);
+		ActiveBackendCoordinator.Activate(this);
+		bool opened = false;
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0 || !ActiveBackendCoordinator.IsActive(this))
+			{
+				return false;
+			}
+			Volatile.Write(ref _acceptEvents, 0);
+			Interlocked.Increment(ref _gen);
+			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
+			_vlc.Stop();
+			if (!_vlc.IsAvailable)
+			{
+				_vlc.Initialize();
+			}
+			if (_vlc.IsAvailable)
+			{
+				Volatile.Write(ref _openedTimestamp, Stopwatch.GetTimestamp());
+				Volatile.Write(ref _acceptEvents, 1);
+				if (_vlc.Open(filePath, startPaused))
+				{
+					Interlocked.Exchange(ref _stoppedSinceOpen, 0);
+					opened = true;
+				}
+				else
+				{
+					Volatile.Write(ref _acceptEvents, 0);
+				}
+			}
+		}
+		if (!opened)
+		{
+			ActiveBackendCoordinator.Deactivate(this);
+		}
+		return opened;
 	}
 
 	public bool WaitUntilReady(int timeoutMs)
 	{
-		return _vlc.WaitUntilPlaying(timeoutMs);
+		return _vlc.WaitUntilPlaying(timeoutMs, CancellationToken.None);
+	}
+
+	public bool WaitUntilReady(int timeoutMs, CancellationToken cancellationToken)
+	{
+		return _vlc.WaitUntilPlaying(timeoutMs, cancellationToken);
 	}
 
 	public void Play()
 	{
-		_vlc.Play();
+		if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _stoppedSinceOpen) != 0)
+		{
+			return;
+		}
+		ActiveBackendCoordinator.Activate(this);
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0 || Volatile.Read(ref _stoppedSinceOpen) != 0 || !ActiveBackendCoordinator.IsActive(this))
+			{
+				return;
+			}
+			_vlc.Play();
+		}
 	}
 
 	public void Pause()
 	{
-		_vlc.Pause();
+		lock (_opLock)
+		{
+			if (Volatile.Read(ref _disposed) != 0)
+			{
+				return;
+			}
+			_vlc.Pause();
+		}
 	}
 
 	public void Stop()
 	{
-		_vlc.Stop();
+		lock (_opLock)
+		{
+			Volatile.Write(ref _acceptEvents, 0);
+			Interlocked.Increment(ref _gen);
+			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
+			_vlc.Stop();
+		}
+		ActiveBackendCoordinator.Deactivate(this);
+	}
+
+	public void ForceStopAndClose()
+	{
+		Stop();
 	}
 
 	public bool Seek(TimeSpan position)
@@ -132,6 +235,16 @@ internal sealed class VlcAudioBackend : IAudioBackend, IDisposable
 
 	public void Dispose()
 	{
-		_vlc.Dispose();
+		if (Interlocked.Exchange(ref _disposed, 1) != 0)
+		{
+			return;
+		}
+		ForceStopAndClose();
+		lock (_opLock)
+		{
+			_vlc.EndReached -= OnVlcEndReached;
+			_vlc.EncounteredError -= OnVlcEncounteredError;
+			_vlc.Dispose();
+		}
 	}
 }

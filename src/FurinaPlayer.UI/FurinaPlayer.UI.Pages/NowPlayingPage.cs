@@ -2,9 +2,11 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
@@ -18,6 +20,7 @@ using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Web.WebView2.Core;
+using SonicWave.Audio.Decoders;
 using SonicWave.Audio.Renderers;
 using SonicWave.Core.Models;
 using WinRT;
@@ -70,16 +73,33 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	protected override void OnNavigatedTo(NavigationEventArgs e)
 	{
 		base.OnNavigatedTo(e);
-		if (e.Parameter is NowPlayingViewModel nowPlayingViewModel)
+		_isUnloaded = false;
+		if (e.Parameter is NowPlayingViewModel nowPlayingViewModel && !ReferenceEquals(ViewModel, nowPlayingViewModel))
 		{
+			if (ViewModel != null)
+			{
+				ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+			}
 			ViewModel = nowPlayingViewModel;
 			DataContext = nowPlayingViewModel;
 		}
-		if (_modeSwitchBtn != null) _modeSwitchBtn.Visibility = Visibility.Visible;
-		if (s_currentMode != LyricsPageMode.Classic)
+		if (ViewModel != null)
 		{
-			if (_dawContainer != null) _dawContainer.Visibility = Visibility.Visible;
-			StartMeterTimer();
+			ViewModel.SyncWithEngine();
+			ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
+			ViewModel.PropertyChanged += OnViewModelPropertyChanged;
+		}
+		if (_modeSwitchBtn != null) _modeSwitchBtn.Visibility = Visibility.Visible;
+		if (s_currentMode == LyricsPageMode.Classic)
+		{
+			s_currentMode = LyricsPageMode.AuditionDaw;
+		}
+		if (_classicContainer != null) _classicContainer.Visibility = Visibility.Collapsed;
+		if (_dawContainer != null) _dawContainer.Visibility = Visibility.Visible;
+		StartMeterTimer();
+		if (_isWrapped)
+		{
+			_ = EnsureDawWebViewAsync(s_currentMode);
 		}
 	}
 
@@ -87,6 +107,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	{
 		base.OnNavigatedFrom(e);
 		StopMeterTimer();
+		CancelPendingEnvelopeWork();
 		if (_dawContainer != null) _dawContainer.Visibility = Visibility.Collapsed;
 		if (_modeSwitchBtn != null) _modeSwitchBtn.Visibility = Visibility.Collapsed;
 		GC.Collect(1, GCCollectionMode.Optimized);
@@ -101,11 +122,12 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	{
 		AuditionDaw,
 		PowerPoint,
+		// Kept for caller compatibility; falls back to AuditionDaw.
 		Classic
 	}
 
 	private static LyricsPageMode s_currentMode = LyricsPageMode.AuditionDaw;
-	private static bool s_useDawMode => s_currentMode != LyricsPageMode.Classic;
+	private static bool s_useDawMode => true;
 	private bool _isWrapped;
 	private Grid? _rootGrid;
 	private Grid? _classicContainer;
@@ -113,11 +135,25 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	private WebView2? _webView;
 	private Button? _modeSwitchBtn;
 	private DispatcherQueueTimer? _meterTimer;
-	private bool _isDawMode => s_currentMode != LyricsPageMode.Classic;
+	private bool _isDawMode => true;
 	private bool _dawReady;
+	private bool _isUnloaded;
+	private bool _isInitializingWebView;
+	private bool _fullStateSyncPending;
+	private int _webNavigationGeneration;
+	private CancellationTokenSource? _envelopeCts;
+	private int _envelopeGeneration;
+	private string? _activeEnvelopeKey;
+	private string? _completedEnvelopeKey;
+	private string? _envelopeRetryKey;
+	private int _envelopeRetryCount;
+	private const int MaxEnvelopeRetries = 4;
+	private string? _lastMeterTrackKey;
+	private bool? _lastMeterIsPlaying;
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
+		_isUnloaded = false;
 		ApplyResponsiveLayout();
 		SetupPageContainers();
 		FluentIconFactory.UpgradeButtonsInVisualTree(_classicContainer ?? (DependencyObject)this);
@@ -125,6 +161,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		if (ViewModel != null)
 		{
 			ViewModel.Initialize();
+			ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
 			ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 			Lyrics.Attach(ViewModel);
 			Lyrics.ApplyLyricFont(ViewModel.LyricFontFamily, ViewModel.LyricFontFilePath);
@@ -136,7 +173,12 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			}
 			UpdateTimeTexts();
 			UpdateClassicModeButtonIcon();
+			if (_isDawMode && _dawReady)
+			{
+				ScheduleDawFullStateSync();
+			}
 		}
+		StartMeterTimer();
 	}
 
 	private bool _isDraggingSlider;
@@ -148,6 +190,10 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		    e.PropertyName == nameof(NowPlayingViewModel.PositionPercent))
 		{
 			UpdateTimeTexts();
+			if (e.PropertyName == nameof(NowPlayingViewModel.Duration) && _isDawMode)
+			{
+				ScheduleDawFullStateSync();
+			}
 		}
 		else if (e.PropertyName == nameof(NowPlayingViewModel.CurrentTrack) ||
 		         e.PropertyName == nameof(NowPlayingViewModel.CoverPath) ||
@@ -156,7 +202,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			UpdateLyricsPlaceholderState();
 			if (_isDawMode)
 			{
-				SendFullDawState();
+				ScheduleDawFullStateSync();
 			}
 		}
 		else if (e.PropertyName == nameof(NowPlayingViewModel.IsPlaying))
@@ -164,6 +210,11 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			if (_isDawMode)
 			{
 				SendDawPlaybackState();
+				if (ViewModel?.IsPlaying == true)
+				{
+					SendDawAudioFormat();
+					SendDawEnvelope();
+				}
 			}
 		}
 		else if (e.PropertyName == nameof(NowPlayingViewModel.LyricLines) ||
@@ -276,7 +327,9 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void OnUnloaded(object sender, RoutedEventArgs e)
 	{
+		_isUnloaded = true;
 		StopMeterTimer();
+		CancelPendingEnvelopeWork();
 		if (ViewModel != null)
 		{
 			ViewModel.PropertyChanged -= OnViewModelPropertyChanged;
@@ -464,33 +517,26 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void OnModeSwitchClick(object sender, RoutedEventArgs e)
 	{
-		LyricsPageMode next = s_currentMode switch
-		{
-			LyricsPageMode.AuditionDaw => LyricsPageMode.PowerPoint,
-			LyricsPageMode.PowerPoint => LyricsPageMode.Classic,
-			_ => LyricsPageMode.AuditionDaw
-		};
+		LyricsPageMode next = s_currentMode == LyricsPageMode.AuditionDaw
+			? LyricsPageMode.PowerPoint
+			: LyricsPageMode.AuditionDaw;
 		SetLyricsMode(next);
 	}
 
 	public void SetLyricsMode(LyricsPageMode mode)
 	{
+		if (mode == LyricsPageMode.Classic)
+		{
+			mode = LyricsPageMode.AuditionDaw;
+		}
+
 		s_currentMode = mode;
 		UpdateModeSwitchButtonUI();
 
-		if (mode == LyricsPageMode.Classic)
-		{
-			StopMeterTimer();
-			if (_dawContainer != null) _dawContainer.Visibility = Visibility.Collapsed;
-			if (_classicContainer != null) _classicContainer.Visibility = Visibility.Visible;
-		}
-		else
-		{
-			if (_classicContainer != null) _classicContainer.Visibility = Visibility.Collapsed;
-			if (_dawContainer != null) _dawContainer.Visibility = Visibility.Visible;
-			_ = EnsureDawWebViewAsync(mode);
-			StartMeterTimer();
-		}
+		if (_classicContainer != null) _classicContainer.Visibility = Visibility.Collapsed;
+		if (_dawContainer != null) _dawContainer.Visibility = Visibility.Visible;
+		_ = EnsureDawWebViewAsync(mode);
+		StartMeterTimer();
 	}
 
 	public async Task<bool> CaptureDawPreviewAsync(string filePath)
@@ -502,23 +548,23 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 		try
 		{
-			var track = ViewModel?.CurrentTrack;
+			var track = GetAuthoritativeTrack();
 			if (track != null && !string.IsNullOrEmpty(track.FilePath) && File.Exists(track.FilePath))
 			{
 				var env = await Task.Run(() => WaveformRenderer.ComputeAuditionEnvelopeFromFile(track.FilePath, 4096));
-				if (env != null)
+				if (env != null && env.Peak != null && env.Peak.Length > 0)
 				{
 					PostDawMessage(new
 					{
 						protocolVersion = 1,
 						type = "echo:audition:envelopeData",
-						trackId = track.Id,
-						p = env.Peak,
-						r = env.Rms,
-						lMin = env.LeftMin,
-						lMax = env.LeftMax,
-						rMin = env.RightMin,
-						rMax = env.RightMax,
+						trackId = FormatDawTrackId(track),
+						p = SanitizeFiniteArray(env.Peak),
+						r = SanitizeFiniteArray(env.Rms),
+						lMin = SanitizeFiniteArray(env.LeftMin),
+						lMax = SanitizeFiniteArray(env.LeftMax),
+						rMin = SanitizeFiniteArray(env.RightMin),
+						rMax = SanitizeFiniteArray(env.RightMax),
 						specCols = env.SpecCols,
 						specBins = env.SpecBins,
 						sampleRate = env.SampleRate,
@@ -557,36 +603,28 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void SetDawMode(bool enableDaw)
 	{
-		SetLyricsMode(enableDaw ? LyricsPageMode.AuditionDaw : LyricsPageMode.Classic);
+		SetLyricsMode(s_currentMode == LyricsPageMode.PowerPoint ? LyricsPageMode.PowerPoint : LyricsPageMode.AuditionDaw);
 	}
 
 	private void UpdateModeSwitchButtonUI()
 	{
 		if (_modeSwitchBtn == null) return;
 		var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		if (s_currentMode == LyricsPageMode.AuditionDaw)
+		if (s_currentMode == LyricsPageMode.PowerPoint)
+		{
+			_modeSwitchBtn.Margin = new Thickness(0, 4, 12, 0);
+			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 91, 45));
+			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModePowerPoint, 18));
+			sp.Children.Add(new TextBlock { Text = "PowerPoint 演示模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
+			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：PowerPoint 幻灯片演示文稿（点击切换到 Audition DAW，右键选择）");
+		}
+		else
 		{
 			_modeSwitchBtn.Margin = new Thickness(0, 4, 12, 0);
 			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255));
 			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModeAudition, 18));
 			sp.Children.Add(new TextBlock { Text = "Audition DAW 模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
 			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：Audition 专业母带工作台（点击切换到 PowerPoint 演示，右键选择）");
-		}
-		else if (s_currentMode == LyricsPageMode.PowerPoint)
-		{
-			_modeSwitchBtn.Margin = new Thickness(0, 4, 12, 0);
-			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 234, 91, 45));
-			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModePowerPoint, 18));
-			sp.Children.Add(new TextBlock { Text = "PowerPoint 演示模式 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
-			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：PowerPoint 幻灯片演示文稿（点击切换到经典极简，右键选择）");
-		}
-		else
-		{
-			_modeSwitchBtn.Margin = new Thickness(0, 16, 140, 0);
-			_modeSwitchBtn.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 120, 140, 255));
-			sp.Children.Add(FluentIconFactory.Create(FluentIconKind.ModeClassic, 18));
-			sp.Children.Add(new TextBlock { Text = "经典歌词页 ▾", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White), VerticalAlignment = VerticalAlignment.Center });
-			ToolTipService.SetToolTip(_modeSwitchBtn, "当前：原生极简歌词视图（点击切换到 Audition DAW，右键选择）");
 		}
 		_modeSwitchBtn.Content = sp;
 		SetupModeSwitchFlyout();
@@ -612,16 +650,6 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		};
 		itemPpt.Click += (s, e) => SetLyricsMode(LyricsPageMode.PowerPoint);
 		flyout.Items.Add(itemPpt);
-
-		flyout.Items.Add(new MenuFlyoutSeparator());
-
-		var itemClassic = new MenuFlyoutItem
-		{
-			Text = "经典极简歌词页",
-			Icon = new FontIcon { Glyph = "\uE8D6" }
-		};
-		itemClassic.Click += (s, e) => SetLyricsMode(LyricsPageMode.Classic);
-		flyout.Items.Add(itemClassic);
 
 		_modeSwitchBtn.ContextFlyout = flyout;
 	}
@@ -709,11 +737,16 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		});
 	}
 
-	private async Task EnsureDawWebViewAsync(LyricsPageMode mode = LyricsPageMode.AuditionDaw)
+	private static string GetTargetUriForMode(LyricsPageMode mode)
 	{
-		string targetUri = (mode == LyricsPageMode.PowerPoint)
+		return (mode == LyricsPageMode.PowerPoint)
 			? "https://powerpoint.theme/index.html?v=2.0.0"
 			: "https://audition.daw/index.html?v=2.0.0";
+	}
+
+	private async Task EnsureDawWebViewAsync(LyricsPageMode mode = LyricsPageMode.AuditionDaw)
+	{
+		string targetUri = GetTargetUriForMode(mode);
 
 		if (_webView != null)
 		{
@@ -723,16 +756,31 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				if (!cur.StartsWith(targetUri, StringComparison.OrdinalIgnoreCase))
 				{
 					_dawReady = false;
+					_completedEnvelopeKey = null;
+					CancelPendingEnvelopeWork();
+					_webNavigationGeneration++;
 					_webView.CoreWebView2.Navigate(targetUri);
 				}
 				else if (_dawReady)
 				{
-					SendFullDawState();
+					ScheduleDawFullStateSync();
 				}
+				return;
 			}
+			if (_isInitializingWebView)
+			{
+				return;
+			}
+			_dawContainer?.Children.Remove(_webView);
+			_webView = null;
+		}
+
+		if (_isInitializingWebView || _isUnloaded)
+		{
 			return;
 		}
 
+		_isInitializingWebView = true;
 		try
 		{
 			_webView = new WebView2
@@ -744,6 +792,15 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			_dawContainer?.Children.Add(_webView);
 
 			await _webView.EnsureCoreWebView2Async();
+			if (_isUnloaded || _webView?.CoreWebView2 == null)
+			{
+				if (_webView != null)
+				{
+					_dawContainer?.Children.Remove(_webView);
+					_webView = null;
+				}
+				return;
+			}
 
 			string baseDir = AppDomain.CurrentDomain.BaseDirectory;
 			string assetsDir = Path.Combine(baseDir, "Assets", "AuditionDaw");
@@ -781,15 +838,37 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			_webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 			_webView.NavigationCompleted += (s, e) =>
 			{
-				_dawReady = true;
-				SendFullDawState();
+				if (!e.IsSuccess || _isUnloaded) return;
+				int navGen = _webNavigationGeneration;
+				var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+				dq?.TryEnqueue(async () =>
+				{
+					await Task.Delay(350);
+					if (!_dawReady && !_isUnloaded && navGen == _webNavigationGeneration && _webView?.CoreWebView2 != null)
+					{
+						_dawReady = true;
+						SendFullDawState();
+					}
+				});
 			};
 
+			_dawReady = false;
+			_completedEnvelopeKey = null;
+			_webNavigationGeneration++;
 			_webView.Source = new Uri(targetUri);
 		}
 		catch (Exception ex)
 		{
 			Debug.WriteLine($"Exception in EnsureDawWebViewAsync: {ex}");
+			if (_webView != null && _webView.CoreWebView2 == null)
+			{
+				_dawContainer?.Children.Remove(_webView);
+				_webView = null;
+			}
+		}
+		finally
+		{
+			_isInitializingWebView = false;
 		}
 	}
 
@@ -797,7 +876,9 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	{
 		if (_meterTimer == null)
 		{
-			_meterTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+			var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+			if (dq == null) return;
+			_meterTimer = dq.CreateTimer();
 			_meterTimer.Interval = TimeSpan.FromMilliseconds(25);
 			_meterTimer.Tick += OnMeterTimerTick;
 		}
@@ -815,56 +896,139 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		}
 	}
 
+	private Track? GetAuthoritativeTrack() => ViewModel?.Engine?.CurrentTrack ?? ViewModel?.CurrentTrack;
+
+	private static double SanitizeFinite(double value, double fallback = 0.0) =>
+		double.IsFinite(value) ? value : fallback;
+
+	private static float SanitizeFinite(float value, float fallback = 0.0f) =>
+		float.IsFinite(value) ? value : fallback;
+
+	private static float[] SanitizeFiniteArray(float[]? values, float fallback = 0.0f)
+	{
+		if (values == null || values.Length == 0)
+		{
+			return Array.Empty<float>();
+		}
+		for (int i = 0; i < values.Length; i++)
+		{
+			if (!float.IsFinite(values[i]))
+			{
+				float[] copy = new float[values.Length];
+				for (int j = 0; j < values.Length; j++)
+				{
+					copy[j] = float.IsFinite(values[j]) ? values[j] : fallback;
+				}
+				return copy;
+			}
+		}
+		return values;
+	}
+
 	private void OnMeterTimerTick(DispatcherQueueTimer sender, object args)
 	{
-		if (!_isDawMode || !_dawReady || _webView?.CoreWebView2 == null || ViewModel == null) return;
+		if (!_isDawMode || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null || ViewModel == null) return;
 
-		var meters = ViewModel.GetLiveAudioMeters();
-		bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
-
-		double posSec = ViewModel.Engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds;
-		double durSec = ViewModel.Duration.TotalSeconds > 0
-			? ViewModel.Duration.TotalSeconds
-			: (ViewModel.Engine?.Duration.TotalSeconds ?? 0.0);
-
-		PostDawMessage(new
+		try
 		{
-			protocolVersion = 1,
-			type = "echo:workshop-ui:clock",
-			positionSeconds = posSec,
-			durationSeconds = durSec,
-			clock = new
+			var engine = ViewModel.Engine;
+			var engineTrack = engine?.CurrentTrack;
+			bool trackOutOfSync =
+				(engineTrack != null && (ViewModel.CurrentTrack == null ||
+				 ViewModel.CurrentTrack.Id != engineTrack.Id ||
+				 !string.Equals(ViewModel.CurrentTrack.FilePath, engineTrack.FilePath, StringComparison.Ordinal))) ||
+				(engineTrack == null && ViewModel.CurrentTrack != null);
+			if (trackOutOfSync)
 			{
-				state = isPlaying ? "playing" : "paused",
+				ViewModel.SyncWithEngine();
+			}
+
+			var activeTrack = GetAuthoritativeTrack();
+			string trackIdStr = FormatDawTrackId(activeTrack);
+			string trackKey = $"{trackIdStr}|{activeTrack?.FilePath ?? string.Empty}";
+			bool isPlaying = ViewModel.IsPlaying || (engine?.State == SonicWave.Audio.PlaybackState.Playing);
+
+			if (activeTrack != null && !string.Equals(_lastMeterTrackKey, trackKey, StringComparison.Ordinal))
+			{
+				_lastMeterTrackKey = trackKey;
+				_lastMeterIsPlaying = isPlaying;
+				_envelopeRetryCount = 0;
+				_fullStateSyncPending = false;
+				SendFullDawState();
+			}
+			else if (_lastMeterIsPlaying != isPlaying)
+			{
+				_lastMeterIsPlaying = isPlaying;
+				SendDawPlaybackState();
+				if (isPlaying)
+				{
+					SendDawAudioFormat();
+					SendDawEnvelope();
+				}
+			}
+
+			var meters = ViewModel.GetLiveAudioMeters();
+
+			double posSec = SanitizeFinite(engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds, 0.0);
+			double rawDurSec = ViewModel.Duration.TotalSeconds > 0
+				? ViewModel.Duration.TotalSeconds
+				: (activeTrack != null && activeTrack.DurationMilliseconds > 0
+					? activeTrack.DurationMilliseconds / 1000.0
+					: (engine?.Duration.TotalSeconds ?? 0.0));
+			double durSec = SanitizeFinite(rawDurSec, 0.0);
+			double playbackRate = SanitizeFinite(ViewModel.Speed > 0 ? ViewModel.Speed : 1.0, 1.0);
+
+			PostDawMessage(new
+			{
+				protocolVersion = 1,
+				type = "echo:workshop-ui:clock",
 				positionSeconds = posSec,
 				durationSeconds = durSec,
-				sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-				playbackRate = ViewModel.Speed > 0 ? ViewModel.Speed : 1.0,
-				currentTrackId = ViewModel.CurrentTrack?.Id ?? 0L
-			}
-		});
+				clock = new
+				{
+					state = isPlaying ? "playing" : "paused",
+					positionSeconds = posSec,
+					durationSeconds = durSec,
+					sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+					playbackRate,
+					currentTrackId = trackIdStr
+				}
+			});
 
-		double energy = isPlaying ? Math.Clamp((meters.RmsDb + 60.0) / 60.0, 0.0, 1.0) : 0.0;
-		PostDawMessage(new
+			double peakDb = isPlaying ? SanitizeFinite(meters.PeakDb, -90.0) : -90.0;
+			double rmsDb = isPlaying ? SanitizeFinite(meters.RmsDb, -90.0) : -90.0;
+			float balance = isPlaying ? SanitizeFinite(meters.StereoBalance, 0.0f) : 0.0f;
+			float correlation = isPlaying ? SanitizeFinite(meters.PhaseCorrelation, 1.0f) : 1.0f;
+			double energy = isPlaying ? Math.Clamp(SanitizeFinite((rmsDb + 60.0) / 60.0, 0.0), 0.0, 1.0) : 0.0;
+			float[] bands = isPlaying ? SanitizeFiniteArray(meters.Bands) : Array.Empty<float>();
+			float[] vectorPoints = isPlaying ? SanitizeFiniteArray(meters.VectorPoints) : Array.Empty<float>();
+
+			PostDawMessage(new
+			{
+				protocolVersion = 1,
+				type = "echo:workshop-ui:audio",
+				trackId = trackIdStr,
+				levels = new
+				{
+					peakDb,
+					rmsDb,
+					balance,
+					correlation
+				},
+				spectrum = new
+				{
+					bands,
+					energy,
+					balance,
+					correlation,
+					vectorPoints
+				}
+			});
+		}
+		catch (Exception ex)
 		{
-			protocolVersion = 1,
-			type = "echo:workshop-ui:audio",
-			levels = new
-			{
-				peakDb = isPlaying ? meters.PeakDb : -90.0,
-				rmsDb = isPlaying ? meters.RmsDb : -90.0,
-				balance = isPlaying ? meters.StereoBalance : 0.0,
-				correlation = isPlaying ? meters.PhaseCorrelation : 1.0
-			},
-			spectrum = new
-			{
-				bands = isPlaying ? meters.Bands : Array.Empty<float>(),
-				energy,
-				balance = isPlaying ? meters.StereoBalance : 0.0,
-				correlation = isPlaying ? meters.PhaseCorrelation : 1.0,
-				vectorPoints = isPlaying ? meters.VectorPoints : Array.Empty<float>()
-			}
-		});
+			Debug.WriteLine($"OnMeterTimerTick error: {ex.Message}");
+		}
 	}
 
 	private void PostDawMessage(object message)
@@ -946,6 +1110,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			if (type == "echo:workshop-ui:ready")
 			{
 				_dawReady = true;
+				_completedEnvelopeKey = null;
 				SendFullDawState();
 				SendPptPreset();
 				SendSystemFonts();
@@ -960,17 +1125,21 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 			if (type == "echo:audition:getCover" || type == "echo:powerpoint:getCover")
 			{
-				string coverUrl = GetCoverDataUrl(ViewModel?.CoverPath);
+				var activeTrack = GetAuthoritativeTrack();
+				string coverPath = !string.IsNullOrEmpty(activeTrack?.CoverPath) ? activeTrack.CoverPath : (ViewModel?.CoverPath ?? string.Empty);
+				string coverUrl = GetCoverDataUrl(coverPath);
+				string trackIdStr = FormatDawTrackId(activeTrack);
 				PostDawMessage(new
 				{
 					type = "echo:powerpoint:coverData",
 					coverDataUrl = coverUrl,
-					trackId = ViewModel?.CurrentTrack?.Id ?? 0L
+					trackId = trackIdStr
 				});
 				PostDawMessage(new
 				{
 					type = "echo:audition:coverData",
-					coverDataUrl = coverUrl
+					coverDataUrl = coverUrl,
+					trackId = trackIdStr
 				});
 				return;
 			}
@@ -989,7 +1158,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 			if (type == "echo:audition:getEnvelope")
 			{
-				SendDawEnvelope();
+				SendDawEnvelope(force: true);
 				return;
 			}
 
@@ -1028,10 +1197,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					string m = modeEl.GetString() ?? "";
 					if (m.Equals("PowerPoint", StringComparison.OrdinalIgnoreCase))
 						SetLyricsMode(LyricsPageMode.PowerPoint);
-					else if (m.Equals("Audition", StringComparison.OrdinalIgnoreCase))
-						SetLyricsMode(LyricsPageMode.AuditionDaw);
 					else
-						SetLyricsMode(LyricsPageMode.Classic);
+						SetLyricsMode(LyricsPageMode.AuditionDaw);
 				}
 				return;
 			}
@@ -1195,13 +1362,19 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				break;
 			case "queue:playAlbum":
 			case "queue:playPlaylist":
-				if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("firstTrackId", out var ftProp) && ftProp.TryGetInt64(out long ftid))
+				if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty("firstTrackId", out var ftProp))
 				{
-					DispatcherQueue.TryEnqueue(() =>
+					long ftid = 0;
+					bool parsed = (ftProp.ValueKind == JsonValueKind.Number && ftProp.TryGetInt64(out ftid)) ||
+					              (ftProp.ValueKind == JsonValueKind.String && long.TryParse(ftProp.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out ftid));
+					if (parsed)
 					{
-						var trk = ViewModel?.Engine.Queue.FirstOrDefault(t => t.Id == ftid);
-						if (trk != null) ViewModel?.Engine.PlayTrack(trk);
-					});
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							var trk = ViewModel?.Engine.Queue.FirstOrDefault(t => t.Id == ftid);
+							if (trk != null) ViewModel?.Engine.PlayTrack(trk);
+						});
+					}
 				}
 				break;
 			case "lyrics:get":
@@ -1217,10 +1390,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					string m = mProp.GetString() ?? "";
 					if (m.Equals("PowerPoint", StringComparison.OrdinalIgnoreCase))
 						SetLyricsMode(LyricsPageMode.PowerPoint);
-					else if (m.Equals("Audition", StringComparison.OrdinalIgnoreCase))
-						SetLyricsMode(LyricsPageMode.AuditionDaw);
 					else
-						SetLyricsMode(LyricsPageMode.Classic);
+						SetLyricsMode(LyricsPageMode.AuditionDaw);
 				}
 				break;
 			case "storage:get":
@@ -1249,13 +1420,64 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		}
 	}
 
+	private static string FormatDawTrackId(Track? track)
+	{
+		return track != null ? track.Id.ToString(CultureInfo.InvariantCulture) : string.Empty;
+	}
+
+	private void CancelPendingEnvelopeWork()
+	{
+		_envelopeGeneration++;
+		_activeEnvelopeKey = null;
+		try
+		{
+			_envelopeCts?.Cancel();
+			_envelopeCts?.Dispose();
+		}
+		catch
+		{
+		}
+		_envelopeCts = null;
+	}
+
+	private void ScheduleDawFullStateSync()
+	{
+		if (!_isDawMode || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null || ViewModel == null) return;
+		if (_fullStateSyncPending) return;
+		_fullStateSyncPending = true;
+		var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+		if (dq != null)
+		{
+			dq.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+			{
+				_fullStateSyncPending = false;
+				SendFullDawState();
+			});
+		}
+		else
+		{
+			_fullStateSyncPending = false;
+			SendFullDawState();
+		}
+	}
+
 	private void SendFullDawState()
 	{
-		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
-		var track = ViewModel.CurrentTrack;
-		long trackId = track?.Id ?? 0L;
-		bool isPlaying = ViewModel.IsPlaying;
-		double volume01 = Math.Clamp(ViewModel.Volume / 100.0, 0.0, 1.0);
+		_fullStateSyncPending = false;
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
+		var track = GetAuthoritativeTrack();
+		if (track != null && (ViewModel.CurrentTrack == null ||
+		    ViewModel.CurrentTrack.Id != track.Id ||
+		    !string.Equals(ViewModel.CurrentTrack.FilePath, track.FilePath, StringComparison.Ordinal)))
+		{
+			ViewModel.SyncWithEngine();
+		}
+
+		string trackIdStr = FormatDawTrackId(track);
+		bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
+		_lastMeterTrackKey = $"{trackIdStr}|{track?.FilePath ?? string.Empty}";
+		_lastMeterIsPlaying = isPlaying;
+		double volume01 = SanitizeFinite(Math.Clamp(ViewModel.Volume / 100.0, 0.0, 1.0), 0.8);
 
 		string repeatMode = "off";
 		bool isShuffle = false;
@@ -1270,7 +1492,20 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			isShuffle = ViewModel.Engine.Mode == PlaybackMode.Shuffle;
 		}
 
-		string coverUrl = GetCoverDataUrl(ViewModel.CoverPath);
+		bool vmMatchesTrack = track != null && ViewModel.CurrentTrack != null && ViewModel.CurrentTrack.Id == track.Id;
+		string rawCoverPath = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.CoverPath)
+			? ViewModel.CoverPath
+			: (track?.CoverPath ?? ViewModel.CoverPath);
+		string coverUrl = GetCoverDataUrl(rawCoverPath);
+		string title = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Title) ? ViewModel.Title : (track?.DisplayTitle ?? ViewModel.Title);
+		string artist = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Artist) ? ViewModel.Artist : (track?.Artist ?? ViewModel.Artist);
+		string album = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Album) ? ViewModel.Album : (track?.Album ?? ViewModel.Album);
+		double rawDurationSeconds = ViewModel.Duration.TotalSeconds > 0
+			? ViewModel.Duration.TotalSeconds
+			: (track != null && track.DurationMilliseconds > 0
+				? track.DurationMilliseconds / 1000.0
+				: (ViewModel.Engine?.Duration.TotalSeconds ?? 0.0));
+		double durationSeconds = SanitizeFinite(rawDurationSeconds, 0.0);
 
 		PostDawMessage(new
 		{
@@ -1288,13 +1523,14 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		{
 			type = "echo:powerpoint:coverData",
 			coverDataUrl = coverUrl,
-			trackId
+			trackId = trackIdStr
 		});
 
 		PostDawMessage(new
 		{
 			type = "echo:audition:coverData",
-			coverDataUrl = coverUrl
+			coverDataUrl = coverUrl,
+			trackId = trackIdStr
 		});
 
 		PostDawMessage(new
@@ -1304,18 +1540,18 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			playback = new
 			{
 				state = isPlaying ? "playing" : "paused",
-				currentTrackId = trackId,
+				currentTrackId = trackIdStr,
 				volume = volume01,
 				repeatMode,
 				shuffle = isShuffle
 			},
 			currentTrack = new
 			{
-				id = trackId,
-				title = ViewModel.Title,
-				artist = ViewModel.Artist,
-				album = ViewModel.Album,
-				durationSeconds = ViewModel.Duration.TotalSeconds,
+				id = trackIdStr,
+				title,
+				artist,
+				album,
+				durationSeconds,
 				coverUrl
 			}
 		});
@@ -1326,62 +1562,204 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		SendDawEnvelope();
 	}
 
-	private void SendDawEnvelope()
+	private void ScheduleEnvelopeRetryIfNeeded(string envKey, int generation)
 	{
-		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
-		var track = ViewModel.CurrentTrack;
-		if (track == null) return;
-		long trackId = track.Id;
-		string? path = track.FilePath;
-
-		if (!string.IsNullOrEmpty(path) && File.Exists(path))
+		if (_isUnloaded || !_dawReady || ViewModel == null) return;
+		if (!string.Equals(_envelopeRetryKey, envKey, StringComparison.Ordinal))
 		{
-			_ = Task.Run(() =>
+			_envelopeRetryKey = envKey;
+			_envelopeRetryCount = 0;
+		}
+		if (_envelopeRetryCount >= MaxEnvelopeRetries)
+		{
+			return;
+		}
+		_envelopeRetryCount++;
+		var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+		dq?.TryEnqueue(async () =>
+		{
+			await Task.Delay(1500);
+			if (_isUnloaded || !_dawReady || ViewModel == null) return;
+			if (generation != _envelopeGeneration) return;
+			var currentTrack = GetAuthoritativeTrack();
+			if (currentTrack == null) return;
+			string curKey = $"{FormatDawTrackId(currentTrack)}|{currentTrack.FilePath ?? string.Empty}";
+			if (!string.Equals(curKey, envKey, StringComparison.Ordinal)) return;
+			if (string.Equals(_completedEnvelopeKey, envKey, StringComparison.Ordinal)) return;
+			bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
+			if (!isPlaying && _envelopeRetryCount > 1) return;
+			SendDawEnvelope(force: true);
+		});
+	}
+
+	private void SendDawEnvelope(bool force = false)
+	{
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
+		var track = GetAuthoritativeTrack();
+		if (track == null) return;
+		string trackIdStr = FormatDawTrackId(track);
+		string? path = track.FilePath;
+		if (string.IsNullOrWhiteSpace(path))
+		{
+			path = ViewModel.Engine?.CurrentTrack?.FilePath;
+		}
+		if (string.IsNullOrWhiteSpace(path)) return;
+
+		string envKey = $"{trackIdStr}|{path}";
+		// Never cancel an already in-flight download/computation for the exact same track & path.
+		if (string.Equals(_activeEnvelopeKey, envKey, StringComparison.Ordinal))
+		{
+			return;
+		}
+		if (!force && string.Equals(_completedEnvelopeKey, envKey, StringComparison.Ordinal))
+		{
+			return;
+		}
+
+		CancelPendingEnvelopeWork();
+		var cts = new CancellationTokenSource();
+		_envelopeCts = cts;
+		CancellationToken ct = cts.Token;
+		int generation = _envelopeGeneration;
+		_activeEnvelopeKey = envKey;
+		var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
+
+		_ = Task.Run(async () =>
+		{
+			bool postedValid = false;
+			try
 			{
-				try
+				string resolvedPath = path;
+				if (!File.Exists(resolvedPath) && StreamAudioCache.IsNetworkUrl(resolvedPath))
 				{
-					var env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(path, 4096);
-					if (env != null && env.Peak.Length > 0)
+					var (ok, cachedPath) = await StreamAudioCache.TryGetOrDownloadCachedFileAsync(resolvedPath, 10000, ct).ConfigureAwait(false);
+					if (ok && !string.IsNullOrEmpty(cachedPath) && File.Exists(cachedPath))
 					{
-						DispatcherQueue.TryEnqueue(() =>
-						{
-							if (ViewModel?.CurrentTrack?.Id == trackId)
-							{
-								PostDawMessage(new
-								{
-									protocolVersion = 1,
-									type = "echo:audition:envelopeData",
-									trackId,
-									p = env.Peak,
-									r = env.Rms,
-									lMin = env.LeftMin,
-									lMax = env.LeftMax,
-									rMin = env.RightMin,
-									rMax = env.RightMax,
-									specCols = env.SpecCols,
-									specBins = env.SpecBins,
-									sampleRate = env.SampleRate,
-									specL = env.SpecLeftBase64,
-									specR = env.SpecRightBase64
-								});
-							}
-						});
+						resolvedPath = cachedPath;
 					}
 				}
-				catch
+
+				if (ct.IsCancellationRequested)
 				{
+					return;
 				}
-			});
-		}
+
+				WaveformRenderer.AuditionEnvelopeData? env = null;
+				if (File.Exists(resolvedPath))
+				{
+					env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(resolvedPath, 4096);
+					if ((env == null || env.Peak == null || env.Peak.Length == 0) && !ct.IsCancellationRequested)
+					{
+						await Task.Delay(250, ct).ConfigureAwait(false);
+						if (!ct.IsCancellationRequested && File.Exists(resolvedPath))
+						{
+							env = WaveformRenderer.ComputeAuditionEnvelopeFromFile(resolvedPath, 4096);
+						}
+					}
+				}
+
+				if (ct.IsCancellationRequested)
+				{
+					return;
+				}
+
+				if (env == null || env.Peak == null || env.Peak.Length == 0)
+				{
+					dq?.TryEnqueue(() =>
+					{
+						if (generation == _envelopeGeneration)
+						{
+							ScheduleEnvelopeRetryIfNeeded(envKey, generation);
+						}
+					});
+					return;
+				}
+
+				float[] safePeak = SanitizeFiniteArray(env.Peak);
+				float[] safeRms = SanitizeFiniteArray(env.Rms);
+				float[] safeLMin = SanitizeFiniteArray(env.LeftMin);
+				float[] safeLMax = SanitizeFiniteArray(env.LeftMax);
+				float[] safeRMin = SanitizeFiniteArray(env.RightMin);
+				float[] safeRMax = SanitizeFiniteArray(env.RightMax);
+				postedValid = true;
+
+				dq?.TryEnqueue(() =>
+				{
+					if (ct.IsCancellationRequested || _isUnloaded || !_dawReady || _webView?.CoreWebView2 == null)
+					{
+						return;
+					}
+					var currentTrack = GetAuthoritativeTrack();
+					if (currentTrack == null)
+					{
+						return;
+					}
+					bool sameId = string.Equals(FormatDawTrackId(currentTrack), trackIdStr, StringComparison.Ordinal);
+					bool samePath = string.Equals(currentTrack.FilePath, path, StringComparison.OrdinalIgnoreCase) ||
+					                string.Equals(currentTrack.FilePath, resolvedPath, StringComparison.OrdinalIgnoreCase) ||
+					                (StreamAudioCache.IsNetworkUrl(path) && StreamAudioCache.IsNetworkUrl(currentTrack.FilePath));
+					if (sameId && samePath)
+					{
+						_completedEnvelopeKey = envKey;
+						_envelopeRetryKey = envKey;
+						_envelopeRetryCount = 0;
+						PostDawMessage(new
+						{
+							protocolVersion = 1,
+							type = "echo:audition:envelopeData",
+							trackId = trackIdStr,
+							p = safePeak,
+							r = safeRms,
+							lMin = safeLMin,
+							lMax = safeLMax,
+							rMin = safeRMin,
+							rMax = safeRMax,
+							specCols = env.SpecCols,
+							specBins = env.SpecBins,
+							sampleRate = env.SampleRate,
+							specL = env.SpecLeftBase64,
+							specR = env.SpecRightBase64
+						});
+					}
+				});
+			}
+			catch (OperationCanceledException)
+			{
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine($"SendDawEnvelope error: {ex.Message}");
+				if (!postedValid && !ct.IsCancellationRequested)
+				{
+					dq?.TryEnqueue(() =>
+					{
+						if (generation == _envelopeGeneration)
+						{
+							ScheduleEnvelopeRetryIfNeeded(envKey, generation);
+						}
+					});
+				}
+			}
+			finally
+			{
+				dq?.TryEnqueue(() =>
+				{
+					if (generation == _envelopeGeneration && string.Equals(_activeEnvelopeKey, envKey, StringComparison.Ordinal))
+					{
+						_activeEnvelopeKey = null;
+					}
+				});
+			}
+		}, ct);
 	}
 
 	private void SendDawPlaybackState()
 	{
-		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
-		var track = ViewModel.CurrentTrack;
-		long trackId = track?.Id ?? 0L;
-		bool isPlaying = ViewModel.IsPlaying;
-		double volume01 = Math.Clamp(ViewModel.Volume / 100.0, 0.0, 1.0);
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
+		var track = GetAuthoritativeTrack();
+		string trackIdStr = FormatDawTrackId(track);
+		bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
+		double volume01 = SanitizeFinite(Math.Clamp(ViewModel.Volume / 100.0, 0.0, 1.0), 0.8);
 
 		string repeatMode = "off";
 		bool isShuffle = false;
@@ -1403,7 +1781,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			playback = new
 			{
 				state = isPlaying ? "playing" : "paused",
-				currentTrackId = trackId,
+				currentTrackId = trackIdStr,
 				volume = volume01,
 				repeatMode,
 				shuffle = isShuffle
@@ -1413,14 +1791,26 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void SendDawAudioFormat()
 	{
-		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
+		var activeTrack = GetAuthoritativeTrack();
+		string trackIdStr = FormatDawTrackId(activeTrack);
+		bool isPlaying = ViewModel.IsPlaying || (ViewModel.Engine?.State == SonicWave.Audio.PlaybackState.Playing);
 		var fmt = ViewModel.GetAudioFormatDetails();
 		var meters = ViewModel.GetLiveAudioMeters();
+
+		double peakDb = isPlaying ? SanitizeFinite(meters.PeakDb, -90.0) : -90.0;
+		double rmsDb = isPlaying ? SanitizeFinite(meters.RmsDb, -90.0) : -90.0;
+		float balance = isPlaying ? SanitizeFinite(meters.StereoBalance, 0.0f) : 0.0f;
+		float correlation = isPlaying ? SanitizeFinite(meters.PhaseCorrelation, 1.0f) : 1.0f;
+		double energy = isPlaying ? Math.Clamp(SanitizeFinite((rmsDb + 60.0) / 60.0, 0.0), 0.0, 1.0) : 0.0;
+		float[] bands = isPlaying ? SanitizeFiniteArray(meters.Bands) : Array.Empty<float>();
+		float[] vectorPoints = isPlaying ? SanitizeFiniteArray(meters.VectorPoints) : Array.Empty<float>();
 
 		PostDawMessage(new
 		{
 			protocolVersion = 1,
 			type = "echo:workshop-ui:audio",
+			trackId = trackIdStr,
 			audio = new
 			{
 				codec = fmt.Codec,
@@ -1433,13 +1823,18 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			},
 			levels = new
 			{
-				peakDb = meters.PeakDb,
-				rmsDb = meters.RmsDb
+				peakDb,
+				rmsDb,
+				balance,
+				correlation
 			},
 			spectrum = new
 			{
-				bands = meters.Bands,
-				energy = Math.Clamp((meters.RmsDb + 60.0) / 60.0, 0.0, 1.0)
+				bands,
+				energy,
+				balance,
+				correlation,
+				vectorPoints
 			}
 		});
 
@@ -1477,9 +1872,10 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void SendDawLyrics()
 	{
-		if (ViewModel == null || !_dawReady || _webView?.CoreWebView2 == null) return;
-		var track = ViewModel.CurrentTrack;
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
+		var track = GetAuthoritativeTrack();
 		if (track == null) return;
+		string trackIdStr = FormatDawTrackId(track);
 
 		var lyricLines = ViewModel.LyricLines;
 		var linesList = new List<object>();
@@ -1496,18 +1892,22 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			}
 		}
 
+		double durationSeconds = SanitizeFinite(
+			track.DurationMilliseconds > 0 ? track.DurationMilliseconds / 1000.0 : ViewModel.Duration.TotalSeconds,
+			0.0);
+
 		PostDawMessage(new
 		{
 			protocolVersion = 1,
 			type = "echo:workshop-ui:lyrics",
-			trackId = track.Id,
+			trackId = trackIdStr,
 			lyrics = new
 			{
 				kind = linesList.Count > 0 ? "synced" : "empty",
 				title = track.DisplayTitle,
 				artist = track.Artist ?? "",
 				album = track.Album ?? "",
-				durationSeconds = track.DurationMilliseconds > 0 ? track.DurationMilliseconds / 1000.0 : ViewModel.Duration.TotalSeconds,
+				durationSeconds,
 				lines = linesList
 			}
 		});
@@ -1515,21 +1915,23 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void SendDawQueue()
 	{
-		if (ViewModel?.Engine == null || !_dawReady || _webView?.CoreWebView2 == null) return;
+		if (ViewModel?.Engine == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null) return;
 		var queue = ViewModel.Engine.Queue;
 		if (queue == null) return;
 
+		string currentTrackIdStr = FormatDawTrackId(GetAuthoritativeTrack());
 		var items = queue.Select((t, i) =>
 		{
+			string itemIdStr = FormatDawTrackId(t);
 			return new
 			{
-				queueId = $"q_{t.Id}_{i}",
-				id = t.Id,
-				trackId = t.Id,
+				queueId = $"q_{itemIdStr}_{i}",
+				id = itemIdStr,
+				trackId = itemIdStr,
 				title = t.DisplayTitle,
 				artist = t.Artist ?? "—",
 				album = t.Album ?? "—",
-				durationSeconds = t.DurationMilliseconds > 0 ? t.DurationMilliseconds / 1000.0 : 0.0,
+				durationSeconds = t.DurationMilliseconds > 0 ? SanitizeFinite(t.DurationMilliseconds / 1000.0, 0.0) : 0.0,
 				coverUrl = string.Empty,
 				coverThumb = string.Empty,
 				rawCoverUrl = string.Empty
@@ -1555,7 +1957,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			queue = new
 			{
 				items,
-				currentQueueId = items.FirstOrDefault(x => x.id == (ViewModel?.CurrentTrack?.Id ?? 0L))?.queueId
+				currentQueueId = items.FirstOrDefault(x => string.Equals(x.id, currentTrackIdStr, StringComparison.Ordinal))?.queueId
 			}
 		});
 	}

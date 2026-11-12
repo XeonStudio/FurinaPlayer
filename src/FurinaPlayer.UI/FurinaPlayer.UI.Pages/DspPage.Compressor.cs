@@ -40,21 +40,36 @@ public sealed partial class DspPage
 	private double _compDraftStereoLink = 1.0;
 
 	// UI Controls
+	private Border? _compTitleIconBorder;
+	private FontIcon? _compTitleIcon;
 	private Button? _compPowerBtn;
 	private FontIcon? _compPowerIcon;
 	private TextBlock? _compPowerText;
 	private Button? _compResetBtn;
+	private FontIcon? _compResetIcon;
+	private TextBlock? _compResetText;
 	private Button? _compApplyBtn;
+	private FontIcon? _compApplyIcon;
+	private TextBlock? _compApplyText;
 	private Border? _compPendingBadge;
 	private TextBlock? _compPendingBadgeTb;
 	private TextBlock? _compApplyHintTb;
+	private bool _compIsDirty;
 
 	// Mode Pill Controls
+	private Border? _compModeBorder;
 	private Button? _btnModeBasic;
 	private Button? _btnModeAdvanced;
 	private FrameworkElement? _basicControlsContainer;
 	private FrameworkElement? _advancedControlsContainer;
 	private string _compCurrentMode = "basic";
+
+	// Theme-tracked collections
+	private readonly List<Border> _compCardBorders = new();
+	private readonly List<Grid> _compMeterTracks = new();
+	private readonly List<TextBlock> _compPrimaryTextBlocks = new();
+	private readonly List<TextBlock> _compSecondaryTextBlocks = new();
+	private readonly List<TextBlock> _compMutedTextBlocks = new();
 
 	// Top Meters Controls
 	private TextBlock? _compInputHeadlineTb;
@@ -78,6 +93,7 @@ public sealed partial class DspPage
 	private TextBlock? _compOutputDbTbR;
 
 	// Transfer Curve Controls
+	private Border? _compCurveRatioPill;
 	private TextBlock? _compCurveRatioTb;
 	private Canvas? _compCurveCanvas;
 	private Border? _compThresholdTag;
@@ -91,6 +107,7 @@ public sealed partial class DspPage
 	private bool _isDraggingThreshold = false;
 
 	// Basic Sliders & Labels
+	private Border? _compDetBorder;
 	private Button? _btnDetPeak;
 	private Button? _btnDetRms;
 	private Slider? _sliderThreshold;
@@ -136,9 +153,18 @@ public sealed partial class DspPage
 	{
 		InitCompressorDraftState();
 
+		_compCardBorders.Clear();
+		_compMeterTracks.Clear();
+		_compPrimaryTextBlocks.Clear();
+		_compSecondaryTextBlocks.Clear();
+		_compMutedTextBlocks.Clear();
+
+		bool isDark = IsDspDark;
+
 		var rootBorder = new Border
 		{
-			Background = CreateWhiteAcrylicBrush(0.72, 195),
+			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light,
+			Background = CreateCompSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0)),
 			CornerRadius = new CornerRadius(0)
 		};
 
@@ -166,13 +192,15 @@ public sealed partial class DspPage
 		mainStack.Children.Add(CreateCompHeaderMetersSection());
 
 		// 4. Subtitle Lead Hint
-		mainStack.Children.Add(new TextBlock
+		var leadHintTb = new TextBlock
 		{
 			Text = "左右拖动曲线调整阈值。压缩比、启动、释放和补偿在滑杆上。",
 			FontSize = 13,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = GetCompMutedTextBrush(isDark),
 			Margin = new Thickness(2, -4, 0, 0)
-		});
+		};
+		_compMutedTextBlocks.Add(leadHintTb);
+		mainStack.Children.Add(leadHintTb);
 
 		// 5. Main 2-Column Stage (Left: Transfer Curve, Right: Basic / Advanced Controls)
 		mainStack.Children.Add(CreateCompMainStage());
@@ -184,10 +212,11 @@ public sealed partial class DspPage
 		rootBorder.Child = sv;
 		_compressorWorkbench = rootBorder;
 
-		// Initial render of curves
+		// Initial render of curves and theme state
 		UpdateTransferCurveVisuals();
 		UpdateHistoryPlotVisuals();
-		UpdateDirtyStateBadge();
+		UpdateDirtyStateBadge(isDark);
+		RefreshCompressorTheme(isDark);
 
 		return _compressorWorkbench;
 	}
@@ -216,109 +245,41 @@ public sealed partial class DspPage
 	#region 1. Top Header Bar
 	private FrameworkElement CreateCompTopHeaderBar()
 	{
+		bool isDark = IsDspDark;
 		var headerGrid = new Grid();
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
-		var iconBorder = new Border
+		_compTitleIcon = new FontIcon
+		{
+			Glyph = "\uE958",
+			FontSize = 18,
+			Foreground = GetCompAccentSoftTextBrush(isDark),
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_compTitleIconBorder = new Border
 		{
 			Width = 36,
 			Height = 36,
 			CornerRadius = new CornerRadius(18),
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			Child = new FontIcon
-			{
-				Glyph = "\uE958",
-				FontSize = 18,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
-				HorizontalAlignment = HorizontalAlignment.Center,
-				VerticalAlignment = VerticalAlignment.Center
-			}
+			Background = GetCompAccentSoftBgBrush(isDark),
+			Child = _compTitleIcon
 		};
-		titleSp.Children.Add(iconBorder);
-		titleSp.Children.Add(new TextBlock
+		titleSp.Children.Add(_compTitleIconBorder);
+		var titleTb = new TextBlock
 		{
 			Text = "压缩器",
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetCompPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
-		});
+		};
+		_compPrimaryTextBlocks.Add(titleTb);
+		titleSp.Children.Add(titleTb);
 		Grid.SetColumn(titleSp, 0);
 		headerGrid.Children.Add(titleSp);
-
-		var topActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-
-		// 4 个模块启用 Pill
-		var modulePill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)) },
-					new TextBlock { Text = "4 个模块启用", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-
-		// 就绪 Pill
-		var readyPill = new Border
-		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 240, 253, 244)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 187, 247, 208)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(14),
-			Padding = new Thickness(10, 4, 10, 4),
-			Child = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 5,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE9D9", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "就绪", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
-			}
-		};
-
-		// 刷新状态 Button
-		var btnRefreshTop = new Button
-		{
-			Content = new StackPanel
-			{
-				Orientation = Orientation.Horizontal,
-				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-				}
-			},
-			Padding = new Thickness(10, 5, 10, 5),
-			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(210, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1)
-		};
-		btnRefreshTop.Click += (s, e) =>
-		{
-			RefreshCompressorStatus();
-		};
-
-		topActionsSp.Children.Add(modulePill);
-		topActionsSp.Children.Add(readyPill);
-		topActionsSp.Children.Add(btnRefreshTop);
-		Grid.SetColumn(topActionsSp, 1);
-		headerGrid.Children.Add(topActionsSp);
 
 		return headerGrid;
 	}
@@ -327,6 +288,7 @@ public sealed partial class DspPage
 	#region 2. Top Action Toolbar
 	private FrameworkElement CreateCompActionToolbar()
 	{
+		bool isDark = IsDspDark;
 		var barGrid = new Grid();
 		barGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		barGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -334,7 +296,7 @@ public sealed partial class DspPage
 		// Left Action Buttons: [Power] [Reset] [Apply] [Pending Badge]
 		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
-		_compPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
+		_compPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14 };
 		_compPowerText = new TextBlock { Text = _compDraftEnabled ? "已启用" : "已旁路", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _compPowerIcon, _compPowerText } };
 
@@ -343,8 +305,6 @@ public sealed partial class DspPage
 			Content = powerSp,
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
 		_compPowerBtn.Click += (s, e) =>
@@ -357,50 +317,44 @@ public sealed partial class DspPage
 			}
 			UpdatePowerButtonVisuals();
 		};
-		UpdatePowerButtonVisuals();
+		UpdatePowerButtonVisuals(isDark);
 		leftSp.Children.Add(_compPowerBtn);
 
 		// 恢复默认 Button
+		_compResetIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13 };
+		_compResetText = new TextBlock { Text = "恢复默认", FontSize = 13 };
 		_compResetBtn = new Button
 		{
 			Content = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
 				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)) }
-				}
+				Children = { _compResetIcon, _compResetText }
 			},
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		ApplyCompNeutralButtonSurface(_compResetBtn, isDark, GetCompSecondaryTextBrush(isDark), _compResetIcon, _compResetText, GetCompSubHeaderTextBrush(isDark));
 		_compResetBtn.Click += (s, e) => ResetCompressorDefaults();
 		leftSp.Children.Add(_compResetBtn);
 
 		// 应用参数 Button
+		_compApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 13 };
+		_compApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
 		_compApplyBtn = new Button
 		{
 			Content = new StackPanel
 			{
 				Orientation = Orientation.Horizontal,
 				Spacing = 6,
-				Children =
-				{
-					new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 71, 85, 105)) },
-					new TextBlock { Text = "应用参数", FontSize = 13, Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
-				}
+				Children = { _compApplyIcon, _compApplyText }
 			},
 			Padding = new Thickness(12, 6, 14, 6),
 			CornerRadius = new CornerRadius(8),
-			Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
 			BorderThickness = new Thickness(1)
 		};
+		ApplyCompNeutralButtonSurface(_compApplyBtn, isDark, GetCompSecondaryTextBrush(isDark), _compApplyIcon, _compApplyText, GetCompSubHeaderTextBrush(isDark));
 		_compApplyBtn.Click += (s, e) => ApplyCompressorDraftParameters();
 		leftSp.Children.Add(_compApplyBtn);
 
@@ -409,13 +363,10 @@ public sealed partial class DspPage
 		{
 			Text = "未应用 · 1",
 			FontSize = 11,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 217, 119, 6))
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
 		};
 		_compPendingBadge = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 254, 243, 199)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 252, 211, 77)),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(12),
 			Padding = new Thickness(8, 3, 8, 3),
@@ -428,10 +379,10 @@ public sealed partial class DspPage
 		barGrid.Children.Add(leftSp);
 
 		// Right Mode Pills: [基础控制] [高级检测与联动]
-		var modeBorder = new Border
+		_compModeBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(180, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			Background = GetCompSoftSurfaceBrush(isDark),
+			BorderBrush = CreateCompRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(16),
 			Padding = new Thickness(3)
@@ -462,39 +413,43 @@ public sealed partial class DspPage
 
 		modeSp.Children.Add(_btnModeBasic);
 		modeSp.Children.Add(_btnModeAdvanced);
-		modeBorder.Child = modeSp;
+		_compModeBorder.Child = modeSp;
 
-		Grid.SetColumn(modeBorder, 1);
-		barGrid.Children.Add(modeBorder);
+		Grid.SetColumn(_compModeBorder, 1);
+		barGrid.Children.Add(_compModeBorder);
 
-		UpdateModePillVisuals();
+		UpdateModePillVisuals(isDark);
 
 		return barGrid;
 	}
 
-	private void UpdatePowerButtonVisuals()
+	private void UpdatePowerButtonVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
 		if (_compPowerText != null)
 		{
 			_compPowerText.Text = _compDraftEnabled ? "已启用" : "已旁路";
-			_compPowerText.Foreground = _compDraftEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
 		}
-		if (_compPowerIcon != null)
+
+		if (_compDraftEnabled)
 		{
-			_compPowerIcon.Foreground = _compDraftEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+			var bg = new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+			var hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(115, 99, 102, 241) : Color.FromArgb(255, 224, 231, 255));
+			var pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(140, 99, 102, 241) : Color.FromArgb(255, 199, 210, 254));
+			var border = new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+			var hoverBorder = new SolidColorBrush(isDark ? Color.FromArgb(220, 165, 180, 252) : Color.FromArgb(255, 165, 180, 252));
+			var fg = GetCompAccentSoftTextBrush(isDark);
+			ApplyCompButtonVisuals(_compPowerBtn, bg, hoverBg, pressedBg, border, hoverBorder, fg, _compPowerIcon, _compPowerText);
 		}
-		if (_compPowerBtn != null)
+		else
 		{
-			_compPowerBtn.Background = _compDraftEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
-				: new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			_compPowerBtn.BorderBrush = _compDraftEnabled
-				? new SolidColorBrush(Color.FromArgb(255, 199, 210, 254))
-				: new SolidColorBrush(Color.FromArgb(140, 226, 232, 240));
+			ApplyCompNeutralButtonSurface(
+				_compPowerBtn,
+				isDark,
+				GetCompSubHeaderTextBrush(isDark),
+				_compPowerIcon,
+				_compPowerText,
+				GetCompMutedTextBrush(isDark));
 		}
 	}
 
@@ -512,47 +467,37 @@ public sealed partial class DspPage
 		}
 	}
 
-	private void UpdateModePillVisuals()
+	private void UpdateModePillVisuals(bool? isDarkOverride = null)
 	{
-		if (_btnModeBasic != null)
-		{
-			bool isSel = _compCurrentMode == "basic";
-			_btnModeBasic.Background = isSel ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent);
-			_btnModeBasic.Foreground = isSel ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-		}
-		if (_btnModeAdvanced != null)
-		{
-			bool isSel = _compCurrentMode == "advanced";
-			_btnModeAdvanced.Background = isSel ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent);
-			_btnModeAdvanced.Foreground = isSel ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-		}
+		bool isDark = isDarkOverride ?? IsDspDark;
+		ApplyCompPillButtonStyle(_btnModeBasic, _compCurrentMode == "basic", isDark);
+		ApplyCompPillButtonStyle(_btnModeAdvanced, _compCurrentMode == "advanced", isDark);
 	}
 	#endregion
 
 	#region 3. Header Meters Section (Input, GR, Output)
 	private FrameworkElement CreateCompHeaderMetersSection()
 	{
+		bool isDark = IsDspDark;
+		Brush primaryText = GetCompPrimaryTextBrush(isDark);
+		Brush mutedText = GetCompMutedTextBrush(isDark);
+
 		var grid = new Grid { ColumnSpacing = 16 };
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.85, GridUnitType.Star) });
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// Card 1: Input Level Meter
-		var inputCard = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		var inputCard = CreateCompCard(isDark);
 		var inputStack = new StackPanel { Spacing = 8 };
 
 		var inHead = new Grid();
 		inHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		inHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbInTitle = new TextBlock { Text = "输入", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		var tbInType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		var tbInTitle = new TextBlock { Text = "输入", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbInType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = mutedText };
+		_compMutedTextBlocks.Add(tbInTitle);
+		_compMutedTextBlocks.Add(tbInType);
 		Grid.SetColumn(tbInTitle, 0); Grid.SetColumn(tbInType, 1);
 		inHead.Children.Add(tbInTitle); inHead.Children.Add(tbInType);
 		inputStack.Children.Add(inHead);
@@ -562,17 +507,18 @@ public sealed partial class DspPage
 			Text = "-96.0 dB",
 			FontSize = 32,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = primaryText,
 			FontFamily = new FontFamily("Segoe UI Variable Display, Consolas, Segoe UI")
 		};
+		_compPrimaryTextBlocks.Add(_compInputHeadlineTb);
 		inputStack.Children.Add(_compInputHeadlineTb);
 
 		// Track L
-		var trackL = CreateDualTrackMeterRow("L", out _compInputRmsBarL, out _compInputPeakTickL, out _compInputDbTbL);
+		var trackL = CreateDualTrackMeterRow("L", isDark, out _compInputRmsBarL, out _compInputPeakTickL, out _compInputDbTbL);
 		inputStack.Children.Add(trackL);
 
 		// Track R
-		var trackR = CreateDualTrackMeterRow("R", out _compInputRmsBarR, out _compInputPeakTickR, out _compInputDbTbR);
+		var trackR = CreateDualTrackMeterRow("R", isDark, out _compInputRmsBarR, out _compInputPeakTickR, out _compInputDbTbR);
 		inputStack.Children.Add(trackR);
 
 		inputCard.Child = inputStack;
@@ -580,21 +526,16 @@ public sealed partial class DspPage
 		grid.Children.Add(inputCard);
 
 		// Card 2: Gain Reduction Meter
-		var grCard = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		var grCard = CreateCompCard(isDark);
 		var grStack = new StackPanel { Spacing = 8 };
 
 		var grHead = new Grid();
 		grHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		grHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbGrTitle = new TextBlock { Text = "增益衰减 GR", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		var tbGrUnit = new TextBlock { Text = "GR", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		var tbGrTitle = new TextBlock { Text = "增益衰减 GR", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbGrUnit = new TextBlock { Text = "GR", FontSize = 11, Foreground = mutedText };
+		_compMutedTextBlocks.Add(tbGrTitle);
+		_compMutedTextBlocks.Add(tbGrUnit);
 		Grid.SetColumn(tbGrTitle, 0); Grid.SetColumn(tbGrUnit, 1);
 		grHead.Children.Add(tbGrTitle); grHead.Children.Add(tbGrUnit);
 		grStack.Children.Add(grHead);
@@ -605,18 +546,20 @@ public sealed partial class DspPage
 			Text = "0.0",
 			FontSize = 34,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = primaryText,
 			FontFamily = new FontFamily("Segoe UI Variable Display, Consolas, Segoe UI")
 		};
+		_compPrimaryTextBlocks.Add(_compGrHeadlineTb);
 		var grDbSuffix = new TextBlock
 		{
 			Text = "dB",
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Margin = new Thickness(0, 0, 0, 4)
 		};
+		_compMutedTextBlocks.Add(grDbSuffix);
 		grReadoutSp.Children.Add(_compGrHeadlineTb);
 		grReadoutSp.Children.Add(grDbSuffix);
 		grStack.Children.Add(grReadoutSp);
@@ -625,9 +568,10 @@ public sealed partial class DspPage
 		var grTrackContainer = new Grid
 		{
 			Height = 6,
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetCompMeterTrackBrush(isDark),
 			CornerRadius = new CornerRadius(3)
 		};
+		_compMeterTracks.Add(grTrackContainer);
 		_compGrReductionBar = new Border
 		{
 			HorizontalAlignment = HorizontalAlignment.Left,
@@ -643,9 +587,10 @@ public sealed partial class DspPage
 		{
 			Text = "输出余量 96.0 dB",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			Margin = new Thickness(0, 4, 0, 0)
 		};
+		_compMutedTextBlocks.Add(_compHeadroomTb);
 		grStack.Children.Add(_compHeadroomTb);
 
 		grCard.Child = grStack;
@@ -653,21 +598,16 @@ public sealed partial class DspPage
 		grid.Children.Add(grCard);
 
 		// Card 3: Output Level Meter
-		var outputCard = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		var outputCard = CreateCompCard(isDark);
 		var outStack = new StackPanel { Spacing = 8 };
 
 		var outHead = new Grid();
 		outHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		outHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbOutTitle = new TextBlock { Text = "输出", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)) };
-		var tbOutType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)) };
+		var tbOutTitle = new TextBlock { Text = "输出", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbOutType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = mutedText };
+		_compMutedTextBlocks.Add(tbOutTitle);
+		_compMutedTextBlocks.Add(tbOutType);
 		Grid.SetColumn(tbOutTitle, 0); Grid.SetColumn(tbOutType, 1);
 		outHead.Children.Add(tbOutTitle); outHead.Children.Add(tbOutType);
 		outStack.Children.Add(outHead);
@@ -677,17 +617,18 @@ public sealed partial class DspPage
 			Text = "-96.0 dB",
 			FontSize = 32,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = primaryText,
 			FontFamily = new FontFamily("Segoe UI Variable Display, Consolas, Segoe UI")
 		};
+		_compPrimaryTextBlocks.Add(_compOutputHeadlineTb);
 		outStack.Children.Add(_compOutputHeadlineTb);
 
 		// Track L
-		var outTrackL = CreateDualTrackMeterRow("L", out _compOutputRmsBarL, out _compOutputPeakTickL, out _compOutputDbTbL);
+		var outTrackL = CreateDualTrackMeterRow("L", isDark, out _compOutputRmsBarL, out _compOutputPeakTickL, out _compOutputDbTbL);
 		outStack.Children.Add(outTrackL);
 
 		// Track R
-		var outTrackR = CreateDualTrackMeterRow("R", out _compOutputRmsBarR, out _compOutputPeakTickR, out _compOutputDbTbR);
+		var outTrackR = CreateDualTrackMeterRow("R", isDark, out _compOutputRmsBarR, out _compOutputPeakTickR, out _compOutputDbTbR);
 		outStack.Children.Add(outTrackR);
 
 		outputCard.Child = outStack;
@@ -697,8 +638,10 @@ public sealed partial class DspPage
 		return grid;
 	}
 
-	private static FrameworkElement CreateDualTrackMeterRow(string channelLabel, out Border rmsBar, out Border peakTick, out TextBlock dbTb)
+	private FrameworkElement CreateDualTrackMeterRow(string channelLabel, bool isDark, out Border rmsBar, out Border peakTick, out TextBlock dbTb)
 	{
+		Brush mutedText = GetCompMutedTextBrush(isDark);
+
 		var rowGrid = new Grid { ColumnSpacing = 8 };
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(14) });
 		rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -709,19 +652,21 @@ public sealed partial class DspPage
 			Text = channelLabel,
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_compMutedTextBlocks.Add(tbLabel);
 		Grid.SetColumn(tbLabel, 0);
 		rowGrid.Children.Add(tbLabel);
 
 		var trackBox = new Grid
 		{
 			Height = 6,
-			Background = new SolidColorBrush(Color.FromArgb(255, 226, 232, 240)),
+			Background = GetCompMeterTrackBrush(isDark),
 			CornerRadius = new CornerRadius(3),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_compMeterTracks.Add(trackBox);
 		rmsBar = new Border
 		{
 			HorizontalAlignment = HorizontalAlignment.Left,
@@ -750,10 +695,11 @@ public sealed partial class DspPage
 			Text = "-96.0 dB",
 			FontSize = 11,
 			FontFamily = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI"),
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			HorizontalAlignment = HorizontalAlignment.Right,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_compMutedTextBlocks.Add(dbTb);
 		Grid.SetColumn(dbTb, 2);
 		rowGrid.Children.Add(dbTb);
 
@@ -789,14 +735,8 @@ public sealed partial class DspPage
 
 	private FrameworkElement CreateTransferCurveCard()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		bool isDark = IsDspDark;
+		var card = CreateCompCard(isDark);
 
 		var stack = new StackPanel { Spacing = 10 };
 
@@ -806,31 +746,33 @@ public sealed partial class DspPage
 		head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-		titleSp.Children.Add(new TextBlock
+		var curveTitleTb = new TextBlock
 		{
 			Text = "动态传输曲线",
 			FontSize = 14.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = GetCompPrimaryTextBrush(isDark)
+		};
+		_compPrimaryTextBlocks.Add(curveTitleTb);
+		titleSp.Children.Add(curveTitleTb);
 		_compCurveRatioTb = new TextBlock
 		{
 			Text = $"{_compDraftRatio:F1}:1",
 			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+			Foreground = GetCompAccentSoftTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
-		var ratioPill = new Border
+		_compCurveRatioPill = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = GetCompAccentSoftBgBrush(isDark),
+			BorderBrush = GetCompAccentSoftBorderBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(10),
 			Padding = new Thickness(7, 2, 7, 2),
 			Child = _compCurveRatioTb
 		};
-		titleSp.Children.Add(ratioPill);
+		titleSp.Children.Add(_compCurveRatioPill);
 		Grid.SetColumn(titleSp, 0);
 		head.Children.Add(titleSp);
 		stack.Children.Add(head);
@@ -951,7 +893,7 @@ public sealed partial class DspPage
 
 		// 8. Labels on Canvas (0, -15, -30, -45, -60, 输出, 输入)
 		var monoFont = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI");
-		var labelBrush = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
+		var labelBrush = GetCompMutedTextBrush(isDark);
 
 		// Y Labels (Left)
 		AddCanvasText(_compCurveCanvas, "0", 0, YForDb(0) - 7, labelBrush, monoFont, 9.5);
@@ -975,12 +917,12 @@ public sealed partial class DspPage
 			Text = $"阈值 {_compDraftThresholdDb:F1} dB",
 			FontSize = 10,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
+			Foreground = GetCompAccentSoftTextBrush(isDark)
 		};
 		_compThresholdTag = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(255, 238, 242, 255)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 199, 210, 254)),
+			Background = GetCompAccentSoftBgBrush(isDark),
+			BorderBrush = GetCompAccentSoftBorderBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(5),
 			Padding = new Thickness(5, 2, 5, 2),
@@ -989,7 +931,7 @@ public sealed partial class DspPage
 		_compCurveCanvas.Children.Add(_compThresholdTag);
 
 		// Drag hint at bottom
-		AddCanvasText(_compCurveCanvas, "可拖动 · 调整阈值", XForDb(-60), CurvePlotSize - 1, new SolidColorBrush(Color.FromArgb(255, 148, 163, 184)), monoFont, 9);
+		AddCanvasText(_compCurveCanvas, "可拖动 · 调整阈值", XForDb(-60), CurvePlotSize - 1, labelBrush, monoFont, 9);
 
 		// Pointer Events on Curve Canvas for Dragging Threshold
 		_compCurveCanvas.PointerPressed += OnCurveCanvasPointerPressed;
@@ -1065,7 +1007,7 @@ public sealed partial class DspPage
 		return CurvePlotMargin + (1.0 - norm) * CurvePlotSpan;
 	}
 
-	private static void AddCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
+	private void AddCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, FontFamily font, double fontSize)
 	{
 		var tb = new TextBlock
 		{
@@ -1075,6 +1017,7 @@ public sealed partial class DspPage
 			FontFamily = font,
 			IsHitTestVisible = false
 		};
+		_compMutedTextBlocks.Add(tb);
 		Canvas.SetLeft(tb, left);
 		Canvas.SetTop(tb, top);
 		canvas.Children.Add(tb);
@@ -1164,14 +1107,8 @@ public sealed partial class DspPage
 	#region 5. Basic Controls Card
 	private FrameworkElement CreateBasicControlsCard()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(20, 16, 20, 18)
-		};
+		bool isDark = IsDspDark;
+		var card = CreateCompCard(isDark, new Thickness(20, 16, 20, 18));
 
 		var stack = new StackPanel { Spacing = 16 };
 
@@ -1185,17 +1122,18 @@ public sealed partial class DspPage
 			Text = "基础控制",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetCompPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_compPrimaryTextBlocks.Add(tbTitle);
 		Grid.SetColumn(tbTitle, 0);
 		head.Children.Add(tbTitle);
 
 		// Detector Mode Pills
-		var detBorder = new Border
+		_compDetBorder = new Border
 		{
-			Background = new SolidColorBrush(Color.FromArgb(180, 241, 245, 249)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(120, 226, 232, 240)),
+			Background = GetCompSoftSurfaceBrush(isDark),
+			BorderBrush = CreateCompRimBrush(isDark),
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(2)
@@ -1226,12 +1164,12 @@ public sealed partial class DspPage
 
 		detSp.Children.Add(_btnDetPeak);
 		detSp.Children.Add(_btnDetRms);
-		detBorder.Child = detSp;
-		Grid.SetColumn(detBorder, 1);
-		head.Children.Add(detBorder);
+		_compDetBorder.Child = detSp;
+		Grid.SetColumn(_compDetBorder, 1);
+		head.Children.Add(_compDetBorder);
 		stack.Children.Add(head);
 
-		UpdateDetectorPillVisuals();
+		UpdateDetectorPillVisuals(isDark);
 
 		// 2-Column Controls Grid (3 rows x 2 cols)
 		var grid = new Grid { ColumnSpacing = 24, RowSpacing = 18 };
@@ -1317,23 +1255,17 @@ public sealed partial class DspPage
 		UpdateDirtyStateBadge();
 	}
 
-	private void UpdateDetectorPillVisuals()
+	private void UpdateDetectorPillVisuals(bool? isDarkOverride = null)
 	{
+		bool isDark = isDarkOverride ?? IsDspDark;
 		bool isPeak = string.Equals(_compDraftDetectorMode, "Peak", StringComparison.OrdinalIgnoreCase);
-		if (_btnDetPeak != null)
-		{
-			_btnDetPeak.Background = isPeak ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent);
-			_btnDetPeak.Foreground = isPeak ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-		}
-		if (_btnDetRms != null)
-		{
-			_btnDetRms.Background = !isPeak ? new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) : new SolidColorBrush(Colors.Transparent);
-			_btnDetRms.Foreground = !isPeak ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
-		}
+		ApplyCompPillButtonStyle(_btnDetPeak, isPeak, isDark);
+		ApplyCompPillButtonStyle(_btnDetRms, !isPeak, isDark);
 	}
 
-	private static FrameworkElement CreateSliderControl(string label, string initialValueText, double min, double max, double step, double initialValue, out Slider slider, out TextBlock valueTb, Action<double> onValueChanged)
+	private FrameworkElement CreateSliderControl(string label, string initialValueText, double min, double max, double step, double initialValue, out Slider slider, out TextBlock valueTb, Action<double> onValueChanged)
 	{
+		bool isDark = IsDspDark;
 		var sp = new StackPanel { Spacing = 6 };
 
 		var head = new Grid();
@@ -1345,8 +1277,9 @@ public sealed partial class DspPage
 			Text = label,
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 51, 65, 85))
+			Foreground = GetCompSecondaryTextBrush(isDark)
 		};
+		_compSecondaryTextBlocks.Add(tbLabel);
 		Grid.SetColumn(tbLabel, 0);
 		head.Children.Add(tbLabel);
 
@@ -1355,9 +1288,10 @@ public sealed partial class DspPage
 			Text = initialValueText,
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42)),
+			Foreground = GetCompPrimaryTextBrush(isDark),
 			FontFamily = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI")
 		};
+		_compPrimaryTextBlocks.Add(valueTb);
 		Grid.SetColumn(valueTb, 1);
 		head.Children.Add(valueTb);
 		sp.Children.Add(head);
@@ -1380,24 +1314,23 @@ public sealed partial class DspPage
 	#region 6. Advanced Controls Card
 	private FrameworkElement CreateAdvancedControlsCard()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(20, 16, 20, 18)
-		};
+		bool isDark = IsDspDark;
+		Brush primaryText = GetCompPrimaryTextBrush(isDark);
+		Brush mutedText = GetCompMutedTextBrush(isDark);
+
+		var card = CreateCompCard(isDark, new Thickness(20, 16, 20, 18));
 
 		var stack = new StackPanel { Spacing = 16 };
 
-		stack.Children.Add(new TextBlock
+		var advTitleTb = new TextBlock
 		{
 			Text = "高级检测与联动",
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
-		});
+			Foreground = primaryText
+		};
+		_compPrimaryTextBlocks.Add(advTitleTb);
+		stack.Children.Add(advTitleTb);
 
 		var grid = new Grid { ColumnSpacing = 24, RowSpacing = 16 };
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
@@ -1413,7 +1346,8 @@ public sealed partial class DspPage
 			Header = "侧链高通滤波",
 			IsOn = _compDraftSidechainHp,
 			OnContent = "已开启",
-			OffContent = "已关闭"
+			OffContent = "已关闭",
+			Foreground = primaryText
 		};
 		_toggleSidechainHp.Toggled += (s, e) =>
 		{
@@ -1441,7 +1375,8 @@ public sealed partial class DspPage
 			Header = "自动释放 (Auto Release)",
 			IsOn = _compDraftAutoRelease,
 			OnContent = "开启",
-			OffContent = "关闭"
+			OffContent = "关闭",
+			Foreground = primaryText
 		};
 		_toggleAutoRelease.Toggled += (s, e) =>
 		{
@@ -1449,13 +1384,15 @@ public sealed partial class DspPage
 			UpdateDirtyStateBadge();
 		};
 		arSp.Children.Add(_toggleAutoRelease);
-		arSp.Children.Add(new TextBlock
+		var arDescTb = new TextBlock
 		{
 			Text = "依据节目动态自适应释放时间：瞬态快速恢复，持续压缩平滑衰减。",
 			FontSize = 11,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			TextWrapping = TextWrapping.Wrap
-		});
+		};
+		_compMutedTextBlocks.Add(arDescTb);
+		arSp.Children.Add(arDescTb);
 		Grid.SetRow(arSp, 0); Grid.SetColumn(arSp, 1);
 		grid.Children.Add(arSp);
 
@@ -1500,14 +1437,11 @@ public sealed partial class DspPage
 	#region 7. GR History Plot Section
 	private FrameworkElement CreateCompHistorySection()
 	{
-		var card = new Border
-		{
-			Background = CreateAcrylicCardBrush(0.88, 245),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(140, 226, 232, 240)),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(12),
-			Padding = new Thickness(18, 14, 18, 14)
-		};
+		bool isDark = IsDspDark;
+		Brush primaryText = GetCompPrimaryTextBrush(isDark);
+		Brush mutedText = GetCompMutedTextBrush(isDark);
+
+		var card = CreateCompCard(isDark);
 
 		var stack = new StackPanel { Spacing = 8 };
 
@@ -1521,14 +1455,16 @@ public sealed partial class DspPage
 			Text = "GR 历史",
 			FontSize = 14.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 15, 23, 42))
+			Foreground = primaryText
 		};
+		_compPrimaryTextBlocks.Add(tbTitle);
 		var tbWin = new TextBlock
 		{
 			Text = "最近 8 秒",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
+			Foreground = mutedText
 		};
+		_compMutedTextBlocks.Add(tbWin);
 		Grid.SetColumn(tbTitle, 0); Grid.SetColumn(tbWin, 1);
 		head.Children.Add(tbTitle); head.Children.Add(tbWin);
 		stack.Children.Add(head);
@@ -1551,7 +1487,6 @@ public sealed partial class DspPage
 		// Grid lines & labels: 0, -12, -24
 		double[] ticks = { 0, 12, 24 };
 		var monoFont = new FontFamily("Segoe UI Variable Text, Consolas, Segoe UI");
-		var labelBrush = new SolidColorBrush(Color.FromArgb(255, 148, 163, 184));
 
 		foreach (double t in ticks)
 		{
@@ -1566,7 +1501,7 @@ public sealed partial class DspPage
 				StrokeThickness = 1
 			});
 			string txt = t == 0 ? "0" : $"-{t:F0}";
-			AddCanvasText(_compHistoryCanvas, txt, 2, y - 6, labelBrush, monoFont, 9.5);
+			AddCanvasText(_compHistoryCanvas, txt, 2, y - 6, mutedText, monoFont, 9.5);
 		}
 
 		_compHistoryAreaPath = new Path
@@ -1592,7 +1527,7 @@ public sealed partial class DspPage
 		{
 			Text = "编辑先进入草稿；点击应用后由原生主机平滑接管。",
 			FontSize = 12,
-			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139)),
+			Foreground = mutedText,
 			Margin = new Thickness(2, 2, 0, 0)
 		};
 		stack.Children.Add(_compApplyHintTb);
@@ -1711,33 +1646,51 @@ public sealed partial class DspPage
 		UpdateDirtyStateBadge();
 	}
 
-	private void UpdateDirtyStateBadge()
+	private void UpdateDirtyStateBadge(bool? isDarkOverride = null)
 	{
-		if (ViewModel == null) return;
-
+		bool isDark = isDarkOverride ?? IsDspDark;
 		int dirtyCount = 0;
-		if (Math.Abs(_compDraftThresholdDb - ViewModel.EchoCompressorThresholdDb) > 0.1) dirtyCount++;
-		if (Math.Abs(_compDraftRatio - ViewModel.EchoCompressorRatio) > 0.05) dirtyCount++;
-		if (Math.Abs(_compDraftAttackMs - ViewModel.EchoCompressorAttackMs) > 0.1) dirtyCount++;
-		if (Math.Abs(_compDraftReleaseMs - ViewModel.EchoCompressorReleaseMs) > 0.5) dirtyCount++;
-		if (Math.Abs(_compDraftKneeDb - ViewModel.EchoCompressorKneeDb) > 0.1) dirtyCount++;
-		if (Math.Abs(_compDraftMakeupDb - ViewModel.EchoCompressorMakeupDb) > 0.1) dirtyCount++;
-		if (Math.Abs(_compDraftMix - ViewModel.EchoCompressorMix) > 0.01) dirtyCount++;
-		if (!string.Equals(_compDraftDetectorMode, ViewModel.EchoCompressorDetectorMode, StringComparison.OrdinalIgnoreCase)) dirtyCount++;
-		if (_compDraftSidechainHp != ViewModel.EchoCompressorSidechainHighpassEnabled) dirtyCount++;
-		if (Math.Abs(_compDraftSidechainHpHz - ViewModel.EchoCompressorSidechainHighpassHz) > 1.0) dirtyCount++;
-		if (_compDraftAutoRelease != ViewModel.EchoCompressorAutoRelease) dirtyCount++;
-		if (Math.Abs(_compDraftRangeDb - ViewModel.EchoCompressorRangeDb) > 0.5) dirtyCount++;
-		if (Math.Abs(_compDraftStereoLink - ViewModel.EchoCompressorStereoLink) > 0.01) dirtyCount++;
 
-		bool isDirty = dirtyCount > 0;
+		if (ViewModel != null)
+		{
+			if (Math.Abs(_compDraftThresholdDb - ViewModel.EchoCompressorThresholdDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftRatio - ViewModel.EchoCompressorRatio) > 0.05) dirtyCount++;
+			if (Math.Abs(_compDraftAttackMs - ViewModel.EchoCompressorAttackMs) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftReleaseMs - ViewModel.EchoCompressorReleaseMs) > 0.5) dirtyCount++;
+			if (Math.Abs(_compDraftKneeDb - ViewModel.EchoCompressorKneeDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftMakeupDb - ViewModel.EchoCompressorMakeupDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftMix - ViewModel.EchoCompressorMix) > 0.01) dirtyCount++;
+			if (!string.Equals(_compDraftDetectorMode, ViewModel.EchoCompressorDetectorMode, StringComparison.OrdinalIgnoreCase)) dirtyCount++;
+			if (_compDraftSidechainHp != ViewModel.EchoCompressorSidechainHighpassEnabled) dirtyCount++;
+			if (Math.Abs(_compDraftSidechainHpHz - ViewModel.EchoCompressorSidechainHighpassHz) > 1.0) dirtyCount++;
+			if (_compDraftAutoRelease != ViewModel.EchoCompressorAutoRelease) dirtyCount++;
+			if (Math.Abs(_compDraftRangeDb - ViewModel.EchoCompressorRangeDb) > 0.5) dirtyCount++;
+			if (Math.Abs(_compDraftStereoLink - ViewModel.EchoCompressorStereoLink) > 0.01) dirtyCount++;
+		}
+
+		_compIsDirty = dirtyCount > 0;
 		if (_compPendingBadge != null)
 		{
-			_compPendingBadge.Visibility = isDirty ? Visibility.Visible : Visibility.Collapsed;
+			_compPendingBadge.Visibility = _compIsDirty ? Visibility.Visible : Visibility.Collapsed;
 		}
 		if (_compPendingBadgeTb != null)
 		{
 			_compPendingBadgeTb.Text = $"未应用 · {dirtyCount}";
+		}
+
+		ApplyDirtyStateVisuals(isDark, _compIsDirty);
+	}
+
+	private void ApplyDirtyStateVisuals(bool isDark, bool isDirty)
+	{
+		if (_compPendingBadge != null)
+		{
+			_compPendingBadge.Background = new SolidColorBrush(isDark ? Color.FromArgb(75, 245, 158, 11) : Color.FromArgb(255, 254, 243, 199));
+			_compPendingBadge.BorderBrush = new SolidColorBrush(isDark ? Color.FromArgb(190, 251, 191, 36) : Color.FromArgb(255, 252, 211, 77));
+		}
+		if (_compPendingBadgeTb != null)
+		{
+			_compPendingBadgeTb.Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 253, 230, 138) : Color.FromArgb(255, 180, 83, 9));
 		}
 		if (_compApplyHintTb != null)
 		{
@@ -1745,20 +1698,30 @@ public sealed partial class DspPage
 				? "草稿已修改，当前听到的仍是上次应用的参数；点击「应用参数」后生效。"
 				: "编辑先进入草稿；点击应用后由原生主机平滑接管。";
 			_compApplyHintTb.Foreground = isDirty
-				? new SolidColorBrush(Color.FromArgb(255, 217, 119, 6))
-				: new SolidColorBrush(Color.FromArgb(255, 100, 116, 139));
+				? new SolidColorBrush(isDark ? Color.FromArgb(255, 251, 191, 36) : Color.FromArgb(255, 217, 119, 6))
+				: GetCompMutedTextBrush(isDark);
 		}
 		if (_compApplyBtn != null)
 		{
-			_compApplyBtn.Background = isDirty
-				? new SolidColorBrush(Color.FromArgb(255, 79, 70, 229))
-				: new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
-			if (_compApplyBtn.Content is StackPanel sp && sp.Children.Count >= 2)
+			if (isDirty)
 			{
-				if (sp.Children[0] is FontIcon icon)
-					icon.Foreground = isDirty ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 71, 85, 105));
-				if (sp.Children[1] is TextBlock tb)
-					tb.Foreground = isDirty ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromArgb(255, 51, 65, 85));
+				var bg = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+				var hoverBg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+				var pressedBg = new SolidColorBrush(Color.FromArgb(255, 67, 56, 202));
+				var border = new SolidColorBrush(Color.FromArgb(255, 129, 140, 248));
+				var hoverBorder = new SolidColorBrush(Color.FromArgb(255, 165, 180, 252));
+				var fg = new SolidColorBrush(Colors.White);
+				ApplyCompButtonVisuals(_compApplyBtn, bg, hoverBg, pressedBg, border, hoverBorder, fg, _compApplyIcon, _compApplyText);
+			}
+			else
+			{
+				ApplyCompNeutralButtonSurface(
+					_compApplyBtn,
+					isDark,
+					GetCompSecondaryTextBrush(isDark),
+					_compApplyIcon,
+					_compApplyText,
+					GetCompSubHeaderTextBrush(isDark));
 			}
 		}
 	}
@@ -1865,8 +1828,204 @@ public sealed partial class DspPage
 	{
 		InitCompressorDraftState();
 		UpdatePowerButtonVisuals();
+		UpdateDetectorPillVisuals();
 		UpdateDirtyStateBadge();
 		UpdateTransferCurveVisuals();
+	}
+	#endregion
+
+	#region 10. Theme Helpers & Refresh
+	private Border CreateCompCard(bool isDark, Thickness? padding = null)
+	{
+		var card = new Border
+		{
+			Background = CreateCompSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05)),
+			BorderBrush = CreateCompRimBrush(isDark),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(12),
+			Padding = padding ?? new Thickness(18, 14, 18, 14)
+		};
+		_compCardBorders.Add(card);
+		return card;
+	}
+
+	private static Brush CreateCompSurfaceBrush(LiquidGlassVariant variant, bool isDark, double opacityScale = 1.0)
+	{
+		return LiquidGlassEngine.CreateSurfaceBrush(variant, isDark: isDark, opacityScale: opacityScale);
+	}
+
+	private static Brush CreateCompRimBrush(bool isDark, bool isHovered = false, bool isSelected = false)
+	{
+		return LiquidGlassEngine.CreateSpecularRimBrush(
+			LiquidGlassVariant.Regular,
+			isDark: isDark,
+			isHovered: isHovered,
+			isSelected: isSelected);
+	}
+
+	private static Brush GetCompSoftSurfaceBrush(bool isDark)
+	{
+		return isDark
+			? CreateCompSurfaceBrush(LiquidGlassVariant.Clear, isDark: true, opacityScale: 0.45)
+			: new SolidColorBrush(Color.FromArgb(220, 241, 245, 249));
+	}
+
+	private static Brush GetCompMeterTrackBrush(bool isDark)
+	{
+		return new SolidColorBrush(isDark ? Color.FromArgb(70, 255, 255, 255) : Color.FromArgb(255, 226, 232, 240));
+	}
+
+	private static Brush GetCompPrimaryTextBrush(bool isDark) => new SolidColorBrush(isDark ? Colors.White : Color.FromArgb(255, 15, 23, 42));
+	private static Brush GetCompSecondaryTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 248, 250, 252) : Color.FromArgb(255, 51, 65, 85));
+	private static Brush GetCompSubHeaderTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 226, 232, 240) : Color.FromArgb(255, 71, 85, 105));
+	private static Brush GetCompMutedTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
+	private static Brush GetCompAccentSoftBgBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(85, 99, 102, 241) : Color.FromArgb(255, 238, 242, 255));
+	private static Brush GetCompAccentSoftBorderBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(180, 129, 140, 248) : Color.FromArgb(255, 199, 210, 254));
+	private static Brush GetCompAccentSoftTextBrush(bool isDark) => new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 79, 70, 229));
+
+	private static void ApplyCompButtonVisuals(
+		Button? btn,
+		Brush background,
+		Brush pointerOverBg,
+		Brush pressedBg,
+		Brush borderBrush,
+		Brush pointerOverBorder,
+		Brush foreground,
+		FontIcon? icon = null,
+		TextBlock? label = null,
+		Brush? iconForeground = null)
+	{
+		if (btn == null) return;
+
+		btn.Background = background;
+		btn.BorderBrush = borderBrush;
+		btn.Foreground = foreground;
+
+		btn.Resources["ButtonBackground"] = background;
+		btn.Resources["ButtonBackgroundPointerOver"] = pointerOverBg;
+		btn.Resources["ButtonBackgroundPressed"] = pressedBg;
+		btn.Resources["ButtonBorderBrush"] = borderBrush;
+		btn.Resources["ButtonBorderBrushPointerOver"] = pointerOverBorder;
+		btn.Resources["ButtonBorderBrushPressed"] = pointerOverBorder;
+		btn.Resources["ButtonForeground"] = foreground;
+		btn.Resources["ButtonForegroundPointerOver"] = foreground;
+		btn.Resources["ButtonForegroundPressed"] = foreground;
+
+		if (icon != null) icon.Foreground = iconForeground ?? foreground;
+		if (label != null) label.Foreground = foreground;
+	}
+
+	private static void ApplyCompNeutralButtonSurface(
+		Button? btn,
+		bool isDark,
+		Brush foreground,
+		FontIcon? icon = null,
+		TextBlock? label = null,
+		Brush? iconForeground = null)
+	{
+		Brush normalBg = CreateCompSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92);
+		Brush hoverBg = CreateCompSurfaceBrush(LiquidGlassVariant.Clear, isDark, 1.0);
+		Brush pressedBg = CreateCompSurfaceBrush(LiquidGlassVariant.Regular, isDark, 0.96);
+		Brush rim = CreateCompRimBrush(isDark);
+		Brush hoverRim = CreateCompRimBrush(isDark, isHovered: true);
+
+		ApplyCompButtonVisuals(btn, normalBg, hoverBg, pressedBg, rim, hoverRim, foreground, icon, label, iconForeground);
+	}
+
+	private static void ApplyCompPillButtonStyle(Button? btn, bool isSelected, bool isDark)
+	{
+		if (btn == null) return;
+
+		if (isSelected)
+		{
+			var bg = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
+			var hoverBg = new SolidColorBrush(Color.FromArgb(255, 129, 140, 248));
+			var pressedBg = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
+			var border = new SolidColorBrush(Colors.Transparent);
+			var fg = new SolidColorBrush(Colors.White);
+			ApplyCompButtonVisuals(btn, bg, hoverBg, pressedBg, border, border, fg);
+		}
+		else
+		{
+			var bg = new SolidColorBrush(Colors.Transparent);
+			var hoverBg = new SolidColorBrush(isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(22, 15, 23, 42));
+			var pressedBg = new SolidColorBrush(isDark ? Color.FromArgb(60, 255, 255, 255) : Color.FromArgb(38, 15, 23, 42));
+			var border = new SolidColorBrush(Colors.Transparent);
+			var fg = GetCompMutedTextBrush(isDark);
+			ApplyCompButtonVisuals(btn, bg, hoverBg, pressedBg, border, border, fg);
+		}
+	}
+
+	public void RefreshCompressorTheme(bool isDark)
+	{
+		if (_compressorWorkbench == null) return;
+
+		_compressorWorkbench.RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light;
+		_compressorWorkbench.Background = CreateCompSurfaceBrush(LiquidGlassVariant.Clear, isDark, Math.Clamp(0.72 / 0.85, 0.55, 1.0));
+
+		Brush primaryText = GetCompPrimaryTextBrush(isDark);
+		Brush secondaryText = GetCompSecondaryTextBrush(isDark);
+		Brush subHeaderText = GetCompSubHeaderTextBrush(isDark);
+		Brush mutedText = GetCompMutedTextBrush(isDark);
+		Brush accentSoftBg = GetCompAccentSoftBgBrush(isDark);
+		Brush accentSoftBorder = GetCompAccentSoftBorderBrush(isDark);
+		Brush accentSoftText = GetCompAccentSoftTextBrush(isDark);
+
+		Brush cardBg = CreateCompSurfaceBrush(LiquidGlassVariant.Regular, isDark, Math.Clamp(0.88 / 0.90, 0.72, 1.05));
+		Brush rimBrush = CreateCompRimBrush(isDark);
+		Brush softBg = GetCompSoftSurfaceBrush(isDark);
+		Brush meterTrackBg = GetCompMeterTrackBrush(isDark);
+
+		if (_compTitleIconBorder != null) _compTitleIconBorder.Background = accentSoftBg;
+		if (_compTitleIcon != null) _compTitleIcon.Foreground = accentSoftText;
+
+		foreach (var card in _compCardBorders)
+		{
+			card.Background = cardBg;
+			card.BorderBrush = rimBrush;
+		}
+		foreach (var track in _compMeterTracks)
+		{
+			track.Background = meterTrackBg;
+		}
+
+		foreach (var tb in _compPrimaryTextBlocks) tb.Foreground = primaryText;
+		foreach (var tb in _compSecondaryTextBlocks) tb.Foreground = secondaryText;
+		foreach (var tb in _compMutedTextBlocks) tb.Foreground = mutedText;
+
+		if (_compModeBorder != null)
+		{
+			_compModeBorder.Background = softBg;
+			_compModeBorder.BorderBrush = rimBrush;
+		}
+		if (_compDetBorder != null)
+		{
+			_compDetBorder.Background = softBg;
+			_compDetBorder.BorderBrush = rimBrush;
+		}
+
+		if (_compCurveRatioPill != null)
+		{
+			_compCurveRatioPill.Background = accentSoftBg;
+			_compCurveRatioPill.BorderBrush = accentSoftBorder;
+		}
+		if (_compCurveRatioTb != null) _compCurveRatioTb.Foreground = accentSoftText;
+
+		if (_compThresholdTag != null)
+		{
+			_compThresholdTag.Background = accentSoftBg;
+			_compThresholdTag.BorderBrush = accentSoftBorder;
+		}
+		if (_compThresholdTagTb != null) _compThresholdTagTb.Foreground = accentSoftText;
+
+		if (_toggleSidechainHp != null) _toggleSidechainHp.Foreground = primaryText;
+		if (_toggleAutoRelease != null) _toggleAutoRelease.Foreground = primaryText;
+
+		ApplyCompNeutralButtonSurface(_compResetBtn, isDark, secondaryText, _compResetIcon, _compResetText, subHeaderText);
+		UpdatePowerButtonVisuals(isDark);
+		UpdateModePillVisuals(isDark);
+		UpdateDetectorPillVisuals(isDark);
+		ApplyDirtyStateVisuals(isDark, _compIsDirty);
 	}
 	#endregion
 }
