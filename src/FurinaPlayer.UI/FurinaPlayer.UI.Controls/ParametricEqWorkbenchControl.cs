@@ -6,7 +6,8 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.UI;
 
 namespace FurinaPlayer.UI.Controls;
@@ -38,9 +39,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         Color.FromArgb(255, 220, 38, 38)    // 10 Red
     };
 
-    private readonly List<EchoBiquadFilter> _bands = new();
-    private readonly Stack<(List<EchoBiquadFilter> Bands, double PreampDb)> _undoStack = new();
-    private readonly Stack<(List<EchoBiquadFilter> Bands, double PreampDb)> _redoStack = new();
+    private readonly List<FurinaPlayerBiquadFilter> _bands = new();
+    private readonly Stack<(List<FurinaPlayerBiquadFilter> Bands, double PreampDb)> _undoStack = new();
+    private readonly Stack<(List<FurinaPlayerBiquadFilter> Bands, double PreampDb)> _redoStack = new();
     private readonly MixAssistantEngine _mixAssistant = new();
 
     private readonly List<(string Name, double[] Gains)> _builtinPresets = new()
@@ -67,7 +68,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
     private bool _isLoudnessMatched;
     private bool _showApplyOfflineDspButton;
     private bool _showAnalyzeTrackButton = true;
-    private string _applyOfflineDspButtonText = "✨ 永久写入当前音轨 (Apply DSP)";
+    private string _applyOfflineDspButtonText = Loc.T("✨ 永久写入当前音轨 (Apply DSP)");
 
     // Mix Assistant state
     private MixAssistantProfile? _currentProfile;
@@ -174,8 +175,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
     private readonly List<TextBlock> _mutedTextElements = new();
     private readonly List<Button> _glassToolButtons = new();
 
-    public event Action<IReadOnlyList<EchoBiquadFilter>>? BandsChanged;
-    public event Action<int, EchoBiquadFilter>? BandChanged;
+    public event Action<IReadOnlyList<FurinaPlayerBiquadFilter>>? BandsChanged;
+    public event Action<int, FurinaPlayerBiquadFilter>? BandChanged;
     public event Action<double>? PreampChanged;
     public event Action<bool>? EnabledChanged;
     public event Action<bool>? MixAssistantLearnRequested;
@@ -185,7 +186,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
     public event Action<bool>? AbCompareToggled;
     public event Action<bool>? LoudnessMatchToggled;
     public event Action<int>? ScopeChanged;
-    public event Action<string, IReadOnlyList<EchoBiquadFilter>, double>? SaveUserPresetRequested;
+    public event Action<string, IReadOnlyList<FurinaPlayerBiquadFilter>, double>? SaveUserPresetRequested;
 
     public bool ShowApplyOfflineDspButton
     {
@@ -206,7 +207,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         set
         {
             _applyOfflineDspButtonText = string.IsNullOrWhiteSpace(value)
-                ? "✨ 永久写入当前音轨 (Apply DSP)"
+                ? Loc.T("✨ 永久写入当前音轨 (Apply DSP)")
                 : value;
             if (_btnApplyOfflineDspTb != null)
             {
@@ -267,7 +268,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         }
     }
 
-    public IReadOnlyList<EchoBiquadFilter> Bands => _bands;
+    public IReadOnlyList<FurinaPlayerBiquadFilter> Bands => _bands;
 
     public int SelectedBandIndex
     {
@@ -294,7 +295,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         SyncAllViewsFromBands(0);
     }
 
-    public void SetBands(IEnumerable<EchoBiquadFilter> bands, double preampDb = 0.0, bool enabled = true, int selectedIndex = 0)
+    public void SetBands(IEnumerable<FurinaPlayerBiquadFilter> bands, double preampDb = 0.0, bool enabled = true, int selectedIndex = 0)
     {
         _bands.Clear();
         if (bands != null)
@@ -302,7 +303,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             foreach (var b in bands)
             {
                 if (b == null) continue;
-                var clone = new EchoBiquadFilter
+                var clone = new FurinaPlayerBiquadFilter
                 {
                     FilterType = b.FilterType,
                     FrequencyHz = b.FrequencyHz,
@@ -357,7 +358,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             SetMixAssistantProgress(
                 isLearning: true,
                 progress01: _mixAssistant.LearningProgress01,
-                statusText: $"正在学习音频频谱平衡... ({_mixAssistant.LearnedFrames} 帧)");
+                statusText: Loc.F("正在学习音频频谱平衡... ({0} 帧)", _mixAssistant.LearnedFrames));
         }
     }
 
@@ -374,11 +375,11 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             _learnStatusTb.Text = !string.IsNullOrWhiteSpace(statusText)
                 ? statusText
-                : (isLearning ? $"正在学习频谱 ({clamped * 100:0}%)..." : "点击“学习监听”或“分析音轨”以诊断频响并生成平衡曲线");
+                : (isLearning ? Loc.F("正在学习频谱 ({0:0}%)...", clamped * 100) : Loc.T("点击“学习监听”或“分析音轨”以诊断频响并生成平衡曲线"));
         }
         if (_btnLearnTextTb != null)
         {
-            _btnLearnTextTb.Text = isLearning ? "⏹ 完成学习" : "🎧 学习监听 (Learn)";
+            _btnLearnTextTb.Text = isLearning ? Loc.T("⏹ 完成学习") : Loc.T("🎧 学习监听 (Learn)");
         }
         RefreshMixAssistantButtonVisuals();
     }
@@ -388,7 +389,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         _currentProfile = profile;
         if (profile == null)
         {
-            SetMixAssistantProgress(false, 0.0, "尚未学习音频频谱");
+            SetMixAssistantProgress(false, 0.0, Loc.T("尚未学习音频频谱"));
             SetMixAssistantIssues(null);
             return;
         }
@@ -405,7 +406,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         SetMixAssistantProgress(
             isLearning: false,
             progress01: 1.0,
-            statusText: $"已完成分析 · {_currentSolution.TargetName} · 推荐前级 {_currentSolution.RecommendedPreampDb:+0.0;-0.0;0.0} dB");
+            statusText: Loc.F("已完成分析 · {0} · 推荐前级 {1:+0.0;-0.0;0.0} dB", Loc.T(_currentSolution.TargetName), _currentSolution.RecommendedPreampDb));
 
         if (autoApply)
         {
@@ -424,9 +425,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         // Ensure we have at least 10 bands, and map the 10 solved bands cleanly while keeping any extra user bands untouched
         while (_bands.Count < 10)
         {
-            _bands.Add(new EchoBiquadFilter
+            _bands.Add(new FurinaPlayerBiquadFilter
             {
-                FilterType = EchoFilterType.Peaking,
+                FilterType = FurinaPlayerFilterType.Peaking,
                 FrequencyHz = MixAssistantEngine.GraphicFrequencies[_bands.Count],
                 GainDb = 0.0,
                 Q = 1.414,
@@ -436,10 +437,10 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         for (int i = 0; i < 10; i++)
         {
-            EchoBiquadFilter targetBand = _bands[i];
+            FurinaPlayerBiquadFilter targetBand = _bands[i];
             if (solution.Filters != null && i < solution.Filters.Length)
             {
-                EchoBiquadFilter solved = solution.Filters[i];
+                FurinaPlayerBiquadFilter solved = solution.Filters[i];
                 targetBand.FilterType = solved.FilterType;
                 targetBand.FrequencyHz = solved.FrequencyHz;
                 targetBand.GainDb = solved.GainDb;
@@ -474,7 +475,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             {
                 if (string.IsNullOrWhiteSpace(issue)) continue;
                 hasAny = true;
-                bool isHealthy = issue.Contains("均衡", StringComparison.Ordinal);
+                bool isHealthy = issue.Contains("均衡", StringComparison.Ordinal)
+                    || string.Equals(issue, Loc.T("频谱分布整体均衡"), StringComparison.Ordinal);
                 Color badgeBg = isHealthy
                     ? Color.FromArgb(_isDark ? (byte)65 : (byte)220, 22, 163, 74)
                     : Color.FromArgb(_isDark ? (byte)65 : (byte)220, 245, 158, 11);
@@ -491,7 +493,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                     Padding = new Thickness(8, 3, 8, 3),
                     Child = new TextBlock
                     {
-                        Text = isHealthy ? $"✓ {issue}" : $"⚠ {issue}",
+                        Text = isHealthy ? $"✓ {Loc.T(issue)}" : $"⚠ {Loc.T(issue)}",
                         FontSize = 11,
                         FontWeight = FontWeights.SemiBold,
                         Foreground = new SolidColorBrush(badgeFg)
@@ -505,7 +507,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             _issuesStack.Children.Add(new TextBlock
             {
-                Text = "等待频谱学习后显示声学诊断标签...",
+                Text = Loc.T("等待频谱学习后显示声学诊断标签..."),
                 FontSize = 11,
                 Foreground = GetMutedBrush(),
                 VerticalAlignment = VerticalAlignment.Center
@@ -523,8 +525,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             {
                 b.FrequencyHz = MixAssistantEngine.GraphicFrequencies[i];
                 b.FilterType = i == 0
-                    ? EchoFilterType.LowShelf
-                    : (i == MixAssistantEngine.GraphicFrequencies.Length - 1 ? EchoFilterType.HighShelf : EchoFilterType.Peaking);
+                    ? FurinaPlayerFilterType.LowShelf
+                    : (i == MixAssistantEngine.GraphicFrequencies.Length - 1 ? FurinaPlayerFilterType.HighShelf : FurinaPlayerFilterType.Peaking);
             }
             b.GainDb = 0.0;
             b.Q = 1.414;
@@ -663,11 +665,11 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         double[] freqs = MixAssistantEngine.GraphicFrequencies;
         for (int i = 0; i < freqs.Length; i++)
         {
-            var f = new EchoBiquadFilter
+            var f = new FurinaPlayerBiquadFilter
             {
                 FilterType = i == 0
-                    ? EchoFilterType.LowShelf
-                    : (i == freqs.Length - 1 ? EchoFilterType.HighShelf : EchoFilterType.Peaking),
+                    ? FurinaPlayerFilterType.LowShelf
+                    : (i == freqs.Length - 1 ? FurinaPlayerFilterType.HighShelf : FurinaPlayerFilterType.Peaking),
                 FrequencyHz = freqs[i],
                 GainDb = 0.0,
                 Q = 1.414,
@@ -715,7 +717,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _titleTb = TrackPrimaryText(new TextBlock
         {
-            Text = "参数 EQ",
+            Text = Loc.T("参数 EQ"),
             FontSize = 18,
             FontWeight = FontWeights.Bold,
             VerticalAlignment = VerticalAlignment.Center
@@ -752,7 +754,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var modeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
         _btnModeParametric = new Button
         {
-            Content = "参数 EQ (Parametric)",
+            Content = Loc.T("参数 EQ (Parametric)"),
             Padding = new Thickness(10, 4, 10, 4),
             CornerRadius = new CornerRadius(11),
             FontSize = 12,
@@ -762,7 +764,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _btnModeGraphic = new Button
         {
-            Content = "图形均衡 & Mix Assistant",
+            Content = Loc.T("图形均衡 & Mix Assistant"),
             Padding = new Thickness(10, 4, 10, 4),
             CornerRadius = new CornerRadius(11),
             FontSize = 12,
@@ -796,7 +798,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         };
         foreach (var preset in _builtinPresets)
         {
-            _presetCombo.Items.Add(new ComboBoxItem { Content = preset.Name });
+            _presetCombo.Items.Add(new ComboBoxItem { Content = Loc.T(preset.Name) });
         }
         _presetCombo.SelectedIndex = 0;
         _presetCombo.SelectionChanged += OnPresetComboSelectionChanged;
@@ -811,7 +813,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                 Children =
                 {
                     new FontIcon { Glyph = "\uE9D9", FontSize = 13 },
-                    new TextBlock { Text = "频谱", FontSize = 12, VerticalAlignment = VerticalAlignment.Center }
+                    new TextBlock { Text = Loc.T("频谱"), FontSize = 12, VerticalAlignment = VerticalAlignment.Center }
                 }
             },
             Padding = new Thickness(10, 4, 10, 4),
@@ -828,17 +830,17 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _btnUndo = CreateGlassToolButton(new FontIcon { Glyph = "\uE7A7", FontSize = 13 }, new Thickness(8, 5, 8, 5));
         _btnUndo.Click += (s, e) => Undo();
-        ToolTipService.SetToolTip(_btnUndo, "撤销 (Undo)");
+        ToolTipService.SetToolTip(_btnUndo, Loc.T("撤销 (Undo)"));
         rightSp.Children.Add(_btnUndo);
 
         _btnRedo = CreateGlassToolButton(new FontIcon { Glyph = "\uE7A6", FontSize = 13 }, new Thickness(8, 5, 8, 5));
         _btnRedo.Click += (s, e) => Redo();
-        ToolTipService.SetToolTip(_btnRedo, "重做 (Redo)");
+        ToolTipService.SetToolTip(_btnRedo, Loc.T("重做 (Redo)"));
         rightSp.Children.Add(_btnRedo);
 
         _btnResetTop = CreateGlassToolButton(new FontIcon { Glyph = "\uE72C", FontSize = 13 }, new Thickness(8, 5, 8, 5));
         _btnResetTop.Click += (s, e) => ResetToFlat();
-        ToolTipService.SetToolTip(_btnResetTop, "重置 EQ 为平坦");
+        ToolTipService.SetToolTip(_btnResetTop, Loc.T("重置 EQ 为平坦"));
         rightSp.Children.Add(_btnResetTop);
 
         var scaleSp = new StackPanel
@@ -873,7 +875,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                 _tbScale.Text = $"±{_curveControl.DbRange:F0} dB";
             }
         };
-        _btnAutoScale = CreateGlassToolButton("自动", new Thickness(8, 3, 8, 3));
+        _btnAutoScale = CreateGlassToolButton(Loc.T("自动"), new Thickness(8, 3, 8, 3));
         _btnAutoScale.Click += (s, e) => AutoFitCurveScale();
 
         scaleSp.Children.Add(_btnZoomIn);
@@ -902,7 +904,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         // A. Interactive Parametric EQ Curve Control
         _curveControl = new ParametricEqCurveControl
         {
-            Height = 200,
+            Height = 320,
+            MinHeight = 280,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         _curveControl.BandSelected += idx => SelectBand(idx);
@@ -961,13 +964,13 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var statusLeft = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
         _headroomStatusTb = new TextBlock
         {
-            Text = "● 待确认 余量 -0.0 dB",
+            Text = Loc.T("● 待确认 余量 -0.0 dB"),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
         };
-        _beforeStateTb = TrackMutedText(new TextBlock { Text = "处理前 0.0 dB", FontSize = 12 });
-        _afterStateTb = TrackMutedText(new TextBlock { Text = "处理后 0.0 dB", FontSize = 12 });
+        _beforeStateTb = TrackMutedText(new TextBlock { Text = Loc.T("处理前 0.0 dB"), FontSize = 12 });
+        _afterStateTb = TrackMutedText(new TextBlock { Text = Loc.T("处理后 0.0 dB"), FontSize = 12 });
         statusLeft.Children.Add(_headroomStatusTb);
         statusLeft.Children.Add(_beforeStateTb);
         statusLeft.Children.Add(_afterStateTb);
@@ -975,9 +978,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         statusRow.Children.Add(statusLeft);
 
         var compareRight = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        _btnAbTop = CreateGlassToolButton("⇄ A/B 对比", new Thickness(10, 4, 10, 4));
+        _btnAbTop = CreateGlassToolButton(Loc.T("⇄ A/B 对比"), new Thickness(10, 4, 10, 4));
         _btnAbTop.Click += (s, e) => ToggleAbCompare();
-        _btnLoudnessMatch = CreateGlassToolButton("实时等响对比", new Thickness(10, 4, 10, 4));
+        _btnLoudnessMatch = CreateGlassToolButton(Loc.T("实时等响对比"), new Thickness(10, 4, 10, 4));
         _btnLoudnessMatch.Click += (s, e) =>
         {
             _isLoudnessMatched = !_isLoudnessMatched;
@@ -1051,13 +1054,13 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         };
         string[] typeNames =
         {
-            "峰值 (Peaking)",
-            "低架 (Low Shelf)",
-            "高架 (High Shelf)",
-            "低通 (Low Pass)",
-            "高通 (High Pass)",
-            "带通 (Band Pass)",
-            "陷波 (Notch)"
+            Loc.T("峰值 (Peaking)"),
+            Loc.T("低架 (Low Shelf)"),
+            Loc.T("高架 (High Shelf)"),
+            Loc.T("低通 (Low Pass)"),
+            Loc.T("高通 (High Pass)"),
+            Loc.T("带通 (Band Pass)"),
+            Loc.T("陷波 (Notch)")
         };
         foreach (string t in typeNames) _filterTypeCombo.Items.Add(new ComboBoxItem { Content = t });
         _filterTypeCombo.SelectedIndex = 0;
@@ -1068,7 +1071,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var row1Right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
         _bandEnableCb = new CheckBox
         {
-            Content = "启用此段",
+            Content = Loc.T("启用此段"),
             IsChecked = true,
             FontSize = 13,
             FontWeight = FontWeights.Medium
@@ -1082,7 +1085,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 4,
-                Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = "重置此段", FontSize = 12 } }
+                Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12 }, new TextBlock { Text = Loc.T("重置此段"), FontSize = 12 } }
             },
             new Thickness(10, 5, 10, 5));
         _btnResetBand.Click += (s, e) => ResetCurrentBand();
@@ -1098,7 +1101,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             BorderThickness = new Thickness(1),
             Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38))
         };
-        ToolTipService.SetToolTip(_btnDeleteBand, "增益归零（或移除新增频段）");
+        ToolTipService.SetToolTip(_btnDeleteBand, Loc.T("增益归零（或移除新增频段）"));
         _btnDeleteBand.Click += (s, e) => ZeroOrDeleteCurrentBand();
         row1Right.Children.Add(_btnDeleteBand);
 
@@ -1117,7 +1120,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var freqHead = new Grid();
         freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         freqHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        freqHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "频率 Frequency", FontSize = 12, FontWeight = FontWeights.Medium }));
+        freqHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("频率 Frequency"), FontSize = 12, FontWeight = FontWeights.Medium }));
         _freqValueTb = new TextBlock
         {
             Text = "1000 Hz",
@@ -1139,7 +1142,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var gainHead = new Grid();
         gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         gainHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        gainHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "增益 Gain", FontSize = 12, FontWeight = FontWeights.Medium }));
+        gainHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("增益 Gain"), FontSize = 12, FontWeight = FontWeights.Medium }));
         _gainValueTb = new TextBlock
         {
             Text = "0.0 dB",
@@ -1161,7 +1164,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var qHead = new Grid();
         qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         qHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        qHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "品质因数 Q", FontSize = 12, FontWeight = FontWeights.Medium }));
+        qHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("品质因数 Q"), FontSize = 12, FontWeight = FontWeights.Medium }));
         _qValueTb = new TextBlock
         {
             Text = "1.41",
@@ -1186,9 +1189,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             _qQuickButtons.Add(b);
             qTagsSp.Children.Add(b);
         }
-        AddQTag("宽 (0.5)", 0.5);
-        AddQTag("标准 (1.4)", 1.41);
-        AddQTag("窄 (3.0)", 3.0);
+        AddQTag(Loc.T("宽 (0.5)"), 0.5);
+        AddQTag(Loc.T("标准 (1.4)"), 1.41);
+        AddQTag(Loc.T("窄 (3.0)"), 3.0);
         qCol.Children.Add(qTagsSp);
 
         Grid.SetColumn(qCol, 2);
@@ -1203,7 +1206,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var scopeSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
         _cbSnapFreq = new CheckBox
         {
-            Content = "吸附到标准频点",
+            Content = Loc.T("吸附到标准频点"),
             FontSize = 12,
             IsChecked = false
         };
@@ -1220,12 +1223,12 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var scopeInner = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         scopeInner.Children.Add(TrackSubHeaderText(new TextBlock
         {
-            Text = "作用域:",
+            Text = Loc.T("作用域:"),
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 4, 0)
         }));
-        string[] scopeLabels = { "立体声", "左", "右", "中 (M)", "侧 (S)" };
+        string[] scopeLabels = { Loc.T("立体声"), Loc.T("左"), Loc.T("右"), Loc.T("中 (M)"), Loc.T("侧 (S)") };
         for (int i = 0; i < scopeLabels.Length; i++)
         {
             int idx = i;
@@ -1260,7 +1263,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         };
         preampSp.Children.Add(TrackSubHeaderText(new TextBlock
         {
-            Text = "EQ 前级增益:",
+            Text = Loc.T("EQ 前级增益:"),
             FontSize = 12,
             FontWeight = FontWeights.Medium,
             VerticalAlignment = VerticalAlignment.Center
@@ -1289,7 +1292,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _compositeHintTb = TrackMutedText(new TextBlock
         {
-            Text = "合成峰值 0.0 dB",
+            Text = Loc.T("合成峰值 0.0 dB"),
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
         });
@@ -1321,21 +1324,21 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
         titleSp.Children.Add(TrackPrimaryText(new TextBlock
         {
-            Text = "10 段图形均衡推子 (Graphic EQ)",
+            Text = Loc.T("10 段图形均衡推子 (Graphic EQ)"),
             FontSize = 14,
             FontWeight = FontWeights.Bold,
             VerticalAlignment = VerticalAlignment.Center
         }));
         titleSp.Children.Add(TrackMutedText(new TextBlock
         {
-            Text = "与上方参数 EQ 曲线双向实时同步",
+            Text = Loc.T("与上方参数 EQ 曲线双向实时同步"),
             FontSize = 11,
             VerticalAlignment = VerticalAlignment.Center
         }));
         Grid.SetColumn(titleSp, 0);
         headerGrid.Children.Add(titleSp);
 
-        var btnZeroFaders = CreateGlassToolButton("推子归零", new Thickness(10, 4, 10, 4));
+        var btnZeroFaders = CreateGlassToolButton(Loc.T("推子归零"), new Thickness(10, 4, 10, 4));
         btnZeroFaders.Click += (s, e) => ResetToFlat();
         Grid.SetColumn(btnZeroFaders, 1);
         headerGrid.Children.Add(btnZeroFaders);
@@ -1371,7 +1374,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                 StepFrequency = 0.1,
                 SmallChange = 0.5,
                 LargeChange = 2.0,
-                Height = 96,
+                Height = 156,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             slider.ValueChanged += (s, e) => OnGraphicFaderChanged(bandIndex, e.NewValue);
@@ -1430,13 +1433,13 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var headerLeft = new StackPanel { Spacing = 2 };
         headerLeft.Children.Add(TrackPrimaryText(new TextBlock
         {
-            Text = "🎛️ Mix Assistant 智能混音平衡助手",
+            Text = Loc.T("🎛️ Mix Assistant 智能混音平衡助手"),
             FontSize = 15,
             FontWeight = FontWeights.Bold
         }));
         headerLeft.Children.Add(TrackMutedText(new TextBlock
         {
-            Text = "源自 Neutron Pro Tonal Balance 感知学习 · De-Masking 防掩蔽 · Sculptor 音色塑形",
+            Text = Loc.T("源自 Neutron Pro Tonal Balance 感知学习 · De-Masking 防掩蔽 · Sculptor 音色塑形"),
             FontSize = 11
         }));
         Grid.SetColumn(headerLeft, 0);
@@ -1450,7 +1453,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         };
         _learnStatusTb = TrackSubHeaderText(new TextBlock
         {
-            Text = "点击“学习监听”或“分析音轨”诊断频谱平衡",
+            Text = Loc.T("点击“学习监听”或“分析音轨”诊断频谱平衡"),
             FontSize = 11,
             TextTrimming = TextTrimming.CharacterEllipsis
         });
@@ -1477,7 +1480,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _btnLearnTextTb = new TextBlock
         {
-            Text = "🎧 学习监听 (Learn)",
+            Text = Loc.T("🎧 学习监听 (Learn)"),
             FontSize = 12,
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center
@@ -1493,7 +1496,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         Grid.SetColumn(_btnLearn, 0);
         controlsRow.Children.Add(_btnLearn);
 
-        _btnAnalyzeTrack = CreateGlassToolButton("🔍 分析音轨 (Analyze)", new Thickness(12, 6, 12, 6));
+        _btnAnalyzeTrack = CreateGlassToolButton(Loc.T("🔍 分析音轨 (Analyze)"), new Thickness(12, 6, 12, 6));
         _btnAnalyzeTrack.Click += (s, e) => MixAssistantAnalyzeAudioRequested?.Invoke();
         _btnAnalyzeTrack.Visibility = _showAnalyzeTrackButton ? Visibility.Visible : Visibility.Collapsed;
         Grid.SetColumn(_btnAnalyzeTrack, 1);
@@ -1509,7 +1512,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         targetSp.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         var targetLabelTb = TrackSubHeaderText(new TextBlock
         {
-            Text = "目标风格:",
+            Text = Loc.T("目标风格:"),
             FontSize = 12,
             FontWeight = FontWeights.Medium,
             VerticalAlignment = VerticalAlignment.Center
@@ -1551,15 +1554,15 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         };
         demaskSp.Children.Add(TrackSubHeaderText(new TextBlock
         {
-            Text = "自动防掩蔽 (De-Mask)",
+            Text = Loc.T("自动防掩蔽 (De-Mask)"),
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center
         }));
         _demaskSwitch = new ToggleSwitch
         {
             IsOn = _demaskMidMud,
-            OnContent = "开",
-            OffContent = "关",
+            OnContent = Loc.T("开"),
+            OffContent = Loc.T("关"),
             MinWidth = 0
         };
         _demaskSwitch.Toggled += (s, e) =>
@@ -1585,7 +1588,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var amountHead = new Grid();
         amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        amountHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "匹配强度 Amount", FontSize = 12 }));
+        amountHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("匹配强度 Amount"), FontSize = 12 }));
         _amountValueTb = new TextBlock
         {
             Text = "75%",
@@ -1612,7 +1615,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var bassHead = new Grid();
         bassHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         bassHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        bassHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "低频 Sculpt (Low Shelf)", FontSize = 12 }));
+        bassHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("低频 Sculpt (Low Shelf)"), FontSize = 12 }));
         _bassSculptValueTb = new TextBlock
         {
             Text = "0.0 dB",
@@ -1639,7 +1642,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var trebleHead = new Grid();
         trebleHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
         trebleHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        trebleHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = "高频 Sculpt (High Shelf)", FontSize = 12 }));
+        trebleHead.Children.Add(TrackSubHeaderText(new TextBlock { Text = Loc.T("高频 Sculpt (High Shelf)"), FontSize = 12 }));
         _trebleSculptValueTb = new TextBlock
         {
             Text = "0.0 dB",
@@ -1682,7 +1685,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var actionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
         _btnApplyAssistant = new Button
         {
-            Content = "✨ 应用助手方案 Apply",
+            Content = Loc.T("✨ 应用助手方案 Apply"),
             Padding = new Thickness(14, 6, 14, 6),
             CornerRadius = new CornerRadius(8),
             Background = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
@@ -1693,11 +1696,11 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         _btnApplyAssistant.Click += (s, e) => OnApplyAssistantClick();
         actionsSp.Children.Add(_btnApplyAssistant);
 
-        _btnAssistantAb = CreateGlassToolButton("⇄ A/B 对比", new Thickness(12, 6, 12, 6));
+        _btnAssistantAb = CreateGlassToolButton(Loc.T("⇄ A/B 对比"), new Thickness(12, 6, 12, 6));
         _btnAssistantAb.Click += (s, e) => ToggleAbCompare();
         actionsSp.Children.Add(_btnAssistantAb);
 
-        _btnAssistantReset = CreateGlassToolButton("🔄 重置", new Thickness(10, 6, 10, 6));
+        _btnAssistantReset = CreateGlassToolButton(Loc.T("🔄 重置"), new Thickness(10, 6, 10, 6));
         _btnAssistantReset.Click += (s, e) => ResetMixAssistantAndEq();
         actionsSp.Children.Add(_btnAssistantReset);
 
@@ -1746,14 +1749,14 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         _presetNameTb = new TextBox
         {
-            PlaceholderText = "保存为用户预设名称...",
+            PlaceholderText = Loc.T("保存为用户预设名称..."),
             Width = 200,
             CornerRadius = new CornerRadius(8),
             BorderThickness = new Thickness(1)
         };
         leftSp.Children.Add(_presetNameTb);
 
-        _btnSavePreset = CreateGlassToolButton("保存到预设", new Thickness(12, 6, 12, 6));
+        _btnSavePreset = CreateGlassToolButton(Loc.T("保存到预设"), new Thickness(12, 6, 12, 6));
         _btnSavePreset.Click += OnSavePresetClick;
         leftSp.Children.Add(_btnSavePreset);
 
@@ -1761,11 +1764,11 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         bar.Children.Add(leftSp);
 
         var rightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
-        _btnResetBottom = CreateGlassToolButton("🔄 重置曲线", new Thickness(10, 6, 10, 6));
+        _btnResetBottom = CreateGlassToolButton(Loc.T("🔄 重置曲线"), new Thickness(10, 6, 10, 6));
         _btnResetBottom.Click += (s, e) => ResetToFlat();
         rightSp.Children.Add(_btnResetBottom);
 
-        _btnImportAutoEq = CreateGlassToolButton("📁 导入预设 / APO", new Thickness(10, 6, 10, 6));
+        _btnImportAutoEq = CreateGlassToolButton(Loc.T("📁 导入预设 / APO"), new Thickness(10, 6, 10, 6));
         _btnImportAutoEq.Click += (s, e) => ImportAutoEqRequested?.Invoke();
         rightSp.Children.Add(_btnImportAutoEq);
 
@@ -1781,7 +1784,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         _isGraphicMode = graphicAssistant;
         if (_curveControl != null)
         {
-            _curveControl.Height = graphicAssistant ? 150 : 200;
+            _curveControl.Height = graphicAssistant ? 340 : 320;
         }
         if (_parametricSection != null)
         {
@@ -1877,7 +1880,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             {
                 Orientation = Orientation.Horizontal,
                 Spacing = 4,
-                Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = "添加频段", FontSize = 11 } }
+                Children = { new FontIcon { Glyph = "\uE710", FontSize = 11 }, new TextBlock { Text = Loc.T("添加频段"), FontSize = 11 } }
             },
             new Thickness(8, 4, 10, 4));
         btnAddBand.CornerRadius = new CornerRadius(16);
@@ -2058,7 +2061,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             PushUndoSnapshot();
             var band = _bands[idx];
-            band.FilterType = (EchoFilterType)sel;
+            band.FilterType = (FurinaPlayerFilterType)sel;
             band.UpdateCoefficients(48000.0);
             _curveControl.SetBands(_bands, idx);
             UpdateHeadroomStatusDisplay();
@@ -2168,9 +2171,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             nextFreq = Math.Clamp(last.FrequencyHz * 0.72, 20.0, 20000.0);
         }
 
-        var newBand = new EchoBiquadFilter
+        var newBand = new FurinaPlayerBiquadFilter
         {
-            FilterType = EchoFilterType.Peaking,
+            FilterType = FurinaPlayerFilterType.Peaking,
             FrequencyHz = Math.Round(nextFreq, 1),
             GainDb = 0.0,
             Q = 1.414,
@@ -2196,8 +2199,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             _bands[i].FrequencyHz = MixAssistantEngine.GraphicFrequencies[i];
             _bands[i].FilterType = i == 0
-                ? EchoFilterType.LowShelf
-                : (i == 9 ? EchoFilterType.HighShelf : EchoFilterType.Peaking);
+                ? FurinaPlayerFilterType.LowShelf
+                : (i == 9 ? FurinaPlayerFilterType.HighShelf : FurinaPlayerFilterType.Peaking);
             _bands[i].GainDb = i < gains.Length ? gains[i] : 0.0;
             _bands[i].Q = i == 0 || i == 9 ? 0.71 : 1.414;
             _bands[i].Enabled = true;
@@ -2213,7 +2216,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         string name = _presetNameTb?.Text?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(name))
         {
-            name = $"自定义预设 {_builtinPresets.Count + 1}";
+            name = Loc.F("自定义预设 {0}", _builtinPresets.Count + 1);
         }
 
         double[] gains = GetGraphic10BandGains();
@@ -2238,7 +2241,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         if (!_isLearning)
         {
             _mixAssistant.BeginLearning();
-            SetMixAssistantProgress(true, 0.0, "正在监听音频流，请播放音乐...");
+            SetMixAssistantProgress(true, 0.0, Loc.T("正在监听音频流，请播放音乐..."));
             MixAssistantLearnRequested?.Invoke(true);
         }
         else
@@ -2367,8 +2370,8 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             bool safe = margin >= -0.2;
             _headroomStatusTb.Text = safe
-                ? $"● 安全余量 {margin:+0.0;-0.0;0.0} dB"
-                : $"▲ 峰值超限 {peakDb:+0.0;-0.0;0.0} dB (建议降低前级)";
+                ? Loc.F("● 安全余量 {0:+0.0;-0.0;0.0} dB", margin)
+                : Loc.F("▲ 峰值超限 {0:+0.0;-0.0;0.0} dB (建议降低前级)", peakDb);
             _headroomStatusTb.Foreground = new SolidColorBrush(safe
                 ? Color.FromArgb(255, 22, 163, 74)
                 : Color.FromArgb(255, 234, 88, 12));
@@ -2376,15 +2379,15 @@ public sealed class ParametricEqWorkbenchControl : UserControl
 
         if (_compositeHintTb != null)
         {
-            _compositeHintTb.Text = $"合成峰值 {peakDb:+0.0;-0.0;0.0} dB";
+            _compositeHintTb.Text = Loc.F("合成峰值 {0:+0.0;-0.0;0.0} dB", peakDb);
         }
         if (_beforeStateTb != null)
         {
-            _beforeStateTb.Text = $"前级 {_preampDb:+0.0;-0.0;0.0} dB";
+            _beforeStateTb.Text = Loc.F("前级 {0:+0.0;-0.0;0.0} dB", _preampDb);
         }
         if (_afterStateTb != null)
         {
-            _afterStateTb.Text = _isAbOriginal ? "当前对比: A (原始直通)" : "当前对比: B (EQ 处理后)";
+            _afterStateTb.Text = _isAbOriginal ? Loc.T("当前对比: A (原始直通)") : Loc.T("当前对比: B (EQ 处理后)");
         }
     }
 
@@ -2435,7 +2438,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         if (_btnRedo != null) _btnRedo.IsEnabled = _redoStack.Count > 0;
     }
 
-    private void NotifySingleBandChanged(int idx, EchoBiquadFilter band)
+    private void NotifySingleBandChanged(int idx, FurinaPlayerBiquadFilter band)
     {
         BandChanged?.Invoke(idx, band);
         BandsChanged?.Invoke(_bands);
@@ -2450,13 +2453,13 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         BandsChanged?.Invoke(_bands);
     }
 
-    private static List<EchoBiquadFilter> CloneBandsList(IReadOnlyList<EchoBiquadFilter> source)
+    private static List<FurinaPlayerBiquadFilter> CloneBandsList(IReadOnlyList<FurinaPlayerBiquadFilter> source)
     {
-        var list = new List<EchoBiquadFilter>(source.Count);
+        var list = new List<FurinaPlayerBiquadFilter>(source.Count);
         for (int i = 0; i < source.Count; i++)
         {
             var s = source[i];
-            var copy = new EchoBiquadFilter
+            var copy = new FurinaPlayerBiquadFilter
             {
                 FilterType = s.FilterType,
                 FrequencyHz = s.FrequencyHz,
@@ -2576,7 +2579,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             btn.Foreground = _isAbOriginal
                 ? new SolidColorBrush(_isDark ? Color.FromArgb(255, 253, 230, 138) : Color.FromArgb(255, 180, 83, 9))
                 : GetSecondaryBrush();
-            btn.Content = _isAbOriginal ? "⇄ A: 原始 (点击切回 B)" : "⇄ A/B 对比";
+            btn.Content = _isAbOriginal ? Loc.T("⇄ A: 原始 (点击切回 B)") : Loc.T("⇄ A/B 对比");
         }
         StyleAbBtn(_btnAbTop);
         StyleAbBtn(_btnAssistantAb);

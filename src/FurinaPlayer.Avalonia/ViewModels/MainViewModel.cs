@@ -1,6 +1,6 @@
 using System;
-using SonicWave.Audio;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.Avalonia.ViewModels;
 

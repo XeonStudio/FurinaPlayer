@@ -6,7 +6,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using FurinaPlayer.Avalonia.ViewModels;
-using SonicWave.Core.Models;
+using FurinaPlayer.Core.Models;
 
 namespace FurinaPlayer.Avalonia.Views;
 

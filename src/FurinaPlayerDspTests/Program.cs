@@ -1,0 +1,592 @@
+using System;
+using System.IO;
+using FurinaPlayer.Audio.Dsp;
+
+namespace FurinaPlayerDspTests;
+
+class Program
+{
+	static int s_passCount = 0;
+	static int s_failCount = 0;
+
+	static void Assert(bool condition, string testName)
+	{
+		if (condition)
+		{
+			Console.ForegroundColor = ConsoleColor.Green;
+			Console.WriteLine($"[PASS] {testName}");
+			s_passCount++;
+		}
+		else
+		{
+			Console.ForegroundColor = ConsoleColor.Red;
+			Console.WriteLine($"[FAIL] {testName}");
+			s_failCount++;
+		}
+		Console.ResetColor();
+	}
+
+	static void Main(string[] args)
+	{
+		Console.WriteLine("=================================================");
+		Console.WriteLine("  FurinaPlayer DSP Suite Unit Test Suite  ");
+		Console.WriteLine("=================================================");
+
+		TestBiquadEq();
+		TestAutoEqParser();
+		TestHeadroomProcessor();
+		TestCompressorProcessor();
+		TestSpatialCrossfeedAndStereoField();
+		TestChannelMatrix();
+		TestFurinaPlayerChannelTool();
+		TestReplayGain();
+		TestConvolutionFir();
+		TestPcmResampler();
+		TestSdmModulator();
+		TestDspRackOrderAndChain();
+		TestLockFreeAudioVisualBuffer();
+		TestOpraDatabaseAndHeadphoneCalibration();
+		TestReplayGainScannerService();
+		TestPolySincResampler();
+		TestFurinaPlayerPcmResamplerAdvancedModes();
+
+		NewFeatureTests.RunAll();
+		NewFeatureTests.TestLibVlcTranscoderAndOggWaveform(Assert);
+		NewFeatureTests.TestAudioSessionSwitchAndMeterInvariants(Assert);
+		NewFeatureTests.TestAudioSessionRestoreResume(Assert);
+		NewFeatureTests.TestMixAssistantAndParametricOfflineRender(Assert);
+		NewFeatureTests.TestInsightProAnalyzerPrecision(Assert);
+		NewFeatureTests.TestStreamingNonBlockingAndCancellation(Assert);
+		NewFeatureTests.TestNeteaseQrCookieMergeAndFallback(Assert);
+		NewFeatureTests.TestFormatConverterAndDecoders(Assert);
+		NewFeatureTests.TestLibraryDeduplicationAndFuzzySearch(Assert);
+		NewFeatureTests.TestLyricPriorityLocalEmbeddedAndFallback(Assert);
+		NewFeatureTests.TestLibraryIntegrityCheckAndRepair(Assert);
+		NewFeatureTests.TestDesktopPetAssetsAndBounds(Assert);
+		OpraDeepVerification.Run();
+
+		Console.WriteLine("=================================================");
+		Console.WriteLine($"Tests Completed: {s_passCount + s_failCount} | Passed: {s_passCount} | Failed: {s_failCount}");
+		Console.WriteLine("=================================================");
+
+		Environment.Exit(s_failCount == 0 ? 0 : 1);
+	}
+
+	static void TestBiquadEq()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerBiquadFilter & FurinaPlayerEqProcessor ---");
+		var filter = new FurinaPlayerBiquadFilter
+		{
+			FilterType = FurinaPlayerFilterType.Peaking,
+			FrequencyHz = 1000.0,
+			GainDb = 6.0,
+			Q = 1.0,
+			Enabled = true
+		};
+		filter.UpdateCoefficients(44100.0);
+
+		// Run 1kHz sine wave vs 10kHz sine wave
+		double sumIn1k = 0.0, sumOut1k = 0.0;
+		for (int i = 0; i < 4410; i++)
+		{
+			float inSample = (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / 44100.0);
+			float outSample = filter.ProcessSample(inSample, 0);
+			sumIn1k += inSample * inSample;
+			sumOut1k += outSample * outSample;
+		}
+
+		double gainRatio = Math.Sqrt(sumOut1k / sumIn1k);
+		// +6dB is approx 2.0x gain
+		Assert(gainRatio > 1.8 && gainRatio < 2.2, $"Peaking filter boosted 1kHz by ~6dB (ratio={gainRatio:F3})");
+
+		// Test LowPass filter
+		var lp = new FurinaPlayerBiquadFilter
+		{
+			FilterType = FurinaPlayerFilterType.LowPass,
+			FrequencyHz = 1000.0,
+			Q = 0.7071
+		};
+		lp.UpdateCoefficients(44100.0);
+		double sumOut10k = 0.0;
+		for (int i = 0; i < 4410; i++)
+		{
+			float inSample = (float)Math.Sin(2.0 * Math.PI * 10000.0 * i / 44100.0);
+			float outSample = lp.ProcessSample(inSample, 0);
+			sumOut10k += outSample * outSample;
+		}
+		Assert(sumOut10k / sumIn1k < 0.01, "LowPass filter severely attenuated 10kHz content (< -20dB)");
+	}
+
+	static void TestAutoEqParser()
+	{
+		Console.WriteLine("\n--- Testing AutoEq / Equalizer APO Parser ---");
+		string apoPreset = @"# AutoEq profile for Sennheiser HD600
+Preamp: -6.5 dB
+Filter 1: ON PK Fc 20 Hz Gain -3.2 dB Q 1.41
+Filter 2: ON LS Fc 105 Hz Gain 5.5 dB Q 0.71
+Filter 3: ON PK Fc 1250 Hz Gain -1.8 dB Q 2.0
+Filter 4: ON HS Fc 10000 Hz Gain -2.0 dB Q 0.71
+Filter 5: OFF NO Fc 60 Hz Gain 0.0 dB Q 10.0
+";
+		var preset = AutoEqParser.Parse(apoPreset, "HD600 AutoEq");
+		Assert(Math.Abs(preset.PreampDb - (-6.5)) < 0.001, "AutoEq Preamp correctly parsed as -6.5 dB");
+		Assert(preset.Bands.Count == 5, $"AutoEq parsed 5 bands (actual: {preset.Bands.Count})");
+		Assert(preset.Bands[0].FilterType == FurinaPlayerFilterType.Peaking && Math.Abs(preset.Bands[0].GainDb - (-3.2)) < 0.01, "Band 1 parsed as Peaking with -3.2 dB gain");
+		Assert(preset.Bands[1].FilterType == FurinaPlayerFilterType.LowShelf && Math.Abs(preset.Bands[1].GainDb - 5.5) < 0.01, "Band 2 parsed as LowShelf with 5.5 dB gain");
+		Assert(!preset.Bands[4].Enabled, "Band 5 correctly parsed as OFF (Disabled)");
+	}
+
+	static void TestHeadroomProcessor()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerHeadroomProcessor ---");
+		var headroom = new FurinaPlayerHeadroomProcessor();
+		headroom.Prepare(44100.0, 512);
+		headroom.HeadroomDb = -6.0;
+
+		float[] buffer = new float[2000];
+		for (int i = 0; i < buffer.Length; i++) buffer[i] = 1.0f; // DC 1.0
+
+		headroom.ProcessInterleaved(buffer, 0, buffer.Length, 2);
+
+		// Tail samples should be smoothed to approx 10^(-6/20) = 0.501187
+		float tailSample = buffer[buffer.Length - 1];
+		Assert(Math.Abs(tailSample - 0.5012f) < 0.01f, $"Headroom smoothly reduced gain from 1.0 to {tailSample:F4} (-6dB)");
+	}
+
+	static void TestCompressorProcessor()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerCompressorProcessor ---");
+		var comp = new FurinaPlayerCompressorProcessor
+		{
+			Enabled = true,
+			ThresholdDb = -12.0f,
+			Ratio = 4.0f,
+			AttackMs = 1.0f,
+			ReleaseMs = 50.0f,
+			KneeDb = 4.0f,
+			MakeupDb = 0.0f,
+			Mix = 1.0f
+		};
+		comp.Prepare(44100.0);
+
+		// Signal at 0dB (peak 1.0) exceeds -12dB threshold by 12dB.
+		// Compression ratio 4:1 reduces the 12dB over by (1 - 1/4)*12 = 9dB.
+		// Output level should settle to ~ -9dB (0.355).
+		float[] loudSignal = new float[4410];
+		for (int i = 0; i < loudSignal.Length; i++) loudSignal[i] = 1.0f;
+
+		comp.ProcessInterleaved(loudSignal, 0, loudSignal.Length, 1);
+
+		float compressedOutput = Math.Abs(loudSignal[loudSignal.Length - 1]);
+		Assert(compressedOutput < 0.45f && compressedOutput > 0.30f, $"Compressor compressed 0dBFS signal to {compressedOutput:F3} (~-9dB)");
+		Assert(comp.GainReductionDb > 8.0f, $"Gain reduction meter reads {comp.GainReductionDb:F1} dB");
+	}
+
+	static void TestSpatialCrossfeedAndStereoField()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerSpatialProcessor (Crossfeed & Stereo Field) ---");
+		var spatial = new FurinaPlayerSpatialProcessor();
+		spatial.Prepare(44100.0);
+
+		// Crossfeed test: Hard-panned Left signal [1.0, 0.0]
+		spatial.CrossfeedEnabled = true;
+		spatial.CrossfeedAmount = 0.5f;
+
+		float[] stereoBuf = new float[1000 * 2];
+		for (int i = 0; i < 1000; i++)
+		{
+			stereoBuf[i * 2] = 1.0f; // Left only
+			stereoBuf[i * 2 + 1] = 0.0f; // Right silent
+		}
+
+		spatial.ProcessCrossfeed(stereoBuf, 0, stereoBuf.Length, 2);
+
+		// With Bauer crossfeed, low-frequency sound feeds into the right channel
+		float rightBleed = Math.Abs(stereoBuf[stereoBuf.Length - 1]);
+		Assert(rightBleed > 0.05f, $"Crossfeed fed sound to opposite ear (Right={rightBleed:F3})");
+
+		// Stereo Field test: Width = 0 should collapse to Mono (L == R)
+		spatial.CrossfeedEnabled = false;
+		spatial.StereoFieldEnabled = true;
+		spatial.StereoWidth = 0.0f;
+
+		float[] stereoBuf2 = new float[100 * 2];
+		for (int i = 0; i < 100; i++)
+		{
+			stereoBuf2[i * 2] = 0.8f;
+			stereoBuf2[i * 2 + 1] = 0.2f;
+		}
+
+		spatial.ProcessStereoField(stereoBuf2, 0, stereoBuf2.Length, 2);
+		float diff = Math.Abs(stereoBuf2[0] - stereoBuf2[1]);
+		Assert(diff < 0.001f, $"Stereo Field width=0 collapsed signal to pure Mono (diff={diff})");
+	}
+
+	static void TestChannelMatrix()
+	{
+		Console.WriteLine("\n--- Testing Channel Matrix Routing ---");
+		var spatial = new FurinaPlayerSpatialProcessor();
+		spatial.Prepare(44100.0);
+
+		spatial.SetMatrixPreset(ChannelMatrixPreset.SwapLeftRight);
+		float[] buf = { 0.7f, 0.3f };
+		spatial.ProcessChannelMatrix(buf, 0, 2, 2);
+
+		Assert(Math.Abs(buf[0] - 0.3f) < 0.001f && Math.Abs(buf[1] - 0.7f) < 0.001f, "Matrix swapped Left and Right channels");
+
+		spatial.SetMatrixPreset(ChannelMatrixPreset.InvertPhaseRight);
+		float[] buf2 = { 0.5f, 0.5f };
+		spatial.ProcessChannelMatrix(buf2, 0, 2, 2);
+		Assert(Math.Abs(buf2[0] - 0.5f) < 0.001f && Math.Abs(buf2[1] - (-0.5f)) < 0.001f, "Matrix inverted phase of Right channel");
+	}
+
+	static void TestFurinaPlayerChannelTool()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayer Channel Tool (Pan, Bias & Matrix) ---");
+		var proc = new FurinaPlayerSpatialProcessor();
+		proc.Prepare(44100.0);
+
+		// 1. Channel Tool Disabled pass-through
+		float[] testBuf = { 1.0f, 1.0f };
+		proc.ProcessChannelTool(testBuf, 0, 2, 2);
+		Assert(Math.Abs(testBuf[0] - 1.0f) < 0.001f && Math.Abs(testBuf[1] - 1.0f) < 0.001f, "Channel Tool bypassed preserves unity");
+
+		// 2. Channel Tool Enabled - Pan Balance L 100%
+		proc.ChannelToolEnabled = true;
+		proc.Balance = -1.0; // Pan hard left
+		proc.Reset();
+		float[] panLBuf = { 1.0f, 1.0f };
+		proc.ProcessChannelTool(panLBuf, 0, 2, 2);
+		Assert(Math.Abs(panLBuf[0] - 1.0f) < 0.01f && panLBuf[1] < 0.01f, "Pan hard left mutes Right channel and preserves Left");
+
+		// 3. Pan Balance R 100%
+		proc.Balance = 1.0; // Pan hard right
+		proc.Reset();
+		float[] panRBuf = { 1.0f, 1.0f };
+		proc.ProcessChannelTool(panRBuf, 0, 2, 2);
+		Assert(panRBuf[0] < 0.01f && Math.Abs(panRBuf[1] - 1.0f) < 0.01f, "Pan hard right mutes Left channel and preserves Right");
+
+		// 4. Bias Compensation Single-side Attenuation (Trim Left side)
+		proc.Balance = 0.0;
+		proc.TrimStepDb = 0.25;
+		proc.TrimSide(isLeft: true); // Left -0.25 dB
+		Assert(Math.Abs(proc.LeftGainDb - (-0.25)) < 0.001, "TrimSide reduced Left channel by 0.25 dB");
+		Assert(Math.Abs(proc.RightGainDb - 0.0) < 0.001, "TrimSide preserved Right channel at 0.0 dB");
+		Assert(proc.SkewStatusText.Contains("偏右"), "Telemetry detected Right louder skew status");
+
+		// 5. Swap compensation direction
+		proc.SwapCompensationDirection();
+		Assert(Math.Abs(proc.RightGainDb - (-0.25)) < 0.001, "SwapCompensationDirection transferred 0.25 dB attenuation to Right");
+		Assert(Math.Abs(proc.LeftGainDb - 0.0) < 0.001, "SwapCompensationDirection restored Left to 0.0 dB");
+
+		// 6. Mono Sum mode
+		proc.ClearCompensation();
+		proc.MonoMode = ChannelMonoMode.Sum;
+		proc.Reset();
+		float[] monoBuf = { 0.8f, 0.2f };
+		proc.ProcessChannelTool(monoBuf, 0, 2, 2);
+		Assert(Math.Abs(monoBuf[0] - 0.5f) < 0.02f && Math.Abs(monoBuf[1] - 0.5f) < 0.02f, "Mono Sum mode blended L and R equally");
+
+		// 7. Phase inversion
+		proc.MonoMode = ChannelMonoMode.Off;
+		proc.InvertPhaseLeft = true;
+		proc.Reset();
+		float[] phaseBuf = { 0.6f, 0.6f };
+		proc.ProcessChannelTool(phaseBuf, 0, 2, 2);
+		Assert(phaseBuf[0] < -0.55f && phaseBuf[1] > 0.55f, "InvertPhaseLeft inverted sign of Left channel");
+
+		// 8. A/B Compare Bypass
+		proc.CompareBypassed = true;
+		float[] compareBuf = { 0.6f, 0.6f };
+		proc.ProcessChannelTool(compareBuf, 0, 2, 2);
+		Assert(Math.Abs(compareBuf[0] - 0.6f) < 0.001f && Math.Abs(compareBuf[1] - 0.6f) < 0.001f, "A/B Compare temporarily bypasses processing cleanly");
+	}
+
+	static void TestReplayGain()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerReplayGainProcessor ---");
+		var rg = new FurinaPlayerReplayGainProcessor();
+		rg.Prepare(44100.0);
+		rg.Mode = ReplayGainMode.Track;
+		rg.TrackGainDb = -3.0f; // -3dB
+		rg.TrackPeak = 0.8f;
+		rg.PreampDb = 0.0f;
+		rg.Reset();
+
+		float[] buf = new float[1000];
+		for (int i = 0; i < buf.Length; i++) buf[i] = 1.0f;
+
+		rg.ProcessInterleaved(buf, 0, buf.Length, 1);
+
+		float expected = (float)Math.Pow(10.0, -3.0 / 20.0); // ~0.7079
+		float actual = buf[buf.Length - 1];
+		Assert(Math.Abs(actual - expected) < 0.01f, $"ReplayGain applied -3.0 dB track gain (actual: {actual:F4}, expected: {expected:F4})");
+	}
+
+	static void TestConvolutionFir()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerConvolutionProcessor (FIR / IR) ---");
+		var conv = new FurinaPlayerConvolutionProcessor();
+		conv.Prepare(44100.0);
+
+		// Dirac Delta impulse response: [1.0, 0, 0, 0...] -> acts as identity transform
+		float[][] deltaIr = new float[1][] { new float[64] };
+		deltaIr[0][0] = 1.0f;
+
+		bool loaded = conv.LoadImpulseResponse(deltaIr, 44100.0, "Dirac Delta IR");
+		Assert(loaded, "Dirac Delta IR loaded successfully");
+
+		conv.Enabled = true;
+		float[] input = new float[128];
+		for (int i = 0; i < input.Length; i++) input[i] = (float)Math.Sin(2.0 * Math.PI * 440.0 * i / 44100.0);
+
+		float[] testBuf = (float[])input.Clone();
+		conv.ProcessInterleaved(testBuf, 0, testBuf.Length, 1);
+
+		double maxError = 0.0;
+		for (int i = 0; i < testBuf.Length; i++)
+		{
+			double err = Math.Abs(testBuf[i] - input[i]);
+			if (err > maxError) maxError = err;
+		}
+
+		Assert(maxError < 0.0001, $"Convolution with Dirac delta produced perfect identity waveform (max error={maxError:E3})");
+	}
+
+	static void TestPcmResampler()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerPcmResampler (Upsampling) ---");
+		var resampler = new FurinaPlayerPcmResampler();
+		resampler.Prepare(44100, 192000);
+		resampler.Enabled = true;
+
+		float[] pcm44k = new float[441 * 2]; // 10ms stereo at 44.1k
+		for (int i = 0; i < 441; i++)
+		{
+			pcm44k[i * 2] = (float)Math.Sin(2.0 * Math.PI * 440.0 * i / 44100.0);
+			pcm44k[i * 2 + 1] = (float)Math.Cos(2.0 * Math.PI * 440.0 * i / 44100.0);
+		}
+
+		float[] resampled = resampler.ResampleInterleaved(pcm44k, 0, pcm44k.Length, 2, out int outCount);
+		int expectedFrames = (int)Math.Round(441.0 * 192000.0 / 44100.0);
+		int actualFrames = outCount / 2;
+
+		Assert(Math.Abs(actualFrames - expectedFrames) <= 2, $"Resampler upsampled 44.1kHz to 192kHz (output frames={actualFrames}, expected={expectedFrames})");
+	}
+
+	static void TestSdmModulator()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerSdmModulator (PCM to DSD Modulator) ---");
+		var sdm = new FurinaPlayerSdmModulator
+		{
+			Order = SdmOrder.Order5_HiFi,
+			TargetRate = SdmTargetRate.Dsd64
+		};
+
+		// Modulate 100 samples
+		int ones = 0, minusOnes = 0;
+		for (int i = 0; i < 500; i++)
+		{
+			double pcm = 0.5 * Math.Sin(2.0 * Math.PI * 1000.0 * i / 44100.0);
+			int bit = sdm.ModulateSample(pcm, 0);
+			if (bit == 1) ones++;
+			else if (bit == -1) minusOnes++;
+		}
+
+		Assert(ones > 0 && minusOnes > 0 && (ones + minusOnes) == 500, $"SDM 5th-order modulator output valid 1-bit stream ({ones} ones, {minusOnes} minus-ones)");
+
+		// Test DoP bitstream packing
+		float[] testPcm = new float[16 * 2];
+		for (int i = 0; i < testPcm.Length; i++) testPcm[i] = 0.2f;
+
+		uint[] dop = sdm.EncodeToDop(testPcm, testPcm.Length, 2);
+		Assert(dop.Length == 16 * 2, $"DoP encoder output {dop.Length} 24-bit DoP frames");
+		byte marker = (byte)(dop[0] >> 16);
+		Assert(marker == 0x05 || marker == 0xFA, $"DoP frame marker matches standard DSD marker (0x{marker:X2})");
+
+		// Test FurinaPlayerSdmModulator features & NTF calculation
+		var furinaModulator = new FurinaPlayerSdmModulator
+		{
+			Order = SdmOrder.Order5_Precision,
+			TargetRate = SdmTargetRate.Dsd128,
+			Mode = SdmMode.PcmToSdm,
+			QuantizerStrategy = SdmQuantizerStrategy.Dither,
+			SoundProfile = SdmSoundProfile.FurinaPlayerLinear
+		};
+
+		double ntfAudioBand = furinaModulator.ComputeNtfDb(1000.0, 5644800.0);
+		double ntfUltraBand = furinaModulator.ComputeNtfDb(100000.0, 5644800.0);
+		Assert(ntfAudioBand < -80.0, $"NTF in audio baseband (1kHz) is deeply suppressed: {ntfAudioBand:F1} dB (< -80 dB)");
+		Assert(ntfUltraBand > ntfAudioBand, $"NTF exhibits steep high-pass roll-up at 100kHz: {ntfUltraBand:F1} dB");
+
+		// Test DSD Passthrough to DoP
+		ushort[] dsdWords = new ushort[32];
+		for (int i = 0; i < dsdWords.Length; i++) dsdWords[i] = 0xAAAA;
+		uint[] passthroughDop = furinaModulator.EncodeDsdPassthroughToDop(dsdWords, dsdWords.Length, 2);
+		Assert(passthroughDop.Length == 32, $"DoP passthrough produced {passthroughDop.Length} frames");
+		Assert((passthroughDop[0] & 0xFFFF) == 0xAAAA, "DoP passthrough preserved pristine 16-bit DSD payload");
+	}
+
+	static void TestDspRackOrderAndChain()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerDspChain & DspRackOrder ---");
+		var chain = new FurinaPlayerDspChain(44100.0);
+
+		Assert(chain.RackOrder.Order.Count >= 10, $"DspRackOrder holds all modular processors (actual: {chain.RackOrder.Order.Count})");
+
+		// Test bypassing
+		chain.RackOrder.SetBypassed(DspRackModuleId.Equalizer, true);
+		Assert(chain.RackOrder.IsBypassed(DspRackModuleId.Equalizer), "Bypass state correctly toggled for Equalizer");
+
+		// Test True Peak Safety Limiter
+		float[] overloadBuffer = new float[100];
+		for (int i = 0; i < overloadBuffer.Length; i++) overloadBuffer[i] = 2.5f; // Extreme +8dB overload
+
+		chain.ProcessBlock(overloadBuffer, 0, overloadBuffer.Length, 2);
+
+		float peak = 0f;
+		for (int i = 0; i < overloadBuffer.Length; i++)
+		{
+			float abs = Math.Abs(overloadBuffer[i]);
+			if (abs > peak) peak = abs;
+		}
+
+		Assert(peak < 1.0f && peak > 0.88f, $"Safety Limiter tamed extreme +8dB digital overload to safe ceiling: {peak:F4} (< 1.0)");
+	}
+
+	static void TestLockFreeAudioVisualBuffer()
+	{
+		Console.WriteLine("\n--- Testing LockFreeAudioVisualBuffer ---");
+		var buffer = new LockFreeAudioVisualBuffer();
+
+		float[] testPcm = new float[1024 * 2];
+		for (int i = 0; i < 1024; i++)
+		{
+			testPcm[i * 2] = (float)Math.Sin(2.0 * Math.PI * 440.0 * i / 48000.0);
+			testPcm[i * 2 + 1] = (float)Math.Cos(2.0 * Math.PI * 440.0 * i / 48000.0);
+		}
+
+		buffer.PushSamples(testPcm, 0, testPcm.Length, 2);
+
+		float[] readL = new float[512];
+		float[] readR = new float[512];
+		buffer.ReadWaveform(readL, readR, 512);
+
+		Assert(Math.Abs(readL[0]) < 1.5f && Math.Abs(readR[0]) < 1.5f, "Waveform read from ring buffer successfully");
+
+		float[] spectrum = new float[512];
+		buffer.ComputeSpectrum(spectrum);
+		Assert(spectrum.Length == 512, "Spectrum analyzer computed 512 FFT magnitude bins");
+
+		float maxMag = 0f;
+		for (int i = 0; i < spectrum.Length; i++) if (spectrum[i] > maxMag) maxMag = spectrum[i];
+		Assert(maxMag > 0.5f, $"Spectrum detected strong tonal peak for 440Hz sine wave (peak norm={maxMag:F3})");
+
+		buffer.GetLoudnessInfo(out float m, out float s, out float tp, out float corr);
+		Assert(tp > -10.0f, $"TruePeak calculated accurately ({tp:F1} dBFS)");
+	}
+
+	static void TestOpraDatabaseAndHeadphoneCalibration()
+	{
+		Console.WriteLine("\n--- Testing OpraDatabaseService & Independent Headphone Calibration ---");
+		var presets = OpraDatabaseService.GetAllPresets();
+		Assert(presets.Count >= 8, $"OPRA database holds {presets.Count} reference headphone presets");
+
+		var searchResults = OpraDatabaseService.Search("HD 600");
+		var hd600 = System.Linq.Enumerable.FirstOrDefault(searchResults);
+		Assert(hd600 != null && hd600.Model == "HD 600", "OPRA search found Sennheiser HD 600 preset");
+
+		var eq = new FurinaPlayerEqProcessor(44100.0);
+		bool applied = OpraDatabaseService.ApplyPreset(eq, "sennheiser_hd600");
+		Assert(applied, "Applied HD 600 calibration preset to FurinaPlayerEqProcessor");
+		Assert(eq.CalibrationBands.Count == 6, $"Calibration EQ has {eq.CalibrationBands.Count} parametric filters");
+		Assert(Math.Abs(eq.CalibrationPreampDb - (-6.4)) < 0.01, $"Calibration preamp set to {eq.CalibrationPreampDb} dB");
+
+		// Set user EQ style gains to flat
+		eq.SetBandGain(0, 3.0);
+		Assert(eq.UserBands[0].GainDb == 3.0, "User style EQ operates independently from headphone calibration");
+
+		float[] testAudio = new float[256];
+		for (int i = 0; i < testAudio.Length; i++) testAudio[i] = 0.5f;
+		eq.ProcessInterleaved(testAudio, 0, testAudio.Length, 2);
+		Assert(testAudio[0] != 0.5f && !float.IsNaN(testAudio[0]), "Cascaded dual-stage EQ processed audio without distortion");
+	}
+
+	static void TestReplayGainScannerService()
+	{
+		Console.WriteLine("\n--- Testing ReplayGainScannerService (BS.1770 / EBU R128) ---");
+		// Create 2 seconds of 1kHz sine wave at full scale peak (0 dBFS peak = ~-3.01 LUFS unweighted)
+		int sampleRate = 48000;
+		int totalFrames = sampleRate * 2;
+		float[] sineWave = new float[totalFrames * 2];
+		for (int i = 0; i < totalFrames; i++)
+		{
+			float s = 0.7071f * (float)Math.Sin(2.0 * Math.PI * 1000.0 * i / sampleRate);
+			sineWave[i * 2] = s;
+			sineWave[i * 2 + 1] = s;
+		}
+
+		var scanResult = ReplayGainScannerService.AnalyzePcmBuffer(sineWave, sineWave.Length, 2, sampleRate);
+		Assert(scanResult.IntegratedLufs > -10.0f && scanResult.IntegratedLufs < -2.0f, $"Integrated LUFS measured accurately ({scanResult.IntegratedLufs:F2} LUFS)");
+		Assert(scanResult.TruePeakDb > -4.0f && scanResult.TruePeakDb < -2.0f, $"TruePeak measured accurately ({scanResult.TruePeakDb:F2} dBFS)");
+		Assert(Math.Abs(scanResult.SuggestedGainDb - (ReplayGainScannerService.TargetLoudnessLufs - scanResult.IntegratedLufs)) < 0.1f, "Suggested gain aligns with -18 LUFS target");
+	}
+
+	static void TestPolySincResampler()
+	{
+		Console.WriteLine("\n--- Testing Polyphase Sinc FIR Resampler Mode ---");
+		var resampler = new FurinaPlayerPcmResampler
+		{
+			FilterMode = ResamplerFilterMode.PolySincHalfBand
+		};
+		resampler.Prepare(44100, 88200);
+		resampler.Enabled = true;
+
+		float[] pcm = new float[200 * 2];
+		for (int i = 0; i < 200; i++)
+		{
+			pcm[i * 2] = 0.5f;
+			pcm[i * 2 + 1] = 0.5f;
+		}
+
+		float[] outPcm = resampler.ResampleInterleaved(pcm, 0, pcm.Length, 2, out int outCount);
+		Assert(outCount == 400 * 2, $"Polyphase FIR 2x upsampler produced exact double frame count ({outCount / 2} frames)");
+		Assert(outPcm[100] > 0.48f && outPcm[100] < 0.52f, $"Polyphase Sinc FIR preserved unity DC gain ({outPcm[100]:F4})");
+	}
+
+	static void TestFurinaPlayerPcmResamplerAdvancedModes()
+	{
+		Console.WriteLine("\n--- Testing FurinaPlayerPcmResampler Advanced Profiles & Dither ---");
+		var resampler = new FurinaPlayerPcmResampler
+		{
+			FilterMode = ResamplerFilterMode.GaussLong,
+			DitherMode = FurinaDitherMode.HighPass
+		};
+		resampler.Prepare(44100, 176400); // 4x upsampling
+		resampler.Enabled = true;
+
+		float[] pcm = new float[100 * 2];
+		for (int i = 0; i < 100; i++)
+		{
+			pcm[i * 2] = 0.4f;
+			pcm[i * 2 + 1] = -0.4f;
+		}
+
+		float[] out4x = resampler.ResampleInterleaved(pcm, 0, pcm.Length, 2, out int outCount4x);
+		Assert(outCount4x == 400 * 2, $"FurinaPlayer Gauss Long 4x produced 400 frames ({outCount4x / 2} frames)");
+		Assert(Math.Abs(out4x[100] - 0.4f) < 0.05f, $"Gauss Long preserved signal fidelity ({out4x[100]:F4})");
+
+		// Test 8x Steep mode
+		resampler.FilterMode = ResamplerFilterMode.Steep;
+		resampler.Prepare(48000, 384000); // 8x upsampling
+		float[] pcm48 = new float[50 * 2];
+		for (int i = 0; i < 50; i++)
+		{
+			pcm48[i * 2] = 0.8f;
+			pcm48[i * 2 + 1] = 0.8f;
+		}
+		float[] out8x = resampler.ResampleInterleaved(pcm48, 0, pcm48.Length, 2, out int outCount8x);
+		Assert(outCount8x == 400 * 2, $"FurinaPlayer Steep 8x produced 400 frames ({outCount8x / 2} frames)");
+		Assert(Math.Abs(out8x[100] - 0.8f) < 0.05f, $"Steep FIR preserved DC gain ({out8x[100]:F4})");
+	}
+}

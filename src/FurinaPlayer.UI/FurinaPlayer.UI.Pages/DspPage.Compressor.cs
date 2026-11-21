@@ -9,7 +9,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -194,7 +195,7 @@ public sealed partial class DspPage
 		// 4. Subtitle Lead Hint
 		var leadHintTb = new TextBlock
 		{
-			Text = "左右拖动曲线调整阈值。压缩比、启动、释放和补偿在滑杆上。",
+			Text = Loc.T("左右拖动曲线调整阈值。压缩比、启动、释放和补偿在滑杆上。"),
 			FontSize = 13,
 			Foreground = GetCompMutedTextBrush(isDark),
 			Margin = new Thickness(2, -4, 0, 0)
@@ -225,20 +226,20 @@ public sealed partial class DspPage
 	{
 		if (ViewModel != null)
 		{
-			_compDraftEnabled = ViewModel.EchoCompressorEnabled;
-			_compDraftThresholdDb = ViewModel.EchoCompressorThresholdDb;
-			_compDraftRatio = ViewModel.EchoCompressorRatio;
-			_compDraftAttackMs = ViewModel.EchoCompressorAttackMs;
-			_compDraftReleaseMs = ViewModel.EchoCompressorReleaseMs;
-			_compDraftKneeDb = ViewModel.EchoCompressorKneeDb;
-			_compDraftMakeupDb = ViewModel.EchoCompressorMakeupDb;
-			_compDraftMix = ViewModel.EchoCompressorMix;
-			_compDraftDetectorMode = ViewModel.EchoCompressorDetectorMode ?? "Peak";
-			_compDraftSidechainHp = ViewModel.EchoCompressorSidechainHighpassEnabled;
-			_compDraftSidechainHpHz = ViewModel.EchoCompressorSidechainHighpassHz;
-			_compDraftAutoRelease = ViewModel.EchoCompressorAutoRelease;
-			_compDraftRangeDb = ViewModel.EchoCompressorRangeDb;
-			_compDraftStereoLink = ViewModel.EchoCompressorStereoLink;
+			_compDraftEnabled = ViewModel.FurinaPlayerCompressorEnabled;
+			_compDraftThresholdDb = ViewModel.FurinaPlayerCompressorThresholdDb;
+			_compDraftRatio = ViewModel.FurinaPlayerCompressorRatio;
+			_compDraftAttackMs = ViewModel.FurinaPlayerCompressorAttackMs;
+			_compDraftReleaseMs = ViewModel.FurinaPlayerCompressorReleaseMs;
+			_compDraftKneeDb = ViewModel.FurinaPlayerCompressorKneeDb;
+			_compDraftMakeupDb = ViewModel.FurinaPlayerCompressorMakeupDb;
+			_compDraftMix = ViewModel.FurinaPlayerCompressorMix;
+			_compDraftDetectorMode = ViewModel.FurinaPlayerCompressorDetectorMode ?? "Peak";
+			_compDraftSidechainHp = ViewModel.FurinaPlayerCompressorSidechainHighpassEnabled;
+			_compDraftSidechainHpHz = ViewModel.FurinaPlayerCompressorSidechainHighpassHz;
+			_compDraftAutoRelease = ViewModel.FurinaPlayerCompressorAutoRelease;
+			_compDraftRangeDb = ViewModel.FurinaPlayerCompressorRangeDb;
+			_compDraftStereoLink = ViewModel.FurinaPlayerCompressorStereoLink;
 		}
 	}
 
@@ -270,7 +271,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(_compTitleIconBorder);
 		var titleTb = new TextBlock
 		{
-			Text = "压缩器",
+			Text = Loc.T("压缩器"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = GetCompPrimaryTextBrush(isDark),
@@ -297,7 +298,7 @@ public sealed partial class DspPage
 		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
 		_compPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14 };
-		_compPowerText = new TextBlock { Text = _compDraftEnabled ? "已启用" : "已旁路", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium };
+		_compPowerText = new TextBlock { Text = _compDraftEnabled ? Loc.T("已启用") : Loc.T("已旁路"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _compPowerIcon, _compPowerText } };
 
 		_compPowerBtn = new Button
@@ -312,8 +313,8 @@ public sealed partial class DspPage
 			_compDraftEnabled = !_compDraftEnabled;
 			if (ViewModel != null)
 			{
-				ViewModel.EchoCompressorEnabled = _compDraftEnabled;
-				ViewModel.ApplyEchoDsp();
+				ViewModel.FurinaPlayerCompressorEnabled = _compDraftEnabled;
+				ViewModel.ApplyFurinaPlayerDsp();
 			}
 			UpdatePowerButtonVisuals();
 		};
@@ -322,7 +323,7 @@ public sealed partial class DspPage
 
 		// 恢复默认 Button
 		_compResetIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13 };
-		_compResetText = new TextBlock { Text = "恢复默认", FontSize = 13 };
+		_compResetText = new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13 };
 		_compResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -341,7 +342,7 @@ public sealed partial class DspPage
 
 		// 应用参数 Button
 		_compApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 13 };
-		_compApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+		_compApplyText = new TextBlock { Text = Loc.T("应用参数"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
 		_compApplyBtn = new Button
 		{
 			Content = new StackPanel
@@ -361,7 +362,7 @@ public sealed partial class DspPage
 		// Pending Badge
 		_compPendingBadgeTb = new TextBlock
 		{
-			Text = "未应用 · 1",
+			Text = Loc.F("未应用 · {0}", 1),
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
 		};
@@ -391,7 +392,7 @@ public sealed partial class DspPage
 
 		_btnModeBasic = new Button
 		{
-			Content = "基础控制",
+			Content = Loc.T("基础控制"),
 			Padding = new Thickness(14, 5, 14, 5),
 			CornerRadius = new CornerRadius(14),
 			FontSize = 12.5,
@@ -402,7 +403,7 @@ public sealed partial class DspPage
 
 		_btnModeAdvanced = new Button
 		{
-			Content = "高级检测与联动",
+			Content = Loc.T("高级检测与联动"),
 			Padding = new Thickness(14, 5, 14, 5),
 			CornerRadius = new CornerRadius(14),
 			FontSize = 12.5,
@@ -428,7 +429,7 @@ public sealed partial class DspPage
 		bool isDark = isDarkOverride ?? IsDspDark;
 		if (_compPowerText != null)
 		{
-			_compPowerText.Text = _compDraftEnabled ? "已启用" : "已旁路";
+			_compPowerText.Text = _compDraftEnabled ? Loc.T("已启用") : Loc.T("已旁路");
 		}
 
 		if (_compDraftEnabled)
@@ -494,8 +495,8 @@ public sealed partial class DspPage
 		var inHead = new Grid();
 		inHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		inHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbInTitle = new TextBlock { Text = "输入", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
-		var tbInType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = mutedText };
+		var tbInTitle = new TextBlock { Text = Loc.T("输入"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbInType = new TextBlock { Text = Loc.T("峰值 / RMS"), FontSize = 11, Foreground = mutedText };
 		_compMutedTextBlocks.Add(tbInTitle);
 		_compMutedTextBlocks.Add(tbInType);
 		Grid.SetColumn(tbInTitle, 0); Grid.SetColumn(tbInType, 1);
@@ -532,7 +533,7 @@ public sealed partial class DspPage
 		var grHead = new Grid();
 		grHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		grHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbGrTitle = new TextBlock { Text = "增益衰减 GR", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbGrTitle = new TextBlock { Text = Loc.T("增益衰减 GR"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
 		var tbGrUnit = new TextBlock { Text = "GR", FontSize = 11, Foreground = mutedText };
 		_compMutedTextBlocks.Add(tbGrTitle);
 		_compMutedTextBlocks.Add(tbGrUnit);
@@ -585,7 +586,7 @@ public sealed partial class DspPage
 		// Headroom readout
 		_compHeadroomTb = new TextBlock
 		{
-			Text = "输出余量 96.0 dB",
+			Text = Loc.F("输出余量 {0:F1} dB", 96.0),
 			FontSize = 12,
 			Foreground = mutedText,
 			Margin = new Thickness(0, 4, 0, 0)
@@ -604,8 +605,8 @@ public sealed partial class DspPage
 		var outHead = new Grid();
 		outHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		outHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var tbOutTitle = new TextBlock { Text = "输出", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
-		var tbOutType = new TextBlock { Text = "峰值 / RMS", FontSize = 11, Foreground = mutedText };
+		var tbOutTitle = new TextBlock { Text = Loc.T("输出"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = mutedText };
+		var tbOutType = new TextBlock { Text = Loc.T("峰值 / RMS"), FontSize = 11, Foreground = mutedText };
 		_compMutedTextBlocks.Add(tbOutTitle);
 		_compMutedTextBlocks.Add(tbOutType);
 		Grid.SetColumn(tbOutTitle, 0); Grid.SetColumn(tbOutType, 1);
@@ -748,7 +749,7 @@ public sealed partial class DspPage
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		var curveTitleTb = new TextBlock
 		{
-			Text = "动态传输曲线",
+			Text = Loc.T("动态传输曲线"),
 			FontSize = 14.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = GetCompPrimaryTextBrush(isDark)
@@ -901,7 +902,7 @@ public sealed partial class DspPage
 		AddCanvasText(_compCurveCanvas, "-30", 0, YForDb(-30) - 7, labelBrush, monoFont, 9.5);
 		AddCanvasText(_compCurveCanvas, "-45", 0, YForDb(-45) - 7, labelBrush, monoFont, 9.5);
 		AddCanvasText(_compCurveCanvas, "-60", 0, YForDb(-60) - 7, labelBrush, monoFont, 9.5);
-		AddCanvasText(_compCurveCanvas, "输出", 18, YForDb(0) + 4, labelBrush, monoFont, 10);
+		AddCanvasText(_compCurveCanvas, Loc.T("输出"), 18, YForDb(0) + 4, labelBrush, monoFont, 10);
 
 		// X Labels (Bottom)
 		AddCanvasText(_compCurveCanvas, "-60", XForDb(-60) - 10, CurvePlotSize - 12, labelBrush, monoFont, 9.5);
@@ -909,12 +910,12 @@ public sealed partial class DspPage
 		AddCanvasText(_compCurveCanvas, "-30", XForDb(-30) - 10, CurvePlotSize - 12, labelBrush, monoFont, 9.5);
 		AddCanvasText(_compCurveCanvas, "-15", XForDb(-15) - 10, CurvePlotSize - 12, labelBrush, monoFont, 9.5);
 		AddCanvasText(_compCurveCanvas, "0", XForDb(0) - 4, CurvePlotSize - 12, labelBrush, monoFont, 9.5);
-		AddCanvasText(_compCurveCanvas, "输入", XForDb(0) - 26, YForDb(-60) - 16, labelBrush, monoFont, 10);
+		AddCanvasText(_compCurveCanvas, Loc.T("输入"), XForDb(0) - 26, YForDb(-60) - 16, labelBrush, monoFont, 10);
 
 		// Floating Threshold Tag
 		_compThresholdTagTb = new TextBlock
 		{
-			Text = $"阈值 {_compDraftThresholdDb:F1} dB",
+			Text = Loc.F("阈值 {0:F1} dB", _compDraftThresholdDb),
 			FontSize = 10,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = GetCompAccentSoftTextBrush(isDark)
@@ -931,7 +932,7 @@ public sealed partial class DspPage
 		_compCurveCanvas.Children.Add(_compThresholdTag);
 
 		// Drag hint at bottom
-		AddCanvasText(_compCurveCanvas, "可拖动 · 调整阈值", XForDb(-60), CurvePlotSize - 1, labelBrush, monoFont, 9);
+		AddCanvasText(_compCurveCanvas, Loc.T("可拖动 · 调整阈值"), XForDb(-60), CurvePlotSize - 1, labelBrush, monoFont, 9);
 
 		// Pointer Events on Curve Canvas for Dragging Threshold
 		_compCurveCanvas.PointerPressed += OnCurveCanvasPointerPressed;
@@ -1057,7 +1058,7 @@ public sealed partial class DspPage
 		}
 		if (_compThresholdTag != null && _compThresholdTagTb != null)
 		{
-			_compThresholdTagTb.Text = $"阈值 {_compDraftThresholdDb:F1} dB";
+			_compThresholdTagTb.Text = Loc.F("阈值 {0:F1} dB", _compDraftThresholdDb);
 			Canvas.SetLeft(_compThresholdTag, Math.Clamp(threshX - 35, 10, CurvePlotSize - 80));
 			Canvas.SetTop(_compThresholdTag, Math.Max(0, CurvePlotMargin - 12));
 		}
@@ -1119,7 +1120,7 @@ public sealed partial class DspPage
 
 		var tbTitle = new TextBlock
 		{
-			Text = "基础控制",
+			Text = Loc.T("基础控制"),
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = GetCompPrimaryTextBrush(isDark),
@@ -1142,7 +1143,7 @@ public sealed partial class DspPage
 
 		_btnDetPeak = new Button
 		{
-			Content = "峰值",
+			Content = Loc.T("峰值"),
 			Padding = new Thickness(12, 4, 12, 4),
 			CornerRadius = new CornerRadius(12),
 			FontSize = 12,
@@ -1180,7 +1181,7 @@ public sealed partial class DspPage
 		grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
 		// Row 0, Col 0: 阈值 (-60 to 0 dB, default -18 dB)
-		var ctlThresh = CreateSliderControl("阈值", $"{_compDraftThresholdDb:F0} dB", -60.0, 0.0, 0.5, _compDraftThresholdDb, out _sliderThreshold, out _tbThresholdVal, val =>
+		var ctlThresh = CreateSliderControl(Loc.T("阈值"), $"{_compDraftThresholdDb:F0} dB", -60.0, 0.0, 0.5, _compDraftThresholdDb, out _sliderThreshold, out _tbThresholdVal, val =>
 		{
 			_compDraftThresholdDb = val;
 			if (_tbThresholdVal != null) _tbThresholdVal.Text = $"{val:F0} dB";
@@ -1191,7 +1192,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlThresh);
 
 		// Row 0, Col 1: 压缩比 (1.0 to 20.0, default 4.0:1)
-		var ctlRatio = CreateSliderControl("压缩比", $"{_compDraftRatio:F1} : 1", 1.0, 20.0, 0.1, _compDraftRatio, out _sliderRatio, out _tbRatioVal, val =>
+		var ctlRatio = CreateSliderControl(Loc.T("压缩比"), $"{_compDraftRatio:F1} : 1", 1.0, 20.0, 0.1, _compDraftRatio, out _sliderRatio, out _tbRatioVal, val =>
 		{
 			_compDraftRatio = val;
 			if (_tbRatioVal != null) _tbRatioVal.Text = $"{val:F1} : 1";
@@ -1202,7 +1203,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlRatio);
 
 		// Row 1, Col 0: 启动 (0.1 to 100 ms, default 10 ms)
-		var ctlAttack = CreateSliderControl("启动", $"{_compDraftAttackMs:F0} ms", 0.1, 100.0, 0.5, _compDraftAttackMs, out _sliderAttack, out _tbAttackVal, val =>
+		var ctlAttack = CreateSliderControl(Loc.T("启动"), $"{_compDraftAttackMs:F0} ms", 0.1, 100.0, 0.5, _compDraftAttackMs, out _sliderAttack, out _tbAttackVal, val =>
 		{
 			_compDraftAttackMs = val;
 			if (_tbAttackVal != null) _tbAttackVal.Text = $"{val:F0} ms";
@@ -1212,7 +1213,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlAttack);
 
 		// Row 1, Col 1: 释放 (10 to 1000 ms, default 120 ms)
-		var ctlRelease = CreateSliderControl("释放", $"{_compDraftReleaseMs:F0} ms", 10.0, 1000.0, 5.0, _compDraftReleaseMs, out _sliderRelease, out _tbReleaseVal, val =>
+		var ctlRelease = CreateSliderControl(Loc.T("释放"), $"{_compDraftReleaseMs:F0} ms", 10.0, 1000.0, 5.0, _compDraftReleaseMs, out _sliderRelease, out _tbReleaseVal, val =>
 		{
 			_compDraftReleaseMs = val;
 			if (_tbReleaseVal != null) _tbReleaseVal.Text = $"{val:F0} ms";
@@ -1222,7 +1223,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlRelease);
 
 		// Row 2, Col 0: 补偿增益 (0 to +24 dB, default 0 dB)
-		var ctlMakeup = CreateSliderControl("补偿增益", $"{_compDraftMakeupDb:F0} dB", 0.0, 24.0, 0.5, _compDraftMakeupDb, out _sliderMakeup, out _tbMakeupVal, val =>
+		var ctlMakeup = CreateSliderControl(Loc.T("补偿增益"), $"{_compDraftMakeupDb:F0} dB", 0.0, 24.0, 0.5, _compDraftMakeupDb, out _sliderMakeup, out _tbMakeupVal, val =>
 		{
 			_compDraftMakeupDb = val;
 			if (_tbMakeupVal != null) _tbMakeupVal.Text = $"{val:F0} dB";
@@ -1233,7 +1234,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlMakeup);
 
 		// Row 2, Col 1: 并行混合 (0% to 100%, default 100%)
-		var ctlMix = CreateSliderControl("并行混合", $"{Math.Round(_compDraftMix * 100)} %", 0.0, 100.0, 1.0, _compDraftMix * 100.0, out _sliderMix, out _tbMixVal, val =>
+		var ctlMix = CreateSliderControl(Loc.T("并行混合"), $"{Math.Round(_compDraftMix * 100)} %", 0.0, 100.0, 1.0, _compDraftMix * 100.0, out _sliderMix, out _tbMixVal, val =>
 		{
 			_compDraftMix = val / 100.0;
 			if (_tbMixVal != null) _tbMixVal.Text = $"{val:F0} %";
@@ -1324,7 +1325,7 @@ public sealed partial class DspPage
 
 		var advTitleTb = new TextBlock
 		{
-			Text = "高级检测与联动",
+			Text = Loc.T("高级检测与联动"),
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = primaryText
@@ -1343,10 +1344,10 @@ public sealed partial class DspPage
 		var scHpSp = new StackPanel { Spacing = 4 };
 		_toggleSidechainHp = new ToggleSwitch
 		{
-			Header = "侧链高通滤波",
+			Header = Loc.T("侧链高通滤波"),
 			IsOn = _compDraftSidechainHp,
-			OnContent = "已开启",
-			OffContent = "已关闭",
+			OnContent = Loc.T("已开启"),
+			OffContent = Loc.T("已关闭"),
 			Foreground = primaryText
 		};
 		_toggleSidechainHp.Toggled += (s, e) =>
@@ -1357,7 +1358,7 @@ public sealed partial class DspPage
 		};
 		scHpSp.Children.Add(_toggleSidechainHp);
 
-		var ctlScHz = CreateSliderControl("高通截止频率", $"{_compDraftSidechainHpHz:F0} Hz", 20.0, 400.0, 5.0, _compDraftSidechainHpHz, out _sliderSidechainHpHz, out _tbSidechainHpHzVal, val =>
+		var ctlScHz = CreateSliderControl(Loc.T("高通截止频率"), $"{_compDraftSidechainHpHz:F0} Hz", 20.0, 400.0, 5.0, _compDraftSidechainHpHz, out _sliderSidechainHpHz, out _tbSidechainHpHzVal, val =>
 		{
 			_compDraftSidechainHpHz = val;
 			if (_tbSidechainHpHzVal != null) _tbSidechainHpHzVal.Text = $"{val:F0} Hz";
@@ -1372,10 +1373,10 @@ public sealed partial class DspPage
 		var arSp = new StackPanel { Spacing = 6 };
 		_toggleAutoRelease = new ToggleSwitch
 		{
-			Header = "自动释放 (Auto Release)",
+			Header = Loc.T("自动释放 (Auto Release)"),
 			IsOn = _compDraftAutoRelease,
-			OnContent = "开启",
-			OffContent = "关闭",
+			OnContent = Loc.T("开启"),
+			OffContent = Loc.T("关闭"),
 			Foreground = primaryText
 		};
 		_toggleAutoRelease.Toggled += (s, e) =>
@@ -1386,7 +1387,7 @@ public sealed partial class DspPage
 		arSp.Children.Add(_toggleAutoRelease);
 		var arDescTb = new TextBlock
 		{
-			Text = "依据节目动态自适应释放时间：瞬态快速恢复，持续压缩平滑衰减。",
+			Text = Loc.T("依据节目动态自适应释放时间：瞬态快速恢复，持续压缩平滑衰减。"),
 			FontSize = 11,
 			Foreground = mutedText,
 			TextWrapping = TextWrapping.Wrap
@@ -1397,7 +1398,7 @@ public sealed partial class DspPage
 		grid.Children.Add(arSp);
 
 		// Row 1, Col 0: 软拐点宽度 (Knee: 0 to 24 dB, default 6 dB)
-		var ctlKnee = CreateSliderControl("软拐点宽度 (Knee)", $"{_compDraftKneeDb:F1} dB", 0.0, 24.0, 0.5, _compDraftKneeDb, out _sliderKnee, out _tbKneeVal, val =>
+		var ctlKnee = CreateSliderControl(Loc.T("软拐点宽度 (Knee)"), $"{_compDraftKneeDb:F1} dB", 0.0, 24.0, 0.5, _compDraftKneeDb, out _sliderKnee, out _tbKneeVal, val =>
 		{
 			_compDraftKneeDb = val;
 			if (_tbKneeVal != null) _tbKneeVal.Text = $"{val:F1} dB";
@@ -1408,7 +1409,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlKnee);
 
 		// Row 1, Col 1: 最大压缩范围 (Range: 0 to 72 dB, default 60 dB)
-		var ctlRange = CreateSliderControl("最大压缩范围 (Range)", $"{_compDraftRangeDb:F0} dB", 0.0, 72.0, 1.0, _compDraftRangeDb, out _sliderRange, out _tbRangeVal, val =>
+		var ctlRange = CreateSliderControl(Loc.T("最大压缩范围 (Range)"), $"{_compDraftRangeDb:F0} dB", 0.0, 72.0, 1.0, _compDraftRangeDb, out _sliderRange, out _tbRangeVal, val =>
 		{
 			_compDraftRangeDb = val;
 			if (_tbRangeVal != null) _tbRangeVal.Text = $"{val:F0} dB";
@@ -1419,7 +1420,7 @@ public sealed partial class DspPage
 		grid.Children.Add(ctlRange);
 
 		// Row 2, Col 0: 立体声联动 (Stereo Link: 0% to 100%, default 100%)
-		var ctlStereoLink = CreateSliderControl("立体声联动 (Stereo Link)", $"{Math.Round(_compDraftStereoLink * 100)} %", 0.0, 100.0, 1.0, _compDraftStereoLink * 100.0, out _sliderStereoLink, out _tbStereoLinkVal, val =>
+		var ctlStereoLink = CreateSliderControl(Loc.T("立体声联动 (Stereo Link)"), $"{Math.Round(_compDraftStereoLink * 100)} %", 0.0, 100.0, 1.0, _compDraftStereoLink * 100.0, out _sliderStereoLink, out _tbStereoLinkVal, val =>
 		{
 			_compDraftStereoLink = val / 100.0;
 			if (_tbStereoLinkVal != null) _tbStereoLinkVal.Text = $"{val:F0} %";
@@ -1452,7 +1453,7 @@ public sealed partial class DspPage
 
 		var tbTitle = new TextBlock
 		{
-			Text = "GR 历史",
+			Text = Loc.T("GR 历史"),
 			FontSize = 14.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = primaryText
@@ -1460,7 +1461,7 @@ public sealed partial class DspPage
 		_compPrimaryTextBlocks.Add(tbTitle);
 		var tbWin = new TextBlock
 		{
-			Text = "最近 8 秒",
+			Text = Loc.T("最近 8 秒"),
 			FontSize = 12,
 			Foreground = mutedText
 		};
@@ -1525,7 +1526,7 @@ public sealed partial class DspPage
 		// Apply Hint Note at Bottom
 		_compApplyHintTb = new TextBlock
 		{
-			Text = "编辑先进入草稿；点击应用后由原生主机平滑接管。",
+			Text = Loc.T(Loc.T("编辑先进入草稿；点击应用后由原生主机平滑接管。")),
 			FontSize = 12,
 			Foreground = mutedText,
 			Margin = new Thickness(2, 2, 0, 0)
@@ -1626,22 +1627,22 @@ public sealed partial class DspPage
 	{
 		if (ViewModel == null) return;
 
-		ViewModel.EchoCompressorEnabled = _compDraftEnabled;
-		ViewModel.EchoCompressorThresholdDb = _compDraftThresholdDb;
-		ViewModel.EchoCompressorRatio = _compDraftRatio;
-		ViewModel.EchoCompressorAttackMs = _compDraftAttackMs;
-		ViewModel.EchoCompressorReleaseMs = _compDraftReleaseMs;
-		ViewModel.EchoCompressorKneeDb = _compDraftKneeDb;
-		ViewModel.EchoCompressorMakeupDb = _compDraftMakeupDb;
-		ViewModel.EchoCompressorMix = _compDraftMix;
-		ViewModel.EchoCompressorDetectorMode = _compDraftDetectorMode;
-		ViewModel.EchoCompressorSidechainHighpassEnabled = _compDraftSidechainHp;
-		ViewModel.EchoCompressorSidechainHighpassHz = _compDraftSidechainHpHz;
-		ViewModel.EchoCompressorAutoRelease = _compDraftAutoRelease;
-		ViewModel.EchoCompressorRangeDb = _compDraftRangeDb;
-		ViewModel.EchoCompressorStereoLink = _compDraftStereoLink;
+		ViewModel.FurinaPlayerCompressorEnabled = _compDraftEnabled;
+		ViewModel.FurinaPlayerCompressorThresholdDb = _compDraftThresholdDb;
+		ViewModel.FurinaPlayerCompressorRatio = _compDraftRatio;
+		ViewModel.FurinaPlayerCompressorAttackMs = _compDraftAttackMs;
+		ViewModel.FurinaPlayerCompressorReleaseMs = _compDraftReleaseMs;
+		ViewModel.FurinaPlayerCompressorKneeDb = _compDraftKneeDb;
+		ViewModel.FurinaPlayerCompressorMakeupDb = _compDraftMakeupDb;
+		ViewModel.FurinaPlayerCompressorMix = _compDraftMix;
+		ViewModel.FurinaPlayerCompressorDetectorMode = _compDraftDetectorMode;
+		ViewModel.FurinaPlayerCompressorSidechainHighpassEnabled = _compDraftSidechainHp;
+		ViewModel.FurinaPlayerCompressorSidechainHighpassHz = _compDraftSidechainHpHz;
+		ViewModel.FurinaPlayerCompressorAutoRelease = _compDraftAutoRelease;
+		ViewModel.FurinaPlayerCompressorRangeDb = _compDraftRangeDb;
+		ViewModel.FurinaPlayerCompressorStereoLink = _compDraftStereoLink;
 
-		ViewModel.ApplyEchoDsp();
+		ViewModel.ApplyFurinaPlayerDsp();
 		UpdatePowerButtonVisuals();
 		UpdateDirtyStateBadge();
 	}
@@ -1653,19 +1654,19 @@ public sealed partial class DspPage
 
 		if (ViewModel != null)
 		{
-			if (Math.Abs(_compDraftThresholdDb - ViewModel.EchoCompressorThresholdDb) > 0.1) dirtyCount++;
-			if (Math.Abs(_compDraftRatio - ViewModel.EchoCompressorRatio) > 0.05) dirtyCount++;
-			if (Math.Abs(_compDraftAttackMs - ViewModel.EchoCompressorAttackMs) > 0.1) dirtyCount++;
-			if (Math.Abs(_compDraftReleaseMs - ViewModel.EchoCompressorReleaseMs) > 0.5) dirtyCount++;
-			if (Math.Abs(_compDraftKneeDb - ViewModel.EchoCompressorKneeDb) > 0.1) dirtyCount++;
-			if (Math.Abs(_compDraftMakeupDb - ViewModel.EchoCompressorMakeupDb) > 0.1) dirtyCount++;
-			if (Math.Abs(_compDraftMix - ViewModel.EchoCompressorMix) > 0.01) dirtyCount++;
-			if (!string.Equals(_compDraftDetectorMode, ViewModel.EchoCompressorDetectorMode, StringComparison.OrdinalIgnoreCase)) dirtyCount++;
-			if (_compDraftSidechainHp != ViewModel.EchoCompressorSidechainHighpassEnabled) dirtyCount++;
-			if (Math.Abs(_compDraftSidechainHpHz - ViewModel.EchoCompressorSidechainHighpassHz) > 1.0) dirtyCount++;
-			if (_compDraftAutoRelease != ViewModel.EchoCompressorAutoRelease) dirtyCount++;
-			if (Math.Abs(_compDraftRangeDb - ViewModel.EchoCompressorRangeDb) > 0.5) dirtyCount++;
-			if (Math.Abs(_compDraftStereoLink - ViewModel.EchoCompressorStereoLink) > 0.01) dirtyCount++;
+			if (Math.Abs(_compDraftThresholdDb - ViewModel.FurinaPlayerCompressorThresholdDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftRatio - ViewModel.FurinaPlayerCompressorRatio) > 0.05) dirtyCount++;
+			if (Math.Abs(_compDraftAttackMs - ViewModel.FurinaPlayerCompressorAttackMs) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftReleaseMs - ViewModel.FurinaPlayerCompressorReleaseMs) > 0.5) dirtyCount++;
+			if (Math.Abs(_compDraftKneeDb - ViewModel.FurinaPlayerCompressorKneeDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftMakeupDb - ViewModel.FurinaPlayerCompressorMakeupDb) > 0.1) dirtyCount++;
+			if (Math.Abs(_compDraftMix - ViewModel.FurinaPlayerCompressorMix) > 0.01) dirtyCount++;
+			if (!string.Equals(_compDraftDetectorMode, ViewModel.FurinaPlayerCompressorDetectorMode, StringComparison.OrdinalIgnoreCase)) dirtyCount++;
+			if (_compDraftSidechainHp != ViewModel.FurinaPlayerCompressorSidechainHighpassEnabled) dirtyCount++;
+			if (Math.Abs(_compDraftSidechainHpHz - ViewModel.FurinaPlayerCompressorSidechainHighpassHz) > 1.0) dirtyCount++;
+			if (_compDraftAutoRelease != ViewModel.FurinaPlayerCompressorAutoRelease) dirtyCount++;
+			if (Math.Abs(_compDraftRangeDb - ViewModel.FurinaPlayerCompressorRangeDb) > 0.5) dirtyCount++;
+			if (Math.Abs(_compDraftStereoLink - ViewModel.FurinaPlayerCompressorStereoLink) > 0.01) dirtyCount++;
 		}
 
 		_compIsDirty = dirtyCount > 0;
@@ -1675,7 +1676,7 @@ public sealed partial class DspPage
 		}
 		if (_compPendingBadgeTb != null)
 		{
-			_compPendingBadgeTb.Text = $"未应用 · {dirtyCount}";
+			_compPendingBadgeTb.Text = Loc.F("未应用 · {0}", dirtyCount);
 		}
 
 		ApplyDirtyStateVisuals(isDark, _compIsDirty);
@@ -1695,8 +1696,8 @@ public sealed partial class DspPage
 		if (_compApplyHintTb != null)
 		{
 			_compApplyHintTb.Text = isDirty
-				? "草稿已修改，当前听到的仍是上次应用的参数；点击「应用参数」后生效。"
-				: "编辑先进入草稿；点击应用后由原生主机平滑接管。";
+				? Loc.T("草稿已修改，当前听到的仍是上次应用的参数；点击「应用参数」后生效。")
+				: Loc.T("编辑先进入草稿；点击应用后由原生主机平滑接管。");
 			_compApplyHintTb.Foreground = isDirty
 				? new SolidColorBrush(isDark ? Color.FromArgb(255, 251, 191, 36) : Color.FromArgb(255, 217, 119, 6))
 				: GetCompMutedTextBrush(isDark);
@@ -1769,7 +1770,7 @@ public sealed partial class DspPage
 				double grNorm = Math.Clamp(gr / 24.0, 0.0, 1.0);
 				_compGrReductionBar.Width = grNorm * 180.0;
 			}
-			if (_compHeadroomTb != null) _compHeadroomTb.Text = $"输出余量 {headroom:F1} dB";
+			if (_compHeadroomTb != null) _compHeadroomTb.Text = Loc.F("输出余量 {0:F1} dB", headroom);
 
 			// 4. Update Output Meter
 			if (_compOutputHeadlineTb != null) _compOutputHeadlineTb.Text = $"{outHeadline:F1} dB";

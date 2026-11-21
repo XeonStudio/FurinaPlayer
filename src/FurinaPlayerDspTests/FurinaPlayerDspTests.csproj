@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows10.0.22621.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <PlatformTarget>x64</PlatformTarget>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FurinaPlayer.Core\FurinaPlayer.Core.csproj" />
+    <ProjectReference Include="..\FurinaPlayer.Audio\FurinaPlayer.Audio.csproj" />
+    <Reference Include="NAudio.Core">
+      <HintPath>..\..\NAudio.Core.dll</HintPath>
+    </Reference>
+    <None Include="..\..\e_sqlite3.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Reference Include="ATL"><HintPath>..\..\ATL.dll</HintPath></Reference>
+    <Reference Include="SkiaSharp"><HintPath>..\..\SkiaSharp.dll</HintPath></Reference>
+    <None Include="..\..\libSkiaSharp.dll" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
+

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
@@ -11,7 +12,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -218,7 +219,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(_mbTitleIconBorder);
 		var titleTb = new TextBlock
 		{
-			Text = "三频段压缩",
+			Text = Loc.T("三频段压缩"),
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetMbPrimaryTextBrush(isDark),
@@ -247,7 +248,7 @@ public sealed partial class DspPage
 		var leftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 
 		_mbPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = GetMbMutedTextBrush(isDark) };
-		_mbPowerText = new TextBlock { Text = "多段压缩旁路", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = GetMbSecondaryTextBrush(isDark) };
+		_mbPowerText = new TextBlock { Text = Loc.T("多段压缩旁路"), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = GetMbSecondaryTextBrush(isDark) };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		powerSp.Children.Add(_mbPowerIcon);
 		powerSp.Children.Add(_mbPowerText);
@@ -266,14 +267,14 @@ public sealed partial class DspPage
 			if (ViewModel != null) ViewModel.FurinaMultibandEnabled = enabled;
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
 			if (mb != null) mb.Enabled = enabled;
-			ViewModel?.SaveEchoSettings();
+			ViewModel?.SaveFurinaPlayerSettings();
 			UpdateMultibandPowerButtonVisual(enabled);
 			UpdateMultibandStatusVisual(enabled);
 		};
 		leftSp.Children.Add(_mbPowerButton);
 
 		_mbRestoreDefaultIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = GetMbMutedTextBrush(isDark) };
-		_mbRestoreDefaultText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = GetMbSubHeaderTextBrush(isDark) };
+		_mbRestoreDefaultText = new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13, Foreground = GetMbSubHeaderTextBrush(isDark) };
 		_mbRestoreDefaultBtn = new Button
 		{
 			Content = new StackPanel
@@ -315,7 +316,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(2)
 		};
 		var bandTabsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2 };
-		string[] bandNames = new[] { "低频", "中频", "高频" };
+		string[] bandNames = new[] { Loc.T("低频"), Loc.T("中频"), Loc.T("高频") };
 		_mbBandSelectorButtons.Clear();
 
 		for (int i = 0; i < 3; i++)
@@ -358,7 +359,7 @@ public sealed partial class DspPage
 
 		var auditionTitleTb = new TextBlock
 		{
-			Text = "快捷试听",
+			Text = Loc.T("快捷试听"),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetMbSecondaryTextBrush(isDark),
@@ -368,9 +369,9 @@ public sealed partial class DspPage
 		pillsRow.Children.Add(auditionTitleTb);
 
 		_mbPresetButtons.Clear();
-		_mbPresetGentleBtn = CreateAuditionPresetButton("轻柔均衡", "gentle", isDark);
-		_mbPresetBassBtn = CreateAuditionPresetButton("低频收紧", "bass", isDark);
-		_mbPresetStrongBtn = CreateAuditionPresetButton("明显压缩", "strong", isDark);
+		_mbPresetGentleBtn = CreateAuditionPresetButton(Loc.T("轻柔均衡"), "gentle", isDark);
+		_mbPresetBassBtn = CreateAuditionPresetButton(Loc.T("低频收紧"), "bass", isDark);
+		_mbPresetStrongBtn = CreateAuditionPresetButton(Loc.T("明显压缩"), "strong", isDark);
 
 		pillsRow.Children.Add(_mbPresetGentleBtn);
 		pillsRow.Children.Add(_mbPresetBassBtn);
@@ -379,7 +380,7 @@ public sealed partial class DspPage
 
 		var auditionHintTb = new TextBlock
 		{
-			Text = "听不出变化？试试“明显压缩”，再用上方开关对比原声。点击预设会开启压缩并替换本模块参数。",
+			Text = Loc.T("听不出变化？试试“明显压缩”，再用上方开关对比原声。点击预设会开启压缩并替换本模块参数。"),
 			FontSize = 12,
 			Foreground = GetMbMutedTextBrush(isDark),
 			TextWrapping = TextWrapping.Wrap
@@ -419,7 +420,7 @@ public sealed partial class DspPage
 
 		var grLabelTb = new TextBlock
 		{
-			Text = "最大增益衰减：当前没有压缩",
+			Text = Loc.T("最大增益衰减：当前没有压缩"),
 			FontSize = 12,
 			Foreground = GetMbMutedTextBrush(isDark),
 			HorizontalAlignment = HorizontalAlignment.Right
@@ -481,7 +482,7 @@ public sealed partial class DspPage
 		};
 		_mbStatusTitle = new TextBlock
 		{
-			Text = "已旁路",
+			Text = Loc.T("已旁路"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetMbSecondaryTextBrush(isDark),
@@ -493,7 +494,7 @@ public sealed partial class DspPage
 
 		_mbStatusDetail = new TextBlock
 		{
-			Text = "三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。",
+			Text = Loc.T("三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。"),
 			FontSize = 12,
 			Foreground = GetMbMutedTextBrush(isDark)
 		};
@@ -505,7 +506,7 @@ public sealed partial class DspPage
 		// Right: "拖动分频线改变分频点，点击频段编辑"
 		var hintTb = new TextBlock
 		{
-			Text = "拖动分频线改变分频点，点击频段编辑",
+			Text = Loc.T("拖动分频线改变分频点，点击频段编辑"),
 			FontSize = 12,
 			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Bottom
@@ -543,17 +544,17 @@ public sealed partial class DspPage
 		_mbPlotCanvas.SizeChanged += (s, e) => UpdateMultibandPlotLayout();
 
 		// Region 0: Low Band
-		_mbBandRegionLow = CreateBandRegionBorder(0, "低频", isDark, out _mbRegionLowGrTb);
+		_mbBandRegionLow = CreateBandRegionBorder(0, Loc.T("低频"), isDark, out _mbRegionLowGrTb);
 		_mbBandRegionLow.PointerPressed += (s, e) => SetSelectedBand(0);
 		_mbPlotCanvas.Children.Add(_mbBandRegionLow);
 
 		// Region 1: Mid Band
-		_mbBandRegionMid = CreateBandRegionBorder(1, "中频", isDark, out _mbRegionMidGrTb);
+		_mbBandRegionMid = CreateBandRegionBorder(1, Loc.T("中频"), isDark, out _mbRegionMidGrTb);
 		_mbBandRegionMid.PointerPressed += (s, e) => SetSelectedBand(1);
 		_mbPlotCanvas.Children.Add(_mbBandRegionMid);
 
 		// Region 2: High Band
-		_mbBandRegionHigh = CreateBandRegionBorder(2, "高频", isDark, out _mbRegionHighGrTb);
+		_mbBandRegionHigh = CreateBandRegionBorder(2, Loc.T("高频"), isDark, out _mbRegionHighGrTb);
 		_mbBandRegionHigh.PointerPressed += (s, e) => SetSelectedBand(2);
 		_mbPlotCanvas.Children.Add(_mbBandRegionHigh);
 
@@ -700,7 +701,7 @@ public sealed partial class DspPage
 		{
 			_draggingDivider = null;
 			handle.ReleasePointerCapture(e.Pointer);
-			ViewModel?.SaveEchoSettings();
+			ViewModel?.SaveFurinaPlayerSettings();
 			e.Handled = true;
 		};
 
@@ -881,7 +882,7 @@ public sealed partial class DspPage
 
 		var titleTb = new TextBlock
 		{
-			Text = "整机",
+			Text = Loc.T("整机"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetMbPrimaryTextBrush(isDark)
@@ -889,7 +890,7 @@ public sealed partial class DspPage
 		_mbPrimaryTextBlocks.Add(titleTb);
 		var subTb = new TextBlock
 		{
-			Text = "分频点把频谱切开",
+			Text = Loc.T("分频点把频谱切开"),
 			FontSize = 11,
 			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
@@ -902,33 +903,33 @@ public sealed partial class DspPage
 		sp.Children.Add(headerGrid);
 
 		// Control 1: 低频分频 (40..500 Hz)
-		sp.Children.Add(CreateSliderControl("低频分频", 40, 500, 150, 1, out _mbMasterLowCrossSlider, out _mbMasterLowCrossValueTb, " Hz", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("低频分频"), 40, 500, 150, 1, out _mbMasterLowCrossSlider, out _mbMasterLowCrossValueTb, " Hz", v =>
 		{
 			if (ViewModel != null) ViewModel.FurinaMultibandLowCrossoverHz = v;
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
 			if (mb != null) mb.LowCrossoverHz = (float)v;
 			UpdateMultibandPlotLayout();
-			ViewModel?.SaveEchoSettings();
+			ViewModel?.SaveFurinaPlayerSettings();
 		}));
 
 		// Control 2: 高频分频 (800..8000 Hz)
-		sp.Children.Add(CreateSliderControl("高频分频", 800, 8000, 2500, 10, out _mbMasterHighCrossSlider, out _mbMasterHighCrossValueTb, " Hz", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("高频分频"), 800, 8000, 2500, 10, out _mbMasterHighCrossSlider, out _mbMasterHighCrossValueTb, " Hz", v =>
 		{
 			if (ViewModel != null) ViewModel.FurinaMultibandHighCrossoverHz = v;
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
 			if (mb != null) mb.HighCrossoverHz = (float)v;
 			UpdateMultibandPlotLayout();
-			ViewModel?.SaveEchoSettings();
+			ViewModel?.SaveFurinaPlayerSettings();
 		}));
 
 		// Control 3: 湿声 (0..100 %)
-		sp.Children.Add(CreateSliderControl("湿声", 0, 100, 100, 1, out _mbMasterMixSlider, out _mbMasterMixValueTb, " %", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("湿声"), 0, 100, 100, 1, out _mbMasterMixSlider, out _mbMasterMixValueTb, " %", v =>
 		{
 			float mix = (float)(v / 100.0);
 			if (ViewModel != null) ViewModel.FurinaMultibandMix = mix;
 			var mb = ViewModel?.AudioEngine?.DspChain?.Multiband;
 			if (mb != null) mb.Mix = mix;
-			ViewModel?.SaveEchoSettings();
+			ViewModel?.SaveFurinaPlayerSettings();
 		}));
 
 		return sp;
@@ -946,7 +947,7 @@ public sealed partial class DspPage
 
 		_mbBandPanelTitleTb = new TextBlock
 		{
-			Text = "中频",
+			Text = Loc.T("中频"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetMbPrimaryTextBrush(isDark)
@@ -975,7 +976,7 @@ public sealed partial class DspPage
 		var labelSp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
 		var enableLabel = new TextBlock
 		{
-			Text = "中频启用",
+			Text = Loc.T("中频启用"),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetMbPrimaryTextBrush(isDark)
@@ -983,7 +984,7 @@ public sealed partial class DspPage
 		_mbPrimaryTextBlocks.Add(enableLabel);
 		_mbBandEnableStateTb = new TextBlock
 		{
-			Text = "开",
+			Text = Loc.T("开"),
 			FontSize = 11,
 			Foreground = GetMbMutedTextBrush(isDark)
 		};
@@ -1005,7 +1006,7 @@ public sealed partial class DspPage
 		{
 			if (_isUpdatingMultibandUi) return;
 			bool isEnabled = _mbBandEnableSwitch.IsOn;
-			if (_mbBandEnableStateTb != null) _mbBandEnableStateTb.Text = isEnabled ? "开" : "关";
+			if (_mbBandEnableStateTb != null) _mbBandEnableStateTb.Text = isEnabled ? Loc.T("开") : Loc.T("关");
 			SetCurrentBandEnabled(isEnabled);
 		};
 		Grid.SetColumn(_mbBandEnableSwitch, 1);
@@ -1013,13 +1014,13 @@ public sealed partial class DspPage
 		sp.Children.Add(enableGrid);
 
 		// Control 1: 阈值 (-60..0 dB)
-		sp.Children.Add(CreateSliderControl("阈值", -60, 0, -18.0, 0.5, out _mbBandThresholdSlider, out _mbBandThresholdValueTb, " dB", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("阈值"), -60, 0, -18.0, 0.5, out _mbBandThresholdSlider, out _mbBandThresholdValueTb, " dB", v =>
 		{
 			SetCurrentBandThreshold((float)v);
 		}, isDb: true));
 
 		// Control 2: 比率 (1..20 : 1)
-		sp.Children.Add(CreateSliderControl("比率", 1.0, 20.0, 2.0, 0.1, out _mbBandRatioSlider, out _mbBandRatioValueTb, " : 1", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("比率"), 1.0, 20.0, 2.0, 0.1, out _mbBandRatioSlider, out _mbBandRatioValueTb, " : 1", v =>
 		{
 			SetCurrentBandRatio((float)v);
 		}));
@@ -1039,7 +1040,7 @@ public sealed partial class DspPage
 
 		_mbSpeedTitleTb = new TextBlock
 		{
-			Text = "快慢",
+			Text = Loc.T("快慢"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetMbPrimaryTextBrush(isDark)
@@ -1047,7 +1048,7 @@ public sealed partial class DspPage
 		_mbPrimaryTextBlocks.Add(_mbSpeedTitleTb);
 		_mbSpeedScopeTb = new TextBlock
 		{
-			Text = "只作用于中频",
+			Text = Loc.T("只作用于中频"),
 			FontSize = 11,
 			Foreground = GetMbMutedTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
@@ -1060,13 +1061,13 @@ public sealed partial class DspPage
 		sp.Children.Add(headerGrid);
 
 		// Control 1: 启动 (0.1..100 ms)
-		sp.Children.Add(CreateSliderControl("启动", 0.1, 100.0, 10.0, 0.1, out _mbBandAttackSlider, out _mbBandAttackValueTb, " ms", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("启动"), 0.1, 100.0, 10.0, 0.1, out _mbBandAttackSlider, out _mbBandAttackValueTb, " ms", v =>
 		{
 			SetCurrentBandAttack((float)v);
 		}));
 
 		// Control 2: 释放 (10..1000 ms)
-		sp.Children.Add(CreateSliderControl("释放", 10.0, 1000.0, 120.0, 1.0, out _mbBandReleaseSlider, out _mbBandReleaseValueTb, " ms", v =>
+		sp.Children.Add(CreateSliderControl(Loc.T("释放"), 10.0, 1000.0, 120.0, 1.0, out _mbBandReleaseSlider, out _mbBandReleaseValueTb, " ms", v =>
 		{
 			SetCurrentBandRelease((float)v);
 		}));
@@ -1195,11 +1196,11 @@ public sealed partial class DspPage
 		_isUpdatingMultibandUi = true;
 		try
 		{
-			string[] names = new[] { "低频", "中频", "高频" };
+			string[] names = new[] { Loc.T("低频"), Loc.T("中频"), Loc.T("高频") };
 			string curName = names[_multibandSelectedBand];
 
 			if (_mbBandPanelTitleTb != null) _mbBandPanelTitleTb.Text = curName;
-			if (_mbSpeedScopeTb != null) _mbSpeedScopeTb.Text = $"只作用于{curName}";
+			if (_mbSpeedScopeTb != null) _mbSpeedScopeTb.Text = Loc.F("只作用于{0}", curName);
 
 			bool isEnabled = true;
 			double thresh = -18.0;
@@ -1246,7 +1247,7 @@ public sealed partial class DspPage
 			}
 
 			if (_mbBandEnableSwitch != null) _mbBandEnableSwitch.IsOn = isEnabled;
-			if (_mbBandEnableStateTb != null) _mbBandEnableStateTb.Text = isEnabled ? "开" : "关";
+			if (_mbBandEnableStateTb != null) _mbBandEnableStateTb.Text = isEnabled ? Loc.T("开") : Loc.T("关");
 
 			if (_mbBandThresholdSlider != null) _mbBandThresholdSlider.Value = thresh;
 			if (_mbBandThresholdValueTb != null) _mbBandThresholdValueTb.Text = $"{thresh:F1} dB";
@@ -1281,7 +1282,7 @@ public sealed partial class DspPage
 				case 1: ViewModel.FurinaMultibandMidEnabled = isEnabled; break;
 				case 2: ViewModel.FurinaMultibandHighEnabled = isEnabled; break;
 			}
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1300,7 +1301,7 @@ public sealed partial class DspPage
 				case 1: ViewModel.FurinaMultibandMidThresholdDb = val; break;
 				case 2: ViewModel.FurinaMultibandHighThresholdDb = val; break;
 			}
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1319,7 +1320,7 @@ public sealed partial class DspPage
 				case 1: ViewModel.FurinaMultibandMidRatio = val; break;
 				case 2: ViewModel.FurinaMultibandHighRatio = val; break;
 			}
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1338,7 +1339,7 @@ public sealed partial class DspPage
 				case 1: ViewModel.FurinaMultibandMidAttackMs = val; break;
 				case 2: ViewModel.FurinaMultibandHighAttackMs = val; break;
 			}
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1357,7 +1358,7 @@ public sealed partial class DspPage
 				case 1: ViewModel.FurinaMultibandMidReleaseMs = val; break;
 				case 2: ViewModel.FurinaMultibandHighReleaseMs = val; break;
 			}
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1388,7 +1389,7 @@ public sealed partial class DspPage
 		ViewModel.FurinaMultibandHighAttackMs = mb.Bands[2].AttackMs;
 		ViewModel.FurinaMultibandHighReleaseMs = mb.Bands[2].ReleaseMs;
 
-		ViewModel.SaveEchoSettings();
+		ViewModel.SaveFurinaPlayerSettings();
 	}
 
 	#endregion
@@ -1512,7 +1513,7 @@ public sealed partial class DspPage
 		}
 		if (_mbPowerText != null)
 		{
-			_mbPowerText.Text = isEnabled ? "多段压缩已启用" : "多段压缩旁路";
+			_mbPowerText.Text = isEnabled ? Loc.T("多段压缩已启用") : Loc.T("多段压缩旁路");
 			_mbPowerText.Foreground = isEnabled
 				? GetMbAccentTextBrush(isDark)
 				: GetMbSecondaryTextBrush(isDark);
@@ -1531,14 +1532,14 @@ public sealed partial class DspPage
 		}
 		if (_mbStatusTitle != null)
 		{
-			_mbStatusTitle.Text = isEnabled ? "已启用" : "已旁路";
+			_mbStatusTitle.Text = isEnabled ? Loc.T("已启用") : Loc.T("已旁路");
 			_mbStatusTitle.Foreground = isEnabled ? GetMbPrimaryTextBrush(isDark) : GetMbSecondaryTextBrush(isDark);
 		}
 		if (_mbStatusDetail != null)
 		{
 			_mbStatusDetail.Text = isEnabled
-				? "三段压缩正全速运作中。超过各自阈值的频段正被动态规整。"
-				: "三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。";
+				? Loc.T("三段压缩正全速运作中。超过各自阈值的频段正被动态规整。")
+				: Loc.T("三段都直接通过。打开之后，只有超过各自阈值的频段会被压缩。");
 			_mbStatusDetail.Foreground = GetMbMutedTextBrush(isDark);
 		}
 	}

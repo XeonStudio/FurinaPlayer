@@ -6,7 +6,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using FurinaPlayer.UI.ViewModels;
-using SonicWave.Core.Models;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -46,6 +47,7 @@ public sealed class LyricsPanel : UserControl, IComponentConnector
 			LyricList.ItemClick += OnLyricItemClick;
 			LyricList.ContainerContentChanging += OnContainerContentChanging;
 		}
+		Loaded += (_, _) => FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 	}
 
 	private void OnLyricItemClick(object sender, ItemClickEventArgs e)

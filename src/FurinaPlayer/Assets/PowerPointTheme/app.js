@@ -48,6 +48,8 @@
       showTranslation: true,
       zoomPercent: 100,
       slideLayout: 'ppt-vinyl',
+      furinaPlayerPageStyle: 'none',
+      furinaPlayerBgMode: 'default',
       activeRibbonTab: 'home',
       leftQueueVisible: true,
       notesVisible: true,
@@ -239,7 +241,20 @@
     btnHudPrev: $('btn-hud-prev'),
     btnHudPlay: $('btn-hud-play'),
     btnHudNext: $('btn-hud-next'),
+    btnHudPen: $('btn-hud-pen'),
+    btnHudGrid: $('btn-hud-grid'),
+    btnHudBlack: $('btn-hud-black'),
+    btnHudMore: $('btn-hud-more'),
     btnHudExit: $('btn-hud-exit'),
+    slideshowPenMenu: $('slideshow-pen-menu'),
+    slideshowHelpPopover: $('slideshow-help-popover'),
+    slideshowGridOverlay: $('slideshow-grid-overlay'),
+    slideshowGridCards: $('slideshow-grid-cards'),
+    btnGridClose: $('btn-grid-close'),
+    slideshowScreenCurtain: $('slideshow-screen-curtain'),
+    slideshowInkCanvas: $('slideshow-ink-canvas'),
+    slideshowLaserDot: $('slideshow-laser-dot'),
+    btnHudClearInk: $('btn-hud-clear-ink'),
     lblZoom: $('lbl-zoom'),
     btnZoomIn: $('btn-zoom-in'),
     btnZoomOut: $('btn-zoom-out'),
@@ -255,9 +270,16 @@
     slideLayoutNetease: $('slide-layout-netease'),
     slideLayoutAppleMusic: $('slide-layout-applemusic'),
     amFluidMeshBg: $('am-fluid-mesh-bg'),
+    furinaPlayerBgCanvas: $('furinaplayer-bg-canvas'),
     btnLayoutPptVinyl: $('btn-layout-ppt-vinyl'),
     btnLayoutNetease: $('btn-layout-netease'),
     btnLayoutAppleMusic: $('btn-layout-applemusic'),
+    btnStyleGalleryMore: $('btn-style-gallery-more'),
+    lblActiveFurinaPlayerPreset: $('lbl-active-furinaplayer-preset'),
+    pptStyleGalleryPopover: $('ppt-style-gallery-popover'),
+    galleryCurrentCombo: $('gallery-current-combo'),
+    galleryPageStylesGrid: $('gallery-page-styles-grid'),
+    galleryBgModesGrid: $('gallery-bg-modes-grid'),
 
     // NetEase Layout Elements
     neCoverImg: $('ne-cover-img'),
@@ -363,6 +385,7 @@
       grpVstPlugins: 'VST3 音频插件', grpAnalyzerCtrl: '分析器控制', grpSlideZoom: '幻灯片缩放', grpWorkspaceView: '工作区视图',
       grpBasicTransport: '基础走带', grpPlayModeVol: '播放模式与音量', grpColorTheme: '色彩主题', grpSettingsCenter: '设置中心',
       grpDocsSupport: '文档与支持', grpSlideLayoutStyle: '幻灯片版式样式', grpBgVariants: '背景与变体',
+      galleryThisPresentation: '此演示文稿', galleryPageStyles: '歌词界面样式 (FurinaPlayer)', galleryBgModes: '歌词背景模式 (FurinaPlayer 背景引擎)',
       btnCopyLyrics: '复制歌词', btnCopyTitle: '复制歌名', btnCopyArtist: '复制歌手', btnCopyMeta: '复制元数据', btnCopyTimecode: '复制时间码',
       btnNextSlide: '下一首', btnPrevSlide: '上一首', btnResetLayout: '重置版式', transPill: '译/音',
       lblOverlay: '底纹遮罩:', lblBlur: '高斯模糊:', lblVinylSpeed: '唱片转速:', btnSlideShow: '幻灯片放映',
@@ -430,6 +453,7 @@
       grpVstPlugins: 'VST3 Audio Plugins', grpAnalyzerCtrl: 'Analyzer Control', grpSlideZoom: 'Slide Zoom', grpWorkspaceView: 'Workspace View',
       grpBasicTransport: 'Transport', grpPlayModeVol: 'Play Mode & Volume', grpColorTheme: 'Color Theme', grpSettingsCenter: 'Settings Center',
       grpDocsSupport: 'Docs & Support', grpSlideLayoutStyle: 'Slide Layout Style', grpBgVariants: 'Background & Variants',
+      galleryThisPresentation: 'This Presentation', galleryPageStyles: 'Lyrics UI Styles (FurinaPlayer)', galleryBgModes: 'Lyrics Background Modes (FurinaPlayer Engine)',
       btnCopyLyrics: 'Copy Lyrics', btnCopyTitle: 'Copy Title', btnCopyArtist: 'Copy Artist', btnCopyMeta: 'Copy Metadata', btnCopyTimecode: 'Copy Timecode',
       btnNextSlide: 'Next Slide', btnPrevSlide: 'Prev Slide', btnResetLayout: 'Reset Layout', transPill: 'Trans',
       lblOverlay: 'Mask Overlay:', lblBlur: 'Gaussian Blur:', lblVinylSpeed: 'Vinyl Speed:', btnSlideShow: 'Slide Show',
@@ -899,6 +923,7 @@
       grpVstPlugins: 'VST3 音訊外掛', grpAnalyzerCtrl: '分析器控制', grpSlideZoom: '投影片縮放', grpWorkspaceView: '工作區檢視',
       grpBasicTransport: '基礎走帶', grpPlayModeVol: '播放模式與音量', grpColorTheme: '色彩佈景主題', grpSettingsCenter: '設定中心',
       grpDocsSupport: '文件與支援', grpSlideLayoutStyle: '投影片版面配置樣式', grpBgVariants: '背景與變體',
+      galleryThisPresentation: '此簡報', galleryPageStyles: '歌詞介面樣式 (FurinaPlayer)', galleryBgModes: '歌詞背景模式 (FurinaPlayer 背景引擎)',
       btnCopyLyrics: '複製歌詞', btnCopyTitle: '複製歌名', btnCopyArtist: '複製歌手', btnCopyMeta: '複製中繼資料', btnCopyTimecode: '複製時間碼',
       btnNextSlide: '下一首', btnPrevSlide: '上一首', btnResetLayout: '重設版面', transPill: '譯/音',
       lblOverlay: '底紋遮罩:', lblBlur: '高斯模糊:', lblVinylSpeed: '唱片轉速:', btnSlideShow: '投影片放映',
@@ -974,11 +999,29 @@
     return I18N[lang]?.[key] || I18N['zh-CN']?.[key] || '';
   }
 
+  function normalizePptLanguage(lang) {
+    if (!lang) return 'zh-CN';
+    const raw = String(lang).trim();
+    if (I18N[raw]) return raw;
+    const lower = raw.toLowerCase();
+    if (lower.startsWith('zh-tw') || lower.startsWith('zh-hk') || lower.startsWith('zh-hant')) return 'zh-TW';
+    if (lower.startsWith('zh')) return 'zh-CN';
+    if (lower.startsWith('en')) return 'en-US';
+    if (lower.startsWith('fr')) return 'fr-FR';
+    if (lower.startsWith('ru')) return 'ru-RU';
+    if (lower.startsWith('es')) return 'es-ES';
+    if (lower.startsWith('ja')) return 'ja-JP';
+    if (lower.startsWith('ko')) return 'ko-KR';
+    if (lower.startsWith('ar')) return 'ar-SA';
+    return 'zh-CN';
+  }
+
   function setLanguage(lang, save = true) {
+    lang = normalizePptLanguage(lang);
     if (!I18N[lang]) lang = 'zh-CN';
     state.currentLang = lang;
     window.__pptSetLanguage = setLanguage;
-    safeStorageSet('echo-ppt-lang', lang);
+    safeStorageSet('furinaplayer-ppt-lang', lang);
     if (save) savePresetSettings();
 
     // Update status bar language pill text
@@ -1007,6 +1050,8 @@
         els.notesInput.value = state.currentTrack ? `${state.currentTrack.title || ''} - ${state.currentTrack.artist || ''} (${state.currentTrack.album || ''})` : ph;
       }
     }
+    if (typeof renderStyleGallery === 'function') renderStyleGallery();
+    if (typeof updateFurinaPlayerPresetBadge === 'function') updateFurinaPlayerPresetBadge();
 
     // Update Ribbon Tab names
     const tabMapping = {
@@ -1059,7 +1104,7 @@
   function sendHostCommand(command, payload = {}) {
     const requestId = `req_${Date.now()}_${reqSeq++}`;
     const msg = {
-      type: 'echo:workshop-ui:command',
+      type: 'furinaplayer:workshop-ui:command',
       requestId,
       command,
       payload
@@ -1121,6 +1166,8 @@
         tone: state.settings.tone || 'light',
         activeRibbonTab: state.settings.activeRibbonTab || 'home',
         slideLayout: state.settings.slideLayout || 'ppt-vinyl',
+        furinaPlayerPageStyle: state.settings.furinaPlayerPageStyle || 'none',
+        furinaPlayerBgMode: state.settings.furinaPlayerBgMode || 'default',
         zoomPercent: typeof state.settings.zoomPercent === 'number' ? state.settings.zoomPercent : 100,
         bgOverlayOpacity: typeof state.settings.bgOverlayOpacity === 'number' ? state.settings.bgOverlayOpacity : 20,
         bgBlur: typeof state.settings.bgBlur === 'number' ? state.settings.bgBlur : 16,
@@ -1134,7 +1181,7 @@
       const jsonStr = JSON.stringify(preset);
       safeStorageSet(PRESET_SETTINGS_KEY, jsonStr);
       sendHostCommand('storage:set', { key: PRESET_SETTINGS_KEY, value: jsonStr });
-      sendModBridge('echo:powerpoint:savePreset', { preset });
+      sendModBridge('furinaplayer:powerpoint:savePreset', { preset });
     } catch {}
   }
 
@@ -1241,7 +1288,7 @@
 
       // 1. Language
       try {
-        const savedLang = p.lang || safeStorageGet('echo-ppt-lang') || 'zh-CN';
+        const savedLang = p.lang || safeStorageGet('furinaplayer-ppt-lang') || 'zh-CN';
         setLanguage(savedLang, false);
       } catch {}
 
@@ -1251,10 +1298,14 @@
         updateTheme(savedTone, false);
       } catch {}
 
-      // 3. Slide Layout (ppt-vinyl / netease / applemusic)
+      // 3. Slide Layout (ppt-vinyl / netease / applemusic) & FurinaPlayer Style/Background
       try {
         const savedLayout = p.slideLayout || safeStorageGet('ppt_slide_layout') || 'ppt-vinyl';
         setSlideLayout(savedLayout, false, false);
+        const savedFurinaPlayerStyle = p.furinaPlayerPageStyle || safeStorageGet('ppt_furinaplayer_page_style') || 'none';
+        const savedFurinaPlayerBg = p.furinaPlayerBgMode || safeStorageGet('ppt_furinaplayer_bg_mode') || 'default';
+        setFurinaPlayerPageStyle(savedFurinaPlayerStyle, false, true);
+        setFurinaPlayerBgMode(savedFurinaPlayerBg, false);
       } catch {}
 
       // 4. Zoom percentage
@@ -1412,6 +1463,895 @@
       };
       showToast(`已切换至 ${names[layoutName] || layoutName}`);
     }
+    if (typeof updateFurinaPlayerPresetBadge === 'function') updateFurinaPlayerPresetBadge();
+  }
+
+  // =========================================================================
+  // FurinaPlayer Lyrics UI Styles (22) & Lyrics Background Modes (30) Native Port
+  // =========================================================================
+  const FURINAPLAYER_PAGE_STYLES = [
+    { id: 'none:ppt-vinyl', baseLayout: 'ppt-vinyl', furinaPlayerId: 'none', zh: '经典黑胶', tw: '經典黑膠', en: 'Classic Vinyl', bg: 'linear-gradient(135deg,#2b2523,#151211)', ink: '#f8fafc', swatches: ['#c43e1c','#d4af37','#2b2523','#e05330','#f8fafc','#7c8594'] },
+    { id: 'none:netease', baseLayout: 'netease', furinaPlayerId: 'none', zh: '网易云样式', tw: '網易雲樣式', en: 'NetEase Style', bg: 'linear-gradient(135deg,#2a1418,#140c10)', ink: '#ffffff', swatches: ['#ec4141','#ff7676','#2a1418','#ffffff','#9ca3af','#4b5563'] },
+    { id: 'none:applemusic', baseLayout: 'applemusic', furinaPlayerId: 'none', zh: 'Apple Music', tw: 'Apple Music', en: 'Apple Music', bg: 'linear-gradient(135deg,#2c1e4a,#5a224d)', ink: '#ffffff', swatches: ['#fa243c','#8a4fff','#2c1e4a','#ffffff','#d8b4fe','#38bdf8'] },
+    { id: 'default', baseLayout: 'netease', furinaPlayerId: 'default', zh: '简约', tw: '簡約', en: 'Minimal', bg: 'linear-gradient(135deg,#1e293b,#0f172a)', ink: '#f8fafc', swatches: ['#8ab4ff','#3b82f6','#1e293b','#f8fafc','#94a3b8','#334155'] },
+    { id: 'luminous', baseLayout: 'applemusic', furinaPlayerId: 'luminous', zh: '浮光', tw: '浮光', en: 'Gleam', bg: 'linear-gradient(120deg,#0b1120,#1e294a)', ink: '#f7f8ff', swatches: ['#a2c2ff','#60a5fa','#0b1120','#f7f8ff','#c7d2fe','#1e294a'] },
+    { id: 'afterglow', baseLayout: 'netease', furinaPlayerId: 'afterglow', zh: '余音', tw: '餘音', en: 'Afterglow Words', bg: 'linear-gradient(135deg,#181a20,#0e1014)', ink: '#ffffff', swatches: ['#ffffff','#d1d5db','#0e1014','#6b7280','#374151','#111827'] },
+    { id: 'afterglowCover', baseLayout: 'netease', furinaPlayerId: 'afterglowCover', zh: '余晖', tw: '餘暉', en: 'Afterlight', bg: 'linear-gradient(135deg,#4f3222,#1b1716)', ink: '#f9f5ed', swatches: ['#f1c28f','#d97706','#4f3222','#f9f5ed','#a87654','#1b1716'] },
+    { id: 'seamlessCover', baseLayout: 'netease', furinaPlayerId: 'seamlessCover', zh: '融景', tw: '融景', en: 'Seamless', bg: 'linear-gradient(135deg,#2c2420,#171311)', ink: '#f8f5f0', swatches: ['#e7c8a9','#a78b71','#2c2420','#f8f5f0','#78716c','#171311'] },
+    { id: 'editorial', baseLayout: 'netease', furinaPlayerId: 'editorial', zh: '纸笺', tw: '紙箋', en: 'Folio', bg: 'linear-gradient(135deg,#faf9f7,#efede8)', ink: '#122039', swatches: ['#4046f2','#122039','#faf9f7','#f4f2ef','#64748b','#cbd5e1'] },
+    { id: 'folded', baseLayout: 'applemusic', furinaPlayerId: 'folded', zh: '折光', tw: '折光', en: 'Prism', bg: 'linear-gradient(135deg,#072233,#1b1033)', ink: '#f1f5f7', swatches: ['#45d8ee','#a174e5','#020912','#f1f5f7','#0e7490','#581c87'] },
+    { id: 'roseVinyl', baseLayout: 'ppt-vinyl', furinaPlayerId: 'roseVinyl', zh: '留声', tw: '留聲', en: 'Resonance', bg: 'linear-gradient(135deg,#3b1d2b,#171116)', ink: '#f8f0f4', swatches: ['#f5b3cf','#be185d','#3b1d2b','#f8f0f4','#9d174d','#171116'] },
+    { id: 'cinemaStage', baseLayout: 'applemusic', furinaPlayerId: 'cinemaStage', zh: '映幕', tw: '映幕', en: 'Cinema', bg: 'linear-gradient(135deg,#0d1520,#020407)', ink: '#f8fafc', swatches: ['#fff4cb','#38bdf8','#020407','#f8fafc','#64748b','#1e293b'] },
+    { id: 'panorama', baseLayout: 'netease', furinaPlayerId: 'panorama', zh: '画幅', tw: '畫幅', en: 'Panorama', bg: 'linear-gradient(180deg,#182736,#101a26)', ink: '#f4f6fa', swatches: ['#b4cfe5','#60a5fa','#182736','#f4f6fa','#475569','#101a26'] },
+    { id: 'kineticPoster', baseLayout: 'netease', furinaPlayerId: 'kineticPoster', zh: '跃字', tw: '躍字', en: 'Kinetic', bg: 'linear-gradient(135deg,#0b1c33,#07111f)', ink: '#ffd0c7', swatches: ['#ff776d','#ffd0c7','#07111f','#38bdf8','#1e3a8a','#0f172a'] },
+    { id: 'coverStage', baseLayout: 'applemusic', furinaPlayerId: 'coverStage', zh: '画境', tw: '畫境', en: 'Canvas', bg: 'linear-gradient(180deg,#383a42,#121418)', ink: '#f8f8f8', swatches: ['#e5e7eb','#9ca3af','#383a42','#f8f8f8','#4b5563','#121418'] },
+    { id: 'coverOnly', baseLayout: 'netease', furinaPlayerId: 'coverOnly', zh: '纯封面', tw: '純封面', en: 'Cover Only', bg: 'linear-gradient(135deg,#252836,#12141c)', ink: '#f8fafc', swatches: ['#38bdf8','#818cf8','#252836','#f8fafc','#64748b','#12141c'] },
+    { id: 'cutBoard', baseLayout: 'netease', furinaPlayerId: 'cutBoard', zh: '切影', tw: '切影', en: 'Mosaic', bg: 'linear-gradient(135deg,#18202c,#080c11)', ink: '#f4efe6', swatches: ['#ff705e','#f4efe6','#080c11','#94a3b8','#334155','#1e293b'] },
+    { id: 'curtain', baseLayout: 'netease', furinaPlayerId: 'curtain', zh: '垂帘', tw: '垂簾', en: 'Curtain', bg: 'linear-gradient(90deg,#101218,#191c24)', ink: '#f2ede4', swatches: ['#e2c799','#f2ede4','#101218','#9ca3af','#374151','#191c24'] },
+    { id: 'kineticChars', baseLayout: 'applemusic', furinaPlayerId: 'kineticChars', zh: '跃动', tw: '躍動', en: 'Kinetic Type', bg: 'linear-gradient(135deg,#111827,#0b0e14)', ink: '#e9eef8', swatches: ['#7dd3fc','#38bdf8','#0b0e14','#e9eef8','#64748b','#1e293b'] },
+    { id: 'jizura', baseLayout: 'netease', furinaPlayerId: 'jizura', zh: 'Afterglow', tw: 'Afterglow', en: 'Afterglow', bg: 'linear-gradient(135deg,#242c3d,#131722)', ink: '#f8fafc', swatches: ['#a5b4fc','#e2e8f0','#242c3d','#f8fafc','#64748b','#131722'] },
+    { id: 'blossom', baseLayout: 'applemusic', furinaPlayerId: 'blossom', zh: '繁花', tw: '繁花', en: 'Blossom', bg: 'linear-gradient(135deg,#3d1d33,#1b111a)', ink: '#fff3f8', swatches: ['#ffb7d5','#f472b6','#3d1d33','#fff3f8','#be185d','#1b111a'] },
+    { id: 'cassette', baseLayout: 'ppt-vinyl', furinaPlayerId: 'cassette', zh: '磁带', tw: '磁帶', en: 'Cassette', bg: 'linear-gradient(135deg,#2b241d,#14110e)', ink: '#fef3c7', swatches: ['#fbbf24','#f59e0b','#2b241d','#fef3c7','#78716c','#14110e'] },
+    { id: 'disc', baseLayout: 'ppt-vinyl', furinaPlayerId: 'disc', zh: '光碟', tw: '光碟', en: 'Disc', bg: 'linear-gradient(135deg,#2a303c,#11141a)', ink: '#f8fafc', swatches: ['#e2e8f0','#94a3b8','#2a303c','#f8fafc','#475569','#11141a'] },
+    { id: 'haloOrbit', baseLayout: 'ppt-vinyl', furinaPlayerId: 'haloOrbit', zh: '光环轨道', tw: '光環軌道', en: 'Halo Orbit', bg: 'linear-gradient(135deg,#10253f,#091220)', ink: '#e0f2fe', swatches: ['#6cc2ff','#38bdf8','#10253f','#e0f2fe','#0284c7','#091220'] },
+    { id: 'haloWheel', baseLayout: 'ppt-vinyl', furinaPlayerId: 'haloWheel', zh: '光环转盘', tw: '光環轉盤', en: 'Halo Wheel', bg: 'linear-gradient(135deg,#1e1b4b,#0c0a24)', ink: '#e0e7ff', swatches: ['#818cf8','#a5b4fc','#1e1b4b','#e0e7ff','#4f46e5','#0c0a24'] }
+  ];
+
+  const FURINAPLAYER_BG_MODES = [
+    { id: 'default', kind: 'css', zh: '默认', tw: '預設', en: 'Default', bg: 'linear-gradient(135deg,#262930,#14161a)', ink: '#f8fafc', swatches: ['#64748b','#94a3b8','#262930','#f8fafc','#475569','#14161a'] },
+    { id: 'geometricAmbience', kind: 'canvas', zh: '几何氛围', tw: '幾何氛圍', en: 'Geometric Ambience', bg: 'linear-gradient(135deg,#1b2436,#0f1522)', ink: '#e2e8f0', swatches: ['#60a5fa','#34d399','#1b2436','#e2e8f0','#818cf8','#0f1522'] },
+    { id: 'theme', kind: 'css', zh: '跟随主题', tw: '跟隨主題', en: 'Follow Theme', bg: 'linear-gradient(135deg,#c43e1c,#241816)', ink: '#ffffff', swatches: ['#c43e1c','#e05330','#241816','#ffffff','#f59e0b','#18181b'] },
+    { id: 'cover', kind: 'css', zh: '跟随封面', tw: '跟隨封面', en: 'Follow Cover', bg: 'linear-gradient(135deg,#3b2d4a,#1a1624)', ink: '#f8fafc', swatches: ['#c084fc','#f472b6','#3b2d4a','#f8fafc','#60a5fa','#1a1624'] },
+    { id: 'flowingLight', kind: 'canvas', zh: '流光', tw: '流光', en: 'Flowing Light', bg: 'linear-gradient(135deg,#2a396b,#582252)', ink: '#ffffff', swatches: ['#7c9cff','#ff76b4','#2a396b','#ffffff','#38bdf8','#582252'] },
+    { id: 'coverFlow', kind: 'canvas', zh: '封面流动', tw: '封面流動', en: 'Cover Flow', bg: 'linear-gradient(135deg,#25334a,#111824)', ink: '#f1f5f9', swatches: ['#38bdf8','#818cf8','#25334a','#f1f5f9','#94a3b8','#111824'] },
+    { id: 'coverTetris', kind: 'canvas', zh: '俄罗斯方块', tw: '俄羅斯方塊', en: 'Tetris', bg: 'linear-gradient(135deg,#161b2e,#0b0e18)', ink: '#f8fafc', swatches: ['#22d3ee','#facc15','#f43f5e','#a855f7','#4ade80','#0b0e18'] },
+    { id: 'coverSnake', kind: 'canvas', zh: '贪吃蛇', tw: '貪吃蛇', en: 'Snake', bg: 'linear-gradient(135deg,#102820,#081511)', ink: '#ecfdf5', swatches: ['#34d399','#10b981','#fbbf24','#ecfdf5','#059669','#081511'] },
+    { id: 'liquidLight', kind: 'canvas', zh: '液光', tw: '液光', en: 'Liquid Light', bg: 'linear-gradient(135deg,#1c3554,#3c1f4e)', ink: '#f8fafc', swatches: ['#60a5fa','#e879f9','#1c3554','#f8fafc','#38bdf8','#3c1f4e'] },
+    { id: 'pulseRidge', kind: 'canvas', zh: '山脊', tw: '山脊', en: 'Pulse Ridge', bg: 'linear-gradient(180deg,#1a1f38,#090c18)', ink: '#e0e7ff', swatches: ['#818cf8','#38bdf8','#1a1f38','#e0e7ff','#c084fc','#090c18'] },
+    { id: 'halftone', kind: 'canvas', zh: '网点', tw: '網點', en: 'Halftone', bg: 'linear-gradient(135deg,#1f2937,#0f172a)', ink: '#f8fafc', swatches: ['#94a3b8','#38bdf8','#1f2937','#f8fafc','#64748b','#0f172a'] },
+    { id: 'contour', kind: 'canvas', zh: '等高线', tw: '等高線', en: 'Contour', bg: 'linear-gradient(135deg,#142836,#0a151e)', ink: '#e0f2fe', swatches: ['#38bdf8','#2dd4bf','#142836','#e0f2fe','#0284c7','#0a151e'] },
+    { id: 'sakura', kind: 'canvas', zh: '樱吹雪', tw: '櫻吹雪', en: 'Sakura Fall', bg: 'linear-gradient(135deg,#3a1e2e,#190e16)', ink: '#fff1f5', swatches: ['#fda4af','#fbcfe8','#3a1e2e','#fff1f5','#f472b6','#190e16'] },
+    { id: 'bfs', kind: 'canvas', zh: '广度优先搜索', tw: '廣度優先搜尋', en: 'Breadth-First Search', bg: 'linear-gradient(135deg,#0f2933,#08151c)', ink: '#cffafe', swatches: ['#22d3ee','#06b6d4','#0f2933','#cffafe','#34d399','#08151c'] },
+    { id: 'coverPond', kind: 'canvas', zh: '涟光', tw: '漣光', en: 'Ripplelight', bg: 'linear-gradient(135deg,#123047,#0b1c2c)', ink: '#e0f2fe', swatches: ['#7dd3fc','#38bdf8','#123047','#e0f2fe','#0ea5e9','#0b1c2c'] },
+    { id: 'coverLiquid', kind: 'canvas', zh: '液态', tw: '液態', en: 'Liquid Cover', bg: 'linear-gradient(135deg,#2d1f47,#151024)', ink: '#f3e8ff', swatches: ['#c084fc','#818cf8','#2d1f47','#f3e8ff','#38bdf8','#151024'] },
+    { id: 'coverPrism', kind: 'canvas', zh: '棱镜', tw: '稜鏡', en: 'Prism Cover', bg: 'linear-gradient(135deg,#1b2a47,#2f1938)', ink: '#f8fafc', swatches: ['#22d3ee','#f472b6','#facc15','#f8fafc','#818cf8','#1b2a47'] },
+    { id: 'coverFrost', kind: 'css', zh: '雾窗', tw: '霧窗', en: 'Frosted Window', bg: 'linear-gradient(135deg,#475569,#1e293b)', ink: '#f8fafc', swatches: ['#cbd5e1','#94a3b8','#475569','#f8fafc','#64748b','#1e293b'] },
+    { id: 'coverHolo', kind: 'css', zh: '镭射', tw: '鐳射', en: 'Holo Foil', bg: 'linear-gradient(125deg,#1b3b4b,#3d2352)', ink: '#ffffff', swatches: ['#45d8ee','#a174e5','#ff94c2','#ffffff','#38bdf8','#1b3b4b'] },
+    { id: 'coverVinyl', kind: 'css', zh: '黑胶', tw: '黑膠', en: 'Vinyl', bg: 'linear-gradient(135deg,#242126,#0d0c0f)', ink: '#f8fafc', swatches: ['#d4af37','#a1a1aa','#242126','#f8fafc','#52525b','#0d0c0f'] },
+    { id: 'coverNeon', kind: 'css', zh: '霓虹', tw: '霓虹', en: 'Neon', bg: 'linear-gradient(135deg,#082032,#2b0924)', ink: '#ffffff', swatches: ['#00f0ff','#ff2d95','#082032','#ffffff','#a855f7','#2b0924'] },
+    { id: 'coverPixelCrt', kind: 'canvas', zh: '显像管', tw: '顯像管', en: 'CRT Tube', bg: 'linear-gradient(135deg,#14241a,#09110c)', ink: '#dcfce7', swatches: ['#4ade80','#22c55e','#14241a','#dcfce7','#16a34a','#09110c'] },
+    { id: 'coverPixelWarp', kind: 'canvas', zh: '像素跃迁', tw: '像素躍遷', en: 'Pixel Warp', bg: 'linear-gradient(135deg,#1c1638,#0c091a)', ink: '#ede9fe', swatches: ['#a78bfa','#38bdf8','#1c1638','#ede9fe','#f472b6','#0c091a'] },
+    { id: 'coverPixelTiles', kind: 'canvas', zh: '翻牌浪潮', tw: '翻牌浪潮', en: 'Tile Flip', bg: 'linear-gradient(135deg,#1e293b,#0f172a)', ink: '#f8fafc', swatches: ['#38bdf8','#818cf8','#1e293b','#f8fafc','#64748b','#0f172a'] },
+    { id: 'coverPixelShuffle', kind: 'canvas', zh: '拼图归位', tw: '拼圖歸位', en: 'Puzzle Snap', bg: 'linear-gradient(135deg,#2b2538,#14111c)', ink: '#f5f3ff', swatches: ['#c084fc','#fbbf24','#2b2538','#f5f3ff','#38bdf8','#14111c'] },
+    { id: 'coverPixelRain', kind: 'canvas', zh: '像素雨', tw: '像素雨', en: 'Pixel Rain', bg: 'linear-gradient(135deg,#0c2233,#06111a)', ink: '#e0f2fe', swatches: ['#38bdf8','#22d3ee','#0c2233','#e0f2fe','#818cf8','#06111a'] },
+    { id: 'coverPixelSkyline', kind: 'canvas', zh: '均衡器城市', tw: '均衡器城市', en: 'EQ Skyline', bg: 'linear-gradient(180deg,#1a1f36,#0a0c18)', ink: '#f8fafc', swatches: ['#f472b6','#38bdf8','#facc15','#f8fafc','#818cf8','#0a0c18'] },
+    { id: 'coverParticles', kind: 'canvas', zh: '粒子成形', tw: '粒子成形', en: 'Particle Assembly', bg: 'linear-gradient(135deg,#192338,#0c121e)', ink: '#f1f5f9', swatches: ['#60a5fa','#a78bfa','#192338','#f1f5f9','#38bdf8','#0c121e'] },
+    { id: 'particleSea', kind: 'canvas', zh: '粒子海', tw: '粒子海', en: 'Particle Sea', bg: 'linear-gradient(180deg,#0f2942,#071422)', ink: '#e0f2fe', swatches: ['#38bdf8','#2dd4bf','#0f2942','#e0f2fe','#0284c7','#071422'] },
+    { id: 'coverShards', kind: 'canvas', zh: '碎片漂浮', tw: '碎片漂浮', en: 'Floating Shards', bg: 'linear-gradient(135deg,#261c36,#120d1c)', ink: '#f3e8ff', swatches: ['#e879f9','#38bdf8','#261c36','#f3e8ff','#fb7185','#120d1c'] },
+    { id: 'coverRidges', kind: 'canvas', zh: '封面山脊', tw: '封面山脊', en: 'Cover Ridgelines', bg: 'linear-gradient(180deg,#202a3c,#0e131d)', ink: '#f1f5f9', swatches: ['#93c5fd','#60a5fa','#202a3c','#f1f5f9','#475569','#0e131d'] }
+  ];
+
+  function getLocalizedPresetName(item) {
+    if (!item) return '';
+    const lang = state.currentLang || 'zh-CN';
+    if (lang === 'zh-TW') return item.tw || item.zh;
+    if (lang === 'zh-CN') return item.zh;
+    return item.en || item.zh;
+  }
+
+  function updateFurinaPlayerPresetBadge() {
+    if (!els.lblActiveFurinaPlayerPreset) return;
+    const styleKey = state.settings.furinaPlayerPageStyle || 'none';
+    const bgKey = state.settings.furinaPlayerBgMode || 'default';
+    const styleObj = FURINAPLAYER_PAGE_STYLES.find(s => s.furinaPlayerId === styleKey || s.id === `${styleKey}:${state.settings.slideLayout}`);
+    const bgObj = FURINAPLAYER_BG_MODES.find(b => b.id === bgKey);
+    const sLabel = styleObj ? getLocalizedPresetName(styleObj) : 'FurinaPlayer';
+    const bLabel = bgObj && bgObj.id !== 'default' ? ` · ${getLocalizedPresetName(bgObj)}` : '';
+    els.lblActiveFurinaPlayerPreset.textContent = `${sLabel}${bLabel}`;
+  }
+
+  function setFurinaPlayerPageStyle(styleId, notify = true, save = true) {
+    if (!styleId) styleId = 'none';
+    let item = FURINAPLAYER_PAGE_STYLES.find(s => s.id === styleId || s.furinaPlayerId === styleId);
+    if (styleId.startsWith('none:')) {
+      const targetLayout = styleId.split(':')[1] || 'ppt-vinyl';
+      state.settings.furinaPlayerPageStyle = 'none';
+      if (els.pptSlide) els.pptSlide.removeAttribute('data-furinaplayer-style');
+      if (save) {
+        safeStorageSet('ppt_furinaplayer_page_style', 'none');
+      }
+      setSlideLayout(targetLayout, notify, save);
+      renderStyleGallery();
+      updateFurinaPlayerPresetBadge();
+      return;
+    }
+
+    const furinaPlayerVal = item ? item.furinaPlayerId : styleId;
+    state.settings.furinaPlayerPageStyle = furinaPlayerVal;
+    if (els.pptSlide) {
+      if (furinaPlayerVal === 'none') els.pptSlide.removeAttribute('data-furinaplayer-style');
+      else els.pptSlide.setAttribute('data-furinaplayer-style', furinaPlayerVal);
+    }
+    if (item && item.baseLayout && state.settings.slideLayout !== item.baseLayout && furinaPlayerVal !== 'none') {
+      setSlideLayout(item.baseLayout, false, false);
+    }
+    if (save) {
+      safeStorageSet('ppt_furinaplayer_page_style', furinaPlayerVal);
+      savePresetSettings();
+    }
+    if (notify && item) {
+      showToast(`${getLocalizedPresetName(item)}`);
+    }
+    renderStyleGallery();
+    updateFurinaPlayerPresetBadge();
+  }
+
+  // Lightweight Procedural / Particle / Pixel Canvas Background Renderer
+  const FurinaPlayerBgCanvasRenderer = (() => {
+    let rafId = 0;
+    let lastTs = 0;
+    let mode = 'default';
+    let particles = [];
+    let gridState = null;
+
+    function getPalette() {
+      const bgObj = FURINAPLAYER_BG_MODES.find(b => b.id === mode);
+      return bgObj?.swatches || ['#60a5fa', '#a78bfa', '#f472b6', '#38bdf8', '#34d399', '#0f172a'];
+    }
+
+    function initModeState(w, h) {
+      const pal = getPalette();
+      particles = [];
+      gridState = null;
+      const count = mode === 'particleSea' ? 95 : mode === 'sakura' ? 42 : mode === 'coverParticles' ? 80 : 50;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: (Math.random() - 0.5) * 0.9,
+          vy: mode === 'sakura' || mode === 'coverPixelRain' ? 0.8 + Math.random() * 1.6 : (Math.random() - 0.5) * 0.9,
+          r: 2 + Math.random() * 5,
+          a: Math.random() * Math.PI * 2,
+          c: pal[i % 4]
+        });
+      }
+      if (mode === 'coverSnake') {
+        gridState = { cols: 24, rows: 14, snake: [{x:8,y:7},{x:7,y:7},{x:6,y:7},{x:5,y:7}], dir: {x:1,y:0}, food: {x:16,y:7}, tick: 0 };
+      } else if (mode === 'coverTetris') {
+        gridState = { cols: 18, rows: 10, blocks: Array.from({length: 26}, (_, i) => ({ x: i % 18, y: Math.floor(Math.random() * 10), c: pal[i % 5], vy: 0.04 + Math.random() * 0.06 })) };
+      }
+    }
+
+    function drawFrame(ctx, w, h, t) {
+      const pal = getPalette();
+      ctx.clearRect(0, 0, w, h);
+
+      if (mode === 'sakura') {
+        for (const p of particles) {
+          p.x += Math.sin(t * 0.0015 + p.a) * 0.65 - 0.25;
+          p.y += p.vy;
+          if (p.y > h + 12) { p.y = -12; p.x = Math.random() * w; }
+          if (p.x < -12) p.x = w + 12;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(t * 0.002 + p.a);
+          ctx.fillStyle = p.c;
+          ctx.globalAlpha = 0.65;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, p.r * 1.3, p.r * 0.7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (mode === 'pulseRidge') {
+        const layers = 7;
+        for (let l = 0; l < layers; l++) {
+          ctx.beginPath();
+          const baseY = h * (0.34 + l * 0.09);
+          ctx.moveTo(0, h);
+          for (let x = 0; x <= w; x += 14) {
+            const y = baseY + Math.sin(x * 0.015 + t * 0.002 + l * 1.1) * (20 + l * 4) + Math.cos(x * 0.032 - t * 0.0012) * 9;
+            ctx.lineTo(x, y);
+          }
+          ctx.lineTo(w, h);
+          ctx.closePath();
+          ctx.strokeStyle = pal[l % 4];
+          ctx.lineWidth = 1.6;
+          ctx.globalAlpha = 0.45;
+          ctx.stroke();
+          ctx.fillStyle = pal[l % 4];
+          ctx.globalAlpha = 0.14;
+          ctx.fill();
+        }
+      } else if (mode === 'coverRidges') {
+        const layers = 5;
+        for (let l = 0; l < layers; l++) {
+          ctx.beginPath();
+          const baseY = h * (0.48 + l * 0.09);
+          ctx.moveTo(0, h);
+          for (let x = 0; x <= w; x += 20) {
+            const y = baseY - Math.abs(Math.sin(x * 0.006 + l * 1.7 + t * 0.0003)) * (38 - l * 4);
+            ctx.lineTo(x, y);
+          }
+          ctx.lineTo(w, h);
+          ctx.closePath();
+          ctx.fillStyle = pal[l % 4];
+          ctx.globalAlpha = 0.22 + l * 0.04;
+          ctx.fill();
+        }
+      } else if (mode === 'halftone') {
+        const step = 22;
+        for (let x = step / 2; x < w; x += step) {
+          for (let y = step / 2; y < h; y += step) {
+            const wave = 0.5 + 0.5 * Math.sin(x * 0.02 + y * 0.02 - t * 0.0025);
+            ctx.fillStyle = pal[Math.floor((x + y) / step) % 4];
+            ctx.globalAlpha = 0.14 + wave * 0.28;
+            ctx.beginPath();
+            ctx.arc(x, y, 1.5 + wave * 6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (mode === 'coverPixelCrt') {
+        ctx.fillStyle = pal[0];
+        for (let y = 0; y < h; y += 6) {
+          ctx.globalAlpha = (y % 12 === 0) ? 0.16 : 0.06;
+          ctx.fillRect(0, y, w, 2);
+        }
+        const scanY = (t * 0.08) % (h + 60) - 30;
+        const grad = ctx.createLinearGradient(0, scanY - 24, 0, scanY + 24);
+        grad.addColorStop(0, 'transparent');
+        grad.addColorStop(0.5, pal[0]);
+        grad.addColorStop(1, 'transparent');
+        ctx.fillStyle = grad;
+        ctx.globalAlpha = 0.35;
+        ctx.fillRect(0, scanY - 24, w, 48);
+      } else if (mode === 'coverPixelTiles') {
+        const step = 30;
+        for (let x = step / 2; x < w; x += step) {
+          for (let y = step / 2; y < h; y += step) {
+            const flip = Math.cos(x * 0.015 + y * 0.015 - t * 0.0028);
+            ctx.fillStyle = pal[Math.floor((x / step) + (y / step)) % 4];
+            ctx.globalAlpha = 0.12 + Math.abs(flip) * 0.26;
+            const rw = Math.max(2, (step - 6) * Math.abs(flip));
+            ctx.fillRect(x - rw / 2, y - (step - 6) / 2, rw, step - 6);
+          }
+        }
+      } else if (mode === 'contour') {
+        ctx.lineWidth = 1.4;
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          ctx.strokeStyle = pal[i % 4];
+          ctx.globalAlpha = 0.24;
+          const base = (i / 10) * h;
+          for (let x = 0; x <= w; x += 14) {
+            const y = base + Math.sin(x * 0.01 + i * 0.8 + t * 0.0008) * 24 + Math.cos(x * 0.02 - t * 0.0006) * 12;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      } else if (mode === 'coverPond') {
+        const drops = [
+          { x: w * 0.32, y: h * 0.42, o: 0 },
+          { x: w * 0.68, y: h * 0.58, o: 1600 }
+        ];
+        for (const d of drops) {
+          for (let i = 0; i < 5; i++) {
+            const rad = ((t + d.o + i * 320) * 0.05) % (Math.max(w, h) * 0.5);
+            ctx.strokeStyle = pal[i % 3];
+            ctx.globalAlpha = Math.max(0.04, 0.38 - rad / (Math.max(w, h) * 0.55));
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(d.x, d.y, rad, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+      } else if (mode === 'coverPixelSkyline') {
+        const bars = 32;
+        const bw = w / bars;
+        for (let i = 0; i < bars; i++) {
+          const bh = h * (0.14 + 0.44 * (0.5 + 0.5 * Math.sin(i * 0.55 + t * 0.0032)));
+          ctx.fillStyle = pal[i % 4];
+          ctx.globalAlpha = 0.28;
+          ctx.fillRect(i * bw + 2, h - bh, Math.max(4, bw - 4), bh);
+          ctx.globalAlpha = 0.65;
+          ctx.fillRect(i * bw + 2, h - bh - 4, Math.max(4, bw - 4), 2.5);
+        }
+      } else if (mode === 'coverPixelRain') {
+        for (const p of particles) {
+          p.y += p.vy * 2.4;
+          if (p.y > h + 24) { p.y = -24; p.x = Math.random() * w; }
+          const g = ctx.createLinearGradient(p.x, p.y - 22, p.x, p.y);
+          g.addColorStop(0, 'transparent');
+          g.addColorStop(1, p.c);
+          ctx.fillStyle = g;
+          ctx.globalAlpha = 0.52;
+          ctx.fillRect(p.x, p.y - 22, 3, 22);
+        }
+      } else if (mode === 'coverTetris' && gridState) {
+        const cw = w / gridState.cols;
+        const ch = h / gridState.rows;
+        for (const b of gridState.blocks) {
+          b.y += b.vy;
+          if (b.y > gridState.rows) { b.y = -1; b.x = Math.floor(Math.random() * gridState.cols); }
+          ctx.fillStyle = b.c;
+          ctx.globalAlpha = 0.3;
+          ctx.fillRect(b.x * cw + 2, b.y * ch + 2, cw - 4, ch - 4);
+          ctx.fillRect(((b.x + 1) % gridState.cols) * cw + 2, b.y * ch + 2, cw - 4, ch - 4);
+        }
+      } else if (mode === 'coverSnake' && gridState) {
+        gridState.tick++;
+        if (gridState.tick % 6 === 0) {
+          const head = gridState.snake[0];
+          const dx = Math.sign(gridState.food.x - head.x);
+          const dy = Math.sign(gridState.food.y - head.y);
+          const nx = (head.x + (dx !== 0 ? dx : 0) + gridState.cols) % gridState.cols;
+          const ny = (head.y + (dx === 0 ? dy : 0) + gridState.rows) % gridState.rows;
+          gridState.snake.unshift({ x: nx, y: ny });
+          if (nx === gridState.food.x && ny === gridState.food.y) {
+            gridState.food = { x: Math.floor(Math.random() * gridState.cols), y: Math.floor(Math.random() * gridState.rows) };
+          } else if (gridState.snake.length > 10) {
+            gridState.snake.pop();
+          }
+        }
+        const cw = w / gridState.cols;
+        const ch = h / gridState.rows;
+        gridState.snake.forEach((seg, idx) => {
+          ctx.fillStyle = pal[idx % 2];
+          ctx.globalAlpha = 0.38;
+          ctx.fillRect(seg.x * cw + 2, seg.y * ch + 2, cw - 4, ch - 4);
+        });
+        ctx.fillStyle = pal[2];
+        ctx.globalAlpha = 0.65;
+        ctx.fillRect(gridState.food.x * cw + 3, gridState.food.y * ch + 3, cw - 6, ch - 6);
+      } else if (mode === 'liquidLight') {
+        for (let i = 0; i < 4; i++) {
+          const bx = w * (0.25 + 0.5 * (0.5 + 0.5 * Math.sin(t * 0.0005 + i * 1.7)));
+          const by = h * (0.25 + 0.5 * (0.5 + 0.5 * Math.cos(t * 0.0006 + i * 1.3)));
+          const rad = Math.min(w, h) * 0.44;
+          const grad = ctx.createRadialGradient(bx, by, 10, bx, by, rad);
+          grad.addColorStop(0, pal[i % 4]);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.globalAlpha = 0.34;
+          ctx.beginPath();
+          ctx.arc(bx, by, rad, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (mode === 'coverLiquid') {
+        for (let r = 0; r < 4; r++) {
+          ctx.beginPath();
+          const cy = h * (0.25 + r * 0.18);
+          ctx.moveTo(0, cy);
+          for (let x = 0; x <= w; x += 18) {
+            ctx.lineTo(x, cy + Math.sin(x * 0.012 + t * 0.0018 + r) * 28);
+          }
+          ctx.strokeStyle = pal[r % 4];
+          ctx.lineWidth = 26;
+          ctx.globalAlpha = 0.16;
+          ctx.stroke();
+        }
+      } else if (mode === 'flowingLight') {
+        for (let i = 0; i < 3; i++) {
+          const x0 = w * (0.1 + 0.8 * (0.5 + 0.5 * Math.sin(t * 0.0004 + i * 2.1)));
+          const grad = ctx.createLinearGradient(x0, 0, w - x0, h);
+          grad.addColorStop(0, 'transparent');
+          grad.addColorStop(0.5, pal[i % 4]);
+          grad.addColorStop(1, 'transparent');
+          ctx.fillStyle = grad;
+          ctx.globalAlpha = 0.22;
+          ctx.fillRect(0, 0, w, h);
+        }
+      } else if (mode === 'coverPrism') {
+        for (let i = 0; i < 6; i++) {
+          const cx = w * (0.18 + (i % 3) * 0.32);
+          const cy = h * (0.32 + Math.floor(i / 3) * 0.36);
+          const ang = t * 0.0005 + i * 1.05;
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.rotate(ang);
+          ctx.fillStyle = pal[i % 4];
+          ctx.globalAlpha = 0.2;
+          ctx.beginPath();
+          ctx.moveTo(0, -68);
+          ctx.lineTo(62, 48);
+          ctx.lineTo(-62, 48);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (mode === 'geometricAmbience') {
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          p.x += p.vx * 0.7;
+          p.y += p.vy * 0.7;
+          if (p.x < 0 || p.x > w) p.vx *= -1;
+          if (p.y < 0 || p.y > h) p.vy *= -1;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(t * 0.0008 + p.a);
+          ctx.strokeStyle = p.c;
+          ctx.lineWidth = 1.4;
+          ctx.globalAlpha = 0.34;
+          const sz = p.r * 2.6;
+          if (i % 2 === 0) ctx.strokeRect(-sz, -sz, sz * 2, sz * 2);
+          else {
+            ctx.beginPath();
+            ctx.moveTo(0, -sz * 1.2);
+            ctx.lineTo(sz, sz);
+            ctx.lineTo(-sz, sz);
+            ctx.closePath();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      } else if (mode === 'bfs') {
+        const step = 36;
+        const ox = w * 0.35;
+        const oy = h * 0.5;
+        const waveR = (t * 0.07) % (Math.max(w, h) * 0.9);
+        for (let x = step / 2; x < w; x += step) {
+          for (let y = step / 2; y < h; y += step) {
+            const dist = Math.hypot(x - ox, y - oy);
+            const diff = Math.abs(dist - waveR);
+            const active = diff < 48 ? (1 - diff / 48) : 0;
+            ctx.fillStyle = active > 0.2 ? pal[0] : pal[2];
+            ctx.globalAlpha = 0.08 + active * 0.45;
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5 + active * 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else if (mode === 'coverFlow') {
+        const cards = 7;
+        for (let i = 0; i < cards; i++) {
+          const prog = ((i / cards) + t * 0.00008) % 1;
+          const x = prog * (w + 160) - 80;
+          const distCenter = Math.abs(x - w / 2) / (w / 2);
+          const cw = 72 * (1 - distCenter * 0.35);
+          const ch = 72 * (1 - distCenter * 0.25);
+          ctx.fillStyle = pal[i % 4];
+          ctx.globalAlpha = Math.max(0.08, 0.35 - distCenter * 0.22);
+          ctx.fillRect(x - cw / 2, h / 2 - ch / 2, cw, ch);
+        }
+      } else if (mode === 'coverPixelWarp') {
+        const cx = w / 2;
+        const cy = h / 2;
+        for (let i = 0; i < 42; i++) {
+          const ang = (i / 42) * Math.PI * 2;
+          const prog = ((t * 0.0006 + i * 0.17) % 1);
+          const r1 = prog * Math.max(w, h) * 0.55;
+          const r2 = r1 + 18 + prog * 28;
+          ctx.strokeStyle = pal[i % 4];
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = prog * 0.5;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
+          ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2);
+          ctx.stroke();
+        }
+      } else if (mode === 'coverPixelShuffle') {
+        const cols = 10, rows = 6;
+        const cw = w / cols, ch = h / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const jx = Math.sin(t * 0.002 + r * 1.3 + c) * 6;
+            const jy = Math.cos(t * 0.002 + c * 1.7 + r) * 6;
+            ctx.fillStyle = pal[(r + c) % 4];
+            ctx.globalAlpha = 0.2;
+            ctx.fillRect(c * cw + 4 + jx, r * ch + 4 + jy, cw - 8, ch - 8);
+          }
+        }
+      } else if (mode === 'coverParticles') {
+        const cx = w * 0.36, cy = h * 0.5;
+        for (let i = 0; i < particles.length; i++) {
+          const ang = t * 0.0008 + i * 0.25;
+          const rad = 45 + (i % 7) * 18 + Math.sin(t * 0.002 + i) * 12;
+          const px = cx + Math.cos(ang) * rad;
+          const py = cy + Math.sin(ang) * rad;
+          ctx.fillStyle = particles[i].c;
+          ctx.globalAlpha = 0.48;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (mode === 'particleSea') {
+        const cols = 22, rows = 9;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = (c / (cols - 1)) * w;
+            const y = h * (0.45 + r * 0.06) + Math.sin(c * 0.45 + r * 0.6 + t * 0.0025) * 14;
+            ctx.fillStyle = pal[(r + c) % 3];
+            ctx.globalAlpha = 0.18 + (r / rows) * 0.35;
+            ctx.beginPath();
+            ctx.arc(x, y, 1.8 + (r / rows) * 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      } else {
+        // coverShards
+        for (const p of particles) {
+          p.x += p.vx * 0.85;
+          p.y += p.vy * 0.85;
+          if (p.x < 0 || p.x > w) p.vx *= -1;
+          if (p.y < 0 || p.y > h) p.vy *= -1;
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(t * 0.0014 + p.a);
+          ctx.fillStyle = p.c;
+          ctx.globalAlpha = 0.32;
+          ctx.beginPath();
+          ctx.moveTo(0, -p.r * 2.2);
+          ctx.lineTo(p.r * 1.4, p.r * 1.5);
+          ctx.lineTo(-p.r * 1.6, p.r * 0.8);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function loop(ts) {
+      if (!els.furinaPlayerBgCanvas || els.furinaPlayerBgCanvas.hidden) {
+        rafId = 0;
+        return;
+      }
+      rafId = requestAnimationFrame(loop);
+      if (ts - lastTs < 33) return;
+      lastTs = ts;
+      const canvas = els.furinaPlayerBgCanvas;
+      const rect = canvas.getBoundingClientRect();
+      const targetW = Math.max(320, Math.round(rect.width * 0.5));
+      const targetH = Math.max(180, Math.round(rect.height * 0.5));
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+        initModeState(targetW, targetH);
+      }
+      const ctx = canvas.getContext('2d');
+      if (ctx) drawFrame(ctx, canvas.width, canvas.height, ts);
+    }
+
+    return {
+      setMode(nextMode) {
+        mode = nextMode || 'default';
+        const bgItem = FURINAPLAYER_BG_MODES.find(b => b.id === mode);
+        const needsCanvas = bgItem && bgItem.kind === 'canvas';
+        if (!els.furinaPlayerBgCanvas) return;
+        if (!needsCanvas) {
+          els.furinaPlayerBgCanvas.hidden = true;
+          if (rafId) {
+            cancelAnimationFrame(rafId);
+            rafId = 0;
+          }
+          const ctx = els.furinaPlayerBgCanvas.getContext('2d');
+          if (ctx) ctx.clearRect(0, 0, els.furinaPlayerBgCanvas.width, els.furinaPlayerBgCanvas.height);
+          return;
+        }
+        els.furinaPlayerBgCanvas.hidden = false;
+        initModeState(els.furinaPlayerBgCanvas.width || 640, els.furinaPlayerBgCanvas.height || 360);
+        if (!rafId) rafId = requestAnimationFrame(loop);
+      }
+    };
+  })();
+
+  function setFurinaPlayerBgMode(bgId, notify = true, save = true) {
+    if (!bgId) bgId = 'default';
+    const item = FURINAPLAYER_BG_MODES.find(b => b.id === bgId) || FURINAPLAYER_BG_MODES[0];
+    state.settings.furinaPlayerBgMode = item.id;
+    if (els.pptSlide) {
+      if (item.id === 'default') els.pptSlide.removeAttribute('data-furinaplayer-bg');
+      else els.pptSlide.setAttribute('data-furinaplayer-bg', item.id);
+    }
+    FurinaPlayerBgCanvasRenderer.setMode(item.id);
+    if (save) {
+      safeStorageSet('ppt_furinaplayer_bg_mode', item.id);
+      savePresetSettings();
+    }
+    if (notify) {
+      showToast(`${getLocalizedPresetName(item)}`);
+    }
+    renderStyleGallery();
+    updateFurinaPlayerPresetBadge();
+  }
+
+  function renderBgPreviewCanvas(canvas, item) {
+    const w = 172, h = 108;
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const pal = item.swatches || ['#60a5fa', '#a78bfa', '#1e293b', '#f8fafc'];
+    const id = item.id;
+
+    // Base backdrop
+    const bgGrad = ctx.createLinearGradient(0, 0, w, h);
+    bgGrad.addColorStop(0, pal[2] || '#14161a');
+    bgGrad.addColorStop(1, pal[5] || '#090b10');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    if (id === 'default') {
+      const g = ctx.createRadialGradient(w * 0.5, h * 0.45, 6, w * 0.5, h * 0.5, w * 0.65);
+      g.addColorStop(0, 'rgba(148,163,184,0.22)');
+      g.addColorStop(1, 'transparent');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    } else if (id === 'theme') {
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#c43e1c');
+      g.addColorStop(1, '#241816');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    } else if (id === 'cover') {
+      [ [0.3, 0.35, 48, pal[0]], [0.72, 0.65, 52, pal[1]] ].forEach(([px, py, r, c]) => {
+        const g = ctx.createRadialGradient(w * px, h * py, 2, w * px, h * py, r);
+        g.addColorStop(0, c);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(0, 0, w, h);
+      });
+    } else if (id === 'geometricAmbience') {
+      ctx.lineWidth = 1.6;
+      for (let i = 0; i < 8; i++) {
+        ctx.strokeStyle = pal[i % 2];
+        ctx.globalAlpha = 0.7;
+        const x = 18 + (i * 21) % (w - 28), y = 16 + ((i * 29) % (h - 28));
+        if (i % 2 === 0) ctx.strokeRect(x, y, 16, 16);
+        else {
+          ctx.beginPath(); ctx.moveTo(x + 8, y); ctx.lineTo(x + 17, y + 16); ctx.lineTo(x - 1, y + 16); ctx.closePath(); ctx.stroke();
+        }
+      }
+    } else if (id === 'flowingLight' || id === 'liquidLight' || id === 'coverLiquid') {
+      for (let i = 0; i < 3; i++) {
+        const g = ctx.createRadialGradient(w * (0.25 + i * 0.25), h * (0.35 + (i % 2) * 0.3), 4, w * (0.25 + i * 0.25), h * 0.5, 62);
+        g.addColorStop(0, pal[i % 2]);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.globalAlpha = 0.68;
+        ctx.fillRect(0, 0, w, h);
+      }
+      if (id === 'coverLiquid') {
+        ctx.strokeStyle = pal[1]; ctx.lineWidth = 10; ctx.globalAlpha = 0.35;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 8) {
+          const y = h * 0.5 + Math.sin(x * 0.06) * 16;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    } else if (id === 'coverFlow') {
+      for (let i = -2; i <= 2; i++) {
+        const s = 44 - Math.abs(i) * 8;
+        ctx.fillStyle = pal[(i + 2) % 3];
+        ctx.globalAlpha = 0.85 - Math.abs(i) * 0.2;
+        ctx.fillRect(w / 2 + i * 26 - s / 2, h / 2 - s / 2, s, s);
+      }
+    } else if (id === 'coverTetris') {
+      const blocks = [[2,2,0],[3,2,0],[3,3,0],[7,1,1],[8,1,1],[7,2,1],[11,3,2],[12,3,2],[12,4,2],[5,4,3],[6,4,3],[6,5,3]];
+      blocks.forEach(([bx, by, ci]) => {
+        ctx.fillStyle = pal[ci % 5];
+        ctx.fillRect(bx * 11 + 6, by * 13 + 6, 10, 12);
+      });
+    } else if (id === 'coverSnake') {
+      ctx.fillStyle = pal[0];
+      [[3,4],[4,4],[5,4],[6,4],[6,3],[7,3],[8,3]].forEach(([sx, sy]) => ctx.fillRect(sx * 12, sy * 13, 10, 11));
+      ctx.fillStyle = pal[2];
+      ctx.fillRect(11 * 12, 5 * 13, 10, 11);
+    } else if (id === 'pulseRidge' || id === 'coverRidges') {
+      for (let l = 0; l < 4; l++) {
+        ctx.beginPath(); ctx.moveTo(0, h);
+        for (let x = 0; x <= w; x += 8) {
+          const y = h * (0.42 + l * 0.12) + Math.sin(x * 0.06 + l) * 10;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, h); ctx.closePath();
+        ctx.fillStyle = pal[l % 3]; ctx.globalAlpha = 0.35 + l * 0.1; ctx.fill();
+        if (id === 'pulseRidge') { ctx.strokeStyle = pal[l % 2]; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.85; ctx.stroke(); }
+      }
+    } else if (id === 'halftone') {
+      for (let x = 10; x < w; x += 14) {
+        for (let y = 10; y < h; y += 14) {
+          const r = 1.5 + 2.8 * (0.5 + 0.5 * Math.sin(x * 0.05 + y * 0.05));
+          ctx.fillStyle = pal[(x + y) % 2]; ctx.globalAlpha = 0.7;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    } else if (id === 'contour') {
+      ctx.strokeStyle = pal[0]; ctx.lineWidth = 1.3; ctx.globalAlpha = 0.65;
+      for (let i = 1; i <= 6; i++) {
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 8) {
+          const y = i * 16 + Math.sin(x * 0.05 + i) * 7;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+    } else if (id === 'sakura') {
+      for (let i = 0; i < 14; i++) {
+        ctx.save();
+        ctx.translate((i * 23 + 12) % w, (i * 19 + 10) % h);
+        ctx.rotate(i * 0.7);
+        ctx.fillStyle = pal[i % 2]; ctx.globalAlpha = 0.8;
+        ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+    } else if (id === 'bfs') {
+      for (let x = 14; x < w; x += 18) {
+        for (let y = 14; y < h; y += 18) {
+          const d = Math.hypot(x - 62, y - 54);
+          const on = Math.abs(d - 42) < 16;
+          ctx.fillStyle = on ? pal[0] : pal[2]; ctx.globalAlpha = on ? 0.9 : 0.35;
+          ctx.beginPath(); ctx.arc(x, y, on ? 3.5 : 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    } else if (id === 'coverPond') {
+      for (let i = 1; i <= 4; i++) {
+        ctx.strokeStyle = pal[0]; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.85 - i * 0.16;
+        ctx.beginPath(); ctx.arc(w * 0.5, h * 0.5, i * 13, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (id === 'coverPrism' || id === 'coverShards') {
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = pal[i % 3]; ctx.globalAlpha = 0.52;
+        ctx.beginPath();
+        const cx = 24 + i * 24, cy = 28 + (i % 2) * 38;
+        ctx.moveTo(cx, cy - 18); ctx.lineTo(cx + 18, cy + 14); ctx.lineTo(cx - 16, cy + 10);
+        ctx.closePath(); ctx.fill();
+      }
+    } else if (id === 'coverFrost') {
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, 'rgba(226,232,240,0.45)');
+      g.addColorStop(1, 'rgba(148,163,184,0.2)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    } else if (id === 'coverHolo') {
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, '#45d8ee'); g.addColorStop(0.5, '#a174e5'); g.addColorStop(1, '#ff94c2');
+      ctx.fillStyle = g; ctx.globalAlpha = 0.72; ctx.fillRect(0, 0, w, h);
+    } else if (id === 'coverVinyl') {
+      for (let r = 10; r < 52; r += 6) {
+        ctx.strokeStyle = r === 28 ? pal[0] : '#52525b'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else if (id === 'coverNeon') {
+      ctx.strokeStyle = '#00f0ff'; ctx.lineWidth = 1.5; ctx.strokeRect(18, 16, 62, 62);
+      ctx.strokeStyle = '#ff2d95'; ctx.beginPath(); ctx.arc(118, 56, 26, 0, Math.PI * 2); ctx.stroke();
+    } else if (id === 'coverPixelCrt') {
+      ctx.fillStyle = pal[0];
+      for (let y = 4; y < h; y += 5) { ctx.globalAlpha = 0.45; ctx.fillRect(0, y, w, 2); }
+    } else if (id === 'coverPixelWarp') {
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * Math.PI * 2;
+        ctx.strokeStyle = pal[i % 2]; ctx.lineWidth = 1.6; ctx.globalAlpha = 0.75;
+        ctx.beginPath();
+        ctx.moveTo(w / 2 + Math.cos(a) * 12, h / 2 + Math.sin(a) * 10);
+        ctx.lineTo(w / 2 + Math.cos(a) * 65, h / 2 + Math.sin(a) * 50);
+        ctx.stroke();
+      }
+    } else if (id === 'coverPixelTiles' || id === 'coverPixelShuffle') {
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 6; c++) {
+          ctx.fillStyle = pal[(r + c) % 3]; ctx.globalAlpha = 0.55;
+          ctx.fillRect(10 + c * 26, 10 + r * 23, id === 'coverPixelTiles' ? 18 : 21, 18);
+        }
+      }
+    } else if (id === 'coverPixelRain') {
+      for (let i = 0; i < 16; i++) {
+        ctx.fillStyle = pal[i % 2]; ctx.globalAlpha = 0.78;
+        ctx.fillRect(10 + i * 10, (i * 17) % 60 + 8, 3, 24);
+      }
+    } else if (id === 'coverPixelSkyline') {
+      for (let i = 0; i < 14; i++) {
+        const bh = 18 + ((i * 23) % 58);
+        ctx.fillStyle = pal[i % 3]; ctx.globalAlpha = 0.85;
+        ctx.fillRect(6 + i * 11.5, h - bh, 8, bh);
+      }
+    } else if (id === 'coverParticles') {
+      for (let i = 0; i < 28; i++) {
+        const a = i * 0.45, r = 22 + (i % 4) * 7;
+        ctx.fillStyle = pal[i % 2]; ctx.globalAlpha = 0.82;
+        ctx.beginPath(); ctx.arc(w / 2 + Math.cos(a) * r, h / 2 + Math.sin(a) * r, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (id === 'particleSea') {
+      for (let r = 0; r < 5; r++) {
+        for (let c = 0; c < 12; c++) {
+          const x = 10 + c * 14, y = 48 + r * 10 + Math.sin(c * 0.6 + r) * 6;
+          ctx.fillStyle = pal[(r + c) % 2]; ctx.globalAlpha = 0.78;
+          ctx.beginPath(); ctx.arc(x, y, 2, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function createGalleryThumbCard(item, isActive, previewPrefix, onClick) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `gallery-thumb-card${isActive ? ' active' : ''}`;
+    const label = getLocalizedPresetName(item);
+    card.title = `${label} (${item.en})`;
+
+    const preview = document.createElement('div');
+    preview.className = 'gallery-thumb-preview';
+    preview.style.background = item.bg;
+
+    if (previewPrefix === 'style') {
+      const img = document.createElement('img');
+      img.className = 'gallery-thumb-img';
+      img.loading = 'lazy';
+      img.alt = label;
+      const safeId = String(item.id || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      img.src = `previews/style_${safeId}.png`;
+      img.onerror = () => {
+        img.remove();
+      };
+      preview.appendChild(img);
+    } else {
+      const cvs = document.createElement('canvas');
+      cvs.className = 'gallery-thumb-img';
+      renderBgPreviewCanvas(cvs, item);
+      preview.appendChild(cvs);
+    }
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'gallery-thumb-name';
+    nameEl.textContent = label;
+
+    card.appendChild(preview);
+    card.appendChild(nameEl);
+    card.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClick();
+    });
+    return card;
+  }
+
+  function renderStyleGallery() {
+    const activeStyle = state.settings.furinaPlayerPageStyle || 'none';
+    const activeLayout = state.settings.slideLayout || 'ppt-vinyl';
+    const activeBg = state.settings.furinaPlayerBgMode || 'default';
+
+    if (els.galleryCurrentCombo) {
+      els.galleryCurrentCombo.innerHTML = '';
+      const curStyleItem = FURINAPLAYER_PAGE_STYLES.find(s =>
+        activeStyle === 'none' ? s.id === `none:${activeLayout}` : s.furinaPlayerId === activeStyle
+      ) || FURINAPLAYER_PAGE_STYLES[0];
+      const curBgItem = FURINAPLAYER_BG_MODES.find(b => b.id === activeBg) || FURINAPLAYER_BG_MODES[0];
+
+      const comboCard = createGalleryThumbCard(curStyleItem, true, 'style', () => {});
+      const meta = document.createElement('div');
+      meta.className = 'gallery-current-meta';
+      const strong = document.createElement('strong');
+      strong.textContent = `${getLocalizedPresetName(curStyleItem)} · ${getLocalizedPresetName(curBgItem)}`;
+      const span = document.createElement('span');
+      span.textContent = `${curStyleItem.en} / ${curBgItem.en}`;
+      meta.appendChild(strong);
+      meta.appendChild(span);
+      els.galleryCurrentCombo.appendChild(comboCard);
+      els.galleryCurrentCombo.appendChild(meta);
+    }
+
+    if (els.galleryPageStylesGrid) {
+      els.galleryPageStylesGrid.innerHTML = '';
+      FURINAPLAYER_PAGE_STYLES.forEach(item => {
+        const isActive = activeStyle === 'none'
+          ? item.id === `none:${activeLayout}`
+          : item.furinaPlayerId === activeStyle;
+        els.galleryPageStylesGrid.appendChild(
+          createGalleryThumbCard(item, isActive, 'style', () => setFurinaPlayerPageStyle(item.id, true, true))
+        );
+      });
+    }
+
+    if (els.galleryBgModesGrid) {
+      els.galleryBgModesGrid.innerHTML = '';
+      FURINAPLAYER_BG_MODES.forEach(item => {
+        const isActive = item.id === activeBg;
+        els.galleryBgModesGrid.appendChild(
+          createGalleryThumbCard(item, isActive, 'bg', () => setFurinaPlayerBgMode(item.id, true, true))
+        );
+      });
+    }
   }
 
   // --- Track Metadata & Cover Art ---
@@ -1481,20 +2421,20 @@
     // Cover art application: upgrade to high-resolution large (768x768) and deduplicate by trackId
     let coverSource = track.coverUrl || track.coverThumb;
     if (coverSource && typeof coverSource === 'string') {
-      coverSource = coverSource.replace('echo-cover://thumb/', 'echo-cover://large/').replace('echo-cover://album/', 'echo-cover://large/');
+      coverSource = coverSource.replace('furinaplayer-cover://thumb/', 'furinaplayer-cover://large/').replace('furinaplayer-cover://album/', 'furinaplayer-cover://large/');
     }
     const needCoverForTrack = isNewTrack || !state.currentCoverUrl || (track.id && lastCoverTrackId !== track.id);
     if (needCoverForTrack) {
       if (coverSource) {
         applyCoverArt(coverSource, track.id);
       } else if (isNewTrack) {
-        sendModBridge('echo:powerpoint:getCover', { trackId: track.id });
+        sendModBridge('furinaplayer:powerpoint:getCover', { trackId: track.id });
       }
     }
 
     // Request lyrics ONLY when track actually changes to eliminate pause-flicker
     if (isNewTrack) {
-      sendModBridge('echo:powerpoint:getLyrics', { trackId: track.id });
+      sendModBridge('furinaplayer:powerpoint:getLyrics', { trackId: track.id });
       requestFullQueue();
     }
 
@@ -1523,8 +2463,8 @@
     if (url.startsWith('data:image/webp;base64,') && url.length < 12000 && state.currentCoverUrl) {
       return;
     }
-    if (url.includes('echo-cover://thumb/') || url.includes('echo-cover://album/')) {
-      url = url.replace('echo-cover://thumb/', 'echo-cover://large/').replace('echo-cover://album/', 'echo-cover://large/');
+    if (url.includes('furinaplayer-cover://thumb/') || url.includes('furinaplayer-cover://album/')) {
+      url = url.replace('furinaplayer-cover://thumb/', 'furinaplayer-cover://large/').replace('furinaplayer-cover://album/', 'furinaplayer-cover://large/');
     }
 
     const effTrackId = trackId || state.currentTrack?.id || null;
@@ -1533,7 +2473,7 @@
       if (effTrackId) lastCoverTrackId = effTrackId;
       return;
     }
-    // If we already loaded a verified high-res cover for this exact trackId, do not swap between echo-cover://large and data:image/jpeg on state ticks
+    // If we already loaded a verified high-res cover for this exact trackId, do not swap between furinaplayer-cover://large and data:image/jpeg on state ticks
     if (effTrackId && effTrackId === lastCoverTrackId && state.currentCoverUrl && els.coverImg && els.coverImg.naturalWidth >= 256) {
       return;
     }
@@ -1954,7 +2894,7 @@
           row.addEventListener('click', () => {
             const targetSec = (line.timeMs || 0) / 1000;
             sendHostCommand('seek', { positionSeconds: targetSec });
-            sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
+            sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
           });
           els.lyricsLinesList.appendChild(row);
         });
@@ -1980,7 +2920,7 @@
           row.addEventListener('click', () => {
             const targetSec = (line.timeMs || 0) / 1000;
             sendHostCommand('seek', { positionSeconds: targetSec });
-            sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
+            sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
           });
           els.neLyricsLines.appendChild(row);
         });
@@ -2006,7 +2946,7 @@
           row.addEventListener('click', () => {
             const targetSec = (line.timeMs || 0) / 1000;
             sendHostCommand('seek', { positionSeconds: targetSec });
-            sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
+            sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: targetSec });
           });
           els.amLyricsLines.appendChild(row);
         });
@@ -2105,7 +3045,7 @@
     const now = Date.now();
     if (!force && now - lastQueueFetchAt < 1200) return;
     lastQueueFetchAt = now;
-    sendModBridge('echo:powerpoint:getQueue');
+    sendModBridge('furinaplayer:powerpoint:getQueue');
     requestHostCommand('queue:get', {}).then((res) => {
       const q = res?.result || res?.data || res;
       if (q && Array.isArray(q.items) && q.items.length > 0) {
@@ -2245,12 +3185,12 @@
     card.className = 'slide-card';
 
     let rawCover = item?.coverUrl || item?.rawCoverUrl || item?.coverThumb || tr?.coverUrl || tr?.coverThumb || '';
-    if (typeof rawCover === 'string' && rawCover.includes('echo-cover://thumb/')) {
-      rawCover = rawCover.replace('echo-cover://thumb/', 'echo-cover://album/');
+    if (typeof rawCover === 'string' && rawCover.includes('furinaplayer-cover://thumb/')) {
+      rawCover = rawCover.replace('furinaplayer-cover://thumb/', 'furinaplayer-cover://album/');
     }
     let coverSrc = (trackId ? queueCoverCache.get(trackId) : '') || (queueId ? queueCoverCache.get(queueId) : '') || (rawCover ? queueCoverCache.get(rawCover) : '') || '';
     if (!coverSrc) {
-      if (rawCover.startsWith('data:') || rawCover.startsWith('echo-cover:')) {
+      if (rawCover.startsWith('data:') || rawCover.startsWith('furinaplayer-cover:')) {
         coverSrc = rawCover;
       } else if (isActive && state.currentCoverUrl && (trackId && (state.currentTrack?.id === trackId || state.playback?.currentTrackId === trackId))) {
         coverSrc = state.currentCoverUrl;
@@ -2271,7 +3211,7 @@
 
       // Request host bridge to resolve remote streaming cover into CSP-allowed dataUrl
       if (rawCover && (rawCover.startsWith('http://') || rawCover.startsWith('https://'))) {
-        sendModBridge('echo:powerpoint:requestCover', {
+        sendModBridge('furinaplayer:powerpoint:requestCover', {
           trackId,
           queueId,
           url: rawCover,
@@ -2322,7 +3262,7 @@
       } else if (trackId) {
         sendHostCommand('queue:playTrack', { trackId });
       }
-      sendModBridge('echo:powerpoint:playTrack', { trackId, queueId });
+      sendModBridge('furinaplayer:powerpoint:playTrack', { trackId, queueId });
     });
 
     return wrap;
@@ -2410,7 +3350,7 @@
     }
 
     try {
-      sendModBridge('echo:powerpoint:copyText', { text });
+      sendModBridge('furinaplayer:powerpoint:copyText', { text });
     } catch {}
 
     if (successToastMsg) {
@@ -2476,7 +3416,7 @@
       renderSearchResults(matched, query);
 
       // Trigger Host Full Library Search Bridge
-      sendModBridge('echo:powerpoint:searchTracks', { query });
+      sendModBridge('furinaplayer:powerpoint:searchTracks', { query });
     }
 
     function mergeGlobalSearchResults(globalTracks, query) {
@@ -2569,7 +3509,7 @@
           } else if (trackId) {
             sendHostCommand('queue:playTrack', { trackId });
           }
-          sendModBridge('echo:powerpoint:playTrack', { trackId, queueId });
+          sendModBridge('furinaplayer:powerpoint:playTrack', { trackId, queueId });
           els.searchDropdown.hidden = true;
           showToast(`${t('nowPlaying') || '正在播放'}: ${item.title || item.track?.title || ''}`);
         });
@@ -2626,23 +3566,266 @@
     });
   }
 
-  // --- Fullscreen Slideshow (F5) ---
+  // --- Fullscreen Slideshow (F5) & Presenter Tools ---
+  const slideshowToolState = {
+    tool: 'cursor', // 'cursor' | 'laser' | 'pen' | 'highlighter'
+    color: '#ef4444',
+    drawing: false,
+    lastX: 0,
+    lastY: 0,
+    curtainMode: null, // null | 'black' | 'white'
+    savedZoomPercent: 100
+  };
+
+  function closeSlideshowPopovers() {
+    if (els.slideshowPenMenu) els.slideshowPenMenu.hidden = true;
+    if (els.slideshowHelpPopover) els.slideshowHelpPopover.hidden = true;
+    document.body.classList.remove('hud-pinned');
+  }
+
+  function syncInkCanvasResolution() {
+    const canvas = els.slideshowInkCanvas;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      if (canvas.width !== Math.round(rect.width) || canvas.height !== Math.round(rect.height)) {
+        canvas.width = Math.round(rect.width);
+        canvas.height = Math.round(rect.height);
+      }
+    }
+  }
+
+  function clearSlideshowInk() {
+    const canvas = els.slideshowInkCanvas;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    showToast('已清除全部幻灯片墨迹');
+  }
+
+  function setSlideshowTool(nextTool) {
+    slideshowToolState.tool = nextTool;
+    document.body.classList.toggle('ink-drawing-active', nextTool === 'pen' || nextTool === 'highlighter');
+    document.body.classList.toggle('laser-active', nextTool === 'laser');
+    if (els.slideshowLaserDot) {
+      els.slideshowLaserDot.hidden = nextTool !== 'laser';
+    }
+    if (els.btnHudPen) {
+      els.btnHudPen.classList.toggle('active', nextTool !== 'cursor');
+    }
+    if (els.slideshowPenMenu) {
+      els.slideshowPenMenu.querySelectorAll('.pen-menu-item[data-tool]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tool') === nextTool);
+      });
+    }
+    if (nextTool === 'pen' || nextTool === 'highlighter') {
+      syncInkCanvasResolution();
+    }
+    const labels = { cursor: '正常指针', laser: '激光笔 (Ctrl+L)', pen: '钢笔标注 (Ctrl+P)', highlighter: '荧光笔 (Ctrl+H)' };
+    if (document.body.classList.contains('slideshow-mode')) {
+      showToast(`已切换：${labels[nextTool] || nextTool}`);
+    }
+  }
+
+  function toggleCurtain(mode) {
+    if (!els.slideshowScreenCurtain) return;
+    if (slideshowToolState.curtainMode === mode) {
+      slideshowToolState.curtainMode = null;
+      els.slideshowScreenCurtain.hidden = true;
+      els.slideshowScreenCurtain.classList.remove('white-curtain');
+    } else {
+      slideshowToolState.curtainMode = mode;
+      els.slideshowScreenCurtain.classList.toggle('white-curtain', mode === 'white');
+      els.slideshowScreenCurtain.hidden = false;
+    }
+  }
+
+  function renderSlideshowGrid() {
+    if (!els.slideshowGridCards) return;
+    const items = Array.isArray(state.queue?.items) ? state.queue.items : [];
+    const activeIdx = state.queue?.currentIndex ?? -1;
+    els.slideshowGridCards.innerHTML = '';
+    items.forEach((item, idx) => {
+      const tr = (item && item.track && typeof item.track === 'object') ? item.track : (item || {});
+      const trackId = item?.id || tr?.id || null;
+      const queueId = item?.queueId || tr?.queueId || null;
+
+      const card = document.createElement('div');
+      card.className = 'slideshow-grid-card' + (idx === activeIdx ? ' active' : '');
+      const thumb = document.createElement('div');
+      thumb.className = 'slideshow-grid-thumb';
+      const cover = (trackId ? queueCoverCache.get(trackId) : null) || tr.coverUrl || tr.artworkUrl || tr.cover || item.coverUrl;
+      if (cover) thumb.style.backgroundImage = `url("${cover}")`;
+      const num = document.createElement('span');
+      num.className = 'slideshow-grid-num';
+      num.textContent = `#${idx + 1}`;
+      thumb.appendChild(num);
+
+      const title = document.createElement('div');
+      title.className = 'slideshow-grid-title';
+      title.textContent = tr.title || '未知曲目';
+      const artist = document.createElement('div');
+      artist.className = 'slideshow-grid-artist';
+      artist.textContent = tr.artist || '—';
+
+      card.appendChild(thumb);
+      card.appendChild(title);
+      card.appendChild(artist);
+      card.addEventListener('click', () => {
+        sendHostCommand('playIndex', { index: idx, queueId });
+        sendModBridge('furinaplayer:powerpoint:command', { action: 'playIndex', index: idx, queueId });
+        toggleSlideshowGrid(false);
+      });
+      els.slideshowGridCards.appendChild(card);
+    });
+  }
+
+  function toggleSlideshowGrid(force) {
+    if (!els.slideshowGridOverlay) return;
+    const show = typeof force === 'boolean' ? force : els.slideshowGridOverlay.hidden;
+    if (show) {
+      closeSlideshowPopovers();
+      renderSlideshowGrid();
+      els.slideshowGridOverlay.hidden = false;
+    } else {
+      els.slideshowGridOverlay.hidden = true;
+    }
+  }
+
+  function toggleSlideshowHelp(force) {
+    if (!els.slideshowHelpPopover) return;
+    const show = typeof force === 'boolean' ? force : els.slideshowHelpPopover.hidden;
+    if (els.slideshowPenMenu) els.slideshowPenMenu.hidden = true;
+    els.slideshowHelpPopover.hidden = !show;
+    document.body.classList.toggle('hud-pinned', show);
+  }
+
+  function initSlideshowPresenterTools() {
+    const canvas = els.slideshowInkCanvas;
+    if (canvas) {
+      const getPos = (ev) => {
+        const rect = canvas.getBoundingClientRect();
+        return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+      };
+      canvas.addEventListener('pointerdown', (ev) => {
+        if (slideshowToolState.tool !== 'pen' && slideshowToolState.tool !== 'highlighter') return;
+        syncInkCanvasResolution();
+        slideshowToolState.drawing = true;
+        const p = getPos(ev);
+        slideshowToolState.lastX = p.x;
+        slideshowToolState.lastY = p.y;
+        canvas.setPointerCapture(ev.pointerId);
+      });
+      canvas.addEventListener('pointermove', (ev) => {
+        if (!slideshowToolState.drawing) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const p = getPos(ev);
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        if (slideshowToolState.tool === 'highlighter') {
+          ctx.globalAlpha = 0.36;
+          ctx.lineWidth = 18;
+        } else {
+          ctx.globalAlpha = 0.95;
+          ctx.lineWidth = 3.5;
+        }
+        ctx.strokeStyle = slideshowToolState.color;
+        ctx.beginPath();
+        ctx.moveTo(slideshowToolState.lastX, slideshowToolState.lastY);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        ctx.restore();
+        slideshowToolState.lastX = p.x;
+        slideshowToolState.lastY = p.y;
+      });
+      const endStroke = (ev) => {
+        if (!slideshowToolState.drawing) return;
+        slideshowToolState.drawing = false;
+        try { canvas.releasePointerCapture(ev.pointerId); } catch {}
+      };
+      canvas.addEventListener('pointerup', endStroke);
+      canvas.addEventListener('pointercancel', endStroke);
+    }
+
+    document.addEventListener('pointermove', (ev) => {
+      if (slideshowToolState.tool === 'laser' && els.slideshowLaserDot && document.body.classList.contains('slideshow-mode')) {
+        els.slideshowLaserDot.hidden = false;
+        els.slideshowLaserDot.style.left = `${ev.clientX}px`;
+        els.slideshowLaserDot.style.top = `${ev.clientY}px`;
+      }
+    });
+
+    if (els.slideshowScreenCurtain) {
+      els.slideshowScreenCurtain.addEventListener('click', () => {
+        slideshowToolState.curtainMode = null;
+        els.slideshowScreenCurtain.hidden = true;
+        els.slideshowScreenCurtain.classList.remove('white-curtain');
+      });
+    }
+
+    if (els.btnGridClose) {
+      els.btnGridClose.addEventListener('click', () => toggleSlideshowGrid(false));
+    }
+
+    if (els.slideshowPenMenu) {
+      els.slideshowPenMenu.querySelectorAll('.pen-menu-item[data-tool]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setSlideshowTool(btn.getAttribute('data-tool') || 'cursor');
+          closeSlideshowPopovers();
+        });
+      });
+      els.slideshowPenMenu.querySelectorAll('.pen-color-swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+          slideshowToolState.color = sw.getAttribute('data-color') || '#ef4444';
+          els.slideshowPenMenu.querySelectorAll('.pen-color-swatch').forEach(s => s.classList.remove('active'));
+          sw.classList.add('active');
+        });
+      });
+    }
+    if (els.btnHudClearInk) {
+      els.btnHudClearInk.addEventListener('click', () => {
+        clearSlideshowInk();
+        closeSlideshowPopovers();
+      });
+    }
+
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && document.body.classList.contains('slideshow-mode')) {
+        toggleSlideshow(false);
+      }
+    });
+  }
+
   function toggleSlideshow(force) {
     const isCurrentlySlideshow = document.body.classList.contains('slideshow-mode');
     const willBeSlideshow = (typeof force === 'boolean') ? force : !isCurrentlySlideshow;
 
     if (willBeSlideshow) {
+      slideshowToolState.savedZoomPercent = state.settings.zoomPercent || 100;
       document.body.classList.add('slideshow-mode');
-      sendModBridge('echo:powerpoint:toggleFullscreen', { fullscreen: true });
+      if (els.pptSlide) els.pptSlide.style.transform = 'none';
+      sendModBridge('furinaplayer:powerpoint:toggleFullscreen', { fullscreen: true });
       try {
         if (!document.fullscreenElement) {
           document.documentElement.requestFullscreen().catch(() => {});
         }
       } catch {}
-      showToast('已开启 PowerPoint 全屏放映模式 (按 Esc 退出)');
+      setTimeout(syncInkCanvasResolution, 80);
+      showToast('已开启 PowerPoint 幻灯片全屏放映 (Esc 退出 · F1 快捷键)');
     } else {
       document.body.classList.remove('slideshow-mode');
-      sendModBridge('echo:powerpoint:toggleFullscreen', { fullscreen: false });
+      closeSlideshowPopovers();
+      toggleSlideshowGrid(false);
+      if (els.slideshowScreenCurtain) {
+        slideshowToolState.curtainMode = null;
+        els.slideshowScreenCurtain.hidden = true;
+        els.slideshowScreenCurtain.classList.remove('white-curtain');
+      }
+      setSlideshowTool('cursor');
+      setZoom(slideshowToolState.savedZoomPercent || 100);
+      sendModBridge('furinaplayer:powerpoint:toggleFullscreen', { fullscreen: false });
       try {
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
@@ -2775,7 +3958,7 @@
   }
 
   function fetchPlaylistsAndLibrary(force = false) {
-    sendModBridge('echo:powerpoint:getPlaylists');
+    sendModBridge('furinaplayer:powerpoint:getPlaylists');
 
     // Parallel native Workshop UI Host protocol fallback so it never hangs even if mod.js is still loading
     Promise.all([
@@ -2807,7 +3990,7 @@
           title: a.title || a.name || '未知专辑',
           artist: a.artist || a.albumArtist || '未知艺术家',
           year: a.year || '',
-          coverThumb: a.coverThumb || a.coverUrl || (a.id ? `echo-cover://album/${a.id}` : ''),
+          coverThumb: a.coverThumb || a.coverUrl || (a.id ? `furinaplayer-cover://album/${a.id}` : ''),
           itemCount: a.trackCount ?? a.itemCount ?? a.count ?? 0
         }));
       }
@@ -2823,7 +4006,7 @@
             album: tObj.album || '—',
             albumId: tObj.albumId || '',
             durationSeconds: Number(tObj.durationSeconds ?? tObj.duration ?? 0) || 0,
-            coverThumb: tObj.coverThumb || tObj.coverUrl || (tObj.id ? `echo-cover://thumb/${tObj.id}` : '')
+            coverThumb: tObj.coverThumb || tObj.coverUrl || (tObj.id ? `furinaplayer-cover://thumb/${tObj.id}` : '')
           };
         });
       }
@@ -2935,7 +4118,7 @@
           if (ev.target.classList.contains('tree-mini-btn')) return;
           const isExp = node.classList.toggle('expanded');
           if (isExp && !state.albumCache.has(alb.id)) {
-            sendModBridge('echo:powerpoint:getAlbumTracks', { albumId: alb.id });
+            sendModBridge('furinaplayer:powerpoint:getAlbumTracks', { albumId: alb.id });
             requestHostCommand('library:listAlbumTracks', { albumId: alb.id, page: 1, pageSize: 100 }).then((res) => {
               const d = res?.result ?? res?.data ?? res;
               const arr = Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : (Array.isArray(d?.tracks) ? d.tracks : []));
@@ -2969,7 +4152,7 @@
             if (arr && arr.length) {
               playTrackList(arr);
             }
-            sendModBridge('echo:powerpoint:importAlbum', { albumId: alb.id, mode: 'replace' });
+            sendModBridge('furinaplayer:powerpoint:importAlbum', { albumId: alb.id, mode: 'replace' });
             setTimeout(() => requestFullQueue(true), 350);
             showToast(`${t('toastImporting') || '正在导入专辑并播放'}: ${alb.title}`);
           });
@@ -2991,7 +4174,7 @@
             if (arr && arr.length) {
               enqueueTrackList(arr);
             }
-            sendModBridge('echo:powerpoint:importAlbum', { albumId: alb.id, mode: 'append' });
+            sendModBridge('furinaplayer:powerpoint:importAlbum', { albumId: alb.id, mode: 'append' });
             setTimeout(() => requestFullQueue(true), 350);
             showToast(`${t('toastAppended') || '已追加至队列'}: ${alb.title}`);
           });
@@ -3038,7 +4221,7 @@
           if (ev.target.classList.contains('tree-mini-btn')) return;
           const isExp = node.classList.toggle('expanded');
           if (isExp && !state.playlistCache.has(pl.id)) {
-            sendModBridge('echo:powerpoint:getPlaylistItems', { playlistId: pl.id });
+            sendModBridge('furinaplayer:powerpoint:getPlaylistItems', { playlistId: pl.id });
             requestHostCommand('library:listPlaylistItems', { playlistId: pl.id, page: 1, pageSize: 100 }).then((res) => {
               const d = res?.result ?? res?.data ?? res;
               const arr = Array.isArray(d) ? d : (Array.isArray(d?.items) ? d.items : []);
@@ -3070,7 +4253,7 @@
             if (arr && arr.length) {
               playTrackList(arr);
             }
-            sendModBridge('echo:powerpoint:importPlaylist', { playlistId: pl.id, mode: 'replace' });
+            sendModBridge('furinaplayer:powerpoint:importPlaylist', { playlistId: pl.id, mode: 'replace' });
             setTimeout(() => requestFullQueue(true), 350);
             showToast(`${t('toastImporting') || '正在导入歌单并播放'}: ${pl.name}`);
           });
@@ -3092,7 +4275,7 @@
             if (arr && arr.length) {
               enqueueTrackList(arr);
             }
-            sendModBridge('echo:powerpoint:importPlaylist', { playlistId: pl.id, mode: 'append' });
+            sendModBridge('furinaplayer:powerpoint:importPlaylist', { playlistId: pl.id, mode: 'append' });
             setTimeout(() => requestFullQueue(true), 350);
             showToast(`${t('toastAppended') || '已追加至队列'}: ${pl.name}`);
           });
@@ -3151,7 +4334,7 @@
       row.addEventListener('click', () => {
         if (trackId) {
           sendHostCommand('queue:playTrack', { trackId });
-          sendModBridge('echo:powerpoint:playTrack', { trackId });
+          sendModBridge('furinaplayer:powerpoint:playTrack', { trackId });
         }
         setTimeout(() => requestFullQueue(true), 300);
         showToast(`${t('nowPlaying') || '正在播放'}: ${title}`);
@@ -3236,7 +4419,7 @@
       const jsonStr = JSON.stringify(settings);
       safeStorageSet(LYRICS_FONT_STORAGE_KEY, jsonStr);
       sendHostCommand('storage:set', { key: LYRICS_FONT_STORAGE_KEY, value: jsonStr });
-      sendModBridge('echo:powerpoint:saveLyricsFont', { fontSettings: settings });
+      sendModBridge('furinaplayer:powerpoint:saveLyricsFont', { fontSettings: settings });
       savePresetSettings();
     } catch {}
   }
@@ -3356,7 +4539,20 @@
     if (els.btnHudPrev) els.btnHudPrev.addEventListener('click', () => handlePrev());
     if (els.btnHudPlay) els.btnHudPlay.addEventListener('click', () => handlePlayPause());
     if (els.btnHudNext) els.btnHudNext.addEventListener('click', () => handleNext());
+    if (els.btnHudPen) {
+      els.btnHudPen.addEventListener('click', () => {
+        if (!els.slideshowPenMenu) return;
+        const show = els.slideshowPenMenu.hidden;
+        closeSlideshowPopovers();
+        els.slideshowPenMenu.hidden = !show;
+        document.body.classList.toggle('hud-pinned', show);
+      });
+    }
+    if (els.btnHudGrid) els.btnHudGrid.addEventListener('click', () => toggleSlideshowGrid());
+    if (els.btnHudBlack) els.btnHudBlack.addEventListener('click', () => toggleCurtain('black'));
+    if (els.btnHudMore) els.btnHudMore.addEventListener('click', () => toggleSlideshowHelp());
     if (els.btnHudExit) els.btnHudExit.addEventListener('click', () => toggleSlideshow(false));
+    initSlideshowPresenterTools();
 
     // 3. Home Panel Controls
     if (els.btnCopyTitle) {
@@ -3377,7 +4573,7 @@
     if (els.btnResetLayout) {
       els.btnResetLayout.addEventListener('click', () => {
         safeStorageRemove(LYRICS_FONT_STORAGE_KEY);
-        sendModBridge('echo:powerpoint:saveLyricsFont', { fontSettings: null });
+        sendModBridge('furinaplayer:powerpoint:saveLyricsFont', { fontSettings: null });
         savePresetSettings();
         if (els.selLyricsSize) els.selLyricsSize.value = 24;
         document.documentElement.style.setProperty('--lyrics-font-size', '24px');
@@ -3623,14 +4819,14 @@
     }
     if (els.btnEditRescan) {
       els.btnEditRescan.addEventListener('click', () => {
-        sendModBridge('echo:powerpoint:getAudioStatus');
-        sendModBridge('echo:powerpoint:getQueue');
+        sendModBridge('furinaplayer:powerpoint:getAudioStatus');
+        sendModBridge('furinaplayer:powerpoint:getQueue');
         showToast('已重新扫描流媒体与音频参数');
       });
     }
     if (els.btnEditClearLyrics) {
       els.btnEditClearLyrics.addEventListener('click', () => {
-        sendModBridge('echo:powerpoint:getLyrics', { trackId: state.currentTrack?.id });
+        sendModBridge('furinaplayer:powerpoint:getLyrics', { trackId: state.currentTrack?.id });
         showToast('正在重新获取流媒体歌词...');
       });
     }
@@ -3657,7 +4853,7 @@
       state.playback.positionSeconds = target;
       lastPosSec = target;
       updateClock(target, dur);
-      sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: target });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: target });
       sendHostCommand('seek', { time: target, positionSeconds: target });
       showToast(`${delta > 0 ? '+' : ''}${delta}s -> ${formatSeconds(target)}`);
     }
@@ -3672,7 +4868,7 @@
         state.playback.positionSeconds = 0;
         lastPosSec = 0;
         updateClock(0, state.playback.durationSeconds);
-        sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: 0 });
+        sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: 0 });
         sendHostCommand('seek', { time: 0, positionSeconds: 0 });
         showToast('00:00');
       });
@@ -3683,7 +4879,7 @@
         const target = Math.max(0, dur - 5);
         state.playback.positionSeconds = target;
         updateClock(target, dur);
-        sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: target });
+        sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: target });
         sendHostCommand('seek', { time: target, positionSeconds: target });
         showToast(formatSeconds(target));
       });
@@ -3696,15 +4892,15 @@
     // 7. Effects Panel Controls (VST3 Rack & Plugin Manager)
     if (els.btnFxVstRack) {
       els.btnFxVstRack.addEventListener('click', () => {
-        sendModBridge('echo:powerpoint:toggleVstRack');
-        try { window.parent.postMessage({ type: 'echo:vst3:toggleRack' }, '*'); } catch (e) {}
+        sendModBridge('furinaplayer:powerpoint:toggleVstRack');
+        try { window.parent.postMessage({ type: 'furinaplayer:vst3:toggleRack' }, '*'); } catch (e) {}
         showToast(t('toastVstRack') || '已唤起 VST3 效果机架');
       });
     }
     if (els.btnFxVstMgr) {
       els.btnFxVstMgr.addEventListener('click', () => {
-        sendModBridge('echo:powerpoint:openVstManager');
-        try { window.parent.postMessage({ type: 'echo:vst3:openPluginManager' }, '*'); } catch (e) {}
+        sendModBridge('furinaplayer:powerpoint:openVstManager');
+        try { window.parent.postMessage({ type: 'furinaplayer:vst3:openPluginManager' }, '*'); } catch (e) {}
         showToast(t('toastVstMgr') || '正在打开 VST3 插件管理器...');
       });
     }
@@ -3786,7 +4982,7 @@
     // 9. Transport Controls (Ribbon + Bottom Player Bar)
     const handlePlayPause = () => {
       sendHostCommand('playPause');
-      sendModBridge('echo:powerpoint:command', { action: 'playPause' });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'playPause' });
     };
     if (els.btnTPlay) els.btnTPlay.addEventListener('click', handlePlayPause);
     if (els.btnTransPlaypause) els.btnTransPlaypause.addEventListener('click', handlePlayPause);
@@ -3802,7 +4998,7 @@
       const now = Date.now();
       if (now - lastNavTime < 220) return;
       lastNavTime = now;
-      sendModBridge('echo:powerpoint:command', { action: 'previous' });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'previous' });
       sendHostCommand('previous');
     };
     if (els.btnTPrev) els.btnTPrev.addEventListener('click', handlePrev);
@@ -3812,7 +5008,7 @@
       const now = Date.now();
       if (now - lastNavTime < 220) return;
       lastNavTime = now;
-      sendModBridge('echo:powerpoint:command', { action: 'next' });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'next' });
       sendHostCommand('next');
     };
     if (els.btnTNext) els.btnTNext.addEventListener('click', handleNext);
@@ -3820,14 +5016,14 @@
 
     const handleCycleRepeat = () => {
       sendHostCommand('cycleRepeat');
-      sendModBridge('echo:powerpoint:command', { action: 'cycleRepeat' });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'cycleRepeat' });
     };
     if (els.btnTRepeat) els.btnTRepeat.addEventListener('click', handleCycleRepeat);
     if (els.btnTransCycleRepeat) els.btnTransCycleRepeat.addEventListener('click', handleCycleRepeat);
 
     const handleToggleShuffle = () => {
       sendHostCommand('toggleShuffle');
-      sendModBridge('echo:powerpoint:command', { action: 'toggleShuffle' });
+      sendModBridge('furinaplayer:powerpoint:command', { action: 'toggleShuffle' });
     };
     if (els.btnTShuffle) els.btnTShuffle.addEventListener('click', handleToggleShuffle);
     if (els.btnTransToggleShuffle) els.btnTransToggleShuffle.addEventListener('click', handleToggleShuffle);
@@ -3848,7 +5044,7 @@
         const dur = state.playback.durationSeconds || 0;
         const cur = (val / 1000) * dur;
         sendHostCommand('seek', { positionSeconds: cur });
-        sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: cur });
+        sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: cur });
       });
     }
 
@@ -3998,9 +5194,50 @@
     }
 
     // 11. Slide Layout Selection (PowerPoint Classic, NetEase, Apple Music)
-    if (els.btnLayoutPptVinyl) els.btnLayoutPptVinyl.addEventListener('click', () => setSlideLayout('ppt-vinyl'));
-    if (els.btnLayoutNetease) els.btnLayoutNetease.addEventListener('click', () => setSlideLayout('netease'));
-    if (els.btnLayoutAppleMusic) els.btnLayoutAppleMusic.addEventListener('click', () => setSlideLayout('applemusic'));
+    if (els.btnLayoutPptVinyl) els.btnLayoutPptVinyl.addEventListener('click', () => { setFurinaPlayerPageStyle('none', false, true); setSlideLayout('ppt-vinyl'); });
+    if (els.btnLayoutNetease) els.btnLayoutNetease.addEventListener('click', () => { setFurinaPlayerPageStyle('none', false, true); setSlideLayout('netease'); });
+    if (els.btnLayoutAppleMusic) els.btnLayoutAppleMusic.addEventListener('click', () => { setFurinaPlayerPageStyle('none', false, true); setSlideLayout('applemusic'); });
+
+    // 11b. FurinaPlayer Style & Background Gallery Popover
+    function positionStyleGalleryPopover() {
+      if (!els.btnStyleGalleryMore || !els.pptStyleGalleryPopover) return;
+      const rect = els.btnStyleGalleryMore.getBoundingClientRect();
+      const popW = Math.min(640, Math.round(window.innerWidth * 0.86));
+      const left = Math.max(8, Math.min(rect.left - 180, window.innerWidth - popW - 8));
+      const top = Math.max(40, Math.round(rect.bottom + 6));
+      els.pptStyleGalleryPopover.style.left = `${left}px`;
+      els.pptStyleGalleryPopover.style.top = `${top}px`;
+    }
+
+    if (els.btnStyleGalleryMore && els.pptStyleGalleryPopover) {
+      els.btnStyleGalleryMore.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !els.pptStyleGalleryPopover.hidden;
+        els.pptStyleGalleryPopover.hidden = isOpen;
+        els.btnStyleGalleryMore.classList.toggle('open', !isOpen);
+        if (!isOpen) {
+          renderStyleGallery();
+          positionStyleGalleryPopover();
+        }
+      });
+      window.addEventListener('resize', () => {
+        if (!els.pptStyleGalleryPopover.hidden) positionStyleGalleryPopover();
+      });
+      document.addEventListener('click', (e) => {
+        if (!els.pptStyleGalleryPopover.hidden &&
+            !els.pptStyleGalleryPopover.contains(e.target) &&
+            !els.btnStyleGalleryMore.contains(e.target)) {
+          els.pptStyleGalleryPopover.hidden = true;
+          els.btnStyleGalleryMore.classList.remove('open');
+        }
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !els.pptStyleGalleryPopover.hidden) {
+          els.pptStyleGalleryPopover.hidden = true;
+          els.btnStyleGalleryMore.classList.remove('open');
+        }
+      });
+    }
 
     // Apple Music Controls
     if (els.amBtnPlay) els.amBtnPlay.addEventListener('click', handlePlayPause);
@@ -4027,7 +5264,7 @@
         const dur = state.playback.durationSeconds || 0;
         const cur = (val / 1000) * dur;
         sendHostCommand('seek', { positionSeconds: cur });
-        sendModBridge('echo:powerpoint:command', { action: 'seek', positionSeconds: cur });
+        sendModBridge('furinaplayer:powerpoint:command', { action: 'seek', positionSeconds: cur });
       });
     }
 
@@ -4088,23 +5325,96 @@
       }
 
       // If typing in input, ignore playback keys
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable) {
         return;
       }
 
+      const inSlideshow = document.body.classList.contains('slideshow-mode');
+
       if (e.code === 'Escape') {
-        if (document.body.classList.contains('slideshow-mode')) {
+        if (inSlideshow) {
           e.preventDefault();
-          toggleSlideshow(false);
+          if (els.slideshowHelpPopover && !els.slideshowHelpPopover.hidden) {
+            toggleSlideshowHelp(false);
+          } else if (els.slideshowPenMenu && !els.slideshowPenMenu.hidden) {
+            closeSlideshowPopovers();
+          } else if (els.slideshowGridOverlay && !els.slideshowGridOverlay.hidden) {
+            toggleSlideshowGrid(false);
+          } else if (slideshowToolState.curtainMode) {
+            toggleCurtain(slideshowToolState.curtainMode);
+          } else {
+            toggleSlideshow(false);
+          }
           return;
         }
-      } else if (e.code === 'Space') {
-        e.preventDefault();
-        handlePlayPause();
       } else if (e.code === 'F5') {
         e.preventDefault();
         toggleSlideshow();
-      } else if (e.code === 'KeyP') {
+        return;
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!e.repeat) handlePlayPause();
+        return;
+      }
+
+      if (inSlideshow) {
+        if (e.ctrlKey && e.code === 'KeyL') {
+          e.preventDefault();
+          setSlideshowTool(slideshowToolState.tool === 'laser' ? 'cursor' : 'laser');
+          return;
+        } else if (e.ctrlKey && e.code === 'KeyP') {
+          e.preventDefault();
+          setSlideshowTool(slideshowToolState.tool === 'pen' ? 'cursor' : 'pen');
+          return;
+        } else if (e.ctrlKey && e.code === 'KeyH') {
+          e.preventDefault();
+          setSlideshowTool(slideshowToolState.tool === 'highlighter' ? 'cursor' : 'highlighter');
+          return;
+        } else if (e.ctrlKey && e.code === 'KeyA') {
+          e.preventDefault();
+          setSlideshowTool('cursor');
+          return;
+        } else if (e.code === 'KeyE') {
+          e.preventDefault();
+          clearSlideshowInk();
+          return;
+        } else if (e.code === 'KeyB' || e.code === 'Period') {
+          e.preventDefault();
+          toggleCurtain('black');
+          return;
+        } else if (e.code === 'KeyW' || e.code === 'Comma') {
+          e.preventDefault();
+          toggleCurtain('white');
+          return;
+        } else if (e.code === 'KeyG') {
+          e.preventDefault();
+          toggleSlideshowGrid();
+          return;
+        } else if (e.code === 'F1' || (e.shiftKey && e.code === 'Slash')) {
+          e.preventDefault();
+          toggleSlideshowHelp();
+          return;
+        } else if (e.shiftKey && e.code === 'ArrowLeft') {
+          e.preventDefault();
+          if (els.btnClipRw5) els.btnClipRw5.click();
+          return;
+        } else if (e.shiftKey && e.code === 'ArrowRight') {
+          e.preventDefault();
+          if (els.btnClipFf5) els.btnClipFf5.click();
+          return;
+        } else if (e.code === 'ArrowRight' || e.code === 'ArrowDown' || e.code === 'PageDown' || e.code === 'Enter' || e.code === 'KeyN') {
+          e.preventDefault();
+          handleNext();
+          return;
+        } else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp' || e.code === 'PageUp' || e.code === 'Backspace' || e.code === 'KeyP') {
+          e.preventDefault();
+          handlePrev();
+          return;
+        }
+      }
+
+      if (e.code === 'KeyP') {
         e.preventDefault();
         if (els.btnEditResetPeak) els.btnEditResetPeak.click();
       } else if (e.code === 'ArrowLeft' && e.ctrlKey) {
@@ -4120,7 +5430,13 @@
         e.preventDefault();
         if (els.btnClipFf5) els.btnClipFf5.click();
       }
-    });
+    }, true);
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'SELECT' && !e.target.isContentEditable) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
   }
 
   // --- Message Protocol Dispatcher ---
@@ -4130,7 +5446,7 @@
       if (!msg || typeof msg !== 'object') return;
 
       switch (msg.type) {
-        case 'echo:workshop-ui:result': {
+        case 'furinaplayer:workshop-ui:result': {
           const reqId = msg.requestId;
           if (reqId && pendingHostRequests.has(reqId)) {
             const pending = pendingHostRequests.get(reqId);
@@ -4141,13 +5457,16 @@
           break;
         }
 
-        case 'echo:workshop-ui:init':
+        case 'furinaplayer:workshop-ui:init':
           if (!isPresetLoaded && msg.appearance?.tone && !state.settings.tone) {
             updateTheme(msg.appearance.tone, false);
           }
+          if (msg.language || msg.appearance?.language) {
+            setLanguage(msg.language || msg.appearance.language, false);
+          }
           break;
 
-        case 'echo:workshop-ui:state':
+        case 'furinaplayer:workshop-ui:state':
           if (msg.playback) updatePlaybackState(msg.playback);
           if (msg.queue && Array.isArray(msg.queue.items) && msg.queue.items.length > 0) {
             if (msg.queue.currentQueueId) state.queue.currentQueueId = msg.queue.currentQueueId;
@@ -4158,32 +5477,35 @@
           if (msg.currentTrack) updateTrackMetadata(msg.currentTrack);
           break;
 
-        case 'echo:workshop-ui:lyrics':
+        case 'furinaplayer:workshop-ui:lyrics':
           setLyricsData(msg.lyrics);
           break;
 
-        case 'echo:workshop-ui:clock':
+        case 'furinaplayer:workshop-ui:clock':
           updateClock(msg.positionSeconds, msg.durationSeconds);
           break;
 
-        case 'echo:workshop-ui:audio':
+        case 'furinaplayer:workshop-ui:audio':
           if (msg.levels) {
             updateAudioLevels(msg.levels.peakDb || -60, msg.levels.rmsDb || -60);
           }
           break;
 
-        case 'echo:workshop-ui:appearance':
+        case 'furinaplayer:workshop-ui:appearance':
           if (msg.appearance?.tone) updateTheme(msg.appearance.tone, false);
+          if (msg.language || msg.appearance?.language) {
+            setLanguage(msg.language || msg.appearance.language, false);
+          }
           break;
 
-        case 'echo:workshop-ui:ping':
+        case 'furinaplayer:workshop-ui:ping':
           try {
-            window.parent.postMessage({ type: 'echo:workshop-ui:pong', protocolVersion: 1 }, '*');
+            window.parent.postMessage({ type: 'furinaplayer:workshop-ui:pong', protocolVersion: 1 }, '*');
           } catch {}
           break;
 
-        // Mod Bridge Messages (strictly scoped to echo:powerpoint:* to prevent cross-mod cover/status pollution)
-        case 'echo:powerpoint:coverData':
+        // Mod Bridge Messages (strictly scoped to furinaplayer:powerpoint:* to prevent cross-mod cover/status pollution)
+        case 'furinaplayer:powerpoint:coverData':
           if (msg.coverDataUrl) {
             applyCoverArt(msg.coverDataUrl, msg.trackId || null);
             if (msg.trackId) {
@@ -4193,7 +5515,7 @@
           }
           break;
 
-        case 'echo:powerpoint:queueCoverItem':
+        case 'furinaplayer:powerpoint:queueCoverItem':
           if (msg.coverDataUrl) {
             if (msg.trackId) queueCoverCache.set(msg.trackId, msg.coverDataUrl);
             if (msg.queueId) queueCoverCache.set(msg.queueId, msg.coverDataUrl);
@@ -4202,25 +5524,25 @@
           }
           break;
 
-        case 'echo:powerpoint:lyricsData':
+        case 'furinaplayer:powerpoint:lyricsData':
           if (msg.lyrics) setLyricsData(msg.lyrics);
           break;
 
-        case 'echo:powerpoint:queueData':
+        case 'furinaplayer:powerpoint:queueData':
           if (Array.isArray(msg.items) && msg.items.length > 0) {
             updateQueueList(msg.items, false);
           }
           break;
 
-        case 'echo:powerpoint:audioStatus':
+        case 'furinaplayer:powerpoint:audioStatus':
           if (msg.status) updateAudioProperties(msg.status);
           break;
 
-        case 'echo:powerpoint:systemFonts':
+        case 'furinaplayer:powerpoint:systemFonts':
           if (Array.isArray(msg.fonts)) populateFontSelector(msg.fonts);
           break;
 
-        case 'echo:powerpoint:fullLibrary':
+        case 'furinaplayer:powerpoint:fullLibrary':
           if (Array.isArray(msg.tracks)) {
             state.libraryTracks = msg.tracks;
             if ((!state.albums || state.albums.length === 0) && msg.tracks.length > 0) {
@@ -4230,7 +5552,7 @@
           }
           break;
 
-        case 'echo:powerpoint:playlists':
+        case 'furinaplayer:powerpoint:playlists':
           if (Array.isArray(msg.playlists) && msg.playlists.length > 0) state.playlists = msg.playlists;
           if (Array.isArray(msg.folders) && msg.folders.length > 0) state.folders = msg.folders;
           if (Array.isArray(msg.albums) && msg.albums.length > 0) state.albums = msg.albums;
@@ -4241,7 +5563,7 @@
           renderPlaylistsTree();
           break;
 
-        case 'echo:powerpoint:playlistItems':
+        case 'furinaplayer:powerpoint:playlistItems':
           state.playlistCache.set(msg.playlistId, msg.items || []);
           if (els.modalPlaylistsTree) {
             const node = els.modalPlaylistsTree.querySelector(`.tree-node[data-playlist-id="${msg.playlistId}"]`);
@@ -4250,7 +5572,7 @@
           }
           break;
 
-        case 'echo:powerpoint:albumItems':
+        case 'furinaplayer:powerpoint:albumItems':
           state.albumCache.set(msg.albumId, msg.items || []);
           if (els.modalPlaylistsTree) {
             const node = els.modalPlaylistsTree.querySelector(`.tree-node[data-album-id="${msg.albumId}"]`);
@@ -4259,13 +5581,13 @@
           }
           break;
 
-        case 'echo:powerpoint:searchResults':
+        case 'furinaplayer:powerpoint:searchResults':
           if (Array.isArray(msg.tracks) && els.searchInput && els.searchInput.value.trim().toLowerCase() === (msg.query || '').trim().toLowerCase()) {
             mergeGlobalSearchResults(msg.tracks, msg.query);
           }
           break;
 
-        case 'echo:powerpoint:importTracksResult':
+        case 'furinaplayer:powerpoint:importTracksResult':
           if (Array.isArray(msg.tracks) && msg.tracks.length > 0) {
             if (msg.playlistId) state.playlistCache.set(msg.playlistId, msg.tracks);
             if (msg.albumId) state.albumCache.set(msg.albumId, msg.tracks);
@@ -4278,18 +5600,18 @@
           }
           break;
 
-        case 'echo:powerpoint:setLayout':
+        case 'furinaplayer:powerpoint:setLayout':
           if (msg.layout) setSlideLayout(msg.layout);
           break;
 
-        case 'echo:powerpoint:setRibbonTab':
+        case 'furinaplayer:powerpoint:setRibbonTab':
           if (msg.tab) {
             const tabEl = document.getElementById(msg.tab);
             if (tabEl) tabEl.click();
           }
           break;
 
-        case 'echo:powerpoint:presetData':
+        case 'furinaplayer:powerpoint:presetData':
           isPresetLoaded = true;
           if (msg.preset) {
             loadAndApplyPresetSettings(msg.preset);
@@ -4303,18 +5625,18 @@
 
     // Notify Host UI Runtime
     try {
-      window.parent.postMessage({ type: 'echo:workshop-ui:ready', protocolVersion: 1 }, '*');
+      window.parent.postMessage({ type: 'furinaplayer:workshop-ui:ready', protocolVersion: 1 }, '*');
     } catch {}
 
     // Request initial data from both Mod Bridge and Native Workshop UI Runtime
     setTimeout(() => {
-      sendModBridge('echo:powerpoint:getPreset');
-      sendModBridge('echo:powerpoint:getAudioStatus');
+      sendModBridge('furinaplayer:powerpoint:getPreset');
+      sendModBridge('furinaplayer:powerpoint:getAudioStatus');
       requestFullQueue(true);
-      sendModBridge('echo:powerpoint:getCover');
-      sendModBridge('echo:powerpoint:getLyrics');
-      sendModBridge('echo:powerpoint:getFullLibrary');
-      sendModBridge('echo:powerpoint:getSystemFonts');
+      sendModBridge('furinaplayer:powerpoint:getCover');
+      sendModBridge('furinaplayer:powerpoint:getLyrics');
+      sendModBridge('furinaplayer:powerpoint:getFullLibrary');
+      sendModBridge('furinaplayer:powerpoint:getSystemFonts');
       fetchPlaylistsAndLibrary(true);
     }, 200);
   }
@@ -4376,7 +5698,7 @@
     if (detected && detected.length > 0) {
       populateFontSelector(detected);
     }
-    sendModBridge('echo:powerpoint:getSystemFonts');
+    sendModBridge('furinaplayer:powerpoint:getSystemFonts');
     if (typeof window.queryLocalFonts === 'function') {
       window.queryLocalFonts().then(fonts => {
         const set = new Set(detected);
@@ -4464,6 +5786,8 @@
     // 1. Synchronous Cache Restore
     loadAndApplyPresetSettings();
     loadAndApplyLyricsFontSettings();
+    if (typeof renderStyleGallery === 'function') renderStyleGallery();
+    if (typeof updateFurinaPlayerPresetBadge === 'function') updateFurinaPlayerPresetBadge();
 
     // 2. Workshop Native Host Persistent Storage
     requestHostCommand('storage:get', { key: PRESET_SETTINGS_KEY }).then(res => {
@@ -4492,7 +5816,7 @@
     }).catch(() => {});
 
     // 3. Mod Bridge Redundant Restore
-    sendModBridge('echo:powerpoint:getPreset');
+    sendModBridge('furinaplayer:powerpoint:getPreset');
     setTimeout(() => { isPresetLoaded = true; }, 1200);
 
     // Default mock data when running standalone

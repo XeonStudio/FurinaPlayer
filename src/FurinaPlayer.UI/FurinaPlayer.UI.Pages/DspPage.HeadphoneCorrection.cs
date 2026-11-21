@@ -16,7 +16,8 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -152,7 +153,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "耳机校正",
+			Text = Loc.T("耳机校正"),
 			FontSize = 18,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
@@ -191,7 +192,7 @@ public sealed partial class DspPage
 		var searchSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		_hcSearchBox = new TextBox
 		{
-			PlaceholderText = "搜索品牌或型号,例如 HD 650",
+			PlaceholderText = Loc.T("搜索品牌或型号,例如 HD 650"),
 			Width = 270,
 			Height = 34,
 			CornerRadius = new CornerRadius(17),
@@ -218,7 +219,7 @@ public sealed partial class DspPage
 			Content = new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = DspTextMutedBrush }
 		};
 		_hcRefreshBtn = refreshBtn;
-		ToolTipService.SetToolTip(refreshBtn, "刷新库");
+		ToolTipService.SetToolTip(refreshBtn, Loc.T("刷新库"));
 		refreshBtn.Click += (s, e) =>
 		{
 			OpraDatabaseService.EnsureFullDatabaseLoaded();
@@ -235,8 +236,8 @@ public sealed partial class DspPage
 		// Master ToggleSwitch
 		_hcMasterSwitch = new ToggleSwitch
 		{
-			OffContent = "已关闭",
-			OnContent = "已开启",
+			OffContent = Loc.T("已关闭"),
+			OnContent = Loc.T("已开启"),
 			IsOn = _isCalibrationEnabled,
 			VerticalAlignment = VerticalAlignment.Center,
 			Margin = new Thickness(0, 0, 8, 0)
@@ -289,20 +290,20 @@ public sealed partial class DspPage
 		var bannerTextSp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
 		_hcBannerTitleTb = new TextBlock
 		{
-			Text = "未选择预设",
+			Text = Loc.T("未选择预设"),
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
 		};
 		_hcBannerSubtitleTb = new TextBlock
 		{
-			Text = "按生产商或型号浏览，找到合适的校正预设。",
+			Text = Loc.T("按生产商或型号浏览，找到合适的校正预设。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		};
 		_hcBannerStatsTb = new TextBlock
 		{
-			Text = "714 个品牌  6230 款耳机",
+			Text = Loc.F("{0} 个品牌  {1} 款耳机", 714, 6230),
 			FontSize = 11,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -317,12 +318,12 @@ public sealed partial class DspPage
 		// Right Breadcrumb Guide
 		var breadcrumbSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 
-		_btnBreadcrumbVendor = CreateBreadcrumbButton("\uE71D", "制造商", true);
+		_btnBreadcrumbVendor = CreateBreadcrumbButton("\uE71D", Loc.T("制造商"), true);
 		_btnBreadcrumbVendor.Click += (s, e) => ShowAllVendorsView();
 
 		_chevronBreadcrumb1 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = DspTextMutedBrush };
 
-		_btnBreadcrumbModel = CreateBreadcrumbButton("\uE7F5", "型号", false);
+		_btnBreadcrumbModel = CreateBreadcrumbButton("\uE7F5", Loc.T("型号"), false);
 		_btnBreadcrumbModel.Click += (s, e) =>
 		{
 			if (_currentVendor != null) ShowVendorModelsView(_currentVendor);
@@ -330,7 +331,7 @@ public sealed partial class DspPage
 
 		_chevronBreadcrumb2 = new FontIcon { Glyph = "\uE76C", FontSize = 9, Foreground = DspTextMutedBrush };
 
-		_btnBreadcrumbSource = CreateBreadcrumbButton("\uE995", "校正来源", false);
+		_btnBreadcrumbSource = CreateBreadcrumbButton("\uE995", Loc.T("校正来源"), false);
 
 		breadcrumbSp.Children.Add(_btnBreadcrumbVendor);
 		breadcrumbSp.Children.Add(_chevronBreadcrumb1);
@@ -354,13 +355,13 @@ public sealed partial class DspPage
 
 		var tabsLeftSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 
-		_btnTabCatalog = CreateCategoryTabButton("\uE71D", "所有生产商", true);
+		_btnTabCatalog = CreateCategoryTabButton("\uE71D", Loc.T("所有生产商"), true);
 		_btnTabCatalog.Click += (s, e) => SwitchTab("catalog");
 
-		_btnTabFavorites = CreateCategoryTabButton("\uE734", "收藏型号", false, out _tabFavoritesBadge, out _tabFavoritesCountTb);
+		_btnTabFavorites = CreateCategoryTabButton("\uE734", Loc.T("收藏型号"), false, out _tabFavoritesBadge, out _tabFavoritesCountTb);
 		_btnTabFavorites.Click += (s, e) => SwitchTab("favorites");
 
-		_btnTabRecent = CreateCategoryTabButton("\uE81C", "最近使用", false, out _tabRecentBadge, out _tabRecentCountTb);
+		_btnTabRecent = CreateCategoryTabButton("\uE81C", Loc.T("最近使用"), false, out _tabRecentBadge, out _tabRecentCountTb);
 		_btnTabRecent.Click += (s, e) => SwitchTab("recent");
 
 		tabsLeftSp.Children.Add(_btnTabCatalog);
@@ -439,7 +440,7 @@ public sealed partial class DspPage
 		var subHeaderSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(4, 2, 0, 4) };
 		subHeaderSp.Children.Add(new TextBlock
 		{
-			Text = "所有生产商",
+			Text = Loc.T("所有生产商"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -448,7 +449,7 @@ public sealed partial class DspPage
 		var (vCount, pCount, eqCount) = OpraDatabaseService.GetDatabaseStats();
 		subHeaderSp.Children.Add(new TextBlock
 		{
-			Text = $"{pCount} 款耳机 · {eqCount} 条曲线",
+			Text = Loc.F("{0} 款耳机 · {1} 条曲线", pCount, eqCount),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -560,7 +561,7 @@ public sealed partial class DspPage
 		// Count stats: e.g. "278 款 / 763 个预设"
 		sp.Children.Add(new TextBlock
 		{
-			Text = $"{vendor.ProductCount} 款 / {vendor.EqCount} 个预设",
+			Text = Loc.F("{0} 款 / {1} 个预设", vendor.ProductCount, vendor.EqCount),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextAlignment = TextAlignment.Center,
@@ -637,7 +638,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE72B", FontSize = 12, Foreground = DspTextPrimaryBrush },
-					new TextBlock { Text = "所有生产商", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush }
+					new TextBlock { Text = Loc.T("所有生产商"), FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush }
 				}
 			},
 			Padding = new Thickness(8, 4, 10, 4),
@@ -662,7 +663,7 @@ public sealed partial class DspPage
 		});
 		headerSp.Children.Add(new TextBlock
 		{
-			Text = $"{vendor.ProductCount} 款耳机 · {vendor.EqCount} 个校正预设",
+			Text = Loc.F("{0} 款耳机 · {1} 个校正预设", vendor.ProductCount, vendor.EqCount),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -676,8 +677,8 @@ public sealed partial class DspPage
 		colHeaders.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
 		colHeaders.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(60) });
 
-		colHeaders.Children.Add(new TextBlock { Text = "型号", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush });
-		var th2 = new TextBlock { Text = "可用曲线", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center };
+		colHeaders.Children.Add(new TextBlock { Text = Loc.T("型号"), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush });
+		var th2 = new TextBlock { Text = Loc.T("可用曲线"), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center };
 		Grid.SetColumn(th2, 1);
 		colHeaders.Children.Add(th2);
 
@@ -770,9 +771,9 @@ public sealed partial class DspPage
 		{
 			string subtypeCn = prod.Subtype switch
 			{
-				"in_ear" => "入耳式",
-				"over_the_ear" or "over_ear" => "头戴包耳式",
-				"on_ear" => "贴耳式",
+				"in_ear" => Loc.T("入耳式"),
+				"over_the_ear" or "over_ear" => Loc.T("头戴包耳式"),
+				"on_ear" => Loc.T("贴耳式"),
 				_ => prod.Subtype
 			};
 			labelSp.Children.Add(new TextBlock
@@ -796,7 +797,7 @@ public sealed partial class DspPage
 			VerticalAlignment = VerticalAlignment.Center,
 			Child = new TextBlock
 			{
-				Text = $"{prod.PresetCount} 个预设",
+				Text = Loc.F("{0} 个预设", prod.PresetCount),
 				FontSize = 10,
 				Foreground = DspTextSubHeaderBrush
 			}
@@ -863,8 +864,8 @@ public sealed partial class DspPage
 		_emptyDetailPanel = new Grid { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
 		var emptySp = new StackPanel { Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
 		emptySp.Children.Add(new FontIcon { Glyph = "\uE7F5", FontSize = 36, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center });
-		emptySp.Children.Add(new TextBlock { Text = "未选择预设", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, TextAlignment = TextAlignment.Center });
-		emptySp.Children.Add(new TextBlock { Text = "从左侧选择耳机型号，查看并应用校正曲线。", FontSize = 12, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center });
+		emptySp.Children.Add(new TextBlock { Text = Loc.T("未选择预设"), FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, TextAlignment = TextAlignment.Center });
+		emptySp.Children.Add(new TextBlock { Text = Loc.T("从左侧选择耳机型号，查看并应用校正曲线。"), FontSize = 12, Foreground = DspTextMutedBrush, TextAlignment = TextAlignment.Center });
 		_emptyDetailPanel.Children.Add(emptySp);
 		mainGrid.Children.Add(_emptyDetailPanel);
 
@@ -893,7 +894,7 @@ public sealed partial class DspPage
 		var headActionsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		_btnApplyPreset = new Button
 		{
-			Content = "应用",
+			Content = Loc.T("应用"),
 			Padding = new Thickness(14, 5, 14, 5),
 			CornerRadius = new CornerRadius(14),
 			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
@@ -938,7 +939,7 @@ public sealed partial class DspPage
 		curveHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		curveHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		curveHeadGrid.Children.Add(new TextBlock { Text = "EQ 频率响应", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		curveHeadGrid.Children.Add(new TextBlock { Text = Loc.T("EQ 频率响应"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_curveAuthorTb = new TextBlock { Text = "Oratory1990", FontSize = 11, Foreground = DspTextMutedBrush };
 		Grid.SetColumn(_curveAuthorTb, 1);
 		curveHeadGrid.Children.Add(_curveAuthorTb);
@@ -961,7 +962,7 @@ public sealed partial class DspPage
 
 		// 3. Correction Source Selector
 		var srcSec = new StackPanel { Spacing = 6 };
-		srcSec.Children.Add(new TextBlock { Text = "校正来源", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		srcSec.Children.Add(new TextBlock { Text = Loc.T("校正来源"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_sourcesStack = new StackPanel { Spacing = 4 };
 		srcSec.Children.Add(_sourcesStack);
 		detailSp.Children.Add(srcSec);
@@ -971,7 +972,7 @@ public sealed partial class DspPage
 		var modeSwitchSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		_modeOriginalBtn = new Button
 		{
-			Content = "作者原始曲线",
+			Content = Loc.T("作者原始曲线"),
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(10, 4, 10, 4),
@@ -982,7 +983,7 @@ public sealed partial class DspPage
 
 		_modeListeningBtn = new Button
 		{
-			Content = "听感调整",
+			Content = Loc.T("听感调整"),
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(10, 4, 10, 4),
@@ -997,7 +998,7 @@ public sealed partial class DspPage
 
 		_modeDescTb = new TextBlock
 		{
-			Text = "保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。",
+			Text = Loc.T("保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。"),
 			FontSize = 10,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -1013,7 +1014,7 @@ public sealed partial class DspPage
 		preampHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		preampHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		preampHead.Children.Add(new TextBlock { Text = "前级", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		preampHead.Children.Add(new TextBlock { Text = Loc.T("前级"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 
 		_hpPreampValueTb = new TextBlock
 		{
@@ -1028,7 +1029,7 @@ public sealed partial class DspPage
 
 		var restoreBtn = new Button
 		{
-			Content = "恢复默认",
+			Content = Loc.T("恢复默认"),
 			FontSize = 10,
 			Padding = new Thickness(8, 3, 8, 3),
 			CornerRadius = new CornerRadius(4),
@@ -1073,14 +1074,14 @@ public sealed partial class DspPage
 		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		var m1Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		m1Sp.Children.Add(new TextBlock { Text = "OPRA 滤波器:", FontSize = 11, Foreground = DspTextMutedBrush });
+		m1Sp.Children.Add(new TextBlock { Text = Loc.T("OPRA 滤波器:"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_metricsFiltersTb = new TextBlock { Text = "6/6", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		m1Sp.Children.Add(_metricsFiltersTb);
 		Grid.SetColumn(m1Sp, 0);
 		metricsGrid.Children.Add(m1Sp);
 
 		var m2Sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, HorizontalAlignment = HorizontalAlignment.Right };
-		m2Sp.Children.Add(new TextBlock { Text = "调整:", FontSize = 11, Foreground = DspTextMutedBrush });
+		m2Sp.Children.Add(new TextBlock { Text = Loc.T("调整:"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_metricsAdjustedTb = new TextBlock { Text = "0", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		m2Sp.Children.Add(_metricsAdjustedTb);
 		Grid.SetColumn(m2Sp, 1);
@@ -1091,7 +1092,7 @@ public sealed partial class DspPage
 		// Bit-perfect warning
 		detailSp.Children.Add(new TextBlock
 		{
-			Text = "开启后将使用 EQ，Bit-perfect 会暂停",
+			Text = Loc.T("开启后将使用 EQ，Bit-perfect 会暂停"),
 			FontSize = 10,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 156, 163, 175)),
 			Margin = new Thickness(0, 4, 0, 0)
@@ -1172,7 +1173,7 @@ public sealed partial class DspPage
 		});
 		sp.Children.Add(new TextBlock
 		{
-			Text = $"{eq.TargetCurve} · {eq.Filters.Count} 个 OPRA 滤波器",
+			Text = Loc.F("{0} · {1} 个 OPRA 滤波器", eq.TargetCurve, eq.Filters.Count),
 			FontSize = 10
 		});
 		Grid.SetColumn(sp, 0);
@@ -1264,18 +1265,18 @@ public sealed partial class DspPage
 		{
 			if (_isCalibrationEnabled)
 			{
-				_btnApplyPreset.Content = "已应用 (点击关闭)";
+				_btnApplyPreset.Content = Loc.T("已应用 (点击关闭)");
 				_btnApplyPreset.Background = new SolidColorBrush(Color.FromArgb(255, 22, 163, 74));
 			}
 			else
 			{
-				_btnApplyPreset.Content = "开启校正";
+				_btnApplyPreset.Content = Loc.T("开启校正");
 				_btnApplyPreset.Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
 			}
 		}
 		else
 		{
-			_btnApplyPreset.Content = "应用";
+			_btnApplyPreset.Content = Loc.T("应用");
 			_btnApplyPreset.Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
 		}
 	}
@@ -1355,7 +1356,7 @@ public sealed partial class DspPage
 		{
 			_headphoneNavSubTb.Text = enabled && _currentPreset != null
 				? $"{_currentPreset.Brand} {_currentPreset.Model}"
-				: "已旁路";
+				: Loc.T("已旁路");
 		}
 
 		SaveHeadphoneState();
@@ -1389,8 +1390,8 @@ public sealed partial class DspPage
 		if (_modeDescTb != null)
 		{
 			_modeDescTb.Text = isOrig
-				? "保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。"
-				: "可选调整：减轻宽中频下切、收回部分提升并重算前级，偏离作者曲线。";
+				? Loc.T("保留作者频段与前级。校正独立运行，可与个人 EQ 叠加。")
+				: Loc.T("可选调整：减轻宽中频下切、收回部分提升并重算前级，偏离作者曲线。");
 		}
 	}
 
@@ -1448,11 +1449,11 @@ public sealed partial class DspPage
 		if (_hcBannerSubtitleTb != null)
 		{
 			double p = _userPreampDb ?? preset.PreampDb;
-			_hcBannerSubtitleTb.Text = $"{preset.TargetCurve} · {preset.Filters.Count} 个滤波器 · 前级 {p:+0.0;-0.0;0.0} dB";
+			_hcBannerSubtitleTb.Text = Loc.F("{0} · {1} 个滤波器 · 前级 {2:+0.0;-0.0;0.0} dB", preset.TargetCurve, preset.Filters.Count, p);
 		}
 		if (_hcBannerStatsTb != null)
 		{
-			_hcBannerStatsTb.Text = _isCalibrationEnabled ? "校正已启用并在音频管道中生效" : "校正已就绪 (已旁路)";
+			_hcBannerStatsTb.Text = _isCalibrationEnabled ? Loc.T("校正已启用并在音频管道中生效") : Loc.T("校正已就绪 (已旁路)");
 		}
 	}
 
@@ -1509,8 +1510,8 @@ public sealed partial class DspPage
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(4, 2, 0, 4) };
 		headSp.Children.Add(new FontIcon { Glyph = "\uE734", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)) });
-		headSp.Children.Add(new TextBlock { Text = "收藏型号", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
-		headSp.Children.Add(new TextBlock { Text = $"({_favorites.Count} 款)", FontSize = 12, Foreground = DspTextMutedBrush });
+		headSp.Children.Add(new TextBlock { Text = Loc.T("收藏型号"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		headSp.Children.Add(new TextBlock { Text = Loc.F("({0} 款)", _favorites.Count), FontSize = 12, Foreground = DspTextMutedBrush });
 		Grid.SetRow(headSp, 0);
 		container.Children.Add(headSp);
 
@@ -1530,7 +1531,7 @@ public sealed partial class DspPage
 		{
 			sp.Children.Add(new TextBlock
 			{
-				Text = "还没有收藏型号。点击耳机型号旁的星星图标即可收藏。",
+				Text = Loc.T("还没有收藏型号。点击耳机型号旁的星星图标即可收藏。"),
 				FontSize = 13,
 				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 24, 0, 0)
@@ -1561,8 +1562,8 @@ public sealed partial class DspPage
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(4, 2, 0, 4) };
 		headSp.Children.Add(new FontIcon { Glyph = "\uE81C", FontSize = 14, Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)) });
-		headSp.Children.Add(new TextBlock { Text = "最近使用", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
-		headSp.Children.Add(new TextBlock { Text = $"({_recents.Count} 款)", FontSize = 12, Foreground = DspTextMutedBrush });
+		headSp.Children.Add(new TextBlock { Text = Loc.T("最近使用"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		headSp.Children.Add(new TextBlock { Text = Loc.F("({0} 款)", _recents.Count), FontSize = 12, Foreground = DspTextMutedBrush });
 		Grid.SetRow(headSp, 0);
 		container.Children.Add(headSp);
 
@@ -1582,7 +1583,7 @@ public sealed partial class DspPage
 		{
 			sp.Children.Add(new TextBlock
 			{
-				Text = "应用校正后，最近使用的型号会显示在这里。",
+				Text = Loc.T("应用校正后，最近使用的型号会显示在这里。"),
 				FontSize = 13,
 				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 24, 0, 0)
@@ -1622,7 +1623,7 @@ public sealed partial class DspPage
 
 		var head = new TextBlock
 		{
-			Text = $"搜索结果: “{_searchQuery}”",
+			Text = Loc.F("搜索结果: “{0}”", _searchQuery),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSubHeaderBrush,
@@ -1644,7 +1645,7 @@ public sealed partial class DspPage
 		{
 			sp.Children.Add(new TextBlock
 			{
-				Text = "未找到匹配的耳机型号，请尝试搜索品牌 (如 Sennheiser, Sony) 或型号 (如 HD 650, Blessing)。",
+				Text = Loc.T("未找到匹配的耳机型号，请尝试搜索品牌 (如 Sennheiser, Sony) 或型号 (如 HD 650, Blessing)。"),
 				FontSize = 13,
 				Foreground = DspTextMutedBrush,
 				Margin = new Thickness(8, 20, 0, 0)
@@ -2071,7 +2072,7 @@ public sealed class HeadphoneCurveControl : UserControl
 	private string _mode = "original";
 	private double? _customPreamp = null;
 	private bool _isDark = false;
-	private readonly List<EchoBiquadFilter> _filters = new();
+	private readonly List<FurinaPlayerBiquadFilter> _filters = new();
 
 	public HeadphoneCurveControl()
 	{
@@ -2099,7 +2100,7 @@ public sealed class HeadphoneCurveControl : UserControl
 		{
 			foreach (var f in preset.Filters)
 			{
-				var filter = new EchoBiquadFilter
+				var filter = new FurinaPlayerBiquadFilter
 				{
 					FilterType = f.Type,
 					FrequencyHz = f.FrequencyHz,

@@ -21,8 +21,8 @@
     <Reference Include="CommunityToolkit.Mvvm">
       <HintPath>..\..\CommunityToolkit.Mvvm.dll</HintPath>
     </Reference>
-    <ProjectReference Include="..\SonicWave.Core\SonicWave.Core.csproj" />
-    <ProjectReference Include="..\SonicWave.Audio\SonicWave.Audio.csproj" />
+    <ProjectReference Include="..\FurinaPlayer.Core\FurinaPlayer.Core.csproj" />
+    <ProjectReference Include="..\FurinaPlayer.Audio\FurinaPlayer.Audio.csproj" />
   </ItemGroup>
 
   <ItemGroup>

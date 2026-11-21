@@ -1,7 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
-using SonicWave.Audio.Vst3;
+using FurinaPlayer.Audio.Vst3;
+using FurinaPlayer.Core.Services;
 using WinRT.Interop;
 
 namespace FurinaPlayer.UI.Helpers;
@@ -159,18 +160,18 @@ public sealed class Vst3EditorWindow : IDisposable
 			{
 				if (error.Length == 0)
 				{
-					error = "插件加载失败（未知错误）";
+					error = Loc.T("插件加载失败（未知错误）");
 				}
 				return null;
 			}
-			nint num = CreateWindowExW(0u, "FurinaVst3EditorWnd", "VST3 插件界面 - Furina Player", WS_VST3_WINDOW, 100, 100, 640, 480, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
+			nint num = CreateWindowExW(0u, "FurinaVst3EditorWnd", Loc.T("VST3 插件界面 - Furina Player"), WS_VST3_WINDOW, 100, 100, 640, 480, IntPtr.Zero, IntPtr.Zero, GetModuleHandleW(null), IntPtr.Zero);
 			if (num == IntPtr.Zero)
 			{
 				if (!wasLoadedForTarget)
 				{
 					try { Vst3NativeHost.Instance.Unload(); } catch { }
 				}
-				error = "创建宿主窗口失败";
+				error = Loc.T("创建宿主窗口失败");
 				return null;
 			}
 			if (!Vst3NativeHost.Instance.OpenEditor(num, out var width, out var height, out error))
@@ -217,7 +218,7 @@ public sealed class Vst3EditorWindow : IDisposable
 		}
 		catch (Exception ex)
 		{
-			error = "打开插件界面异常：" + ex.Message;
+			error = Loc.F("打开插件界面异常：{0}", ex.Message);
 			return null;
 		}
 	}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.Helpers;
 using FurinaPlayer.UI.ViewModels;
@@ -13,7 +14,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -159,7 +160,7 @@ public sealed partial class DspPage
 
 		var titleTb = new TextBlock
 		{
-			Text = "FIR / 房间校正",
+			Text = Loc.T("FIR / 房间校正"),
 			FontSize = 18,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -202,7 +203,7 @@ public sealed partial class DspPage
 		var eyebrowRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		eyebrowRow.Children.Add(new TextBlock
 		{
-			Text = "空间处理 / IR",
+			Text = Loc.T("空间处理 / IR"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush,
@@ -231,7 +232,7 @@ public sealed partial class DspPage
 		// Big Title
 		introStack.Children.Add(new TextBlock
 		{
-			Text = "房间与音箱校正",
+			Text = Loc.T("房间与音箱校正"),
 			FontSize = 24,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -241,7 +242,7 @@ public sealed partial class DspPage
 		// Subtitle
 		introStack.Children.Add(new TextBlock
 		{
-			Text = "导入 REW 或其他测量软件生成的校正滤波器。",
+			Text = Loc.T("导入 REW 或其他测量软件生成的校正滤波器。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		});
@@ -262,7 +263,7 @@ public sealed partial class DspPage
 		};
 		_roomStatusText = new TextBlock
 		{
-			Text = "准备音频校正",
+			Text = Loc.T("准备音频校正"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextSubHeaderBrush,
@@ -295,7 +296,7 @@ public sealed partial class DspPage
 		// 3. Formats Support Footnote
 		var formatsNote = new TextBlock
 		{
-			Text = "WAV · FLAC · AIFF · ALAC(.m4a) · ZIP, ZIP 支持 Convolver .cfg 及其引用的 .pcm / .dbl, 按播放采样率与声道自动匹配。",
+			Text = Loc.T("WAV · FLAC · AIFF · ALAC(.m4a) · ZIP, ZIP 支持 Convolver .cfg 及其引用的 .pcm / .dbl, 按播放采样率与声道自动匹配。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 2, 0, 2)
@@ -324,7 +325,7 @@ public sealed partial class DspPage
 
 		var headingTb = new TextBlock
 		{
-			Text = "实际信号路径",
+			Text = Loc.T("实际信号路径"),
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextSecondaryBrush
@@ -334,7 +335,7 @@ public sealed partial class DspPage
 
 		_roomHostStatusTb = new TextBlock
 		{
-			Text = "等待宿主确认",
+			Text = Loc.T("等待宿主确认"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		};
@@ -355,7 +356,7 @@ public sealed partial class DspPage
 		pathGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// Node 1: 音频输入
-		var node1 = CreateSignalPathNode("\uE720", "音频输入", out _roomInputChTb);
+		var node1 = CreateSignalPathNode("\uE720", Loc.T("音频输入"), out _roomInputChTb);
 		Grid.SetColumn(node1, 0);
 		pathGrid.Children.Add(node1);
 
@@ -364,7 +365,7 @@ public sealed partial class DspPage
 		pathGrid.Children.Add(arrow1);
 
 		// Node 2: 内置 DSP
-		var node2 = CreateSignalPathNode("\uE950", "内置 DSP", out _roomDspBitsTb);
+		var node2 = CreateSignalPathNode("\uE950", Loc.T("内置 DSP"), out _roomDspBitsTb);
 		Grid.SetColumn(node2, 2);
 		pathGrid.Children.Add(node2);
 
@@ -373,7 +374,7 @@ public sealed partial class DspPage
 		pathGrid.Children.Add(arrow2);
 
 		// Node 3: 卷积插槽
-		var node3 = CreateSignalPathNode("\uE9E9", "卷积插槽", out _roomConvolverSlotTb);
+		var node3 = CreateSignalPathNode("\uE9E9", Loc.T("卷积插槽"), out _roomConvolverSlotTb);
 		Grid.SetColumn(node3, 4);
 		pathGrid.Children.Add(node3);
 
@@ -382,7 +383,7 @@ public sealed partial class DspPage
 		pathGrid.Children.Add(arrow3);
 
 		// Node 4: 设备输出
-		var node4 = CreateSignalPathNode("\uE7F5", "设备输出", out _roomDeviceOutTb);
+		var node4 = CreateSignalPathNode("\uE7F5", Loc.T("设备输出"), out _roomDeviceOutTb);
 		Grid.SetColumn(node4, 6);
 		pathGrid.Children.Add(node4);
 
@@ -475,7 +476,7 @@ public sealed partial class DspPage
 		var fileLeft = new StackPanel { Spacing = 2 };
 		fileLeft.Children.Add(new TextBlock
 		{
-			Text = "已载入 IR 脉冲文件",
+			Text = Loc.T("已载入 IR 脉冲文件"),
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush
@@ -491,7 +492,7 @@ public sealed partial class DspPage
 
 		_roomIrSpecsTb = new TextBlock
 		{
-			Text = "48 kHz · 立体声 · 65,536 Taps · 1,365 ms",
+			Text = Loc.T("48 kHz · 立体声 · 65,536 Taps · 1,365 ms"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		};
@@ -512,7 +513,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(12, 4, 12, 4),
 			Foreground = DspTextPrimaryBrush
 		};
-		reimportBtn.Content = new TextBlock { Text = "重新导入", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
+		reimportBtn.Content = new TextBlock { Text = Loc.T("重新导入"), FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 		reimportBtn.Click += (s, e) => TriggerImportFilePicker();
 		_roomIrReimportBtn = reimportBtn;
 		fileRight.Children.Add(reimportBtn);
@@ -532,7 +533,7 @@ public sealed partial class DspPage
 		});
 		clearStack.Children.Add(new TextBlock
 		{
-			Text = "清除",
+			Text = Loc.T("清除"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			VerticalAlignment = VerticalAlignment.Center
@@ -575,7 +576,7 @@ public sealed partial class DspPage
 		trimTitleStack.Children.Add(_roomTrimIcon);
 		trimTitleStack.Children.Add(new TextBlock
 		{
-			Text = "校正增益 (Correction Trim)",
+			Text = Loc.T("校正增益 (Correction Trim)"),
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -603,14 +604,14 @@ public sealed partial class DspPage
 			Maximum = 6.0,
 			StepFrequency = 0.1,
 			TickFrequency = 3.0,
-			Value = ViewModel?.EchoConvolutionTrimDb ?? 0.0,
+			Value = ViewModel?.FurinaPlayerConvolutionTrimDb ?? 0.0,
 			Margin = new Thickness(0, 2, 0, 2)
 		};
 		_roomTrimSlider.ValueChanged += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoConvolutionTrimDb = e.NewValue;
+				ViewModel.FurinaPlayerConvolutionTrimDb = e.NewValue;
 				ViewModel.ApplyConvolutionSettings();
 				if (_roomTrimValueTb != null)
 				{
@@ -625,7 +626,7 @@ public sealed partial class DspPage
 		var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		presetRow.Children.Add(new TextBlock
 		{
-			Text = "快捷增益:",
+			Text = Loc.T("快捷增益:"),
 			FontSize = 11,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush,
@@ -681,7 +682,7 @@ public sealed partial class DspPage
 		clipStack.Children.Add(_roomClippingIcon);
 		_roomClippingTextTb = new TextBlock
 		{
-			Text = "检测到卷积输出存在削波风险！建议将校正增益衰减至 -6 dB 以下，并在 Headroom 页面配置数字余量。",
+			Text = Loc.T("检测到卷积输出存在削波风险！建议将校正增益衰减至 -6 dB 以下，并在 Headroom 页面配置数字余量。"),
 			FontSize = 11
 		};
 		clipStack.Children.Add(_roomClippingTextTb);
@@ -707,17 +708,17 @@ public sealed partial class DspPage
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// Card 1: 扬声器补偿
-		var card1 = CreateWorkflowNavCard("扬声器补偿", "左右增益、延迟与反相", () => SelectDspCategory("spatial"));
+		var card1 = CreateWorkflowNavCard(Loc.T("扬声器补偿"), Loc.T("左右增益、延迟与反相"), () => SelectDspCategory("spatial"));
 		Grid.SetColumn(card1, 0);
 		grid.Children.Add(card1);
 
 		// Card 2: 余量与削波
-		var card2 = CreateWorkflowNavCard("余量与削波", "检查实际输出峰值", () => SelectDspCategory("headroom"));
+		var card2 = CreateWorkflowNavCard(Loc.T("余量与削波"), Loc.T("检查实际输出峰值"), () => SelectDspCategory("headroom"));
 		Grid.SetColumn(card2, 1);
 		grid.Children.Add(card2);
 
 		// Card 3: 保存校正场景
-		var card3 = CreateWorkflowNavCard("保存校正场景", "绑定输出设备与对比试听", () => SelectDspCategory("listening_plan"));
+		var card3 = CreateWorkflowNavCard(Loc.T("保存校正场景"), Loc.T("绑定输出设备与对比试听"), () => SelectDspCategory("listening_plan"));
 		Grid.SetColumn(card3, 2);
 		grid.Children.Add(card3);
 
@@ -812,7 +813,7 @@ public sealed partial class DspPage
 
 		var headerTitle = new TextBlock
 		{
-			Text = "用 REW 制作音箱校正",
+			Text = Loc.T("用 REW 制作音箱校正"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -848,7 +849,7 @@ public sealed partial class DspPage
 
 		var introText = new TextBlock
 		{
-			Text = "在 REW 中测量与生成滤波器，再由 FurinaPlayer 应用于播放。需要带校准文件的测量麦克风；本页不会录音或自动测量。",
+			Text = Loc.T("在 REW 中测量与生成滤波器，再由 FurinaPlayer 应用于播放。需要带校准文件的测量麦克风；本页不会录音或自动测量。"),
 			FontSize = 12,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -857,14 +858,14 @@ public sealed partial class DspPage
 		// 4 Numbered Steps
 		_roomRewExpanderBody.Children.Add(CreateRewStepRow(
 			"1",
-			"测量左右音箱",
-			"在 REW 中载入麦克风校准文件，将麦克风放在听音位置，与耳朵同高，检查输入和输出电平，从较低音量开始，分别测量左、右音箱并保存。"
+			Loc.T("测量左右音箱"),
+			Loc.T("在 REW 中载入麦克风校准文件，将麦克风放在听音位置，与耳朵同高，检查输入和输出电平，从较低音量开始，分别测量左、右音箱并保存。")
 		));
 
 		_roomRewExpanderBody.Children.Add(CreateRewStepRow(
 			"2",
-			"生成校正",
-			"在 REW 的 EQ 窗口设置目标曲线和校正频段，优先处理低频峰值，限制提升量，保留音箱自然低频衰减，不强行填平深谷。左右声道分别生成滤波器。"
+			Loc.T("生成校正"),
+			Loc.T("在 REW 的 EQ 窗口设置目标曲线和校正频段，优先处理低频峰值，限制提升量，保留音箱自然低频衰减，不强行填平深谷。左右声道分别生成滤波器。")
 		));
 
 		// Step 3 with Code Callout
@@ -886,14 +887,14 @@ public sealed partial class DspPage
 		var step3BodyStack = new StackPanel { Spacing = 8 };
 		step3BodyStack.Children.Add(new TextBlock
 		{
-			Text = "导出立体声滤波器",
+			Text = Loc.T("导出立体声滤波器"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
 		});
 		step3BodyStack.Children.Add(new TextBlock
 		{
-			Text = "选择下方导出菜单，使用 Stereo, 32-bit Float，左、右分别对应刚才的测量，关闭峰值归一化以保留校正增益关系。导出校正滤波器，不要导出原始房间响应。",
+			Text = Loc.T("选择下方导出菜单，使用 Stereo, 32-bit Float，左、右分别对应刚才的测量，关闭峰值归一化以保留校正增益关系。导出校正滤波器，不要导出原始房间响应。"),
 			FontSize = 12,
 			Foreground = DspTextSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -921,7 +922,7 @@ public sealed partial class DspPage
 
 		step3BodyStack.Children.Add(new TextBlock
 		{
-			Text = "每声道最多 131,072 个采样点，总计不超过 262,144。为实际使用的采样率分别导出（如 44.1 / 48 / 96 kHz），可将 WAV 打成 ZIP，每种采样率只放一份立体声滤波器；分开的左右 IR 可用 Convolver .cfg 明确对应，并连同 IR 一起打包。",
+			Text = Loc.T("每声道最多 131,072 个采样点，总计不超过 262,144。为实际使用的采样率分别导出（如 44.1 / 48 / 96 kHz），可将 WAV 打成 ZIP，每种采样率只放一份立体声滤波器；分开的左右 IR 可用 Convolver .cfg 明确对应，并连同 IR 一起打包。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -934,14 +935,14 @@ public sealed partial class DspPage
 		// Step 4
 		_roomRewExpanderBody.Children.Add(CreateRewStepRow(
 			"4",
-			"启用、试听与复测",
-			"导入后使用“安全启用 FIR”，低音量试听并观察削波；预留 6 dB 只是起点，比较前后时匹配听感音量。复测信号须经过 FurinaPlayer：可用 REW 导出的测量扫频文件在 FurinaPlayer 播放，再按 REW 离线测量流程录制、分析；直接由 REW 输出的扫频不会经过这里的校正。"
+			Loc.T("启用、试听与复测"),
+			Loc.T("导入后使用“安全启用 FIR”，低音量试听并观察削波；预留 6 dB 只是起点，比较前后时匹配听感音量。复测信号须经过 FurinaPlayer：可用 REW 导出的测量扫频文件在 FurinaPlayer 播放，再按 REW 离线测量流程录制、分析；直接由 REW 输出的扫频不会经过这里的校正。")
 		));
 
 		// Bottom Hint
 		_roomRewGuideFooterTb = new TextBlock
 		{
-			Text = "已有校正滤波器？使用上方“导入 IR”。",
+			Text = Loc.T("已有校正滤波器？使用上方“导入 IR”。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(28, 4, 0, 0)
@@ -1033,8 +1034,8 @@ public sealed partial class DspPage
 	{
 		if (ViewModel == null) return;
 
-		bool hasIr = !string.IsNullOrEmpty(ViewModel.EchoConvolutionFilePath);
-		bool isEnabled = ViewModel.EchoConvolutionEnabled;
+		bool hasIr = !string.IsNullOrEmpty(ViewModel.FurinaPlayerConvolutionFilePath);
+		bool isEnabled = ViewModel.FurinaPlayerConvolutionEnabled;
 		var conv = ViewModel.AudioEngine?.DspChain?.Convolution;
 
 		// 1. Module count badge
@@ -1044,7 +1045,7 @@ public sealed partial class DspPage
 		{
 			if (chain.Eq.Enabled) activeModules++;
 			if (chain.Headroom.Enabled) activeModules++;
-			if (chain.ReplayGain.Mode != SonicWave.Audio.Dsp.ReplayGainMode.Off) activeModules++;
+			if (chain.ReplayGain.Mode != FurinaPlayer.Audio.Dsp.ReplayGainMode.Off) activeModules++;
 			if (chain.Spatial.CrossfeedEnabled || chain.Spatial.StereoFieldEnabled) activeModules++;
 			if (chain.Resampler.Enabled) activeModules++;
 			if (chain.Convolution.Enabled) activeModules++;
@@ -1056,17 +1057,17 @@ public sealed partial class DspPage
 			if (!hasIr)
 			{
 				_roomStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)); // Green dot
-				_roomStatusText.Text = "准备音频校正";
+				_roomStatusText.Text = Loc.T("准备音频校正");
 			}
 			else if (isEnabled)
 			{
 				_roomStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)); // Indigo dot
-				_roomStatusText.Text = "校正正在应用";
+				_roomStatusText.Text = Loc.T("校正正在应用");
 			}
 			else
 			{
 				_roomStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11)); // Amber dot
-				_roomStatusText.Text = "滤波器已准备";
+				_roomStatusText.Text = Loc.T("滤波器已准备");
 			}
 		}
 
@@ -1088,7 +1089,7 @@ public sealed partial class DspPage
 				};
 				var btnStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 				btnStack.Children.Add(new FontIcon { Glyph = "\uE896", FontSize = 13, Foreground = new SolidColorBrush(Colors.White) });
-				btnStack.Children.Add(new TextBlock { Text = "导入 IR", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+				btnStack.Children.Add(new TextBlock { Text = Loc.T("导入 IR"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
 				importBtn.Content = btnStack;
 				importBtn.Click += (s, e) => TriggerImportFilePicker();
 				_roomActionPanel.Children.Add(importBtn);
@@ -1106,12 +1107,12 @@ public sealed partial class DspPage
 					};
 					var disStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 					disStack.Children.Add(new FontIcon { Glyph = "\uE71A", FontSize = 12 });
-					disStack.Children.Add(new TextBlock { Text = "停用 FIR", FontSize = 12, FontWeight = FontWeights.Medium });
+					disStack.Children.Add(new TextBlock { Text = Loc.T("停用 FIR"), FontSize = 12, FontWeight = FontWeights.Medium });
 					disableBtn.Content = disStack;
 					ApplyRoomDangerButtonTheme(disableBtn, isDark);
 					disableBtn.Click += (s, e) =>
 					{
-						ViewModel.EchoConvolutionEnabled = false;
+						ViewModel.FurinaPlayerConvolutionEnabled = false;
 						ViewModel.ApplyConvolutionSettings();
 						RefreshRoomCorrectionState();
 					};
@@ -1129,12 +1130,12 @@ public sealed partial class DspPage
 					};
 					var safeStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 					safeStack.Children.Add(new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(Colors.White) });
-					safeStack.Children.Add(new TextBlock { Text = "安全启用 FIR", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+					safeStack.Children.Add(new TextBlock { Text = Loc.T("安全启用 FIR"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
 					safeEnableBtn.Content = safeStack;
 					safeEnableBtn.Click += (s, e) =>
 					{
-						ViewModel.EchoConvolutionTrimDb = Math.Min(ViewModel.EchoConvolutionTrimDb, -6.0);
-						ViewModel.EchoConvolutionEnabled = true;
+						ViewModel.FurinaPlayerConvolutionTrimDb = Math.Min(ViewModel.FurinaPlayerConvolutionTrimDb, -6.0);
+						ViewModel.FurinaPlayerConvolutionEnabled = true;
 						ViewModel.ApplyConvolutionSettings();
 						RefreshRoomCorrectionState();
 					};
@@ -1150,10 +1151,10 @@ public sealed partial class DspPage
 						Padding = new Thickness(12, 7, 12, 7),
 						Foreground = DspTextPrimaryBrush
 					};
-					enableBtn.Content = new TextBlock { Text = "启用 FIR", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
+					enableBtn.Content = new TextBlock { Text = Loc.T("启用 FIR"), FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 					enableBtn.Click += (s, e) =>
 					{
-						ViewModel.EchoConvolutionEnabled = true;
+						ViewModel.FurinaPlayerConvolutionEnabled = true;
 						ViewModel.ApplyConvolutionSettings();
 						RefreshRoomCorrectionState();
 					};
@@ -1170,7 +1171,7 @@ public sealed partial class DspPage
 					Padding = new Thickness(12, 7, 12, 7),
 					Foreground = DspTextPrimaryBrush
 				};
-				reimportBtn.Content = new TextBlock { Text = "导入 IR", FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
+				reimportBtn.Content = new TextBlock { Text = Loc.T("导入 IR"), FontSize = 12, FontWeight = FontWeights.Medium, Foreground = DspTextPrimaryBrush };
 				reimportBtn.Click += (s, e) => TriggerImportFilePicker();
 				_roomActionPanel.Children.Add(reimportBtn);
 			}
@@ -1182,7 +1183,7 @@ public sealed partial class DspPage
 
 		if (_roomHostStatusTb != null)
 		{
-			_roomHostStatusTb.Text = hasIr ? "来自音频宿主" : "等待宿主确认";
+			_roomHostStatusTb.Text = hasIr ? Loc.T("来自音频宿主") : Loc.T("等待宿主确认");
 		}
 		if (_roomInputChTb != null)
 		{
@@ -1207,7 +1208,7 @@ public sealed partial class DspPage
 			_roomActiveIrCard.Visibility = hasIr ? Visibility.Visible : Visibility.Collapsed;
 			if (hasIr)
 			{
-				string fileName = System.IO.Path.GetFileName(ViewModel.EchoConvolutionFilePath) ?? "Impulse Response";
+				string fileName = System.IO.Path.GetFileName(ViewModel.FurinaPlayerConvolutionFilePath) ?? "Impulse Response";
 				if (_roomIrFileNameTb != null) _roomIrFileNameTb.Text = fileName;
 
 				int taps = conv?.TapCount > 0 ? conv.TapCount : 65536;
@@ -1215,18 +1216,18 @@ public sealed partial class DspPage
 				double ms = taps * 1000.0 / fRate;
 				if (_roomIrSpecsTb != null)
 				{
-					_roomIrSpecsTb.Text = $"{fRate / 1000.0:F1} kHz · 立体声 · {taps:N0} Taps · {ms:F1} ms";
+					_roomIrSpecsTb.Text = Loc.F("{0:F1} kHz · 立体声 · {1:N0} Taps · {2:F1} ms", fRate / 1000.0, taps, ms);
 				}
 
 				if (_roomTrimSlider != null)
 				{
-					_roomTrimSlider.Value = ViewModel.EchoConvolutionTrimDb;
+					_roomTrimSlider.Value = ViewModel.FurinaPlayerConvolutionTrimDb;
 				}
 				if (_roomTrimValueTb != null)
 				{
-					_roomTrimValueTb.Text = $"{ViewModel.EchoConvolutionTrimDb:+0.0;-0.0;0.0} dB";
+					_roomTrimValueTb.Text = $"{ViewModel.FurinaPlayerConvolutionTrimDb:+0.0;-0.0;0.0} dB";
 				}
-				UpdateTrimPresetHighlights(ViewModel.EchoConvolutionTrimDb);
+				UpdateTrimPresetHighlights(ViewModel.FurinaPlayerConvolutionTrimDb);
 
 				// Clipping risk check
 				bool risk = conv?.ClippingRisk ?? false;
@@ -1242,22 +1243,22 @@ public sealed partial class DspPage
 		{
 			if (isEnabled)
 			{
-				_roomRewGuideFooterTb.Text = "已启用校正。实际改善需要试听与复测确认；更换音箱、摆位或听音位置后应重新测量。";
+				_roomRewGuideFooterTb.Text = Loc.T("已启用校正。实际改善需要试听与复测确认；更换音箱、摆位或听音位置后应重新测量。");
 			}
 			else if (hasIr)
 			{
-				_roomRewGuideFooterTb.Text = "滤波器已载入。确认输出仍是测量时的音箱与摆位，再启用。";
+				_roomRewGuideFooterTb.Text = Loc.T("滤波器已载入。确认输出仍是测量时的音箱与摆位，再启用。");
 			}
 			else
 			{
-				_roomRewGuideFooterTb.Text = "已有校正滤波器？使用上方“导入 IR”。";
+				_roomRewGuideFooterTb.Text = Loc.T("已有校正滤波器？使用上方“导入 IR”。");
 			}
 		}
 
 		// 8. Update Left Sidebar Subtitle
 		if (_roomNavSubTb != null)
 		{
-			_roomNavSubTb.Text = !hasIr ? "无 IR" : (isEnabled ? "已启用" : "已载入");
+			_roomNavSubTb.Text = !hasIr ? Loc.T("无 IR") : (isEnabled ? Loc.T("已启用") : Loc.T("已载入"));
 		}
 	}
 
@@ -1437,7 +1438,7 @@ public sealed partial class DspPage
 		}
 
 		RefreshRoomCorrectionState();
-		UpdateTrimPresetHighlights(ViewModel?.EchoConvolutionTrimDb ?? 0.0);
+		UpdateTrimPresetHighlights(ViewModel?.FurinaPlayerConvolutionTrimDb ?? 0.0);
 		RefreshWorkbenchTextContrast(_roomCorrectionWorkbench, isDark);
 	}
 }

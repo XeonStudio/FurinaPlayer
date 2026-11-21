@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.Controls;
 using Microsoft.UI;
 using Microsoft.UI.Text;
@@ -10,7 +11,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -195,7 +196,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "虚拟声场",
+			Text = Loc.T("虚拟声场"),
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -223,7 +224,7 @@ public sealed partial class DspPage
 		};
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 		_vsPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14 };
-		_vsPowerText = new TextBlock { Text = "已旁路 · 开始试听", FontSize = 13, FontWeight = FontWeights.Medium };
+		_vsPowerText = new TextBlock { Text = Loc.T("已旁路 · 开始试听"), FontSize = 13, FontWeight = FontWeights.Medium };
 		powerSp.Children.Add(_vsPowerIcon);
 		powerSp.Children.Add(_vsPowerText);
 		_vsPowerBtn.Content = powerSp;
@@ -247,7 +248,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE72C", FontSize = 13, Foreground = DspTextSubHeaderBrush },
-					new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSubHeaderBrush }
+					new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13, Foreground = DspTextSubHeaderBrush }
 				}
 			}
 		};
@@ -276,7 +277,7 @@ public sealed partial class DspPage
 	{
 		return new TextBlock
 		{
-			Text = "用两耳时间差、频率衰减和短反射模拟音箱空间感，保留中置直达声的位置；适合耳机，开启后会关闭交叉馈送；听感因耳机和个人而异。",
+			Text = Loc.T("用两耳时间差、频率衰减和短反射模拟音箱空间感，保留中置直达声的位置；适合耳机，开启后会关闭交叉馈送；听感因耳机和个人而异。"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -354,7 +355,7 @@ public sealed partial class DspPage
 		// 2. 状态说明文字
 		_vsStatusDescTb = new TextBlock
 		{
-			Text = "已旁路，保留原始立体声，不添加空间处理。",
+			Text = Loc.T("已旁路，保留原始立体声，不添加空间处理。"),
 			FontSize = 12.5,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 0, 4, 0),
@@ -368,7 +369,7 @@ public sealed partial class DspPage
 		// 4. 底部提示
 		stack.Children.Add(new TextBlock
 		{
-			Text = "参数实时同步。点击预设开始试听，使用电源按钮对比原声。",
+			Text = Loc.T("参数实时同步。点击预设开始试听，使用电源按钮对比原声。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 2, 4, 0)
@@ -430,7 +431,7 @@ public sealed partial class DspPage
 		// “中置”标签
 		var centerLabel = new TextBlock
 		{
-			Text = "中置",
+			Text = Loc.T("中置"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush,
@@ -458,7 +459,7 @@ public sealed partial class DspPage
 		_vsLeftSpeakerNode = CreateVsSpeakerNodeBorder();
 		_vsLeftSpeakerLabel = new TextBlock
 		{
-			Text = "左",
+			Text = Loc.T("左"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush,
@@ -471,7 +472,7 @@ public sealed partial class DspPage
 		_vsRightSpeakerNode = CreateVsSpeakerNodeBorder();
 		_vsRightSpeakerLabel = new TextBlock
 		{
-			Text = "右",
+			Text = Loc.T("右"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush,
@@ -495,7 +496,7 @@ public sealed partial class DspPage
 		// 中心听音点下方“模拟 ±30°”读数
 		_vsDiagramAngleTb = new TextBlock
 		{
-			Text = "模拟 ±30°",
+			Text = Loc.T("模拟 ±30°"),
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSubHeaderBrush,
@@ -547,7 +548,7 @@ public sealed partial class DspPage
 
 		// 列 0：模拟角度
 		var sp0 = new StackPanel { Spacing = 3 };
-		sp0.Children.Add(new TextBlock { Text = "模拟角度", FontSize = 12, Foreground = DspTextMutedBrush });
+		sp0.Children.Add(new TextBlock { Text = Loc.T("模拟角度"), FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatAngleTb = new TextBlock
 		{
 			Text = "±30°",
@@ -561,7 +562,7 @@ public sealed partial class DspPage
 
 		// 列 1：反射量
 		var sp1 = new StackPanel { Spacing = 3 };
-		sp1.Children.Add(new TextBlock { Text = "反射量", FontSize = 12, Foreground = DspTextMutedBrush });
+		sp1.Children.Add(new TextBlock { Text = Loc.T("反射量"), FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatReflectionTb = new TextBlock
 		{
 			Text = "100%",
@@ -575,10 +576,10 @@ public sealed partial class DspPage
 
 		// 列 2：中置
 		var sp2 = new StackPanel { Spacing = 3 };
-		sp2.Children.Add(new TextBlock { Text = "中置", FontSize = 12, Foreground = DspTextMutedBrush });
+		sp2.Children.Add(new TextBlock { Text = Loc.T("中置"), FontSize = 12, Foreground = DspTextMutedBrush });
 		_vsStatCenterTb = new TextBlock
 		{
-			Text = "直达声居中",
+			Text = Loc.T("直达声居中"),
 			FontSize = 24,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -631,7 +632,7 @@ public sealed partial class DspPage
 
 		_vsHrtfCheckBox = new CheckBox
 		{
-			Content = "HRTF 声场",
+			Content = Loc.T("HRTF 声场"),
 			FontSize = 13.5,
 			FontWeight = FontWeights.SemiBold,
 			IsChecked = _virtualStageHrtfEnabled,
@@ -654,7 +655,7 @@ public sealed partial class DspPage
 
 		var btnImportSofa = new HyperlinkButton
 		{
-			Content = "导入 SOFA",
+			Content = Loc.T("导入 SOFA"),
 			FontSize = 12,
 			Foreground = DspAccentSoftTextBrush,
 			Padding = new Thickness(6, 2, 6, 2),
@@ -674,7 +675,7 @@ public sealed partial class DspPage
 
 		var lbl = new TextBlock
 		{
-			Text = "方案",
+			Text = Loc.T("方案"),
 			FontSize = 13,
 			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -687,16 +688,16 @@ public sealed partial class DspPage
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(6)
 		};
-		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = "SADIE II · 标准" });
-		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = "KEMAR · 扩散场" });
-		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = "IRCAM · 监听" });
-		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = "Furina 3D 沉浸" });
+		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = Loc.T("SADIE II · 标准"), Tag = "SADIE II · 标准" });
+		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = Loc.T("KEMAR · 扩散场"), Tag = "KEMAR · 扩散场" });
+		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = Loc.T("IRCAM · 监听"), Tag = "IRCAM · 监听" });
+		_vsHrtfCombo.Items.Add(new ComboBoxItem { Content = Loc.T("Furina 3D 沉浸"), Tag = "Furina 3D 沉浸" });
 
 		// 选中当前方案
 		SelectVsComboProfile(_virtualStageHrtfProfile);
 		_vsHrtfCombo.SelectionChanged += (s, e) =>
 		{
-			if (_vsHrtfCombo.SelectedItem is ComboBoxItem cbi && cbi.Content is string text)
+			if (_vsHrtfCombo.SelectedItem is ComboBoxItem cbi && ((cbi.Tag as string) ?? (cbi.Content as string)) is string text)
 			{
 				_virtualStageHrtfProfile = text;
 				UpdateVsStatusText();
@@ -708,7 +709,7 @@ public sealed partial class DspPage
 
 		_vsAuditionMatchBtn = new Button
 		{
-			Content = "试听匹配",
+			Content = Loc.T("试听匹配"),
 			FontSize = 12,
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(10, 4, 10, 4),
@@ -749,7 +750,7 @@ public sealed partial class DspPage
 
 		panel.Children.Add(new TextBlock
 		{
-			Text = "用当前音乐切换比较，选择声像与音色最自然的一项。",
+			Text = Loc.T("用当前音乐切换比较，选择声像与音色最自然的一项。"),
 			FontSize = 11.5,
 			Foreground = DspTextMutedBrush
 		});
@@ -762,7 +763,8 @@ public sealed partial class DspPage
 		{
 			var btn = new Button
 			{
-				Content = prof,
+				Content = Loc.T(prof),
+				Tag = prof,
 				FontSize = 11.5,
 				CornerRadius = new CornerRadius(4),
 				Padding = new Thickness(8, 3, 8, 3)
@@ -791,7 +793,7 @@ public sealed partial class DspPage
 		if (_vsHrtfCombo == null) return;
 		for (int i = 0; i < _vsHrtfCombo.Items.Count; i++)
 		{
-			if (_vsHrtfCombo.Items[i] is ComboBoxItem item && (item.Content as string) == profile)
+			if (_vsHrtfCombo.Items[i] is ComboBoxItem item && ((item.Tag as string) == profile || (item.Content as string) == profile))
 			{
 				_vsHrtfCombo.SelectedIndex = i;
 				return;
@@ -803,7 +805,7 @@ public sealed partial class DspPage
 	{
 		foreach (var btn in _vsAuditionButtons)
 		{
-			bool active = (btn.Content as string) == _virtualStageHrtfProfile;
+			bool active = ((btn.Tag as string) ?? (btn.Content as string)) == _virtualStageHrtfProfile;
 			btn.Background = active
 				? new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
 				: new SolidColorBrush(Color.FromArgb(255, 248, 250, 252));
@@ -830,7 +832,7 @@ public sealed partial class DspPage
 		var sp = new StackPanel { Spacing = 10 };
 		sp.Children.Add(new TextBlock
 		{
-			Text = "快速预设",
+			Text = Loc.T("快速预设"),
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush
@@ -841,36 +843,36 @@ public sealed partial class DspPage
 		// 【轻度】(强度 25%, 角度 ±20°, 反射 40%)
 		_vsPresetLightBtn = new Button
 		{
-			Content = "轻度",
+			Content = Loc.T("轻度"),
 			FontSize = 13,
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(18, 6, 18, 6)
 		};
-		ToolTipService.SetToolTip(_vsPresetLightBtn, "轻度：强度 25% · 角度 ±20° · 反射 40%");
+		ToolTipService.SetToolTip(_vsPresetLightBtn, Loc.T("轻度：强度 25% · 角度 ±20° · 反射 40%"));
 		_vsPresetLightBtn.Click += (s, e) => ApplyVsPreset(0.25, 20.0, 0.40);
 		buttonsSp.Children.Add(_vsPresetLightBtn);
 
 		// 【自然】(强度 45%, 角度 ±30°, 反射 100%)
 		_vsPresetNaturalBtn = new Button
 		{
-			Content = "自然",
+			Content = Loc.T("自然"),
 			FontSize = 13,
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(18, 6, 18, 6)
 		};
-		ToolTipService.SetToolTip(_vsPresetNaturalBtn, "自然：强度 45% · 角度 ±30° · 反射 100%");
+		ToolTipService.SetToolTip(_vsPresetNaturalBtn, Loc.T("自然：强度 45% · 角度 ±30° · 反射 100%"));
 		_vsPresetNaturalBtn.Click += (s, e) => ApplyVsPreset(0.45, 30.0, 1.00);
 		buttonsSp.Children.Add(_vsPresetNaturalBtn);
 
 		// 【强烈】(强度 70%, 角度 ±45°, 反射 100%)
 		_vsPresetStrongBtn = new Button
 		{
-			Content = "强烈",
+			Content = Loc.T("强烈"),
 			FontSize = 13,
 			CornerRadius = new CornerRadius(6),
 			Padding = new Thickness(18, 6, 18, 6)
 		};
-		ToolTipService.SetToolTip(_vsPresetStrongBtn, "强烈：强度 70% · 角度 ±45° · 反射 100%");
+		ToolTipService.SetToolTip(_vsPresetStrongBtn, Loc.T("强烈：强度 70% · 角度 ±45° · 反射 100%"));
 		_vsPresetStrongBtn.Click += (s, e) => ApplyVsPreset(0.70, 45.0, 1.00);
 		buttonsSp.Children.Add(_vsPresetStrongBtn);
 
@@ -908,7 +910,7 @@ public sealed partial class DspPage
 		var sp = new StackPanel { Spacing = 14 };
 		sp.Children.Add(new TextBlock
 		{
-			Text = "参数控制",
+			Text = Loc.T("参数控制"),
 			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush
@@ -918,7 +920,7 @@ public sealed partial class DspPage
 		var strHeader = new Grid();
 		strHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		strHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var strLbl = new TextBlock { Text = "强度", FontSize = 13, Foreground = DspTextSecondaryBrush };
+		var strLbl = new TextBlock { Text = Loc.T("强度"), FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsStrengthValTb = new TextBlock
 		{
 			Text = $"{Math.Round(_virtualStageStrength * 100)}%",
@@ -958,7 +960,7 @@ public sealed partial class DspPage
 		var azHeader = new Grid();
 		azHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		azHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var azLbl = new TextBlock { Text = "模拟角度", FontSize = 13, Foreground = DspTextSecondaryBrush };
+		var azLbl = new TextBlock { Text = Loc.T("模拟角度"), FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsAzimuthValTb = new TextBlock
 		{
 			Text = $"±{Math.Round(_virtualStageAzimuthDegrees)}°",
@@ -1001,7 +1003,7 @@ public sealed partial class DspPage
 		var refHeader = new Grid();
 		refHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		refHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var refLbl = new TextBlock { Text = "反射量", FontSize = 13, Foreground = DspTextSecondaryBrush };
+		var refLbl = new TextBlock { Text = Loc.T("反射量"), FontSize = 13, Foreground = DspTextSecondaryBrush };
 		_vsReflectionValTb = new TextBlock
 		{
 			Text = $"{Math.Round(_virtualStageReflection * 100)}%",
@@ -1061,7 +1063,7 @@ public sealed partial class DspPage
 
 		if (_virtualStageEnabled)
 		{
-			_vsPowerText.Text = "已开启";
+			_vsPowerText.Text = Loc.T("已开启");
 			_vsPowerText.Foreground = DspAccentSoftTextBrush;
 			_vsPowerIcon.Foreground = DspAccentSoftTextBrush;
 			_vsPowerBtn.Background = DspAccentSoftBgBrush;
@@ -1069,7 +1071,7 @@ public sealed partial class DspPage
 		}
 		else
 		{
-			_vsPowerText.Text = "已旁路 · 开始试听";
+			_vsPowerText.Text = Loc.T("已旁路 · 开始试听");
 			_vsPowerText.Foreground = DspTextSubHeaderBrush;
 			_vsPowerIcon.Foreground = DspTextMutedBrush;
 			_vsPowerBtn.Background = DspSoftSurfaceBrush;
@@ -1162,7 +1164,7 @@ public sealed partial class DspPage
 		// 听音点中心角度读数
 		if (_vsDiagramAngleTb != null)
 		{
-			_vsDiagramAngleTb.Text = $"模拟 ±{Math.Round(angle)}°";
+			_vsDiagramAngleTb.Text = Loc.F("模拟 ±{0}°", Math.Round(angle));
 			Canvas.SetLeft(_vsDiagramAngleTb, VsListenerCx - 32.0);
 			Canvas.SetTop(_vsDiagramAngleTb, VsListenerCy + 18.0);
 		}
@@ -1174,24 +1176,24 @@ public sealed partial class DspPage
 
 		if (!_virtualStageEnabled)
 		{
-			_vsStatusDescTb.Text = "已旁路，保留原始立体声，不添加空间处理。";
+			_vsStatusDescTb.Text = Loc.T("已旁路，保留原始立体声，不添加空间处理。");
 			_vsStatusDescTb.Foreground = DspTextMutedBrush;
 		}
 		else
 		{
 			if (_virtualStageStrength <= 0.001)
 			{
-				_vsStatusDescTb.Text = "强度为 0%，平滑过渡后恢复原始立体声。提高强度可加入空间线索。";
+				_vsStatusDescTb.Text = Loc.T("强度为 0%，平滑过渡后恢复原始立体声。提高强度可加入空间线索。");
 				_vsStatusDescTb.Foreground = DspTextMutedBrush;
 			}
 			else if (_virtualStageHrtfEnabled)
 			{
-				_vsStatusDescTb.Text = $"已开启 · 虚拟空间声场渲染中（HRTF: {_virtualStageHrtfProfile} · 模拟角度 ±{Math.Round(_virtualStageAzimuthDegrees)}°）";
+				_vsStatusDescTb.Text = Loc.F("已开启 · 虚拟空间声场渲染中（HRTF: {0} · 模拟角度 ±{1}°）", Loc.T(_virtualStageHrtfProfile), Math.Round(_virtualStageAzimuthDegrees));
 				_vsStatusDescTb.Foreground = DspAccentSoftTextBrush;
 			}
 			else
 			{
-				_vsStatusDescTb.Text = "已开启 · 虚拟空间声场渲染中";
+				_vsStatusDescTb.Text = Loc.T("已开启 · 虚拟空间声场渲染中");
 				_vsStatusDescTb.Foreground = DspAccentSoftTextBrush;
 			}
 		}
@@ -1253,7 +1255,7 @@ public sealed partial class DspPage
 		if (_vsStatReflectionTb != null) _vsStatReflectionTb.Text = $"{Math.Round(_virtualStageReflection * 100)}%";
 		if (_vsReflectionSlider != null) _vsReflectionSlider.Value = Math.Round(_virtualStageReflection * 100);
 
-		if (_vsStatCenterTb != null) _vsStatCenterTb.Text = "直达声居中";
+		if (_vsStatCenterTb != null) _vsStatCenterTb.Text = Loc.T("直达声居中");
 
 		if (_vsHrtfCheckBox != null) _vsHrtfCheckBox.IsChecked = _virtualStageHrtfEnabled;
 		SelectVsComboProfile(_virtualStageHrtfProfile);
@@ -1417,9 +1419,9 @@ public sealed partial class DspPage
 			if (_virtualStageEnabled)
 			{
 				// 声学互斥联动：开启虚拟声场时，若交叉馈送开启，则联动关闭交叉馈送
-				if (ViewModel != null && ViewModel.EchoCrossfeedEnabled)
+				if (ViewModel != null && ViewModel.FurinaPlayerCrossfeedEnabled)
 				{
-					ViewModel.EchoCrossfeedEnabled = false;
+					ViewModel.FurinaPlayerCrossfeedEnabled = false;
 				}
 				var chain = ViewModel?.AudioEngine?.DspChain;
 				if (chain != null && chain.Spatial.CrossfeedEnabled)

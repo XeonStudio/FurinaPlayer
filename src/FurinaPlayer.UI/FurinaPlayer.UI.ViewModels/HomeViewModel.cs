@@ -10,9 +10,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Xaml;
-using SonicWave.Audio;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.ViewModels;
@@ -108,7 +108,7 @@ public class HomeViewModel : ObservableObject
 			{
 				return string.Empty;
 			}
-			return "专辑：" + AlbumFilter;
+			return Loc.F("专辑：{0}", AlbumFilter);
 		}
 	}
 
@@ -476,14 +476,83 @@ public class HomeViewModel : ObservableObject
 		await RefreshAsync();
 	}
 
+	private List<Track> _allTracksCache = new();
+	private List<Album> _allAlbumsCache = new();
+
+	public sealed record HomeSearchCandidate(string Kind, string Title, string Subtitle, Track? Track, Album? Album, string? ArtistName);
+
+	public List<HomeSearchCandidate> GetSearchCandidates(string? query, int maxPerGroup = 5)
+	{
+		var results = new List<HomeSearchCandidate>();
+		if (string.IsNullOrWhiteSpace(query)) return results;
+
+		string q = query.Trim();
+		string[] tokens = q.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+		var matchedTracks = _allTracksCache
+			.Select(t => (Track: t, Score: LibraryService.ScoreTrackMatch(t, q, tokens)))
+			.Where(x => x.Score > 0)
+			.OrderByDescending(x => x.Score)
+			.Take(maxPerGroup);
+		foreach (var m in matchedTracks)
+		{
+			string sub = string.IsNullOrWhiteSpace(m.Track.Album) ? m.Track.Artist : $"{m.Track.Artist} · {m.Track.Album}";
+			results.Add(new HomeSearchCandidate("歌曲", m.Track.Title, sub, m.Track, null, null));
+		}
+
+		var matchedAlbums = _allAlbumsCache
+			.Select(a => (Album: a, Score: Math.Max(LibraryService.ScoreFieldMatch(a.Name, q), LibraryService.ScoreFieldMatch(a.Artist, q))))
+			.Where(x => x.Score > 0)
+			.OrderByDescending(x => x.Score)
+			.Take(maxPerGroup);
+		foreach (var m in matchedAlbums)
+		{
+			results.Add(new HomeSearchCandidate("专辑", m.Album.Name, $"{m.Album.Artist} · {m.Album.TrackCount} 首", null, m.Album, null));
+		}
+
+		var matchedArtists = _allTracksCache
+			.SelectMany(t => new[] { t.Artist, t.AlbumArtist })
+			.Where(a => !string.IsNullOrWhiteSpace(a))
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.Select(a => (Artist: a!, Score: LibraryService.ScoreFieldMatch(a, q)))
+			.Where(x => x.Score > 0)
+			.OrderByDescending(x => x.Score)
+			.Take(maxPerGroup);
+		foreach (var m in matchedArtists)
+		{
+			int count = _allTracksCache.Count(t => string.Equals(t.Artist, m.Artist, StringComparison.OrdinalIgnoreCase));
+			results.Add(new HomeSearchCandidate("艺术家", m.Artist, Loc.F("{0} 首曲目", count), null, null, m.Artist));
+		}
+
+		return results;
+	}
+
 	[RelayCommand]
 	private async Task RefreshAsync()
 	{
-		Tracks = new ObservableCollection<Track>(await _library.GetTracksAsync(SearchText));
-		Albums = new ObservableCollection<Album>(await _library.GetAlbumsAsync());
+		_allTracksCache = await _library.GetAllTracksAsync();
+		_allAlbumsCache = await _library.GetAlbumsAsync();
+
+		var filteredTracks = await _library.GetTracksAsync(SearchText);
+		Tracks = new ObservableCollection<Track>(filteredTracks);
+
+		if (string.IsNullOrWhiteSpace(SearchText))
+		{
+			Albums = new ObservableCollection<Album>(_allAlbumsCache);
+		}
+		else
+		{
+			string q = SearchText.Trim();
+			var matchingAlbumNames = new HashSet<string>(filteredTracks.Select(t => t.Album ?? string.Empty), StringComparer.OrdinalIgnoreCase);
+			Albums = new ObservableCollection<Album>(_allAlbumsCache.Where(a =>
+				matchingAlbumNames.Contains(a.Name) ||
+				LibraryService.ScoreFieldMatch(a.Name, q) > 0 ||
+				LibraryService.ScoreFieldMatch(a.Artist, q) > 0));
+		}
+
 		RecentTracks = new ObservableCollection<Track>(await _library.GetRecentAsync(20));
 		ApplyAlbumFilter();
-		StatusText = $"共 {Tracks.Count} 首歌曲 · {Albums.Count} 张专辑";
+		StatusText = Loc.F("共 {0} 首歌曲 · {1} 张专辑", Tracks.Count, Albums.Count);
 		_ = Task.Run(async () =>
 		{
 			if (_albumArtService != null && Tracks != null && Tracks.Count > 0)
@@ -509,13 +578,13 @@ public class HomeViewModel : ObservableObject
 		IsScanning = true;
 		try
 		{
-			ProgressText = "扫描中…";
+			ProgressText = Loc.T("扫描中…");
 			Progress<(string, int)> progress = new Progress<(string, int)>(((string file, int total) p) =>
 			{
-				ProgressText = $"扫描中… {p.total} 个文件";
+				ProgressText = Loc.F("扫描中… {0} 个文件", p.total);
 			});
-			(int, int, int) tuple = await _library.ScanFolderAsync(folder, progress);
-			ProgressText = $"新增 {tuple.Item1} 首，更新 {tuple.Item2} 首，失败 {tuple.Item3} 首";
+			(int added, int skipped, int failed) tuple = await _library.ScanFolderAsync(folder, progress);
+			ProgressText = Loc.F("新增 {0} 首，跳过重复 {1} 首，失败 {2} 首", tuple.added, tuple.skipped, tuple.failed);
 			await RefreshAsync();
 		}
 		finally
@@ -527,18 +596,30 @@ public class HomeViewModel : ObservableObject
 	public async Task ImportPathsAsync(string[] paths)
 	{
 		int added = 0;
+		int skipped = 0;
+		var singleFiles = new List<string>();
 		foreach (string text in paths)
 		{
 			if (Directory.Exists(text))
 			{
-				added += (await _library.ScanFolderAsync(text)).Item1;
+				var r = await _library.ScanFolderAsync(text);
+				added += r.Added;
+				skipped += r.Updated;
 			}
-			else if (File.Exists(text) && (await _library.ImportFileAsync(text)).Item1)
+			else if (File.Exists(text))
 			{
-				added++;
+				singleFiles.Add(text);
 			}
 		}
-		ProgressText = ((added > 0) ? $"扫描完成，新增 {added} 首" : "未发现新的音频文件");
+		if (singleFiles.Count > 0)
+		{
+			var batch = await _library.ImportFilesBatchAsync(singleFiles);
+			added += batch.Added;
+			skipped += batch.Skipped;
+		}
+		ProgressText = added > 0
+			? Loc.F("导入完成：新增 {0} 首，跳过重复 {1} 首", added, skipped)
+			: (skipped > 0 ? Loc.F("已跳过 {0} 首重复音频文件", skipped) : Loc.T("未发现新的音频文件"));
 		await RefreshAsync();
 	}
 

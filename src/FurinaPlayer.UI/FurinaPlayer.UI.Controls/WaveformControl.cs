@@ -8,7 +8,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Renderers;
+using FurinaPlayer.Audio.Renderers;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.Controls;
@@ -129,8 +130,9 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 				IsAntialias = true,
 				Typeface = CjkTypeface
 			};
-			float textW = emptyPaint.MeasureText(EmptyHint);
-			canvas.DrawText(EmptyHint, (w - textW) / 2f, h / 2f + 5f, emptyPaint);
+			string emptyHint = Loc.T(EmptyHint);
+			float textW = emptyPaint.MeasureText(emptyHint);
+			canvas.DrawText(emptyHint, (w - textW) / 2f, h / 2f + 5f, emptyPaint);
 			return;
 		}
 
@@ -280,7 +282,9 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 
 			// D. HUD channel labels
 			string chLabel = lane == 0 ? "L" : "R";
-			string chSub = lane == 0 ? "PK 峰值包络 · 线性振幅 (0 ~ -60 dB FS)" : "RMS 有效值包络 · 线性振幅 (0 ~ -60 dB FS)";
+			string chSub = lane == 0
+				? Loc.T("PK 峰值包络 · 线性振幅 (0 ~ -60 dB FS)")
+				: Loc.T("RMS 有效值包络 · 线性振幅 (0 ~ -60 dB FS)");
 			canvas.DrawText(chLabel, 10f, laneTop + 16f, hudPaint);
 			canvas.DrawText(chSub, 28f, laneTop + 16f, hudSubPaint);
 		}

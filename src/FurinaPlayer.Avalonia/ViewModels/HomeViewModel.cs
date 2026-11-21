@@ -6,9 +6,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
-using SonicWave.Audio;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.Avalonia.ViewModels;
 

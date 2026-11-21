@@ -30,8 +30,8 @@
     <Reference Include="CommunityToolkit.Mvvm">
       <HintPath>..\..\CommunityToolkit.Mvvm.dll</HintPath>
     </Reference>
-    <ProjectReference Include="..\SonicWave.Audio\SonicWave.Audio.csproj" />
-    <ProjectReference Include="..\SonicWave.Core\SonicWave.Core.csproj" />
+    <ProjectReference Include="..\FurinaPlayer.Audio\FurinaPlayer.Audio.csproj" />
+    <ProjectReference Include="..\FurinaPlayer.Core\FurinaPlayer.Core.csproj" />
     <Reference Include="Microsoft.InteractiveExperiences.Projection">
       <HintPath>..\..\Microsoft.InteractiveExperiences.Projection.dll</HintPath>
     </Reference>

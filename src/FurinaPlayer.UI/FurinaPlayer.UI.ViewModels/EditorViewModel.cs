@@ -11,12 +11,12 @@ using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
 using FurinaPlayer.UI.Helpers;
 using Microsoft.UI.Dispatching;
-using SonicWave.Audio;
-using SonicWave.Audio.Dsp;
-using SonicWave.Audio.Renderers;
-using SonicWave.Audio.Vst3;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Audio.Renderers;
+using FurinaPlayer.Audio.Vst3;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.ViewModels;
@@ -55,15 +55,15 @@ public class EditorViewModel : ObservableObject
 
 	private HashSet<string> _lastCommittedEnabledPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-	private readonly object _echoEqLock = new object();
+	private readonly object _furinaPlayerEqLock = new object();
 
 	private readonly object _insightEqLock = new object();
 
-	private double _echoEqPreampDb;
+	private double _furinaPlayerEqPreampDb;
 
-	private bool _echoEqEnabled = true;
+	private bool _furinaPlayerEqEnabled = true;
 
-	private int _echoEqVersion;
+	private int _furinaPlayerEqVersion;
 
 	private int _insightEqVersion = -1;
 
@@ -71,13 +71,13 @@ public class EditorViewModel : ObservableObject
 
 	private double _lastInsightPosSec = -1.0;
 
-	private EchoEqProcessor? _previewInsightEq;
+	private FurinaPlayerEqProcessor? _previewInsightEq;
 
 	[ObservableProperty]
 	private ObservableCollection<Vst3PluginState> vst3Plugins = new ObservableCollection<Vst3PluginState>();
 
 	[ObservableProperty]
-	private string vst3StatusText = "效果组：启用插件后其效果应用到预览播放与导出（与 DSP 页共用同一份插件配置）";
+	private string vst3StatusText = Loc.T("效果组：启用插件后其效果应用到预览播放与导出（与 DSP 页共用同一份插件配置）");
 
 	[ObservableProperty]
 	private string filePath = string.Empty;
@@ -86,7 +86,7 @@ public class EditorViewModel : ObservableObject
 	private string fileName = string.Empty;
 
 	[ObservableProperty]
-	private string statusText = "未加载音频文件，请先打开文件";
+	private string statusText = Loc.T("未加载音频文件，请先打开文件");
 
 	[ObservableProperty]
 	private ObservableCollection<WaveformRenderer.PeakPair> waveformPeaks = new ObservableCollection<WaveformRenderer.PeakPair>();
@@ -201,27 +201,27 @@ public class EditorViewModel : ObservableObject
 
 	public InsightProAnalyzer InsightAnalyzer { get; } = new InsightProAnalyzer();
 
-	public List<EchoBiquadFilter> EchoEqBands { get; } = new List<EchoBiquadFilter>();
+	public List<FurinaPlayerBiquadFilter> FurinaPlayerEqBands { get; } = new List<FurinaPlayerBiquadFilter>();
 
-	public double EchoEqPreampDb
+	public double FurinaPlayerEqPreampDb
 	{
-		get => _echoEqPreampDb;
-		set => SetProperty(ref _echoEqPreampDb, Math.Clamp(value, -18.0, 18.0));
+		get => _furinaPlayerEqPreampDb;
+		set => SetProperty(ref _furinaPlayerEqPreampDb, Math.Clamp(value, -18.0, 18.0));
 	}
 
-	public bool EchoEqEnabled
+	public bool FurinaPlayerEqEnabled
 	{
-		get => _echoEqEnabled;
-		set => SetProperty(ref _echoEqEnabled, value);
+		get => _furinaPlayerEqEnabled;
+		set => SetProperty(ref _furinaPlayerEqEnabled, value);
 	}
 
 	public bool HasActiveParametricEq
 	{
 		get
 		{
-			lock (_echoEqLock)
+			lock (_furinaPlayerEqLock)
 			{
-				return _echoEqEnabled && HasActiveParametricEqLocked();
+				return _furinaPlayerEqEnabled && HasActiveParametricEqLocked();
 			}
 		}
 	}
@@ -240,11 +240,11 @@ public class EditorViewModel : ObservableObject
 		}
 	}
 
-	public string DurationText => $"时长: {DurationSeconds:F1} 秒";
+	public string DurationText => Loc.F("时长: {0:F1} 秒", DurationSeconds);
 
-	public string PhaseDifferenceText => $"相位差: {PhaseDifference:F1}°";
+	public string PhaseDifferenceText => Loc.F("相位差: {0:F1}°", PhaseDifference);
 
-	public string StereoCorrelationText => $"相关度: {StereoCorrelation:F2}";
+	public string StereoCorrelationText => Loc.F("相关度: {0:F2}", StereoCorrelation);
 
 	public double[] EqGains
 	{
@@ -857,7 +857,7 @@ public class EditorViewModel : ObservableObject
 		SettingsService = settingsService;
 		_uiDispatcher = DispatcherQueue.GetForCurrentThread();
 		Equalizer = new Equalizer();
-		InitializeEchoEqBands();
+		InitializeFurinaPlayerEqBands();
 		Fft = new FftAnalyzer
 		{
 			FftSize = 8192
@@ -889,7 +889,7 @@ public class EditorViewModel : ObservableObject
 	{
 		RunOnUiThread(() =>
 		{
-			StatusText = (rendering ? "正在预渲染预览效果…" : "预渲染完成，开始播放预览");
+			StatusText = (rendering ? Loc.T("正在预渲染预览效果…") : Loc.T("预渲染完成，开始播放预览"));
 		});
 	}
 
@@ -899,11 +899,11 @@ public class EditorViewModel : ObservableObject
 		{
 			if (p.Fraction < 1.0)
 			{
-				StatusText = $"预渲染中… {p.Fraction:P0}，预计剩余 {Math.Max(0, (int)p.Remaining.TotalSeconds)} 秒";
+				StatusText = Loc.F("预渲染中… {0:P0}，预计剩余 {1} 秒", p.Fraction, Math.Max(0, (int)p.Remaining.TotalSeconds));
 			}
 			else
 			{
-				StatusText = "预渲染完成，开始播放预览";
+				StatusText = Loc.T("预渲染完成，开始播放预览");
 			}
 		});
 	}
@@ -954,8 +954,8 @@ public class EditorViewModel : ObservableObject
 			ApplyPreviewVst3IfChanged(force: false);
 			Vst3PluginState? active = Vst3Plugins.FirstOrDefault((Vst3PluginState p) => p != null && p.IsActive);
 			Vst3StatusText = active != null
-				? $"效果组已同步启用：{active.Name}（预览与主播放引擎实时生效）"
-				: "效果组已同步：当前未启用插件（直通）";
+				? Loc.F("效果组已同步启用：{0}（预览与主播放引擎实时生效）", active.Name)
+				: Loc.T("效果组已同步：当前未启用插件（直通）");
 		});
 	}
 
@@ -1012,8 +1012,8 @@ public class EditorViewModel : ObservableObject
 		SaveVst3State();
 		Vst3SyncHub.Publish(this, Vst3Plugins);
 		Vst3StatusText = ActiveVst3Plugins.Count > 0
-			? $"效果组已更新：启用 {ActiveVst3Plugins[0].Name}（预览与主播放引擎同步生效）"
-			: "效果组已更新：当前未启用 VST3 插件（直通）";
+			? Loc.F("效果组已更新：启用 {0}（预览与主播放引擎同步生效）", ActiveVst3Plugins[0].Name)
+			: Loc.T("效果组已更新：当前未启用 VST3 插件（直通）");
 	}
 
 	private void SaveVst3State()
@@ -1056,61 +1056,61 @@ public class EditorViewModel : ObservableObject
 		Vst3SyncHub.PushToEngine(_engine, Vst3Plugins.ToList());
 		SaveVst3State();
 		Vst3SyncHub.Publish(this, Vst3Plugins);
-		Vst3StatusText = "效果组已恢复默认（插件配置清空，音乐库不受影响）";
+		Vst3StatusText = Loc.T("效果组已恢复默认（插件配置清空，音乐库不受影响）");
 	}
 
-	public void InitializeEchoEqBands()
+	public void InitializeFurinaPlayerEqBands()
 	{
-		lock (_echoEqLock)
+		lock (_furinaPlayerEqLock)
 		{
-			PopulateDefaultEchoEqBandsLocked(_sampleRate > 0 ? _sampleRate : 48000);
-			_echoEqPreampDb = 0.0;
-			_echoEqEnabled = true;
-			_echoEqVersion++;
+			PopulateDefaultFurinaPlayerEqBandsLocked(_sampleRate > 0 ? _sampleRate : 48000);
+			_furinaPlayerEqPreampDb = 0.0;
+			_furinaPlayerEqEnabled = true;
+			_furinaPlayerEqVersion++;
 		}
-		OnPropertyChanged(nameof(EchoEqPreampDb));
-		OnPropertyChanged(nameof(EchoEqEnabled));
+		OnPropertyChanged(nameof(FurinaPlayerEqPreampDb));
+		OnPropertyChanged(nameof(FurinaPlayerEqEnabled));
 		Equalizer.Gains = new double[10];
 	}
 
-	private void PopulateDefaultEchoEqBandsLocked(double sampleRate)
+	private void PopulateDefaultFurinaPlayerEqBandsLocked(double sampleRate)
 	{
-		EchoEqBands.Clear();
+		FurinaPlayerEqBands.Clear();
 		double[] freqs = MixAssistantEngine.GraphicFrequencies;
 		for (int i = 0; i < freqs.Length; i++)
 		{
-			var band = new EchoBiquadFilter
+			var band = new FurinaPlayerBiquadFilter
 			{
 				FilterType = i == 0
-					? EchoFilterType.LowShelf
-					: (i == freqs.Length - 1 ? EchoFilterType.HighShelf : EchoFilterType.Peaking),
+					? FurinaPlayerFilterType.LowShelf
+					: (i == freqs.Length - 1 ? FurinaPlayerFilterType.HighShelf : FurinaPlayerFilterType.Peaking),
 				FrequencyHz = freqs[i],
 				GainDb = 0.0,
 				Q = 1.414,
 				Enabled = true
 			};
 			band.UpdateCoefficients(sampleRate);
-			EchoEqBands.Add(band);
+			FurinaPlayerEqBands.Add(band);
 		}
 	}
 
-	public void ApplyPreviewParametricEq(IReadOnlyList<EchoBiquadFilter>? bands, double preampDb, bool enabled)
+	public void ApplyPreviewParametricEq(IReadOnlyList<FurinaPlayerBiquadFilter>? bands, double preampDb, bool enabled)
 	{
-		List<EchoBiquadFilter>? activeSnapshot = null;
+		List<FurinaPlayerBiquadFilter>? activeSnapshot = null;
 		double[] summaryGains = new double[10];
 		double clampedPreamp = Math.Clamp(preampDb, -18.0, 18.0);
 
-		lock (_echoEqLock)
+		lock (_furinaPlayerEqLock)
 		{
 			int rate = _sampleRate > 0 ? _sampleRate : 48000;
-			EchoEqBands.Clear();
+			FurinaPlayerEqBands.Clear();
 			if (bands != null && bands.Count > 0)
 			{
 				for (int i = 0; i < bands.Count; i++)
 				{
-					EchoBiquadFilter? src = bands[i];
+					FurinaPlayerBiquadFilter? src = bands[i];
 					if (src == null) continue;
-					var copy = new EchoBiquadFilter
+					var copy = new FurinaPlayerBiquadFilter
 					{
 						FilterType = src.FilterType,
 						FrequencyHz = src.FrequencyHz,
@@ -1119,17 +1119,17 @@ public class EditorViewModel : ObservableObject
 						Enabled = src.Enabled
 					};
 					copy.UpdateCoefficients(rate);
-					EchoEqBands.Add(copy);
+					FurinaPlayerEqBands.Add(copy);
 				}
 			}
-			if (EchoEqBands.Count == 0)
+			if (FurinaPlayerEqBands.Count == 0)
 			{
-				PopulateDefaultEchoEqBandsLocked(rate);
+				PopulateDefaultFurinaPlayerEqBandsLocked(rate);
 			}
 
-			_echoEqPreampDb = clampedPreamp;
-			_echoEqEnabled = enabled;
-			_echoEqVersion++;
+			_furinaPlayerEqPreampDb = clampedPreamp;
+			_furinaPlayerEqEnabled = enabled;
+			_furinaPlayerEqVersion++;
 
 			double[] isoFreqs = MixAssistantEngine.GraphicFrequencies;
 			for (int i = 0; i < 10; i++)
@@ -1139,18 +1139,18 @@ public class EditorViewModel : ObservableObject
 					summaryGains[i] = 0.0;
 					continue;
 				}
-				if (i < EchoEqBands.Count && Math.Abs(EchoEqBands[i].FrequencyHz - isoFreqs[i]) < isoFreqs[i] * 0.2)
+				if (i < FurinaPlayerEqBands.Count && Math.Abs(FurinaPlayerEqBands[i].FrequencyHz - isoFreqs[i]) < isoFreqs[i] * 0.2)
 				{
-					summaryGains[i] = EchoEqBands[i].Enabled ? Math.Clamp(EchoEqBands[i].GainDb, -12.0, 12.0) : 0.0;
+					summaryGains[i] = FurinaPlayerEqBands[i].Enabled ? Math.Clamp(FurinaPlayerEqBands[i].GainDb, -12.0, 12.0) : 0.0;
 				}
 				else
 				{
 					double resp = 0.0;
-					for (int b = 0; b < EchoEqBands.Count; b++)
+					for (int b = 0; b < FurinaPlayerEqBands.Count; b++)
 					{
-						if (EchoEqBands[b].Enabled)
+						if (FurinaPlayerEqBands[b].Enabled)
 						{
-							resp += EchoEqBands[b].CalculateResponseDb(isoFreqs[i], 48000.0);
+							resp += FurinaPlayerEqBands[b].CalculateResponseDb(isoFreqs[i], 48000.0);
 						}
 					}
 					summaryGains[i] = Math.Clamp(resp, -12.0, 12.0);
@@ -1159,12 +1159,12 @@ public class EditorViewModel : ObservableObject
 
 			if (enabled)
 			{
-				activeSnapshot = CloneEchoBands(EchoEqBands, rate);
+				activeSnapshot = CloneFurinaPlayerBands(FurinaPlayerEqBands, rate);
 			}
 		}
 
-		OnPropertyChanged(nameof(EchoEqPreampDb));
-		OnPropertyChanged(nameof(EchoEqEnabled));
+		OnPropertyChanged(nameof(FurinaPlayerEqPreampDb));
+		OnPropertyChanged(nameof(FurinaPlayerEqEnabled));
 		Equalizer.Gains = summaryGains;
 		Preview.SetParametricEq(activeSnapshot, enabled ? clampedPreamp : 0.0);
 	}
@@ -1180,16 +1180,16 @@ public class EditorViewModel : ObservableObject
 			AutoEqPreset preset = AutoEqParser.Parse(text);
 			if (preset.Bands.Count == 0)
 			{
-				StatusText = "AutoEq 文件中未检测到有效滤波频段";
+				StatusText = Loc.T("AutoEq 文件中未检测到有效滤波频段");
 				return false;
 			}
 			ApplyPreviewParametricEq(preset.Bands, preset.PreampDb, enabled: true);
-			StatusText = $"已导入 AutoEq 参数均衡（{preset.Bands.Count} 段，前级 {preset.PreampDb:+0.0;-0.0;0.0} dB）";
+			StatusText = Loc.F("已导入 AutoEq 参数均衡（{0} 段，前级 {1:+0.0;-0.0;0.0} dB）", preset.Bands.Count, preset.PreampDb);
 			return true;
 		}
 		catch (Exception ex)
 		{
-			StatusText = "AutoEq 导入失败：" + ex.Message;
+			StatusText = Loc.F("AutoEq 导入失败：{0}", ex.Message);
 			return false;
 		}
 	}
@@ -1253,16 +1253,16 @@ public class EditorViewModel : ObservableObject
 
 	private bool HasActiveParametricEqLocked()
 	{
-		if (Math.Abs(_echoEqPreampDb) > 0.01)
+		if (Math.Abs(_furinaPlayerEqPreampDb) > 0.01)
 		{
 			return true;
 		}
-		for (int i = 0; i < EchoEqBands.Count; i++)
+		for (int i = 0; i < FurinaPlayerEqBands.Count; i++)
 		{
-			EchoBiquadFilter? b = EchoEqBands[i];
+			FurinaPlayerBiquadFilter? b = FurinaPlayerEqBands[i];
 			if (b != null && b.Enabled &&
 				(Math.Abs(b.GainDb) > 0.01 ||
-				 b.FilterType is EchoFilterType.LowPass or EchoFilterType.HighPass or EchoFilterType.BandPass or EchoFilterType.Notch))
+				 b.FilterType is FurinaPlayerFilterType.LowPass or FurinaPlayerFilterType.HighPass or FurinaPlayerFilterType.BandPass or FurinaPlayerFilterType.Notch))
 			{
 				return true;
 			}
@@ -1270,14 +1270,14 @@ public class EditorViewModel : ObservableObject
 		return false;
 	}
 
-	private static List<EchoBiquadFilter> CloneEchoBands(IReadOnlyList<EchoBiquadFilter> source, double sampleRate)
+	private static List<FurinaPlayerBiquadFilter> CloneFurinaPlayerBands(IReadOnlyList<FurinaPlayerBiquadFilter> source, double sampleRate)
 	{
-		var cloned = new List<EchoBiquadFilter>(source.Count);
+		var cloned = new List<FurinaPlayerBiquadFilter>(source.Count);
 		for (int i = 0; i < source.Count; i++)
 		{
-			EchoBiquadFilter? src = source[i];
+			FurinaPlayerBiquadFilter? src = source[i];
 			if (src == null) continue;
-			var copy = new EchoBiquadFilter
+			var copy = new FurinaPlayerBiquadFilter
 			{
 				FilterType = src.FilterType,
 				FrequencyHz = src.FrequencyHz,
@@ -1291,22 +1291,22 @@ public class EditorViewModel : ObservableObject
 		return cloned;
 	}
 
-	private EchoEqProcessor? CreateActiveEchoEqProcessor(int sampleRate)
+	private FurinaPlayerEqProcessor? CreateActiveFurinaPlayerEqProcessor(int sampleRate)
 	{
 		int safeRate = sampleRate > 0 ? sampleRate : 44100;
-		List<EchoBiquadFilter> snapshot;
+		List<FurinaPlayerBiquadFilter> snapshot;
 		double preampDb;
-		lock (_echoEqLock)
+		lock (_furinaPlayerEqLock)
 		{
-			if (!_echoEqEnabled || !HasActiveParametricEqLocked())
+			if (!_furinaPlayerEqEnabled || !HasActiveParametricEqLocked())
 			{
 				return null;
 			}
-			snapshot = CloneEchoBands(EchoEqBands, safeRate);
-			preampDb = _echoEqPreampDb;
+			snapshot = CloneFurinaPlayerBands(FurinaPlayerEqBands, safeRate);
+			preampDb = _furinaPlayerEqPreampDb;
 		}
 
-		var eq = new EchoEqProcessor(safeRate)
+		var eq = new FurinaPlayerEqProcessor(safeRate)
 		{
 			Enabled = true,
 			CalibrationEnabled = true,
@@ -1323,10 +1323,10 @@ public class EditorViewModel : ObservableObject
 		{
 			int currentVersion;
 			bool eqEnabled;
-			lock (_echoEqLock)
+			lock (_furinaPlayerEqLock)
 			{
-				currentVersion = _echoEqVersion;
-				eqEnabled = _echoEqEnabled;
+				currentVersion = _furinaPlayerEqVersion;
+				eqEnabled = _furinaPlayerEqEnabled;
 			}
 
 			if (!eqEnabled)
@@ -1341,7 +1341,7 @@ public class EditorViewModel : ObservableObject
 			{
 				_insightEqVersion = currentVersion;
 				_insightEqSampleRate = sampleRate;
-				_previewInsightEq = CreateActiveEchoEqProcessor(sampleRate);
+				_previewInsightEq = CreateActiveFurinaPlayerEqProcessor(sampleRate);
 			}
 
 			if (_previewInsightEq != null)
@@ -1375,7 +1375,7 @@ public class EditorViewModel : ObservableObject
 		float[] seedBuffer = new float[seedFrames * channels];
 		Array.Copy(samples, 0, seedBuffer, 0, seedBuffer.Length);
 
-		EchoEqProcessor? eq = CreateActiveEchoEqProcessor(sampleRate);
+		FurinaPlayerEqProcessor? eq = CreateActiveFurinaPlayerEqProcessor(sampleRate);
 		eq?.ProcessInterleaved(seedBuffer, 0, seedBuffer.Length, channels);
 
 		InsightAnalyzer.Reset();
@@ -1447,7 +1447,7 @@ public class EditorViewModel : ObservableObject
 	{
 		FilePath = path;
 		FileName = Path.GetFileName(path);
-		StatusText = "正在读取…";
+		StatusText = Loc.T("正在读取…");
 		try
 		{
 			await Task.Run(() =>
@@ -1472,7 +1472,7 @@ public class EditorViewModel : ObservableObject
 			PhaseDifference = 0.0;
 			StereoCorrelation = 0.0;
 			InsightAnalyzer.Reset();
-			StatusText = "无法读取该音频文件：" + ex.Message;
+			StatusText = Loc.F("无法读取该音频文件：{0}", ex.Message);
 			return;
 		}
 		DurationSeconds = (double)_samples.Length / (double)_channels / (double)_sampleRate;
@@ -1487,7 +1487,7 @@ public class EditorViewModel : ObservableObject
 		Preview.SetSpatialAudio(ReverbEnabled, ReverbMix, ReverbPreset, SpatialWidth, SpatialModulation, SpatialPredelayMs);
 		ApplyPreviewVst3IfChanged(force: true);
 		await AnalyzeAllAsync();
-		StatusText = $"{FileName} · {_sampleRate}Hz · {_channels}声道 · {DurationSeconds:F1}s";
+		StatusText = Loc.F("{0} · {1}Hz · {2}声道 · {3:F1}s", FileName, _sampleRate, _channels, DurationSeconds);
 	}
 
 	public async Task AnalyzeAllAsync()
@@ -1566,7 +1566,7 @@ public class EditorViewModel : ObservableObject
 		if (HasSelection)
 		{
 			await ApplyEditAsync((float[] s) => AudioEditService.Trim(s, _channels, _selectionStart, _selectionEnd));
-			StatusText = "已裁剪选区";
+			StatusText = Loc.T("已裁剪选区");
 		}
 	}
 
@@ -1576,7 +1576,7 @@ public class EditorViewModel : ObservableObject
 		if (HasSelection)
 		{
 			await ApplyEditAsync((float[] s) => AudioEditService.CutSelection(s, _channels, _selectionStart, _selectionEnd));
-			StatusText = "已删除选区";
+			StatusText = Loc.T("已删除选区");
 		}
 	}
 
@@ -1588,7 +1588,7 @@ public class EditorViewModel : ObservableObject
 			AudioEditService.ApplyFade(s, _channels, FadeInSeconds, FadeOutSeconds, _sampleRate, FadeCurve);
 			return s;
 		});
-		StatusText = "已应用淡入淡出";
+		StatusText = Loc.T("已应用淡入淡出");
 	}
 
 	[RelayCommand]
@@ -1599,20 +1599,20 @@ public class EditorViewModel : ObservableObject
 			AudioEditService.NormalizePeak(s, NormalizeTargetDbfs);
 			return s;
 		});
-		StatusText = $"已标准化至 {NormalizeTargetDbfs} dBFS";
+		StatusText = Loc.F("已标准化至 {0} dBFS", NormalizeTargetDbfs);
 	}
 
 	private void SyncPreviewParametricEq()
 	{
-		List<EchoBiquadFilter>? activeSnapshot = null;
+		List<FurinaPlayerBiquadFilter>? activeSnapshot = null;
 		double preampDb = 0.0;
-		lock (_echoEqLock)
+		lock (_furinaPlayerEqLock)
 		{
-			if (_echoEqEnabled)
+			if (_furinaPlayerEqEnabled)
 			{
 				int rate = _sampleRate > 0 ? _sampleRate : 48000;
-				activeSnapshot = CloneEchoBands(EchoEqBands, rate);
-				preampDb = _echoEqPreampDb;
+				activeSnapshot = CloneFurinaPlayerBands(FurinaPlayerEqBands, rate);
+				preampDb = _furinaPlayerEqPreampDb;
 			}
 		}
 		Preview.SetParametricEq(activeSnapshot, preampDb);
@@ -1624,9 +1624,9 @@ public class EditorViewModel : ObservableObject
 		await ApplyEditAsync((float[] s) =>
 		{
 			float[] working = (float[])s.Clone();
-			if (EchoEqEnabled)
+			if (FurinaPlayerEqEnabled)
 			{
-				EchoEqProcessor? parametricEq = CreateActiveEchoEqProcessor(_sampleRate);
+				FurinaPlayerEqProcessor? parametricEq = CreateActiveFurinaPlayerEqProcessor(_sampleRate);
 				parametricEq?.ProcessInterleaved(working, 0, working.Length, _channels);
 			}
 			if (ReverbEnabled)
@@ -1658,7 +1658,7 @@ public class EditorViewModel : ObservableObject
 			}
 			return working;
 		});
-		StatusText = "已应用 DSP 效果（含参数均衡与 VST3 插件）";
+		StatusText = Loc.T("已应用 DSP 效果（含参数均衡与 VST3 插件）");
 	}
 
 	[RelayCommand]
@@ -1670,11 +1670,11 @@ public class EditorViewModel : ObservableObject
 			{
 				AudioEditService.ExportWav(exportPath, _samples, _sampleRate, _channels);
 			});
-			StatusText = "已导出: " + exportPath;
+			StatusText = Loc.F("已导出: {0}", exportPath);
 		}
 		catch (Exception ex)
 		{
-			StatusText = "导出失败：" + ex.Message;
+			StatusText = Loc.F("导出失败：{0}", ex.Message);
 		}
 	}
 
@@ -1692,7 +1692,7 @@ public class EditorViewModel : ObservableObject
 		}
 		catch (Exception ex)
 		{
-			StatusText = "编辑失败：" + ex.Message;
+			StatusText = Loc.F("编辑失败：{0}", ex.Message);
 			return;
 		}
 		_selectionStart = 0L;
@@ -1729,7 +1729,7 @@ public class EditorViewModel : ObservableObject
 			EditSnapshot snap = undoStack[undoStack.Count - 1];
 			_undoStack.RemoveAt(_undoStack.Count - 1);
 			await RestoreSnapshotAsync(snap);
-			StatusText = "已撤销上一步";
+			StatusText = Loc.T("已撤销上一步");
 		}
 	}
 
@@ -1743,7 +1743,7 @@ public class EditorViewModel : ObservableObject
 			EditSnapshot snap = redoStack[redoStack.Count - 1];
 			_redoStack.RemoveAt(_redoStack.Count - 1);
 			await RestoreSnapshotAsync(snap);
-			StatusText = "已重做下一步";
+			StatusText = Loc.T("已重做下一步");
 		}
 	}
 

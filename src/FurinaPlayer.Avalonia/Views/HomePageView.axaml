@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="using:FurinaPlayer.Avalonia.Controls"
              xmlns:vm="using:FurinaPlayer.Avalonia.ViewModels"
-             xmlns:models="using:SonicWave.Core.Models"
+             xmlns:models="using:FurinaPlayer.Core.Models"
              x:Class="FurinaPlayer.Avalonia.Views.HomePageView"
              x:DataType="vm:HomeViewModel">
 

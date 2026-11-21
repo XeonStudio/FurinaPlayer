@@ -38,7 +38,7 @@
                 <StackPanel Spacing="10">
                     <TextBlock Text="音频引擎配置" FontWeight="SemiBold" FontSize="15" Foreground="#F8FAFC" />
                     <TextBlock Text="输出后端: WASAPI Exclusive / DirectSound (低延迟 200ms 双重环形缓冲)" FontSize="12" Foreground="#94A3B8" />
-                    <TextBlock Text="DSP 架构: ECHO 40-Pass Hi-Res Pipeline, 支持 PCM / DSD / OPRA 双轨校准" FontSize="12" Foreground="#94A3B8" />
+                    <TextBlock Text="DSP 架构: FurinaPlayer 40-Pass Hi-Res Pipeline, 支持 PCM / DSD / OPRA 双轨校准" FontSize="12" Foreground="#94A3B8" />
                 </StackPanel>
             </Border>
         </StackPanel>

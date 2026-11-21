@@ -52,9 +52,9 @@ public enum LiquidGlassVariant
 }
 
 /// <summary>
-/// ECHO 主题预设模型 (支持内置预设、随机对比度安全生成与自定义主题导入/新建)
+/// FurinaPlayer 主题预设模型 (支持内置预设、随机对比度安全生成与自定义主题导入/新建)
 /// </summary>
-public sealed class EchoThemePreset
+public sealed class FurinaPlayerThemePreset
 {
 	public string Id { get; set; } = "classic";
 	public string Name { get; set; } = "经典";
@@ -74,7 +74,7 @@ public sealed class EchoThemePreset
 }
 
 /// <summary>
-/// Apple Liquid Glass &amp; ECHO 外观系统核心光学渲染与交互引擎。
+/// Apple Liquid Glass &amp; FurinaPlayer 外观系统核心光学渲染与交互引擎。
 /// </summary>
 public static class LiquidGlassEngine
 {
@@ -98,10 +98,10 @@ public static class LiquidGlassEngine
 		"全部", "我的", "简洁", "柔和", "和纸", "夜色", "工作室", "个性"
 	};
 
-	public static IReadOnlyList<EchoThemePreset> BuiltInPresets { get; } = CreateBuiltInPresets();
-	public static List<EchoThemePreset> CustomPresets { get; } = new();
+	public static IReadOnlyList<FurinaPlayerThemePreset> BuiltInPresets { get; } = CreateBuiltInPresets();
+	public static List<FurinaPlayerThemePreset> CustomPresets { get; } = new();
 
-	public static EchoThemePreset ActivePreset { get; private set; } = BuiltInPresets[0];
+	public static FurinaPlayerThemePreset ActivePreset { get; private set; } = BuiltInPresets[0];
 	public static string ActiveThemeMode { get; set; } = "liquid-glass"; // "light", "dark", "system", "ambient", "acrylic", "liquid-glass"
 	public static double AcrylicOpacityScale { get; set; } = 1.0; // 0.0 (不透明) .. 1.0 (100% 通透)
 	public static bool KeepTranslucentWhenUnfocused { get; set; } = true;
@@ -140,7 +140,7 @@ public static class LiquidGlassEngine
 
 	public static string ToHexColor(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
-	private static EchoThemePreset MakePreset(
+	private static FurinaPlayerThemePreset MakePreset(
 		string id,
 		string name,
 		string category,
@@ -160,7 +160,7 @@ public static class LiquidGlassEngine
 		var bot = BlendColor(mid, sec, 0.16);
 		var card = !string.IsNullOrEmpty(cardTintHex) ? ParseHexColor(cardTintHex!) : BlendColor(top, isDark ? Color.FromArgb(255, 28, 36, 54) : Colors.White, 0.55);
 
-		return new EchoThemePreset
+		return new FurinaPlayerThemePreset
 		{
 			Id = id,
 			Name = name,
@@ -180,12 +180,12 @@ public static class LiquidGlassEngine
 		};
 	}
 
-	private static List<EchoThemePreset> CreateBuiltInPresets()
+	private static List<FurinaPlayerThemePreset> CreateBuiltInPresets()
 	{
-		return new List<EchoThemePreset>
+		return new List<FurinaPlayerThemePreset>
 		{
 			MakePreset("classic", "经典", "简洁", "保留经典蓝紫主色，以低饱和灰阶区分背景与面板。", false, "#F8FAFC", "#EEF2FF", "#6366F1", "#38BDF8", "#FFFFFF"),
-			MakePreset("twilight-peach", "暮光桃雾", "柔和", "老版 ECHO 的暖粉渐变感。", false, "#FFF5F2", "#FCE7F3", "#E11D48", "#FB7185", "#FFF9FB"),
+			MakePreset("twilight-peach", "暮光桃雾", "柔和", "老版 FurinaPlayer 的暖粉渐变感。", false, "#FFF5F2", "#FCE7F3", "#E11D48", "#FB7185", "#FFF9FB"),
 			MakePreset("sakura-cream", "樱粉奶霜", "柔和", "奶白粉底配樱粉强调。", false, "#FFF8FA", "#FCE7F3", "#DB2777", "#F472B6", "#FFFAFC"),
 			MakePreset("peach-soda", "蜜桃苏打", "柔和", "蜜桃橙和苏打青的轻快组合。", false, "#FFF7ED", "#FFEDD5", "#EA580C", "#0D9488", "#FFFBF5"),
 			MakePreset("mint-gummy", "薄荷软糖", "柔和", "薄荷绿、奶油白和一点桃粉。", false, "#F0FDF4", "#DCFCE7", "#059669", "#EC4899", "#F7FEF9"),
@@ -202,7 +202,7 @@ public static class LiquidGlassEngine
 		};
 	}
 
-	public static IEnumerable<EchoThemePreset> GetAllPresets()
+	public static IEnumerable<FurinaPlayerThemePreset> GetAllPresets()
 	{
 		foreach (var p in CustomPresets)
 		{
@@ -214,7 +214,7 @@ public static class LiquidGlassEngine
 		}
 	}
 
-	public static EchoThemePreset GetPresetById(string? id)
+	public static FurinaPlayerThemePreset GetPresetById(string? id)
 	{
 		if (!string.IsNullOrWhiteSpace(id))
 		{
@@ -229,7 +229,7 @@ public static class LiquidGlassEngine
 		ActivePreset = GetPresetById(id);
 	}
 
-	public static void SelectPreset(EchoThemePreset preset)
+	public static void SelectPreset(FurinaPlayerThemePreset preset)
 	{
 		if (preset != null)
 		{
@@ -240,7 +240,7 @@ public static class LiquidGlassEngine
 	/// <summary>
 	/// 生成随机高可读性主题预设 (随机主题卡片)
 	/// </summary>
-	public static EchoThemePreset GenerateRandomPreset(bool preferDark = false)
+	public static FurinaPlayerThemePreset GenerateRandomPreset(bool preferDark = false)
 	{
 		float hue = (float)(_rng.NextDouble() * 360.0);
 		float secHue = (hue + 38f + (float)(_rng.NextDouble() * 45.0)) % 360f;
@@ -268,7 +268,7 @@ public static class LiquidGlassEngine
 			card = HslToRgb(hue, 0.35f, 0.18f);
 		}
 
-		var preset = new EchoThemePreset
+		var preset = new FurinaPlayerThemePreset
 		{
 			Id = "random-" + _rng.Next(1000, 9999),
 			Name = title,
@@ -294,7 +294,7 @@ public static class LiquidGlassEngine
 		return preset;
 	}
 
-	public static EchoThemePreset AddCustomPreset(string name, string stageTopHex, string stageMidHex, string accentHex, bool isDark)
+	public static FurinaPlayerThemePreset AddCustomPreset(string name, string stageTopHex, string stageMidHex, string accentHex, bool isDark)
 	{
 		string id = "custom-" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 		var preset = MakePreset(
@@ -488,7 +488,7 @@ public static class LiquidGlassEngine
 
 	/// <summary>
 	/// 创建 Apple Liquid Glass 曲面透镜折射背景画刷 (Lensing Surface Brush)。
-	/// 融合当前 ECHO 主题预设色彩、彩虹色相偏移与亚克力通透度。
+	/// 融合当前 FurinaPlayer 主题预设色彩、彩虹色相偏移与亚克力通透度。
 	/// </summary>
 	public static Brush CreateSurfaceBrush(
 		LiquidGlassVariant variant = LiquidGlassVariant.Regular,
@@ -1134,7 +1134,7 @@ public static class LiquidGlassEngine
 	}
 
 	/// <summary>
-	/// 在指定 Skia 画布上绘制 Apple Liquid Glass &amp; ECHO 环境流体焦散光场与顶栏透镜高光。
+	/// 在指定 Skia 画布上绘制 Apple Liquid Glass &amp; FurinaPlayer 环境流体焦散光场与顶栏透镜高光。
 	/// 关键修复：在亚克力/液态玻璃/氛围模式下，绝不绘制 96% 不透明度的遮罩，而是根据 AcrylicOpacityScale 动态调节可读薄纱遮罩 (alpha 55..235)，
 	/// 让系统 DesktopAcrylicBackdrop 桌面高斯模糊与壁纸完美透出，同时确保文字与按钮高对比度清晰可读！
 	/// </summary>

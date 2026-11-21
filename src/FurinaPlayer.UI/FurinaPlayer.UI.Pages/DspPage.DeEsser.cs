@@ -12,8 +12,9 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -264,7 +265,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(_deEsserTitleIconBorder);
 		_deEsserTitleTb = new TextBlock
 		{
-			Text = "去齿音",
+			Text = Loc.T("去齿音"),
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -303,7 +304,7 @@ public sealed partial class DspPage
 		};
 		_deEsserPowerText = new TextBlock
 		{
-			Text = _deEsserEnabled ? "去齿音开启" : "去齿音旁路",
+			Text = _deEsserEnabled ? Loc.T("去齿音开启") : Loc.T("去齿音旁路"),
 			FontSize = 13,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextSubHeaderBrush
@@ -341,7 +342,7 @@ public sealed partial class DspPage
 		};
 		_deEsserAuditionText = new TextBlock
 		{
-			Text = "按住试听齿音频带",
+			Text = Loc.T("按住试听齿音频带"),
 			FontSize = 13,
 			Foreground = DspTextSecondaryBrush,
 			FontWeight = FontWeights.Medium
@@ -426,7 +427,7 @@ public sealed partial class DspPage
 
 		// 3. 【恢复默认】按钮
 		_deEsserResetIcon = new FontIcon { Glyph = "\uE7A7", FontSize = 13, Foreground = DspTextSubHeaderBrush };
-		_deEsserResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSecondaryBrush, FontWeight = FontWeights.Medium };
+		_deEsserResetText = new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13, Foreground = DspTextSecondaryBrush, FontWeight = FontWeights.Medium };
 		_deEsserResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -501,7 +502,7 @@ public sealed partial class DspPage
 		var textSp = new StackPanel { Spacing = 4 };
 		_deEsserStatusTitleTb = new TextBlock
 		{
-			Text = "已旁路",
+			Text = Loc.T("已旁路"),
 			FontSize = 18,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -509,7 +510,7 @@ public sealed partial class DspPage
 		_deEsserPrimaryTextBlocks.Add(_deEsserStatusTitleTb);
 		_deEsserStatusDetailTb = new TextBlock
 		{
-			Text = "齿音会原样通过。打开之后，只有检测带里超出阈值的成分会被衰减。",
+			Text = Loc.T("齿音会原样通过。打开之后，只有检测带里超出阈值的成分会被衰减。"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -584,7 +585,7 @@ public sealed partial class DspPage
 
 		_deEsserGrSubTb = new TextBlock
 		{
-			Text = "增益降低  当前没有衰减",
+			Text = Loc.T("增益降低  当前没有衰减"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush,
@@ -615,7 +616,7 @@ public sealed partial class DspPage
 
 		var tbTitle = new TextBlock
 		{
-			Text = "检测带",
+			Text = Loc.T("检测带"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -624,7 +625,7 @@ public sealed partial class DspPage
 		double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
 		_deEsserBandHeaderSubTb = new TextBlock
 		{
-			Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率",
+			Text = Loc.F("约 {0:F0} Hz 宽 · 拖动曲线改变频率", bw),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush
@@ -803,7 +804,7 @@ public sealed partial class DspPage
 		if (_deEsserBandHeaderSubTb != null)
 		{
 			double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
-			_deEsserBandHeaderSubTb.Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率";
+			_deEsserBandHeaderSubTb.Text = Loc.F("约 {0:F0} Hz 宽 · 拖动曲线改变频率", bw);
 		}
 		SyncDeEsserToEngine();
 		UpdateDeEsserBandVisuals();
@@ -924,7 +925,7 @@ public sealed partial class DspPage
 
 		var tbTitle = new TextBlock
 		{
-			Text = "衰减轨迹",
+			Text = Loc.T("衰减轨迹"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -932,7 +933,7 @@ public sealed partial class DspPage
 		_deEsserPrimaryTextBlocks.Add(tbTitle);
 		_deEsserHistoryWindowTb = new TextBlock
 		{
-			Text = "播放后开始记录",
+			Text = Loc.T("播放后开始记录"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush
@@ -1043,7 +1044,7 @@ public sealed partial class DspPage
 		if (_deEsserHistoryWindowTb != null)
 		{
 			bool isPlaying = ViewModel?.AudioEngine?.State == PlaybackState.Playing;
-			_deEsserHistoryWindowTb.Text = (_deEsserCurrentGrDb > 0.05f || isPlaying) ? "约 12 秒窗口" : "播放后开始记录";
+			_deEsserHistoryWindowTb.Text = (_deEsserCurrentGrDb > 0.05f || isPlaying) ? Loc.T("约 12 秒窗口") : Loc.T("播放后开始记录");
 		}
 	}
 	#endregion
@@ -1063,22 +1064,22 @@ public sealed partial class DspPage
 		var h0 = new Grid();
 		h0.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h0.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var title0 = new TextBlock { Text = "找齿音", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		var title0 = new TextBlock { Text = Loc.T("找齿音"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
 		_deEsserPrimaryTextBlocks.Add(title0);
 		h0.Children.Add(title0);
-		var sub0 = new TextBlock { Text = "Q 越大越窄", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var sub0 = new TextBlock { Text = Loc.T("Q 越大越窄"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
 		_deEsserMutedTextBlocks.Add(sub0);
 		Grid.SetColumn(sub0, 1); h0.Children.Add(sub0);
 		sp0.Children.Add(h0);
 
-		sp0.Children.Add(CreateDeEsserSliderControl("频率", $"{_deEsserFrequencyHz:F0} Hz", 2000.0, 12000.0, 10.0, _deEsserFrequencyHz, out _sliderDeEsserFreq, out _tbDeEsserFreqVal, val =>
+		sp0.Children.Add(CreateDeEsserSliderControl(Loc.T("频率"), $"{_deEsserFrequencyHz:F0} Hz", 2000.0, 12000.0, 10.0, _deEsserFrequencyHz, out _sliderDeEsserFreq, out _tbDeEsserFreqVal, val =>
 		{
 			_deEsserFrequencyHz = Math.Clamp(Math.Round(val / 10.0) * 10.0, 2000.0, 12000.0);
 			if (_tbDeEsserFreqVal != null) _tbDeEsserFreqVal.Text = $"{_deEsserFrequencyHz:F0} Hz";
 			if (_deEsserBandHeaderSubTb != null)
 			{
 				double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
-				_deEsserBandHeaderSubTb.Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率";
+				_deEsserBandHeaderSubTb.Text = Loc.F("约 {0:F0} Hz 宽 · 拖动曲线改变频率", bw);
 			}
 			SyncDeEsserToEngine();
 			UpdateDeEsserBandVisuals();
@@ -1091,7 +1092,7 @@ public sealed partial class DspPage
 			if (_deEsserBandHeaderSubTb != null)
 			{
 				double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
-				_deEsserBandHeaderSubTb.Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率";
+				_deEsserBandHeaderSubTb.Text = Loc.F("约 {0:F0} Hz 宽 · 拖动曲线改变频率", bw);
 			}
 			SyncDeEsserToEngine();
 			UpdateDeEsserBandVisuals();
@@ -1107,15 +1108,15 @@ public sealed partial class DspPage
 		var h1 = new Grid();
 		h1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var title1 = new TextBlock { Text = "衰减多少", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		var title1 = new TextBlock { Text = Loc.T("衰减多少"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
 		_deEsserPrimaryTextBlocks.Add(title1);
 		h1.Children.Add(title1);
-		var sub1 = new TextBlock { Text = "阈值越低越容易触发", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var sub1 = new TextBlock { Text = Loc.T("阈值越低越容易触发"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
 		_deEsserMutedTextBlocks.Add(sub1);
 		Grid.SetColumn(sub1, 1); h1.Children.Add(sub1);
 		sp1.Children.Add(h1);
 
-		sp1.Children.Add(CreateDeEsserSliderControl("阈值", $"{_deEsserThresholdDb:F1} dB", -48.0, 0.0, 0.5, _deEsserThresholdDb, out _sliderDeEsserThresh, out _tbDeEsserThreshVal, val =>
+		sp1.Children.Add(CreateDeEsserSliderControl(Loc.T("阈值"), $"{_deEsserThresholdDb:F1} dB", -48.0, 0.0, 0.5, _deEsserThresholdDb, out _sliderDeEsserThresh, out _tbDeEsserThreshVal, val =>
 		{
 			_deEsserThresholdDb = Math.Clamp(Math.Round(val, 1), -48.0, 0.0);
 			if (_tbDeEsserThreshVal != null) _tbDeEsserThreshVal.Text = $"{_deEsserThresholdDb:F1} dB";
@@ -1123,28 +1124,28 @@ public sealed partial class DspPage
 			SyncDeEsserToEngine();
 		}));
 
-		sp1.Children.Add(CreateDeEsserSliderControl("比率", $"{_deEsserRatio:F1} :1", 1.0, 20.0, 0.1, _deEsserRatio, out _sliderDeEsserRatio, out _tbDeEsserRatioVal, val =>
+		sp1.Children.Add(CreateDeEsserSliderControl(Loc.T("比率"), $"{_deEsserRatio:F1} :1", 1.0, 20.0, 0.1, _deEsserRatio, out _sliderDeEsserRatio, out _tbDeEsserRatioVal, val =>
 		{
 			_deEsserRatio = Math.Clamp(Math.Round(val, 1), 1.0, 20.0);
 			if (_tbDeEsserRatioVal != null) _tbDeEsserRatioVal.Text = $"{_deEsserRatio:F1} :1";
 			SyncDeEsserToEngine();
 		}));
 
-		sp1.Children.Add(CreateDeEsserSliderControl("拐点", $"{_deEsserKneeDb:F1} dB", 0.0, 18.0, 0.5, _deEsserKneeDb, out _sliderDeEsserKnee, out _tbDeEsserKneeVal, val =>
+		sp1.Children.Add(CreateDeEsserSliderControl(Loc.T("拐点"), $"{_deEsserKneeDb:F1} dB", 0.0, 18.0, 0.5, _deEsserKneeDb, out _sliderDeEsserKnee, out _tbDeEsserKneeVal, val =>
 		{
 			_deEsserKneeDb = Math.Clamp(Math.Round(val, 1), 0.0, 18.0);
 			if (_tbDeEsserKneeVal != null) _tbDeEsserKneeVal.Text = $"{_deEsserKneeDb:F1} dB";
 			SyncDeEsserToEngine();
 		}));
 
-		sp1.Children.Add(CreateDeEsserSliderControl("最大衰减", $"{_deEsserMaxReductionDb:F1} dB", 0.0, 24.0, 0.5, _deEsserMaxReductionDb, out _sliderDeEsserMaxReduction, out _tbDeEsserMaxReductionVal, val =>
+		sp1.Children.Add(CreateDeEsserSliderControl(Loc.T("最大衰减"), $"{_deEsserMaxReductionDb:F1} dB", 0.0, 24.0, 0.5, _deEsserMaxReductionDb, out _sliderDeEsserMaxReduction, out _tbDeEsserMaxReductionVal, val =>
 		{
 			_deEsserMaxReductionDb = Math.Clamp(Math.Round(val, 1), 0.0, 24.0);
 			if (_tbDeEsserMaxReductionVal != null) _tbDeEsserMaxReductionVal.Text = $"{_deEsserMaxReductionDb:F1} dB";
 			SyncDeEsserToEngine();
 		}));
 
-		sp1.Children.Add(CreateDeEsserSliderControl("湿声", $"{_deEsserMix:F0} %", 0.0, 100.0, 1.0, _deEsserMix, out _sliderDeEsserMix, out _tbDeEsserMixVal, val =>
+		sp1.Children.Add(CreateDeEsserSliderControl(Loc.T("湿声"), $"{_deEsserMix:F0} %", 0.0, 100.0, 1.0, _deEsserMix, out _sliderDeEsserMix, out _tbDeEsserMixVal, val =>
 		{
 			_deEsserMix = Math.Clamp(Math.Round(val), 0.0, 100.0);
 			if (_tbDeEsserMixVal != null) _tbDeEsserMixVal.Text = $"{_deEsserMix:F0} %";
@@ -1162,22 +1163,22 @@ public sealed partial class DspPage
 		var h2 = new Grid();
 		h2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		h2.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var title2 = new TextBlock { Text = "快慢", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
+		var title2 = new TextBlock { Text = Loc.T("快慢"), FontSize = 14, FontWeight = FontWeights.Bold, Foreground = DspTextPrimaryBrush };
 		_deEsserPrimaryTextBlocks.Add(title2);
 		h2.Children.Add(title2);
-		var sub2 = new TextBlock { Text = "齿音很短", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var sub2 = new TextBlock { Text = Loc.T("齿音很短"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
 		_deEsserMutedTextBlocks.Add(sub2);
 		Grid.SetColumn(sub2, 1); h2.Children.Add(sub2);
 		sp2.Children.Add(h2);
 
-		sp2.Children.Add(CreateDeEsserSliderControl("启动", $"{_deEsserAttackMs:F1} ms", 0.1, 30.0, 0.1, _deEsserAttackMs, out _sliderDeEsserAttack, out _tbDeEsserAttackVal, val =>
+		sp2.Children.Add(CreateDeEsserSliderControl(Loc.T("启动"), $"{_deEsserAttackMs:F1} ms", 0.1, 30.0, 0.1, _deEsserAttackMs, out _sliderDeEsserAttack, out _tbDeEsserAttackVal, val =>
 		{
 			_deEsserAttackMs = Math.Clamp(Math.Round(val, 1), 0.1, 30.0);
 			if (_tbDeEsserAttackVal != null) _tbDeEsserAttackVal.Text = $"{_deEsserAttackMs:F1} ms";
 			SyncDeEsserToEngine();
 		}));
 
-		sp2.Children.Add(CreateDeEsserSliderControl("释放", $"{_deEsserReleaseMs:F0} ms", 5.0, 200.0, 1.0, _deEsserReleaseMs, out _sliderDeEsserRelease, out _tbDeEsserReleaseVal, val =>
+		sp2.Children.Add(CreateDeEsserSliderControl(Loc.T("释放"), $"{_deEsserReleaseMs:F0} ms", 5.0, 200.0, 1.0, _deEsserReleaseMs, out _sliderDeEsserRelease, out _tbDeEsserReleaseVal, val =>
 		{
 			_deEsserReleaseMs = Math.Clamp(Math.Round(val), 5.0, 200.0);
 			if (_tbDeEsserReleaseVal != null) _tbDeEsserReleaseVal.Text = $"{_deEsserReleaseMs:F0} ms";
@@ -1197,7 +1198,7 @@ public sealed partial class DspPage
 	{
 		var noteTb = new TextBlock
 		{
-			Text = "增益降低离开 0，就说明这一级正在压齿音；一直是 0，说明检测带还没超过阈值，不是没接上。按住试听只听这一段，松手恢复。",
+			Text = Loc.T("增益降低离开 0，就说明这一级正在压齿音；一直是 0，说明检测带还没超过阈值，不是没接上。按住试听只听这一段，松手恢复。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -1238,7 +1239,7 @@ public sealed partial class DspPage
 		}
 		if (_deEsserGrSubTb != null)
 		{
-			_deEsserGrSubTb.Text = grDb >= 0.2f ? $"增益降低  -{grDb:F1} dB" : "增益降低  当前没有衰减";
+			_deEsserGrSubTb.Text = grDb >= 0.2f ? Loc.F("增益降低  -{0:F1} dB", grDb) : Loc.T("增益降低  当前没有衰减");
 		}
 
 		// 2. 刷新状态描述
@@ -1385,7 +1386,7 @@ public sealed partial class DspPage
 
 		if (_deEsserEnabled)
 		{
-			_deEsserPowerText.Text = "去齿音开启";
+			_deEsserPowerText.Text = Loc.T("去齿音开启");
 			Brush activeFg = GetDeEsserAccentSoftTextBrush(isDark);
 			Brush activeBg = GetDeEsserAccentSoftBgBrush(isDark);
 			Brush activeHoverBg = new SolidColorBrush(isDark ? Color.FromArgb(115, 99, 102, 241) : Color.FromArgb(255, 224, 231, 255));
@@ -1398,7 +1399,7 @@ public sealed partial class DspPage
 		}
 		else
 		{
-			_deEsserPowerText.Text = "去齿音旁路";
+			_deEsserPowerText.Text = Loc.T("去齿音旁路");
 			Brush textFg = GetDeEsserSubHeaderTextBrush(isDark);
 			Brush iconFg = GetDeEsserMutedTextBrush(isDark);
 			_deEsserPowerText.Foreground = textFg;
@@ -1455,38 +1456,38 @@ public sealed partial class DspPage
 
 		if (_deEsserAudition)
 		{
-			title = "正在只听齿音带";
-			detail = "用来确认频率有没有对准齿音。松开按钮恢复整段声音，试听不会写入存档。";
+			title = Loc.T("正在只听齿音带");
+			detail = Loc.T("用来确认频率有没有对准齿音。松开按钮恢复整段声音，试听不会写入存档。");
 			dotColor = isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241);
 		}
 		else if (!_deEsserEnabled)
 		{
-			title = "已旁路";
-			detail = "齿音会原样通过。打开之后，只有检测带里超出阈值的成分会被衰减。";
+			title = Loc.T("已旁路");
+			detail = Loc.T("齿音会原样通过。打开之后，只有检测带里超出阈值的成分会被衰减。");
 			dotColor = Color.FromArgb(255, 148, 163, 184);
 		}
 		else if (_deEsserMix <= 0.001)
 		{
-			title = "湿声是 0%";
-			detail = "模块开着，但处理结果没有混进输出，听起来和旁路一样。把湿声拉高才会起作用。";
+			title = Loc.T("湿声是 0%");
+			detail = Loc.T("模块开着，但处理结果没有混进输出，听起来和旁路一样。把湿声拉高才会起作用。");
 			dotColor = Color.FromArgb(255, 245, 158, 11);
 		}
 		else if (!isPlaying)
 		{
-			title = "已接入，等待播放开始";
-			detail = "模块已经在链路里。开始播放后，超过阈值时右边的增益降低会离开 0。";
+			title = Loc.T("已接入，等待播放开始");
+			detail = Loc.T("模块已经在链路里。开始播放后，超过阈值时右边的增益降低会离开 0。");
 			dotColor = isDark ? Color.FromArgb(255, 96, 165, 250) : Color.FromArgb(255, 59, 130, 246);
 		}
 		else if (_deEsserCurrentGrDb >= 0.2f)
 		{
-			title = "正在衰减齿音";
-			detail = "检测带里超出阈值的成分正在被压下去，其余频段保持原样。";
+			title = Loc.T("正在衰减齿音");
+			detail = Loc.T("检测带里超出阈值的成分正在被压下去，其余频段保持原样。");
 			dotColor = isDark ? Color.FromArgb(255, 52, 211, 153) : Color.FromArgb(255, 16, 185, 129);
 		}
 		else
 		{
-			title = "已接入，还没触发";
-			detail = $"播放中，检测带还没超过 {_deEsserThresholdDb:F1} dB，所以增益降低停在 0。齿音还在的话，把频率对准齿音，或把阈值再调低。";
+			title = Loc.T("已接入，还没触发");
+			detail = Loc.F("播放中，检测带还没超过 {0:F1} dB，所以增益降低停在 0。齿音还在的话，把频率对准齿音，或把阈值再调低。", _deEsserThresholdDb);
 			dotColor = isDark ? Color.FromArgb(255, 129, 140, 248) : Color.FromArgb(255, 99, 102, 241);
 		}
 
@@ -1527,7 +1528,7 @@ public sealed partial class DspPage
 		if (_deEsserBandHeaderSubTb != null)
 		{
 			double bw = Math.Round(_deEsserFrequencyHz / Math.Max(0.5, _deEsserQ));
-			_deEsserBandHeaderSubTb.Text = $"约 {bw:F0} Hz 宽 · 拖动曲线改变频率";
+			_deEsserBandHeaderSubTb.Text = Loc.F("约 {0:F0} Hz 宽 · 拖动曲线改变频率", bw);
 		}
 
 		bool isDark = IsDspDark;

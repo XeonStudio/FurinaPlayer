@@ -3,7 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 
 namespace FurinaPlayer.UI.Controls;
 

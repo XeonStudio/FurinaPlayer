@@ -8,8 +8,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Windows.UI;
 
 namespace FurinaPlayer.UI.Pages;
@@ -175,7 +176,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(_channelTitleIconBorder);
 		var titleTb = new TextBlock
 		{
-			Text = "声道工具",
+			Text = Loc.T("声道工具"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -209,7 +210,7 @@ public sealed partial class DspPage
 		};
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		_channelPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = DspTextMutedBrush };
-		_channelPowerText = new TextBlock { Text = "已关闭", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush };
+		_channelPowerText = new TextBlock { Text = Loc.T("已关闭"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush };
 		powerSp.Children.Add(_channelPowerIcon);
 		powerSp.Children.Add(_channelPowerText);
 		_channelPowerBtn.Content = powerSp;
@@ -227,7 +228,7 @@ public sealed partial class DspPage
 		// A/B Compare button
 		_channelCompareBtn = new Button
 		{
-			Content = "A/B 对比",
+			Content = Loc.T("A/B 对比"),
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(8),
 			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
@@ -248,7 +249,7 @@ public sealed partial class DspPage
 
 		// Reset button
 		_channelResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = DspTextMutedBrush };
-		_channelResetText = new TextBlock { Text = "重置", FontSize = 13, Foreground = DspTextSubHeaderBrush };
+		_channelResetText = new TextBlock { Text = Loc.T("重置"), FontSize = 13, Foreground = DspTextSubHeaderBrush };
 		_channelResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -362,7 +363,7 @@ public sealed partial class DspPage
 
 		// Left output
 		var leftSp = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Left };
-		var leftOutLbl = new TextBlock { Text = "左输出", FontSize = 12, Foreground = DspTextMutedBrush };
+		var leftOutLbl = new TextBlock { Text = Loc.T("左输出"), FontSize = 12, Foreground = DspTextMutedBrush };
 		_channelMutedTextBlocks.Add(leftOutLbl);
 		leftSp.Children.Add(leftOutLbl);
 		_leftOutputBigTb = new TextBlock
@@ -403,7 +404,7 @@ public sealed partial class DspPage
 		};
 		_centerStatusBigTb = new TextBlock
 		{
-			Text = "中心稳定",
+			Text = Loc.T("中心稳定"),
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -412,7 +413,7 @@ public sealed partial class DspPage
 		_channelPrimaryTextBlocks.Add(_centerStatusBigTb);
 		_centerStatusSubTb = new TextBlock
 		{
-			Text = "已关闭",
+			Text = Loc.T("已关闭"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
@@ -424,7 +425,7 @@ public sealed partial class DspPage
 
 		// Right output
 		var rightSp = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Right };
-		var rightOutLbl = new TextBlock { Text = "右输出", FontSize = 12, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Right };
+		var rightOutLbl = new TextBlock { Text = Loc.T("右输出"), FontSize = 12, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Right };
 		_channelMutedTextBlocks.Add(rightOutLbl);
 		rightSp.Children.Add(rightOutLbl);
 		_rightOutputBigTb = new TextBlock
@@ -486,7 +487,7 @@ public sealed partial class DspPage
 
 		var panTitleTb = new TextBlock
 		{
-			Text = "声像平衡",
+			Text = Loc.T("声像平衡"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
@@ -569,7 +570,7 @@ public sealed partial class DspPage
 
 		var biasTitleTb = new TextBlock
 		{
-			Text = "偏音补偿",
+			Text = Loc.T("偏音补偿"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -600,7 +601,7 @@ public sealed partial class DspPage
 					if (ViewModel != null)
 					{
 						ViewModel.FurinaChannelTrimStepDb = val;
-						ViewModel.SaveEchoSettings();
+						ViewModel.SaveFurinaPlayerSettings();
 					}
 					UpdateStepPills(IsDspDark);
 				}
@@ -618,7 +619,7 @@ public sealed partial class DspPage
 
 		_leftTooLoudBtn = new Button
 		{
-			Content = "左侧偏响",
+			Content = Loc.T("左侧偏响"),
 			Height = 44,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8),
@@ -644,7 +645,7 @@ public sealed partial class DspPage
 
 		_rightTooLoudBtn = new Button
 		{
-			Content = "右侧偏响",
+			Content = Loc.T("右侧偏响"),
 			Height = 44,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8),
@@ -672,7 +673,7 @@ public sealed partial class DspPage
 		// Description note
 		var biasHintTb = new TextBlock
 		{
-			Text = "默认只降低偏响一侧，适合不可维修的耳机偏音补偿。",
+			Text = Loc.T("默认只降低偏响一侧，适合不可维修的耳机偏音补偿。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		};
@@ -684,7 +685,7 @@ public sealed partial class DspPage
 
 		_channelClearAuxBtn = new HyperlinkButton
 		{
-			Content = "偏音清零",
+			Content = Loc.T("偏音清零"),
 			FontSize = 12,
 			Padding = new Thickness(0),
 			Foreground = DspAccentSoftTextBrush
@@ -712,7 +713,7 @@ public sealed partial class DspPage
 
 		_channelSwapAuxBtn = new HyperlinkButton
 		{
-			Content = "交换补偿方向",
+			Content = Loc.T("交换补偿方向"),
 			FontSize = 12,
 			Padding = new Thickness(0),
 			Foreground = DspAccentSoftTextBrush
@@ -783,7 +784,7 @@ public sealed partial class DspPage
 		var presetLeftSp = new StackPanel { Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		var presetTitleTb = new TextBlock
 		{
-			Text = "耳机方案",
+			Text = Loc.T("耳机方案"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -794,7 +795,7 @@ public sealed partial class DspPage
 		var presetPickerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 		_presetEmptyTb = new TextBlock
 		{
-			Text = "还没有保存的声道方案。",
+			Text = Loc.T("还没有保存的声道方案。"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -806,7 +807,7 @@ public sealed partial class DspPage
 		{
 			Width = 180,
 			Height = 36,
-			PlaceholderText = "选择耳机方案",
+			PlaceholderText = Loc.T("选择耳机方案"),
 			Background = CreateChannelSurfaceBrush(LiquidGlassVariant.Clear, isDark, 0.92),
 			BorderBrush = CreateChannelRimBrush(isDark),
 			BorderThickness = new Thickness(1),
@@ -817,7 +818,7 @@ public sealed partial class DspPage
 
 		_presetApplyBtn = new Button
 		{
-			Content = "切换",
+			Content = Loc.T("切换"),
 			Height = 36,
 			Padding = new Thickness(12, 0, 12, 0),
 			CornerRadius = new CornerRadius(8),
@@ -839,7 +840,7 @@ public sealed partial class DspPage
 
 		_presetRenameBtn = new Button
 		{
-			Content = "重命名",
+			Content = Loc.T("重命名"),
 			Height = 36,
 			Padding = new Thickness(12, 0, 12, 0),
 			CornerRadius = new CornerRadius(8),
@@ -861,7 +862,7 @@ public sealed partial class DspPage
 
 		_presetDeleteBtn = new Button
 		{
-			Content = "移除",
+			Content = Loc.T("移除"),
 			Height = 36,
 			Padding = new Thickness(12, 0, 12, 0),
 			CornerRadius = new CornerRadius(8),
@@ -888,7 +889,7 @@ public sealed partial class DspPage
 		var presetRightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 		_presetDraftTb = new TextBox
 		{
-			Text = "耳机偏音补偿",
+			Text = Loc.T("耳机偏音补偿"),
 			Width = 160,
 			Height = 36,
 			CornerRadius = new CornerRadius(8),
@@ -908,7 +909,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = new SolidColorBrush(Colors.White) },
-					new TextBlock { Text = "保存当前参数", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) }
+					new TextBlock { Text = Loc.T("保存当前参数"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) }
 				}
 			},
 			Height = 36,
@@ -958,7 +959,7 @@ public sealed partial class DspPage
 		_channelDiagIcon = new FontIcon { Glyph = "\uE95D", FontSize = 14, Foreground = DspAccentSoftTextBrush };
 		var diagTitleTb = new TextBlock
 		{
-			Text = "实时状态",
+			Text = Loc.T("实时状态"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -979,21 +980,21 @@ public sealed partial class DspPage
 		_factLeftTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		_factRightTb = new TextBlock { Text = "0.00 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		_factDelaySkewTb = new TextBlock { Text = "0.00 ms", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
-		_factStatusDescTb = new TextBlock { Text = "建议从 0.25 dB 开始微调", FontSize = 13, Foreground = DspTextMutedBrush };
+		_factStatusDescTb = new TextBlock { Text = Loc.T("建议从 0.25 dB 开始微调"), FontSize = 13, Foreground = DspTextMutedBrush };
 		_channelPrimaryTextBlocks.Add(_factLeftTb);
 		_channelPrimaryTextBlocks.Add(_factRightTb);
 		_channelPrimaryTextBlocks.Add(_factDelaySkewTb);
 		_channelMutedTextBlocks.Add(_factStatusDescTb);
 
-		factsGrid.Children.Add(CreateFactBox("左总增益", _factLeftTb, 0, isDark));
-		factsGrid.Children.Add(CreateFactBox("右总增益", _factRightTb, 1, isDark));
-		factsGrid.Children.Add(CreateFactBox("左右延迟差", _factDelaySkewTb, 2, isDark));
-		factsGrid.Children.Add(CreateFactBox("推荐建议", _factStatusDescTb, 3, isDark));
+		factsGrid.Children.Add(CreateFactBox(Loc.T("左总增益"), _factLeftTb, 0, isDark));
+		factsGrid.Children.Add(CreateFactBox(Loc.T("右总增益"), _factRightTb, 1, isDark));
+		factsGrid.Children.Add(CreateFactBox(Loc.T("左右延迟差"), _factDelaySkewTb, 2, isDark));
+		factsGrid.Children.Add(CreateFactBox(Loc.T("推荐建议"), _factStatusDescTb, 3, isDark));
 		expContentSp.Children.Add(factsGrid);
 
 		var noteTb = new TextBlock
 		{
-			Text = "声道工具已从参数 EQ 中分离，适合检查声像、左右耳差异和单声道兼容。",
+			Text = Loc.T("声道工具已从参数 EQ 中分离，适合检查声像、左右耳差异和单声道兼容。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 4, 0, 0)
@@ -1038,7 +1039,7 @@ public sealed partial class DspPage
 		var bandSp = new StackPanel { Spacing = 12 };
 		var bandTitleTb = new TextBlock
 		{
-			Text = "分频段左右补偿",
+			Text = Loc.T("分频段左右补偿"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -1047,7 +1048,7 @@ public sealed partial class DspPage
 		bandSp.Children.Add(bandTitleTb);
 		var bandSubTb = new TextBlock
 		{
-			Text = "默认只降低偏响一侧，适合高低频不均衡的耳机偏音校准。",
+			Text = Loc.T("默认只降低偏响一侧，适合高低频不均衡的耳机偏音校准。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		};
@@ -1060,9 +1061,9 @@ public sealed partial class DspPage
 		bandGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// Header
-		var h0 = new TextBlock { Text = "频段", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
-		var h1 = new TextBlock { Text = "左输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
-		var h2 = new TextBlock { Text = "右输出补偿 (dB)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var h0 = new TextBlock { Text = Loc.T("频段"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var h1 = new TextBlock { Text = Loc.T("左输出补偿 (dB)"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		var h2 = new TextBlock { Text = Loc.T("右输出补偿 (dB)"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextMutedBrush };
 		_channelMutedTextBlocks.Add(h0);
 		_channelMutedTextBlocks.Add(h1);
 		_channelMutedTextBlocks.Add(h2);
@@ -1072,7 +1073,7 @@ public sealed partial class DspPage
 		// Low band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var lowLbl = new TextBlock { Text = "低频 (< 250 Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		var lowLbl = new TextBlock { Text = Loc.T("低频 (< 250 Hz)"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 		_channelSecondaryTextBlocks.Add(lowLbl);
 		_proLowLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proLowRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
@@ -1114,7 +1115,7 @@ public sealed partial class DspPage
 
 		// Mid band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var midLbl = new TextBlock { Text = "中频 (250~4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		var midLbl = new TextBlock { Text = Loc.T("中频 (250~4k Hz)"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 		_channelSecondaryTextBlocks.Add(midLbl);
 		_proMidLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proMidRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
@@ -1156,7 +1157,7 @@ public sealed partial class DspPage
 
 		// High band
 		bandGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-		var highLbl = new TextBlock { Text = "高频 (> 4k Hz)", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
+		var highLbl = new TextBlock { Text = Loc.T("高频 (> 4k Hz)"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center };
 		_channelSecondaryTextBlocks.Add(highLbl);
 		_proHighLSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0, Margin = new Thickness(0, 0, 16, 0) };
 		_proHighRSlider = new Slider { Minimum = -6, Maximum = 3, StepFrequency = 0.1, Value = 0 };
@@ -1219,7 +1220,7 @@ public sealed partial class DspPage
 		var precSp = new StackPanel { Spacing = 12 };
 		var precTitleTb = new TextBlock
 		{
-			Text = "高级声道 (精确控制)",
+			Text = Loc.T("高级声道 (精确控制)"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -1233,10 +1234,10 @@ public sealed partial class DspPage
 		fGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 		fGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-		_proLeftGainNb = new NumberBox { Header = "左声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
-		_proRightGainNb = new NumberBox { Header = "右声道增益 (dB)", Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
-		_proLeftDelayNb = new NumberBox { Header = "左声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
-		_proRightDelayNb = new NumberBox { Header = "右声道延迟 (ms)", Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proLeftGainNb = new NumberBox { Header = Loc.T("左声道增益 (dB)"), Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proRightGainNb = new NumberBox { Header = Loc.T("右声道增益 (dB)"), Minimum = -12, Maximum = 6, SmallChange = 0.05, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proLeftDelayNb = new NumberBox { Header = Loc.T("左声道延迟 (ms)"), Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
+		_proRightDelayNb = new NumberBox { Header = Loc.T("右声道延迟 (ms)"), Minimum = 0, Maximum = 10, SmallChange = 0.01, Value = 0, Foreground = DspTextPrimaryBrush };
 
 		_proLeftGainNb.ValueChanged += (s, e) =>
 		{
@@ -1300,7 +1301,7 @@ public sealed partial class DspPage
 
 		var routeTitleTb = new TextBlock
 		{
-			Text = "Mono 检查与相位路由",
+			Text = Loc.T("Mono 检查与相位路由"),
 			FontSize = 16,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -1313,10 +1314,10 @@ public sealed partial class DspPage
 		_monoModeButtons.Clear();
 		(string key, string name)[] monoItems =
 		{
-			("off", "关闭 Mono"),
-			("sum", "合并 Mono"),
-			("left", "只听左声道"),
-			("right", "只听右声道")
+			("off", Loc.T("关闭 Mono")),
+			("sum", Loc.T("合并 Mono")),
+			("left", Loc.T("只听左声道")),
+			("right", Loc.T("只听右声道"))
 		};
 		foreach (var item in monoItems)
 		{
@@ -1345,10 +1346,10 @@ public sealed partial class DspPage
 
 		// Phase CheckBoxes
 		var cbSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-		_phaseConstantPowerCb = new CheckBox { Content = "恒功率平衡", Foreground = DspTextSecondaryBrush };
-		_phaseSwapCb = new CheckBox { Content = "左右交换", Foreground = DspTextSecondaryBrush };
-		_phaseInvertLCb = new CheckBox { Content = "左声道反相", Foreground = DspTextSecondaryBrush };
-		_phaseInvertRCb = new CheckBox { Content = "右声道反相", Foreground = DspTextSecondaryBrush };
+		_phaseConstantPowerCb = new CheckBox { Content = Loc.T("恒功率平衡"), Foreground = DspTextSecondaryBrush };
+		_phaseSwapCb = new CheckBox { Content = Loc.T("左右交换"), Foreground = DspTextSecondaryBrush };
+		_phaseInvertLCb = new CheckBox { Content = Loc.T("左声道反相"), Foreground = DspTextSecondaryBrush };
+		_phaseInvertRCb = new CheckBox { Content = Loc.T("右声道反相"), Foreground = DspTextSecondaryBrush };
 
 		_phaseConstantPowerCb.Click += (s, e) =>
 		{
@@ -1629,7 +1630,7 @@ public sealed partial class DspPage
 		if (persist && ViewModel != null)
 		{
 			ViewModel.FurinaChannelProMode = mode;
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 
@@ -1707,13 +1708,13 @@ public sealed partial class DspPage
 
 		if (_channelPowerText != null)
 		{
-			_channelPowerText.Text = enabled ? "已开启" : "已关闭";
+			_channelPowerText.Text = enabled ? Loc.T("已开启") : Loc.T("已关闭");
 		}
 		ApplyChannelPowerButtonTheme(isDark, enabled);
 
 		if (_channelCompareBtn != null)
 		{
-			_channelCompareBtn.Content = compareBypassed ? "已旁路 (对比中)" : "A/B 对比";
+			_channelCompareBtn.Content = compareBypassed ? Loc.T("已旁路 (对比中)") : Loc.T("A/B 对比");
 		}
 		ApplyChannelCompareButtonTheme(isDark, compareBypassed);
 
@@ -1759,21 +1760,21 @@ public sealed partial class DspPage
 		string statusText;
 		if (Math.Abs(skew) < 0.05)
 		{
-			statusText = "中心稳定";
+			statusText = Loc.T("中心稳定");
 		}
 		else if (skew > 0)
 		{
-			statusText = $"偏右 +{skew:F2} dB";
+			statusText = Loc.F("偏右 +{0:F2} dB", skew);
 		}
 		else
 		{
-			statusText = $"偏左 {Math.Abs(skew):F2} dB";
+			statusText = Loc.F("偏左 {0:F2} dB", Math.Abs(skew));
 		}
 
 		if (_centerStatusBigTb != null) _centerStatusBigTb.Text = statusText;
 		if (_centerStatusSubTb != null)
 		{
-			_centerStatusSubTb.Text = compareBypassed ? "已旁路 (对比中)" : (enabled ? "已开启" : "已关闭");
+			_centerStatusSubTb.Text = compareBypassed ? Loc.T("已旁路 (对比中)") : (enabled ? Loc.T("已开启") : Loc.T("已关闭"));
 			_centerStatusSubTb.Foreground = enabled && !compareBypassed
 				? new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74))
 				: new SolidColorBrush(isDark ? Color.FromArgb(255, 203, 213, 225) : Color.FromArgb(255, 100, 116, 139));
@@ -1804,8 +1805,8 @@ public sealed partial class DspPage
 		if (_factStatusDescTb != null)
 		{
 			_factStatusDescTb.Text = Math.Abs(skew) < 0.05
-				? "左右电平平衡，声像居中"
-				: $"检测到 {statusText}，已自动补偿";
+				? Loc.T("左右电平平衡，声像居中")
+				: Loc.F("检测到 {0}，已自动补偿", statusText);
 		}
 
 		// 6. Pro Controls sync
@@ -1834,7 +1835,7 @@ public sealed partial class DspPage
 		// 7. Sidebar text update
 		if (_channelNavSubTb != null)
 		{
-			_channelNavSubTb.Text = !enabled ? "立体声直通" : statusText;
+			_channelNavSubTb.Text = !enabled ? Loc.T("立体声直通") : statusText;
 		}
 	}
 }

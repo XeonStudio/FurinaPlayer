@@ -11,7 +11,8 @@ using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Core.Models;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 using Windows.Foundation;
 using Windows.UI;
@@ -42,6 +43,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	private Point _pointerNorm = new Point(0.25, 0.2);
 	private bool _isPointerOver;
 	private bool _pointerEventsHooked;
+	private Button? _modeButton;
 
 	public static event Action? OpenNowPlayingRequested;
 	public event Action? NavigateToPlayingRequested;
@@ -121,6 +123,8 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
+		Loc.LanguageChanged -= OnLanguageChanged;
+		Loc.LanguageChanged += OnLanguageChanged;
 		HookViewModel(ViewModel);
 		ApplyFloatingCapsuleLiquidGlass();
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
@@ -297,7 +301,16 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnUnloaded(object sender, RoutedEventArgs e)
 	{
+		Loc.LanguageChanged -= OnLanguageChanged;
 		UnhookViewModel(_currentVm);
+	}
+
+	private void OnLanguageChanged(string _)
+	{
+		if (DispatcherQueue is { } dq)
+		{
+			dq.TryEnqueue(UpdateModeButtonFluentIcon);
+		}
 	}
 
 	private void OnDataContextChanged(FrameworkElement sender, DataContextChangedEventArgs args)
@@ -351,26 +364,40 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	{
 		try
 		{
-			FindAndUpdateModeButton(this, _currentVm?.ModeText ?? "顺序播放");
+			string rawModeText = _currentVm?.ModeText ?? "顺序播放";
+			if (_modeButton != null)
+			{
+				UpdateModeButton(_modeButton, rawModeText);
+				return;
+			}
+			FindAndUpdateModeButton(this, rawModeText);
 		}
 		catch
 		{
 		}
 	}
 
-	private static void FindAndUpdateModeButton(DependencyObject? root, string modeText)
+	private static void UpdateModeButton(Button btn, string rawModeText)
+	{
+		FluentIconFactory.SetButtonFluentIcon(btn, FluentIconFactory.ResolvePlayModeKind(rawModeText), Loc.T(rawModeText), 18);
+		ToolTipService.SetToolTip(btn, Loc.T("播放模式"));
+	}
+
+	private void FindAndUpdateModeButton(DependencyObject? root, string rawModeText)
 	{
 		if (root == null) return;
 		int count = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
 		for (int i = 0; i < count; i++)
 		{
 			var child = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, i);
-			if (child is Button btn && ToolTipService.GetToolTip(btn) is string tt && tt.Contains("播放模式"))
+			if (child is Button btn && ToolTipService.GetToolTip(btn) is string tt &&
+			    (tt.Contains("播放模式") || tt == Loc.T("播放模式")))
 			{
-				FluentIconFactory.SetButtonFluentIcon(btn, FluentIconFactory.ResolvePlayModeKind(modeText), modeText, 18);
+				_modeButton = btn;
+				UpdateModeButton(btn, rawModeText);
 				return;
 			}
-			FindAndUpdateModeButton(child, modeText);
+			FindAndUpdateModeButton(child, rawModeText);
 		}
 	}
 
@@ -413,6 +440,10 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnSeekPointerReleased(object sender, PointerRoutedEventArgs e)
 	{
+		if (!_isDraggingSlider)
+		{
+			return;
+		}
 		_isDraggingSlider = false;
 		NowPlayingViewModel viewModel = ViewModel;
 		if (viewModel != null && sender is Slider slider)
@@ -424,6 +455,10 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 
 	private void OnSeekPointerCaptureLost(object sender, PointerRoutedEventArgs e)
 	{
+		if (!_isDraggingSlider)
+		{
+			return;
+		}
 		_isDraggingSlider = false;
 		NowPlayingViewModel viewModel = ViewModel;
 		if (viewModel != null && sender is Slider slider)
@@ -495,9 +530,9 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		{
 			Slider slider = target.As<Slider>();
 			_seekSlider = slider;
-			slider.PointerPressed += OnSeekPointerPressed;
-			slider.PointerReleased += OnSeekPointerReleased;
-			slider.PointerCaptureLost += OnSeekPointerCaptureLost;
+			slider.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnSeekPointerPressed), true);
+			slider.AddHandler(UIElement.PointerReleasedEvent, new PointerEventHandler(OnSeekPointerReleased), true);
+			slider.AddHandler(UIElement.PointerCaptureLostEvent, new PointerEventHandler(OnSeekPointerCaptureLost), true);
 			slider.PointerMoved += OnSeekPointerMoved;
 			slider.PointerExited += OnSeekPointerExited;
 			UpdateSlider();

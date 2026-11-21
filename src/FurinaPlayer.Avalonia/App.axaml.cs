@@ -6,9 +6,9 @@ using Avalonia.Markup.Xaml;
 using FurinaPlayer.Avalonia.Services;
 using FurinaPlayer.Avalonia.ViewModels;
 using FurinaPlayer.Avalonia.Views;
-using SonicWave.Audio;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.Avalonia;
 

@@ -7,7 +7,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -282,7 +283,7 @@ public sealed partial class DspPage
 
 		restoreSp.Children.Add(new TextBlock
 		{
-			Text = "恢复自动上限",
+			Text = Loc.T("恢复自动上限"),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.Normal,
 			Foreground = DspTextSecondaryBrush
@@ -318,7 +319,7 @@ public sealed partial class DspPage
 			_limiterPowerBtn.BorderThickness = new Thickness(1);
 			_limiterPowerIcon.Foreground = DspAccentSoftTextBrush;  // Indigo 600
 			_limiterPowerTb.Foreground = DspAccentSoftTextBrush;
-			_limiterPowerTb.Text = "限幅开启";
+			_limiterPowerTb.Text = Loc.T("限幅开启");
 		}
 		else
 		{
@@ -327,7 +328,7 @@ public sealed partial class DspPage
 			_limiterPowerBtn.BorderThickness = new Thickness(1);
 			_limiterPowerIcon.Foreground = DspTextMutedBrush; // Slate 500
 			_limiterPowerTb.Foreground = DspTextMutedBrush;
-			_limiterPowerTb.Text = "限幅旁路";
+			_limiterPowerTb.Text = Loc.T("限幅旁路");
 		}
 
 		if (_limiterCeilingSlider != null) _limiterCeilingSlider.IsEnabled = _limiterEnabled;
@@ -373,7 +374,7 @@ public sealed partial class DspPage
 
 		_limiterStatusTitleTb = new TextBlock
 		{
-			Text = "已接入，等待播放开始",
+			Text = Loc.T("已接入，等待播放开始"),
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -382,7 +383,7 @@ public sealed partial class DspPage
 
 		_limiterStatusDetailTb = new TextBlock
 		{
-			Text = "当前上限 0.0 dBTP，自动。开始播放后，真峰值顶到这条线时，增益降低会离开 0。",
+			Text = Loc.F("当前上限 {0}。开始播放后，真峰值顶到这条线时，增益降低会离开 0。", Loc.F("{0:0.0} dBTP，{1}", 0.0, Loc.T("自动"))),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -452,7 +453,7 @@ public sealed partial class DspPage
 
 		_limiterGrSubTb = new TextBlock
 		{
-			Text = "增益降低 当前没有限幅",
+			Text = Loc.T("增益降低 当前没有限幅"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Right,
@@ -471,30 +472,30 @@ public sealed partial class DspPage
 		if (_limiterStatusTitleTb == null || _limiterStatusDetailTb == null || _limiterActivityDot == null) return;
 
 		double ceiling = EffectiveCeilingDb;
-		string ceilingDesc = $"{ceiling:0.0} dBTP，{(_limiterManualCeilingDb == null ? "自动" : "手动")}";
+		string ceilingDesc = Loc.F("{0:0.0} dBTP，{1}", ceiling, _limiterManualCeilingDb == null ? Loc.T("自动") : Loc.T("手动"));
 
 		if (!_limiterEnabled)
 		{
-			_limiterStatusTitleTb.Text = "未开启";
-			_limiterStatusDetailTb.Text = "开启后真峰值将受到上限压制，防止 DAC 间际过载与削波。";
+			_limiterStatusTitleTb.Text = Loc.T("未开启");
+			_limiterStatusDetailTb.Text = Loc.T("开启后真峰值将受到上限压制，防止 DAC 间际过载与削波。");
 			_limiterActivityDot.Fill = DspTextMutedBrush; // Slate 400
 		}
 		else if (_lastGrDb >= 0.1f)
 		{
-			_limiterStatusTitleTb.Text = "正在限幅";
-			_limiterStatusDetailTb.Text = $"增益正在衰减。上限 {ceiling:0.0} dBTP，当前峰值已顶到或越过此边界。";
+			_limiterStatusTitleTb.Text = Loc.T("正在限幅");
+			_limiterStatusDetailTb.Text = Loc.F("增益正在衰减。上限 {0:0.0} dBTP，当前峰值已顶到或越过此边界。", ceiling);
 			_limiterActivityDot.Fill = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)); // Red 500
 		}
 		else if (_lastPeakDb > -80.0f)
 		{
-			_limiterStatusTitleTb.Text = "已接入，上限未触发";
-			_limiterStatusDetailTb.Text = $"真峰值 {_lastPeakDb:0.0} dBTP，上限 {ceiling:0.0} dBTP，尚未触顶。";
+			_limiterStatusTitleTb.Text = Loc.T("已接入，上限未触发");
+			_limiterStatusDetailTb.Text = Loc.F("真峰值 {0:0.0} dBTP，上限 {1:0.0} dBTP，尚未触顶。", _lastPeakDb, ceiling);
 			_limiterActivityDot.Fill = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)); // Emerald 500
 		}
 		else
 		{
-			_limiterStatusTitleTb.Text = "已接入，等待播放开始";
-			_limiterStatusDetailTb.Text = $"当前上限 {ceilingDesc}。开始播放后，真峰值顶到这条线时，增益降低会离开 0。";
+			_limiterStatusTitleTb.Text = Loc.T("已接入，等待播放开始");
+			_limiterStatusDetailTb.Text = Loc.F("当前上限 {0}。开始播放后，真峰值顶到这条线时，增益降低会离开 0。", ceilingDesc);
 			_limiterActivityDot.Fill = new SolidColorBrush(Color.FromArgb(255, 59, 130, 246)); // Blue 500
 		}
 	}
@@ -506,13 +507,13 @@ public sealed partial class DspPage
 		if (grDb < 0.05f)
 		{
 			_limiterGrBigTb.Text = "0.0";
-			_limiterGrSubTb.Text = "增益降低 当前没有限幅";
+			_limiterGrSubTb.Text = Loc.T("增益降低 当前没有限幅");
 			_limiterGrMiniFill.Width = 0;
 		}
 		else
 		{
 			_limiterGrBigTb.Text = $"-{grDb:0.0}";
-			_limiterGrSubTb.Text = "增益降低 正在限幅";
+			_limiterGrSubTb.Text = Loc.T("增益降低 正在限幅");
 			double w = Math.Clamp(grDb / 12.0, 0.0, 1.0) * 140.0;
 			_limiterGrMiniFill.Width = w;
 		}
@@ -545,7 +546,7 @@ public sealed partial class DspPage
 
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "增益与峰值安全",
+			Text = Loc.T("增益与峰值安全"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -553,7 +554,7 @@ public sealed partial class DspPage
 
 		_limiterSafetySubtitleTb = new TextBlock
 		{
-			Text = "等待当前宿主读数",
+			Text = Loc.T("等待当前宿主读数"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -569,7 +570,7 @@ public sealed partial class DspPage
 
 		_limiterStateRiskTb = new TextBlock
 		{
-			Text = "配置风险估计: 未报告",
+			Text = Loc.T("配置风险估计: 未报告"),
 			FontSize = 12,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -578,7 +579,7 @@ public sealed partial class DspPage
 
 		_limiterStatePeakTb = new TextBlock
 		{
-			Text = "实测峰值超限: 未知",
+			Text = Loc.T("实测峰值超限: 未知"),
 			FontSize = 12,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -587,7 +588,7 @@ public sealed partial class DspPage
 
 		_limiterStateLimitingTb = new TextBlock
 		{
-			Text = "当前限幅: 未知",
+			Text = Loc.T("当前限幅: 未知"),
 			FontSize = 12,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -607,10 +608,10 @@ public sealed partial class DspPage
 		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		metricsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var m1 = CreateLimiterMetricBox("限幅前", "未知", out _limiterMetricPreTb);
-		var m2 = CreateLimiterMetricBox("DSP 后", "未知", out _limiterMetricPostTb);
-		var m3 = CreateLimiterMetricBox("Limiter 衰减", "未知", out _limiterMetricGrTb);
-		var m4 = CreateLimiterMetricBox("历史输出超限次数", "未知", out _limiterMetricHistoryTb);
+		var m1 = CreateLimiterMetricBox(Loc.T("限幅前"), Loc.T("未知"), out _limiterMetricPreTb);
+		var m2 = CreateLimiterMetricBox(Loc.T("DSP 后"), Loc.T("未知"), out _limiterMetricPostTb);
+		var m3 = CreateLimiterMetricBox(Loc.T("Limiter 衰减"), Loc.T("未知"), out _limiterMetricGrTb);
+		var m4 = CreateLimiterMetricBox(Loc.T("历史输出超限次数"), Loc.T("未知"), out _limiterMetricHistoryTb);
 
 		Grid.SetColumn(m1, 0); metricsGrid.Children.Add(m1);
 		Grid.SetColumn(m2, 1); metricsGrid.Children.Add(m2);
@@ -621,7 +622,7 @@ public sealed partial class DspPage
 		// Notice Note
 		stack.Children.Add(new TextBlock
 		{
-			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只覆盖所报告的阶段。",
+			Text = Loc.T("限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只覆盖所报告的阶段。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -630,7 +631,7 @@ public sealed partial class DspPage
 		// Collapsible Details (处理位置与可见边界)
 		_limiterPlacementBtn = new Button
 		{
-			Content = "▶ 处理位置与可见边界",
+			Content = "▶ " + Loc.T("处理位置与可见边界"),
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 4, 0, 4),
@@ -649,7 +650,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(12, 10, 12, 10),
 			Child = new TextBlock
 			{
-				Text = "当前 native 链路在 Rack 后应用 Headroom，再经过 Limiter、变速和输出表。EQ/FIR 保留浮点超限样本；非线性效果仍可能改变信号。",
+				Text = Loc.T("当前 native 链路在 Rack 后应用 Headroom，再经过 Limiter、变速和输出表。EQ/FIR 保留浮点超限样本；非线性效果仍可能改变信号。"),
 				FontSize = 12,
 				Foreground = DspTextSecondaryBrush,
 				TextWrapping = TextWrapping.Wrap,
@@ -662,12 +663,12 @@ public sealed partial class DspPage
 			if (_limiterPlacementPanel.Visibility == Visibility.Collapsed)
 			{
 				_limiterPlacementPanel.Visibility = Visibility.Visible;
-				_limiterPlacementBtn.Content = "▼ 处理位置与可见边界";
+				_limiterPlacementBtn.Content = "▼ " + Loc.T("处理位置与可见边界");
 			}
 			else
 			{
 				_limiterPlacementPanel.Visibility = Visibility.Collapsed;
-				_limiterPlacementBtn.Content = "▶ 处理位置与可见边界";
+				_limiterPlacementBtn.Content = "▶ " + Loc.T("处理位置与可见边界");
 			}
 		};
 
@@ -714,7 +715,7 @@ public sealed partial class DspPage
 
 		var titleTb = new TextBlock
 		{
-			Text = "限幅前真峰值",
+			Text = Loc.T("限幅前真峰值"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
@@ -725,7 +726,7 @@ public sealed partial class DspPage
 
 		_limiterPrePeakValTb = new TextBlock
 		{
-			Text = "等待读数",
+			Text = Loc.T("等待读数"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -788,7 +789,7 @@ public sealed partial class DspPage
 
 		_limiterCeilingScaleTb = new TextBlock
 		{
-			Text = "上限 0.0 dBTP",
+			Text = Loc.F("上限 {0:0.0} dBTP", 0.0),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
@@ -819,7 +820,7 @@ public sealed partial class DspPage
 
 		if (peakDb <= -90.0f)
 		{
-			_limiterPrePeakValTb.Text = "等待读数";
+			_limiterPrePeakValTb.Text = Loc.T("等待读数");
 			_limiterPeakFillBar.Width = 0;
 		}
 		else
@@ -846,7 +847,7 @@ public sealed partial class DspPage
 		if (_limiterCeilingIndicator == null || _limiterCeilingScaleTb == null) return;
 
 		double ceiling = EffectiveCeilingDb;
-		_limiterCeilingScaleTb.Text = $"上限 {ceiling:0.0} dBTP";
+		_limiterCeilingScaleTb.Text = Loc.F("上限 {0:0.0} dBTP", ceiling);
 
 		double trackW = _limiterPeakTrackContainer?.ActualWidth ?? 600.0;
 		if (trackW < 50.0) trackW = 600.0;
@@ -877,7 +878,7 @@ public sealed partial class DspPage
 
 		var ceilingLabelTb = new TextBlock
 		{
-			Text = "手动上限",
+			Text = Loc.T("手动上限"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -887,7 +888,7 @@ public sealed partial class DspPage
 
 		_limiterManualCeilingValTb = new TextBlock
 		{
-			Text = _limiterManualCeilingDb == null ? "自动" : $"{_limiterManualCeilingDb.Value:0.0} dBTP",
+			Text = _limiterManualCeilingDb == null ? Loc.T("自动") : $"{_limiterManualCeilingDb.Value:0.0} dBTP",
 			FontSize = 13,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -904,7 +905,7 @@ public sealed partial class DspPage
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			IsEnabled = _limiterEnabled
 		};
-		ToolTipService.SetToolTip(_limiterCeilingSlider, "双击恢复自动上限");
+		ToolTipService.SetToolTip(_limiterCeilingSlider, Loc.T("双击恢复自动上限"));
 
 		_limiterCeilingSlider.ValueChanged += (s, e) =>
 		{
@@ -936,7 +937,7 @@ public sealed partial class DspPage
 
 		var releaseLabelTb = new TextBlock
 		{
-			Text = "释放",
+			Text = Loc.T("释放"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -963,7 +964,7 @@ public sealed partial class DspPage
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			IsEnabled = _limiterEnabled
 		};
-		ToolTipService.SetToolTip(_limiterReleaseSlider, "双击恢复 80 ms");
+		ToolTipService.SetToolTip(_limiterReleaseSlider, Loc.T("双击恢复 80 ms"));
 
 		_limiterReleaseSlider.ValueChanged += (s, e) =>
 		{
@@ -991,7 +992,7 @@ public sealed partial class DspPage
 		if (_limiterManualCeilingValTb != null)
 		{
 			_limiterManualCeilingValTb.Text = _limiterManualCeilingDb == null
-				? "自动"
+				? Loc.T("自动")
 				: $"{_limiterManualCeilingDb.Value:0.0} dBTP";
 		}
 
@@ -1026,7 +1027,7 @@ public sealed partial class DspPage
 
 		var titleTb = new TextBlock
 		{
-			Text = "衰减轨迹",
+			Text = Loc.T("衰减轨迹"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
@@ -1037,7 +1038,7 @@ public sealed partial class DspPage
 
 		_limiterHistoryStatusTb = new TextBlock
 		{
-			Text = "播放后开始记录",
+			Text = Loc.T("播放后开始记录"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -1217,7 +1218,7 @@ public sealed partial class DspPage
 	{
 		return new TextBlock
 		{
-			Text = "增益降低离开 0，就说明峰值已经顶到上限。释放越短，压完回得越快，默认 80 ms。未手动设置上限时，升频采样开着是 -1 dBTP，否则是 0。",
+			Text = Loc.T("增益降低离开 0，就说明峰值已经顶到上限。释放越短，压完回得越快，默认 80 ms。未手动设置上限时，升频采样开着是 -1 dBTP，否则是 0。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 4, 0, 16),
@@ -1305,7 +1306,7 @@ public sealed partial class DspPage
 
 		if (_limiterHistoryStatusTb != null)
 		{
-			_limiterHistoryStatusTb.Text = peakDb > -80.0f ? "播放中增益降低" : "播放后开始记录";
+			_limiterHistoryStatusTb.Text = peakDb > -80.0f ? Loc.T("播放中增益降低") : Loc.T("播放后开始记录");
 		}
 	}
 
@@ -1317,24 +1318,24 @@ public sealed partial class DspPage
 		bool hasSignal = peakDb > -80.0f;
 
 		// 1. Metric values
-		_limiterMetricPreTb.Text = hasSignal ? $"{peakDb:0.0} dBTP" : "未知";
-		_limiterMetricPostTb.Text = hasSignal ? $"{postPeakDb:0.0} dBFS" : "未知";
-		_limiterMetricGrTb.Text = hasSignal ? (grDb < 0.05f ? "0.0 dB" : $"-{grDb:0.0} dB") : "未知";
-		_limiterMetricHistoryTb.Text = hasSignal ? overCeilingCount.ToString() : "未知";
+		_limiterMetricPreTb.Text = hasSignal ? $"{peakDb:0.0} dBTP" : Loc.T("未知");
+		_limiterMetricPostTb.Text = hasSignal ? $"{postPeakDb:0.0} dBFS" : Loc.T("未知");
+		_limiterMetricGrTb.Text = hasSignal ? (grDb < 0.05f ? "0.0 dB" : $"-{grDb:0.0} dB") : Loc.T("未知");
+		_limiterMetricHistoryTb.Text = hasSignal ? overCeilingCount.ToString() : Loc.T("未知");
 
 		// 2. States indicators
 		if (_limiterStatePeakTb != null)
 		{
 			_limiterStatePeakTb.Text = hasSignal
-				? (peakDb > EffectiveCeilingDb ? "实测峰值超限: 已报告" : "实测峰值超限: 未报告")
-				: "实测峰值超限: 未知";
+				? (peakDb > EffectiveCeilingDb ? Loc.T("实测峰值超限: 已报告") : Loc.T("实测峰值超限: 未报告"))
+				: Loc.T("实测峰值超限: 未知");
 		}
 
 		if (_limiterStateLimitingTb != null)
 		{
 			_limiterStateLimitingTb.Text = hasSignal
-				? (grDb >= 0.05f ? $"当前限幅: -{grDb:0.0} dB" : "当前限幅: 0.0 dB")
-				: "当前限幅: 未知";
+				? (grDb >= 0.05f ? Loc.F("当前限幅: -{0:0.0} dB", grDb) : Loc.T("当前限幅: 0.0 dB"))
+				: Loc.T("当前限幅: 未知");
 		}
 
 		// 3. Subtitle
@@ -1342,15 +1343,15 @@ public sealed partial class DspPage
 		{
 			if (!hasSignal)
 			{
-				_limiterSafetySubtitleTb.Text = "等待当前宿主读数";
+				_limiterSafetySubtitleTb.Text = Loc.T("等待当前宿主读数");
 			}
 			else if (grDb >= 0.05f)
 			{
-				_limiterSafetySubtitleTb.Text = "Limiter 正在衰减";
+				_limiterSafetySubtitleTb.Text = Loc.T("Limiter 正在衰减");
 			}
 			else
 			{
-				_limiterSafetySubtitleTb.Text = "未报告当前峰值超限";
+				_limiterSafetySubtitleTb.Text = Loc.T("未报告当前峰值超限");
 			}
 		}
 	}
@@ -1422,8 +1423,8 @@ public sealed partial class DspPage
 		if (_limiterNavSubTb != null)
 		{
 			_limiterNavSubTb.Text = !_limiterEnabled
-				? "已旁路"
-				: (_limiterManualCeilingDb.HasValue ? $"{_limiterManualCeilingDb.Value:0.0} dBTP" : "自动上限");
+				? Loc.T("已旁路")
+				: (_limiterManualCeilingDb.HasValue ? $"{_limiterManualCeilingDb.Value:0.0} dBTP" : Loc.T("自动上限"));
 		}
 
 		if (_limiterNavCheckIcon != null)

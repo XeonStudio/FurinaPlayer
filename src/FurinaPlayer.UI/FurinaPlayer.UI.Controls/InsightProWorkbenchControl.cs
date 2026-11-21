@@ -8,7 +8,8 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.UI;
 
 namespace FurinaPlayer.UI.Controls;
@@ -187,7 +188,7 @@ public sealed class InsightProWorkbenchControl : UserControl
         Grid.SetColumn(pillsScroll, 0);
         toolbarGrid.Children.Add(pillsScroll);
 
-        _resetBtn = CreateActionButton("\uE72C", "重置计量", () => ResetRequested?.Invoke());
+        _resetBtn = CreateActionButton("\uE72C", Loc.T("重置计量"), () => ResetRequested?.Invoke());
         Grid.SetColumn(_resetBtn, 1);
         toolbarGrid.Children.Add(_resetBtn);
 
@@ -775,13 +776,13 @@ public sealed class InsightProWorkbenchControl : UserControl
         };
         sp.Children.Add(new TextBlock
         {
-            Text = "所有分析模块已隐藏",
+            Text = Loc.T("所有分析模块已隐藏"),
             FontSize = 14,
             FontWeight = FontWeights.SemiBold,
             Foreground = new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)),
             HorizontalAlignment = HorizontalAlignment.Center
         });
-        var restoreBtn = CreateActionButton("\uE777", "恢复全部仪表", () =>
+        var restoreBtn = CreateActionButton("\uE777", Loc.T("恢复全部仪表"), () =>
         {
             _showLoudness = _showLevels = _showSoundField = _showHistory = _showSpectrum = _showSpectrogram = true;
             ApplyModuleVisibilityAndLayout();

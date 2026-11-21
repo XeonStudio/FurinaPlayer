@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.Controls;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 
 namespace FurinaPlayer.UI.Pages;
 
@@ -140,14 +141,14 @@ public sealed partial class DspPage
 		var titleSp = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "DSP 模块",
+			Text = Loc.T("DSP 模块"),
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush
 		});
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "FurinaPlayer SDM / DSD (测试版)",
+			Text = Loc.T("FurinaPlayer SDM / DSD (测试版)"),
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -180,7 +181,7 @@ public sealed partial class DspPage
 		var bigTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Bottom };
 		_sdmActualOutputTb = new TextBlock
 		{
-			Text = "当前不是 DSD 源",
+			Text = Loc.T("当前不是 DSD 源"),
 			FontSize = 36,
 			FontWeight = Microsoft.UI.Text.FontWeights.Light,
 			Foreground = DspTextPrimaryBrush
@@ -207,7 +208,7 @@ public sealed partial class DspPage
 
 		var pathLabel = new TextBlock
 		{
-			Text = "真实信号路径",
+			Text = Loc.T("真实信号路径"),
 			FontSize = 11.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
 			Foreground = DspTextMutedBrush
@@ -217,7 +218,7 @@ public sealed partial class DspPage
 
 		_sdmRequestedTb = new TextBlock
 		{
-			Text = "Requested: 关闭 SDM",
+			Text = Loc.T("Requested: 关闭 SDM"),
 			FontSize = 11,
 			FontFamily = new FontFamily("Consolas, Courier New"),
 			Foreground = DspTextMutedBrush
@@ -251,7 +252,7 @@ public sealed partial class DspPage
 		pipelineGrid.Children.Add(CreatePipelineNode("04 · Transport", _sdmNodeTransportTb, false, 3));
 
 		// Node 05: Actual output
-		_sdmNodeActualOutputTb = new TextBlock { Text = "当前不是 DSD 源", FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_sdmNodeActualOutputTb = new TextBlock { Text = Loc.T("当前不是 DSD 源"), FontSize = 13.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		pipelineGrid.Children.Add(CreatePipelineNode("05 · Actual output", _sdmNodeActualOutputTb, true, 4));
 
 		leftStack.Children.Add(pipelineGrid);
@@ -271,7 +272,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(8, 4, 8, 4)
 		};
 		var advSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
-		advSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, Foreground = DspAccentSoftTextBrush });
+		advSp.Children.Add(new TextBlock { Text = Loc.T("高级"), FontSize = 12, Foreground = DspAccentSoftTextBrush });
 		advSp.Children.Add(new FontIcon { Glyph = "\uE70D", FontSize = 10, Foreground = DspAccentSoftTextBrush });
 		_btnToggleAdvanced.Content = advSp;
 		_btnToggleAdvanced.Click += (s, e) => ToggleAdvancedPanel();
@@ -403,7 +404,7 @@ public sealed partial class DspPage
 
 		// Col 0: SDM 模式 (3-segment pill buttons)
 		var modeSp = new StackPanel { Spacing = 6 };
-		modeSp.Children.Add(new TextBlock { Text = "SDM 模式", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		modeSp.Children.Add(new TextBlock { Text = Loc.T("SDM 模式"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 
 		var pillBorder = new Border
 		{
@@ -416,7 +417,7 @@ public sealed partial class DspPage
 		pillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
 		pillGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		_btnModeOff = CreateSegmentButton("关闭 SDM", true);
+		_btnModeOff = CreateSegmentButton(Loc.T("关闭 SDM"), true);
 		_btnModeOff.Click += (s, e) => SetSdmMode(SdmMode.Off);
 		Grid.SetColumn(_btnModeOff, 0);
 		pillGrid.Children.Add(_btnModeOff);
@@ -436,7 +437,7 @@ public sealed partial class DspPage
 
 		_sdmModeDescTb = new TextBlock
 		{
-			Text = "PCM 和 FurinaPlayer SRC 保持独立；不会启动 DSD/SDM 输出。",
+			Text = Loc.T("PCM 和 FurinaPlayer SRC 保持独立；不会启动 DSD/SDM 输出。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -474,7 +475,7 @@ public sealed partial class DspPage
 		targetRateSp.Children.Add(_comboTargetRate);
 		targetRateSp.Children.Add(new TextBlock
 		{
-			Text = "常用实时目标；PCM -> SDM 由 FurinaPlayer SDM 独立编排实际超频。",
+			Text = Loc.T("常用实时目标；PCM -> SDM 由 FurinaPlayer SDM 独立编排实际超频。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -484,7 +485,7 @@ public sealed partial class DspPage
 
 		// Col 2: 调制器 / 稳定性
 		var modulatorSp = new StackPanel { Spacing = 6 };
-		modulatorSp.Children.Add(new TextBlock { Text = "调制器 / 稳定性", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		modulatorSp.Children.Add(new TextBlock { Text = Loc.T("调制器 / 稳定性"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboModulatorStability = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboModulatorStability.Items.Add("Realtime Safe");
 		_comboModulatorStability.Items.Add("5th-order Precision");
@@ -508,7 +509,7 @@ public sealed partial class DspPage
 		modulatorSp.Children.Add(_comboModulatorStability);
 		modulatorSp.Children.Add(new TextBlock
 		{
-			Text = "3 阶异常 NTF，固定 6 dB 调制安全余量；稳定性优先。",
+			Text = Loc.T("3 阶异常 NTF，固定 6 dB 调制安全余量；稳定性优先。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -518,7 +519,7 @@ public sealed partial class DspPage
 
 		// Col 3: 量化策略
 		var quantizerSp = new StackPanel { Spacing = 6 };
-		quantizerSp.Children.Add(new TextBlock { Text = "量化策略", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		quantizerSp.Children.Add(new TextBlock { Text = Loc.T("量化策略"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboQuantizerStrategy = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboQuantizerStrategy.Items.Add("Off");
 		_comboQuantizerStrategy.Items.Add("Dither");
@@ -532,7 +533,7 @@ public sealed partial class DspPage
 		quantizerSp.Children.Add(_comboQuantizerStrategy);
 		quantizerSp.Children.Add(new TextBlock
 		{
-			Text = "未启用量化，负载与当前 Quality 相同。",
+			Text = Loc.T("未启用量化，负载与当前 Quality 相同。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -552,7 +553,7 @@ public sealed partial class DspPage
 		// Col 0: SDM 声音风格
 		var soundSp = new StackPanel { Spacing = 4 };
 		soundSp.Children.Add(new TextBlock { Text = "PCM / Select Exclusive", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspAccentSoftTextBrush });
-		soundSp.Children.Add(new TextBlock { Text = "SDM 声音风格", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		soundSp.Children.Add(new TextBlock { Text = Loc.T("SDM 声音风格"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboSoundProfile = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboSoundProfile.Items.Add("FurinaPlayer Linear");
 		_comboSoundProfile.Items.Add("Warm Vintage");
@@ -566,7 +567,7 @@ public sealed partial class DspPage
 		soundSp.Children.Add(_comboSoundProfile);
 		soundSp.Children.Add(new TextBlock
 		{
-			Text = "性能相位、频响完全收敛；保留平滑顺畅和甜蜜厚度，适合作为中性基准。",
+			Text = Loc.T("性能相位、频响完全收敛；保留平滑顺畅和甜蜜厚度，适合作为中性基准。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -576,7 +577,7 @@ public sealed partial class DspPage
 
 		// Col 1: FIR 升频档
 		var firSp = new StackPanel { Spacing = 6 };
-		firSp.Children.Add(new TextBlock { Text = "FIR 升频档", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		firSp.Children.Add(new TextBlock { Text = Loc.T("FIR 升频档"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 		_comboFirTier = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboFirTier.Items.Add("Standard");
 		_comboFirTier.Items.Add("Steep");
@@ -590,7 +591,7 @@ public sealed partial class DspPage
 		firSp.Children.Add(_comboFirTier);
 		firSp.Children.Add(new TextBlock
 		{
-			Text = "使用声学频域滤波插头；默认快。",
+			Text = Loc.T("使用声学频域滤波插头；默认快。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -604,7 +605,7 @@ public sealed partial class DspPage
 		_comboComputeEngine = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
 		_comboComputeEngine.Items.Add("CPU SDM");
 		_comboComputeEngine.Items.Add("CPU AVX2 SIMD");
-		_comboComputeEngine.Items.Add("GPU 加速 (若支持)");
+		_comboComputeEngine.Items.Add(Loc.T("GPU 加速 (若支持)"));
 		_comboComputeEngine.SelectedIndex = 0;
 		_comboComputeEngine.SelectionChanged += (s, e) =>
 		{
@@ -614,7 +615,7 @@ public sealed partial class DspPage
 		computeSp.Children.Add(_comboComputeEngine);
 		var computeDescStack = new StackPanel { Spacing = 1 };
 		computeDescStack.Children.Add(new TextBlock { Text = "CPU SDM", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
-		computeDescStack.Children.Add(new TextBlock { Text = "CPU 实时编排已进入第一版 PCM -> SDM DoP。", FontSize = 11, Foreground = DspTextMutedBrush });
+		computeDescStack.Children.Add(new TextBlock { Text = Loc.T("CPU 实时编排已进入第一版 PCM -> SDM DoP。"), FontSize = 11, Foreground = DspTextMutedBrush });
 		computeDescStack.Children.Add(new TextBlock { Text = "Fallback: --", FontSize = 10.5, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextMutedBrush });
 		computeSp.Children.Add(computeDescStack);
 		Grid.SetColumn(computeSp, 2);
@@ -622,7 +623,7 @@ public sealed partial class DspPage
 
 		// Col 3: DoP passthrough & DSD512 预调制
 		var switchesSp = new StackPanel { Spacing = 6 };
-		switchesSp.Children.Add(new TextBlock { Text = "DoP passthrough / 预调制", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
+		switchesSp.Children.Add(new TextBlock { Text = Loc.T("DoP passthrough / 预调制"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush });
 
 		var switchList = new StackPanel { Spacing = 6 };
 		_toggleDopPassthrough = new ToggleSwitch
@@ -640,7 +641,7 @@ public sealed partial class DspPage
 
 		_toggleDsd512PreMod = new ToggleSwitch
 		{
-			Header = "DSD512 预调制",
+			Header = Loc.T("DSD512 预调制"),
 			IsOn = false,
 			FontSize = 11
 		};
@@ -654,7 +655,7 @@ public sealed partial class DspPage
 
 		switchesSp.Children.Add(new TextBlock
 		{
-			Text = "实验：DSD512 预调制 opt-in！提升单端调制限制；默认关，开启后需按切动进入准入。",
+			Text = Loc.T("实验：DSD512 预调制 opt-in！提升单端调制限制；默认关，开启后需按切动进入准入。"),
 			FontSize = 10.5,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -736,11 +737,11 @@ public sealed partial class DspPage
 		var guardSp = new StackPanel { Spacing = 4 };
 		var guardTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		guardTitleSp.Children.Add(new FontIcon { Glyph = "\uE72E", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
-		guardTitleSp.Children.Add(new TextBlock { Text = "环路积分稳定性与防溢出保护 (Guard Active)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
+		guardTitleSp.Children.Add(new TextBlock { Text = Loc.T("环路积分稳定性与防溢出保护 (Guard Active)"), FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74)) });
 		guardSp.Children.Add(guardTitleSp);
 		guardSp.Children.Add(new TextBlock
 		{
-			Text = "动态监测 5 阶环路积分器状态，当反馈超过 ±1.55 时瞬间触发硬件自恢复，消除直流漂移与高频爆音风险。",
+			Text = Loc.T("动态监测 5 阶环路积分器状态，当反馈超过 ±1.55 时瞬间触发硬件自恢复，消除直流漂移与高频爆音风险。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -761,7 +762,7 @@ public sealed partial class DspPage
 		}
 		if (_btnToggleAdvanced != null && _btnToggleAdvanced.Content is StackPanel sp)
 		{
-			if (sp.Children[0] is TextBlock tb) tb.Text = _isAdvancedExpanded ? "收起" : "高级";
+			if (sp.Children[0] is TextBlock tb) tb.Text = _isAdvancedExpanded ? Loc.T("收起") : Loc.T("高级");
 			if (sp.Children[1] is FontIcon icon) icon.Glyph = _isAdvancedExpanded ? "\uE70E" : "\uE70D";
 		}
 	}
@@ -833,7 +834,7 @@ public sealed partial class DspPage
 		// Footnote
 		ntfStack.Children.Add(new TextBlock
 		{
-			Text = "3 阶异常 NTF，固定 6 dB 调制安全余量：稳定性优先。SDM 与 PCM/FurinaPlayer SRC 分开保存；只有当音频模块满足预定条件时才会实时接管 PCM。",
+			Text = Loc.T("3 阶异常 NTF，固定 6 dB 调制安全余量：稳定性优先。SDM 与 PCM/FurinaPlayer SRC 分开保存；只有当音频模块满足预定条件时才会实时接管 PCM。"),
 			FontSize = 10.5,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -872,19 +873,19 @@ public sealed partial class DspPage
 
 		// Fact 1: 阶数
 		_inspectorOrderValTb = new TextBlock { Text = "5th", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
-		factsGrid.Children.Add(CreateInspectorItem("阶数", _inspectorOrderValTb, "当前调校收敛到 5阶 SDM", 0, 0));
+		factsGrid.Children.Add(CreateInspectorItem(Loc.T("阶数"), _inspectorOrderValTb, Loc.T("当前调校收敛到 5阶 SDM"), 0, 0));
 
 		// Fact 2: 衰减系数
 		_inspectorDecayValTb = new TextBlock { Text = "0.950", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
-		factsGrid.Children.Add(CreateInspectorItem("衰减系数", _inspectorDecayValTb, "稳定性限幅 ±1.55", 1, 0));
+		factsGrid.Children.Add(CreateInspectorItem(Loc.T("衰减系数"), _inspectorDecayValTb, Loc.T("稳定性限幅 ±1.55"), 1, 0));
 
 		// Fact 3: Dither
 		_inspectorDitherValTb = new TextBlock { Text = "--", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
-		factsGrid.Children.Add(CreateInspectorItem("Dither", _inspectorDitherValTb, "自由调制 --", 0, 1));
+		factsGrid.Children.Add(CreateInspectorItem("Dither", _inspectorDitherValTb, Loc.T("自由调制 --"), 0, 1));
 
 		// Fact 4: 摆动余量
 		_inspectorHeadroomValTb = new TextBlock { Text = "-3.0 dB", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, FontFamily = new FontFamily("Consolas, Courier New"), Foreground = DspTextPrimaryBrush };
-		factsGrid.Children.Add(CreateInspectorItem("摆动余量", _inspectorHeadroomValTb, "PCM -> SDM 会自动预置调频余量 headroom，并对低频信号导进入 DSD idle 区压低噪声。", 1, 1));
+		factsGrid.Children.Add(CreateInspectorItem(Loc.T("摆动余量"), _inspectorHeadroomValTb, Loc.T("PCM -> SDM 会自动预置调频余量 headroom，并对低频信号导进入 DSD idle 区压低噪声。"), 1, 1));
 
 		modStack.Children.Add(factsGrid);
 
@@ -893,7 +894,7 @@ public sealed partial class DspPage
 
 		// Feedback Coefficients Visualizer
 		var coeffContainer = new StackPanel { Spacing = 8 };
-		coeffContainer.Children.Add(new TextBlock { Text = "反馈环路系数 (FEEDBACK COEFFICIENTS)", FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextMutedBrush });
+		coeffContainer.Children.Add(new TextBlock { Text = Loc.T("反馈环路系数 (FEEDBACK COEFFICIENTS)"), FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextMutedBrush });
 
 		_coeffBarsGrid = new Grid { Height = 74 };
 		_coeffLabelsGrid = new Grid { Margin = new Thickness(0, 2, 0, 0) };
@@ -940,7 +941,7 @@ public sealed partial class DspPage
 
 		var headSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		headSp.Children.Add(new FontIcon { Glyph = "\uE9D9", FontSize = 13, Foreground = DspAccentSoftTextBrush });
-		headSp.Children.Add(new TextBlock { Text = "专业遥测与硬件宿主 (PROFESSIONAL TELEMETRY)", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
+		headSp.Children.Add(new TextBlock { Text = Loc.T("专业遥测与硬件宿主 (PROFESSIONAL TELEMETRY)"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
 		Grid.SetColumn(headSp, 0);
 		headerGrid.Children.Add(headSp);
 
@@ -957,7 +958,7 @@ public sealed partial class DspPage
 
 		// Group 1: 信号链
 		var g1 = new StackPanel { Spacing = 8 };
-		g1.Children.Add(new TextBlock { Text = "信号链 (Signal Chain)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
+		g1.Children.Add(new TextBlock { Text = Loc.T("信号链 (Signal Chain)"), FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
 		g1.Children.Add(CreateTelemetryRow("CLOCK DOMAIN", "44.1 kHz", "carrier: DSD128 5.6448 MHz"));
 		g1.Children.Add(CreateTelemetryRow("FIR TOPOLOGY", "FURINA FIR ×128", "4 stages · 2048 taps · stopband -120 dB"));
 		g1.Children.Add(CreateTelemetryRow("NOISE TRANSFER", "5th · H∞ 1.55 dB", "pole r=0.8842 · Safe loop gain"));
@@ -967,9 +968,9 @@ public sealed partial class DspPage
 
 		// Group 2: 计算引擎
 		var g2 = new StackPanel { Spacing = 8 };
-		g2.Children.Add(new TextBlock { Text = "计算引擎 (Compute)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
+		g2.Children.Add(new TextBlock { Text = Loc.T("计算引擎 (Compute)"), FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
 		g2.Children.Add(CreateTelemetryRow("COMPUTE SPLIT", "CPU AVX2 SIMD", "FP64 precision · batch 512 frames"));
-		g2.Children.Add(CreateTelemetryRow("CUDA CAPABILITY", "未启用", "可选 GPU 流水线加速"));
+		g2.Children.Add(CreateTelemetryRow("CUDA CAPABILITY", Loc.T("未启用"), Loc.T("可选 GPU 流水线加速")));
 		g2.Children.Add(CreateTelemetryRow("WORKER LATENCY", "0.42 ms avg", "0.65 ms max · 128 requests"));
 		g2.Children.Add(CreateTelemetryRow("FRAME FLOW", "512 → 65536", "128× oversampling · 1024-frame max block"));
 		Grid.SetColumn(g2, 1);
@@ -977,8 +978,8 @@ public sealed partial class DspPage
 
 		// Group 3: 实时预算
 		var g3 = new StackPanel { Spacing = 8 };
-		g3.Children.Add(new TextBlock { Text = "实时预算 (Budget)", FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
-		g3.Children.Add(CreateTelemetryRow("REALTIME BUDGET", "12.4%", "87.6% 充沛冗余 · 稳定无下溢"));
+		g3.Children.Add(new TextBlock { Text = Loc.T("实时预算 (Budget)"), FontSize = 11.5, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspAccentSoftTextBrush });
+		g3.Children.Add(CreateTelemetryRow("REALTIME BUDGET", "12.4%", Loc.T("87.6% 充沛冗余 · 稳定无下溢")));
 		g3.Children.Add(CreateTelemetryRow("STABILITY GUARD", "0.142 / ±1.55", "9.1% state budget · 0 recoveries"));
 		Grid.SetColumn(g3, 2);
 		telGrid.Children.Add(g3);
@@ -988,7 +989,7 @@ public sealed partial class DspPage
 		// Note
 		stack.Children.Add(new TextBlock
 		{
-			Text = "FurinaPlayer SDM/DSD 引擎为高性能母带级架构，支持 Native DSD 与 DoP (DSD over PCM) 输出标准；完全兼容 DSD64/128/256/512 与 PCM 实时高保真重调制。",
+			Text = Loc.T("FurinaPlayer SDM/DSD 引擎为高性能母带级架构，支持 Native DSD 与 DoP (DSD over PCM) 输出标准；完全兼容 DSD64/128/256/512 与 PCM 实时高保真重调制。"),
 			FontSize = 10.5,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 6, 0, 0)
@@ -1032,7 +1033,7 @@ public sealed partial class DspPage
 		_sdmModulator.Mode = mode;
 		if (ViewModel != null)
 		{
-			ViewModel.EchoSdmEnabled = mode != SdmMode.Off;
+			ViewModel.FurinaPlayerSdmEnabled = mode != SdmMode.Off;
 		}
 
 		UpdateSegmentButtonState(_btnModeOff, mode == SdmMode.Off);
@@ -1043,9 +1044,9 @@ public sealed partial class DspPage
 		{
 			_sdmModeDescTb.Text = mode switch
 			{
-				SdmMode.DsdPassthrough => "直通硬件 DSD 解码通道；DoP 封装或 Native ASIO 直通输出。",
-				SdmMode.PcmToSdm => "开启高精度 5 阶 Δ-Σ 实时过采样与调制引擎，将 PCM 转为 DSD 位流。",
-				_ => "PCM 和 FurinaPlayer SRC 保持独立；不会启动 DSD/SDM 输出。"
+				SdmMode.DsdPassthrough => Loc.T("直通硬件 DSD 解码通道；DoP 封装或 Native ASIO 直通输出。"),
+				SdmMode.PcmToSdm => Loc.T("开启高精度 5 阶 Δ-Σ 实时过采样与调制引擎，将 PCM 转为 DSD 位流。"),
+				_ => Loc.T("PCM 和 FurinaPlayer SRC 保持独立；不会启动 DSD/SDM 输出。")
 			};
 		}
 
@@ -1081,7 +1082,7 @@ public sealed partial class DspPage
 		{
 			SdmMode.DsdPassthrough => "DSD Passthrough",
 			SdmMode.PcmToSdm => "PCM -> SDM",
-			_ => "关闭 SDM"
+			_ => Loc.T("关闭 SDM")
 		};
 
 		if (_sdmRequestedTb != null)
@@ -1095,7 +1096,7 @@ public sealed partial class DspPage
 			{
 				SdmMode.DsdPassthrough => "DSD Passthrough (Bit-Perfect)",
 				SdmMode.PcmToSdm => $"{targetRateStr} (PCM -> SDM)",
-				_ => "当前不是 DSD 源"
+				_ => Loc.T("当前不是 DSD 源")
 			};
 		}
 
@@ -1109,7 +1110,7 @@ public sealed partial class DspPage
 		if (_sdmNodeOversampleTb != null) _sdmNodeOversampleTb.Text = _sdmModulator.Mode == SdmMode.PcmToSdm ? $"44.1k -> {((int)_sdmModulator.TargetRate * 44100) / 1000}k" : "-- / --";
 		if (_sdmNodeModulatorTb != null) _sdmNodeModulatorTb.Text = _sdmModulator.Mode == SdmMode.PcmToSdm ? $"{_sdmModulator.Order}th-order {_comboModulatorStability?.SelectedItem?.ToString() ?? "Safe"}" : "--";
 		if (_sdmNodeTransportTb != null) _sdmNodeTransportTb.Text = _sdmModulator.DopPassthrough ? "DoP (0x05/0xFA)" : "Native DSD";
-		if (_sdmNodeActualOutputTb != null) _sdmNodeActualOutputTb.Text = _sdmActualOutputTb?.Text ?? "当前不是 DSD 源";
+		if (_sdmNodeActualOutputTb != null) _sdmNodeActualOutputTb.Text = _sdmActualOutputTb?.Text ?? Loc.T("当前不是 DSD 源");
 
 		// Update Inspector
 		if (_inspectorOrderValTb != null) _inspectorOrderValTb.Text = $"{(int)_sdmModulator.Order}th";

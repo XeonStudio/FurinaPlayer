@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using SonicWave.Audio;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.Avalonia.ViewModels;
 
 public sealed class EqBandViewModel : ViewModelBase
 {
     private readonly int _index;
-    private readonly EchoEqProcessor _processor;
+    private readonly FurinaPlayerEqProcessor _processor;
     private double _gainDb;
 
     public string FrequencyLabel { get; }
@@ -32,7 +32,7 @@ public sealed class EqBandViewModel : ViewModelBase
 
     public string GainLabel => GainDb > 0 ? $"+{GainDb:0.0} dB" : $"{GainDb:0.0} dB";
 
-    public EqBandViewModel(int index, string label, double initialGain, EchoEqProcessor processor)
+    public EqBandViewModel(int index, string label, double initialGain, FurinaPlayerEqProcessor processor)
     {
         _index = index;
         FrequencyLabel = label;
@@ -284,7 +284,7 @@ public sealed class DspViewModel : ViewModelBase
         {
             if (SetProperty(ref _crossfeedEnabled, value))
             {
-                _engine.SetEchoCrossfeed(value, (float)_crossfeedAmount, 700f);
+                _engine.SetFurinaPlayerCrossfeed(value, (float)_crossfeedAmount, 700f);
             }
         }
     }
@@ -296,7 +296,7 @@ public sealed class DspViewModel : ViewModelBase
         {
             if (SetProperty(ref _crossfeedAmount, value))
             {
-                _engine.SetEchoCrossfeed(_crossfeedEnabled, (float)value, 700f);
+                _engine.SetFurinaPlayerCrossfeed(_crossfeedEnabled, (float)value, 700f);
                 OnPropertyChanged(nameof(CrossfeedAmountLabel));
             }
         }
@@ -311,7 +311,7 @@ public sealed class DspViewModel : ViewModelBase
         {
             if (SetProperty(ref _stereoFieldEnabled, value))
             {
-                _engine.SetEchoStereoField(value, (float)_stereoWidth, 0f, 0f);
+                _engine.SetFurinaPlayerStereoField(value, (float)_stereoWidth, 0f, 0f);
             }
         }
     }
@@ -323,7 +323,7 @@ public sealed class DspViewModel : ViewModelBase
         {
             if (SetProperty(ref _stereoWidth, value))
             {
-                _engine.SetEchoStereoField(_stereoFieldEnabled, (float)value, 0f, 0f);
+                _engine.SetFurinaPlayerStereoField(_stereoFieldEnabled, (float)value, 0f, 0f);
                 OnPropertyChanged(nameof(StereoWidthLabel));
             }
         }
@@ -338,7 +338,7 @@ public sealed class DspViewModel : ViewModelBase
         {
             if (SetProperty(ref _headroomDb, value))
             {
-                _engine.SetEchoHeadroom(value);
+                _engine.SetFurinaPlayerHeadroom(value);
                 OnPropertyChanged(nameof(HeadroomLabel));
             }
         }
@@ -372,7 +372,7 @@ public sealed class DspViewModel : ViewModelBase
         for (int i = 0; i < labels.Length; i++)
         {
             double gain = (eq != null && i < eq.UserBands.Count) ? eq.UserBands[i].GainDb : 0.0;
-            EqBands.Add(new EqBandViewModel(i, labels[i], gain, eq ?? new EchoEqProcessor()));
+            EqBands.Add(new EqBandViewModel(i, labels[i], gain, eq ?? new FurinaPlayerEqProcessor()));
         }
 
         // Initialize OPRA presets
@@ -427,7 +427,7 @@ public sealed class DspViewModel : ViewModelBase
 
     private void SyncCompressor()
     {
-        _engine.SetEchoCompressor(_compressorEnabled, (float)_compressorThresholdDb, (float)_compressorRatio,
+        _engine.SetFurinaPlayerCompressor(_compressorEnabled, (float)_compressorThresholdDb, (float)_compressorRatio,
             (float)_compressorAttackMs, (float)_compressorReleaseMs, 3f, (float)_compressorMakeupDb, 1f);
     }
 }

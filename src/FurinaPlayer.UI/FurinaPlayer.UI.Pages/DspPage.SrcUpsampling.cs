@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Text;
@@ -7,7 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 using Windows.Foundation;
 
 namespace FurinaPlayer.UI.Pages;
@@ -111,7 +112,7 @@ public sealed partial class DspPage
 		// --- Row 4: Bottom Disclaimer Note ---
 		var bottomNote = new TextBlock
 		{
-			Text = "只处理 PCM，共享输出、DSD 输出或 HQPlayer 协议时不会叠加热转。",
+			Text = Loc.T("只处理 PCM，共享输出、DSD 输出或 HQPlayer 协议时不会叠加热转。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(4, 4, 4, 12)
@@ -156,7 +157,7 @@ public sealed partial class DspPage
 		titleRow.Children.Add(iconBorder);
 		titleRow.Children.Add(new TextBlock
 		{
-			Text = "FurinaPlayer SRC / 升频",
+			Text = Loc.T("FurinaPlayer SRC / 升频"),
 			FontSize = 20,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -175,7 +176,7 @@ public sealed partial class DspPage
 		};
 		_srcStatusText = new TextBlock
 		{
-			Text = "原生直通",
+			Text = Loc.T("原生直通"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush,
@@ -195,7 +196,7 @@ public sealed partial class DspPage
 		var subActionRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Right };
 		_srcAbBenchmarkCheck = new CheckBox
 		{
-			Content = "A/B SOXR 基准",
+			Content = Loc.T("A/B SOXR 基准"),
 			FontSize = 12,
 			IsChecked = ViewModel?.FurinaSrcAbBenchmark ?? false
 		};
@@ -204,7 +205,7 @@ public sealed partial class DspPage
 			if (ViewModel != null)
 			{
 				ViewModel.FurinaSrcAbBenchmark = true;
-				ViewModel.SaveEchoSettings();
+				ViewModel.SaveFurinaPlayerSettings();
 				RefreshSrcUpsamplingState();
 			}
 		};
@@ -213,7 +214,7 @@ public sealed partial class DspPage
 			if (ViewModel != null)
 			{
 				ViewModel.FurinaSrcAbBenchmark = false;
-				ViewModel.SaveEchoSettings();
+				ViewModel.SaveFurinaPlayerSettings();
 				RefreshSrcUpsamplingState();
 			}
 		};
@@ -249,7 +250,7 @@ public sealed partial class DspPage
 		var routeTitleSp = new StackPanel { Spacing = 8 };
 		routeTitleSp.Children.Add(new TextBlock
 		{
-			Text = "路径",
+			Text = Loc.T("路径"),
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush
@@ -264,7 +265,7 @@ public sealed partial class DspPage
 
 		// Source Rate
 		var srcSp = new StackPanel { Spacing = 2 };
-		srcSp.Children.Add(new TextBlock { Text = "源采样率", FontSize = 11, Foreground = DspTextMutedBrush });
+		srcSp.Children.Add(new TextBlock { Text = Loc.T("源采样率"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcSourceRateText = new TextBlock
 		{
 			Text = "--",
@@ -292,7 +293,7 @@ public sealed partial class DspPage
 
 		// Target Rate
 		var dstSp = new StackPanel { Spacing = 2 };
-		dstSp.Children.Add(new TextBlock { Text = "目标采样率", FontSize = 11, Foreground = DspTextMutedBrush });
+		dstSp.Children.Add(new TextBlock { Text = Loc.T("目标采样率"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcTargetRateText = new TextBlock
 		{
 			Text = "--",
@@ -329,13 +330,13 @@ public sealed partial class DspPage
 		}
 
 		// Step 01
-		stepBarGrid.Children.Add(CreateStepIndicator(0, "01 FurinaPlayer SRC 控制模式", "关闭", out _srcStep1Val, false));
+		stepBarGrid.Children.Add(CreateStepIndicator(0, Loc.T("01 FurinaPlayer SRC 控制模式"), Loc.T("关闭"), out _srcStep1Val, false));
 		// Step 02
-		stepBarGrid.Children.Add(CreateStepIndicator(1, "02 质量策略", "Transparent", out _srcStep2Val, false));
+		stepBarGrid.Children.Add(CreateStepIndicator(1, Loc.T("02 质量策略"), "Transparent", out _srcStep2Val, false));
 		// Step 03
-		stepBarGrid.Children.Add(CreateStepIndicator(2, "03 倍率", "--", out _srcStep3Val, false));
+		stepBarGrid.Children.Add(CreateStepIndicator(2, Loc.T("03 倍率"), "--", out _srcStep3Val, false));
 		// Step 04
-		stepBarGrid.Children.Add(CreateStepIndicator(3, "04 Compute", "CPU 实时路径,未请求 CUDA。", out _srcStep4Val, true));
+		stepBarGrid.Children.Add(CreateStepIndicator(3, "04 Compute", Loc.T("CPU 实时路径,未请求 CUDA。"), out _srcStep4Val, true));
 
 		leftStack.Children.Add(stepBarGrid);
 		Grid.SetColumn(leftStack, 0);
@@ -352,7 +353,7 @@ public sealed partial class DspPage
 
 		rightStack.Children.Add(new TextBlock
 		{
-			Text = "精度",
+			Text = Loc.T("精度"),
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush
@@ -374,7 +375,7 @@ public sealed partial class DspPage
 
 		// Filter Slot
 		var slotSp = new StackPanel { Spacing = 2 };
-		slotSp.Children.Add(new TextBlock { Text = "过滤器插槽", FontSize = 11, Foreground = DspTextMutedBrush });
+		slotSp.Children.Add(new TextBlock { Text = Loc.T("过滤器插槽"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcFilterSlotValue = new TextBlock { Text = "Standby", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		slotSp.Children.Add(_srcFilterSlotValue);
 		Grid.SetColumn(slotSp, 0);
@@ -383,7 +384,7 @@ public sealed partial class DspPage
 		// PCM Dither
 		var ditherSp = new StackPanel { Spacing = 2 };
 		ditherSp.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 11, Foreground = DspTextMutedBrush });
-		_srcDitherSlotValue = new TextBlock { Text = "关闭", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_srcDitherSlotValue = new TextBlock { Text = Loc.T("关闭"), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		ditherSp.Children.Add(_srcDitherSlotValue);
 		Grid.SetColumn(ditherSp, 1);
 		statColsGrid.Children.Add(ditherSp);
@@ -455,7 +456,7 @@ public sealed partial class DspPage
 			Padding = new Thickness(6, 2, 6, 2)
 		};
 		var advSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		var advText = new TextBlock { Text = "高级", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
+		var advText = new TextBlock { Text = Loc.T("高级"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
 		_srcAdvancedChevron = new FontIcon { Glyph = "\uE70D", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) }; // Chevron Down
 		advSp.Children.Add(advText);
 		advSp.Children.Add(_srcAdvancedChevron);
@@ -471,7 +472,7 @@ public sealed partial class DspPage
 				if (ViewModel != null)
 				{
 					ViewModel.FurinaSrcAdvanced = !isVisible;
-					ViewModel.SaveEchoSettings();
+					ViewModel.SaveFurinaPlayerSettings();
 				}
 			}
 		};
@@ -489,7 +490,7 @@ public sealed partial class DspPage
 		var modeStack = new StackPanel { Spacing = 8 };
 		modeStack.Children.Add(new TextBlock
 		{
-			Text = "FurinaPlayer SRC 控制模式",
+			Text = Loc.T("FurinaPlayer SRC 控制模式"),
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextSubHeaderBrush
@@ -497,8 +498,8 @@ public sealed partial class DspPage
 
 		var modeOptions = new (string Key, string Label)[]
 		{
-			("off", "关闭"),
-			("compatibility48", "48 kHz 兼容"),
+			("off", Loc.T("关闭")),
+			("compatibility48", Loc.T("48 kHz 兼容")),
 			("family2x", "2x PCM"),
 			("family4x", "4x PCM"),
 			("family8x", "8x Ultra")
@@ -508,7 +509,7 @@ public sealed partial class DspPage
 
 		_srcModeHint = new TextBlock
 		{
-			Text = "保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。",
+			Text = Loc.T("保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(2, 0, 0, 0)
@@ -521,7 +522,7 @@ public sealed partial class DspPage
 		var qualityStack = new StackPanel { Spacing = 8 };
 		qualityStack.Children.Add(new TextBlock
 		{
-			Text = "质量策略",
+			Text = Loc.T("质量策略"),
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextSubHeaderBrush
@@ -538,7 +539,7 @@ public sealed partial class DspPage
 
 		_srcQualityHint = new TextBlock
 		{
-			Text = "最高精度 SOXR，优先透明度和截断失真。",
+			Text = Loc.T("最高精度 SOXR，优先透明度和截断失真。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(2, 0, 0, 0)
@@ -558,7 +559,7 @@ public sealed partial class DspPage
 
 		// Col 0: 过滤器 1x
 		var col0 = new StackPanel { Spacing = 6 };
-		col0.Children.Add(new TextBlock { Text = "过滤器 1x", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		col0.Children.Add(new TextBlock { Text = Loc.T("过滤器 1x"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcFilter1xCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -576,7 +577,7 @@ public sealed partial class DspPage
 			if (_srcFilter1xCombo.SelectedItem is string sel && ViewModel != null)
 			{
 				ViewModel.FurinaSrcFilter1x = sel;
-				ViewModel.SaveEchoSettings();
+				ViewModel.SaveFurinaPlayerSettings();
 				UpdateFilter1xHint(sel);
 				UpdateFilterDesignCurve();
 			}
@@ -584,7 +585,7 @@ public sealed partial class DspPage
 		col0.Children.Add(_srcFilter1xCombo);
 		_srcFilter1xHint = new TextBlock
 		{
-			Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。",
+			Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -595,7 +596,7 @@ public sealed partial class DspPage
 
 		// Col 1: 过滤器 Nx
 		var col1 = new StackPanel { Spacing = 6 };
-		col1.Children.Add(new TextBlock { Text = "过滤器 Nx", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		col1.Children.Add(new TextBlock { Text = Loc.T("过滤器 Nx"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
 		_srcFilterNxCombo = new ComboBox
 		{
 			HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -611,7 +612,7 @@ public sealed partial class DspPage
 			if (_srcFilterNxCombo.SelectedItem is string sel && ViewModel != null)
 			{
 				ViewModel.FurinaSrcFilterNx = sel;
-				ViewModel.SaveEchoSettings();
+				ViewModel.SaveFurinaPlayerSettings();
 				UpdateFilterNxHint(sel);
 				UpdateFilterDesignCurve();
 			}
@@ -619,7 +620,7 @@ public sealed partial class DspPage
 		col1.Children.Add(_srcFilterNxCombo);
 		_srcFilterNxHint = new TextBlock
 		{
-			Text = "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。",
+			Text = Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -637,22 +638,25 @@ public sealed partial class DspPage
 			CornerRadius = new CornerRadius(8)
 		};
 		_srcComputeCombo.Items.Add("CPU SIMD");
-		_srcComputeCombo.Items.Add("CPU 多线程");
-		_srcComputeCombo.Items.Add("GPU 加速 (若支持)");
-		_srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, ViewModel?.FurinaSrcCompute, "CPU SIMD");
+		_srcComputeCombo.Items.Add(Loc.T("CPU 多线程"));
+		_srcComputeCombo.Items.Add(Loc.T("GPU 加速 (若支持)"));
+		_srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, ViewModel?.FurinaSrcCompute != null ? Loc.T(ViewModel.FurinaSrcCompute) : null, "CPU SIMD");
 		_srcComputeCombo.SelectionChanged += (s, e) =>
 		{
 			if (_srcComputeCombo.SelectedItem is string sel && ViewModel != null)
 			{
-				ViewModel.FurinaSrcCompute = sel;
-				ViewModel.SaveEchoSettings();
-				UpdateComputeHint(sel);
+				string canonical = sel == Loc.T("CPU 多线程") ? "CPU 多线程"
+					: sel == Loc.T("GPU 加速 (若支持)") ? "GPU 加速 (若支持)"
+					: sel;
+				ViewModel.FurinaSrcCompute = canonical;
+				ViewModel.SaveFurinaPlayerSettings();
+				UpdateComputeHint(canonical);
 			}
 		};
 		col2.Children.Add(_srcComputeCombo);
 		_srcComputeHint = new TextBlock
 		{
-			Text = "默认实时路径：极优，无降采样风险，并保证随机可用。",
+			Text = Loc.T("默认实时路径：极优，无降采样风险，并保证随机可用。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -678,18 +682,18 @@ public sealed partial class DspPage
 			if (_srcDitherCombo.SelectedItem is string sel && ViewModel != null)
 			{
 				ViewModel.FurinaSrcDither = sel;
-				ViewModel.SaveEchoSettings();
+				ViewModel.SaveFurinaPlayerSettings();
 				UpdateDitherHint(sel);
 				if (_srcDitherSlotValue != null)
 				{
-					_srcDitherSlotValue.Text = sel == "Off" ? "关闭" : sel;
+					_srcDitherSlotValue.Text = sel == "Off" ? Loc.T("关闭") : sel;
 				}
 			}
 		};
 		col3.Children.Add(_srcDitherCombo);
 		_srcDitherHint = new TextBlock
 		{
-			Text = "保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。",
+			Text = Loc.T("保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -726,8 +730,8 @@ public sealed partial class DspPage
 		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		titleSp.Children.Add(new TextBlock { Text = "高级", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
-		titleSp.Children.Add(new TextBlock { Text = "快速套用进阶调谐梯度", FontSize = 11, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
+		titleSp.Children.Add(new TextBlock { Text = Loc.T("高级"), FontSize = 12, FontWeight = FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
+		titleSp.Children.Add(new TextBlock { Text = Loc.T("快速套用进阶调谐梯度"), FontSize = 11, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
 		Grid.SetColumn(titleSp, 0);
 		titleRow.Children.Add(titleSp);
 
@@ -743,22 +747,22 @@ public sealed partial class DspPage
 			ladderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		}
 
-		ladderGrid.Children.Add(CreateLadderCard(0, "Realtime Safe", "4x / Halfband 1x+Nx / CPU", "低延迟 / CPU", () =>
+		ladderGrid.Children.Add(CreateLadderCard(0, "Realtime Safe", "4x / Halfband 1x+Nx / CPU", Loc.T("低延迟 / CPU"), () =>
 		{
 			ApplyLadderPreset("family4x", "lowLatency", "FurinaPlayer Halfband", "FurinaPlayer Halfband", "CPU SIMD");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(1, "Hi-Fi Balanced", "4x / Gauss Long 1x / Halfband Nx / CPU", "中等延迟 / CPU", () =>
+		ladderGrid.Children.Add(CreateLadderCard(1, "Hi-Fi Balanced", "4x / Gauss Long 1x / Halfband Nx / CPU", Loc.T("中等延迟 / CPU"), () =>
 		{
 			ApplyLadderPreset("family4x", "balanced", "FurinaPlayer Gauss Long", "FurinaPlayer Halfband", "CPU SIMD");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(2, "Reference", "8x / Gauss Long 1x / Steep Nx / CPU", "高延迟 / CPU", () =>
+		ladderGrid.Children.Add(CreateLadderCard(2, "Reference", "8x / Gauss Long 1x / Steep Nx / CPU", Loc.T("高延迟 / CPU"), () =>
 		{
 			ApplyLadderPreset("family8x", "transparent", "FurinaPlayer Gauss Long", "Steep", "CPU SIMD");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(3, "Ultra Precision", "8x / Steep XL 1x / Sinc Polyphase Nx", "超高延迟 / CPU", () =>
+		ladderGrid.Children.Add(CreateLadderCard(3, "Ultra Precision", "8x / Steep XL 1x / Sinc Polyphase Nx", Loc.T("超高延迟 / CPU"), () =>
 		{
 			ApplyLadderPreset("family8x", "transparent", "FurinaPlayer Steep Long", "FurinaPlayer Steep XL", "CPU SIMD");
 		}));
@@ -799,7 +803,7 @@ public sealed partial class DspPage
 		OnQualitySelected(quality);
 		if (_srcFilter1xCombo != null) _srcFilter1xCombo.SelectedItem = SelectMatchingItem(_srcFilter1xCombo, f1x, f1x);
 		if (_srcFilterNxCombo != null) _srcFilterNxCombo.SelectedItem = SelectMatchingItem(_srcFilterNxCombo, fnx, fnx);
-		if (_srcComputeCombo != null) _srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, compute, compute);
+		if (_srcComputeCombo != null) _srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, Loc.T(compute), Loc.T(compute));
 		RefreshSrcUpsamplingState();
 		UpdateFilterDesignCurve();
 	}
@@ -887,7 +891,7 @@ public sealed partial class DspPage
 		// Chart Footer Note
 		_srcFilterCaptionText = new TextBlock
 		{
-			Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。44.1/48 kHz 音源的差异主要集中在最高频段，相位与瞬态响应：透明 SRC 本身就不应产生明显染色。",
+			Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。44.1/48 kHz 音源的差异主要集中在最高频段，相位与瞬态响应：透明 SRC 本身就不应产生明显染色。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -920,13 +924,13 @@ public sealed partial class DspPage
 		var f1xSp = new StackPanel { Spacing = 4 };
 		var f1xHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		f1xHeader.Children.Add(new TextBlock { Text = "1X", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
-		f1xHeader.Children.Add(new TextBlock { Text = "· 激活", FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)) });
+		f1xHeader.Children.Add(new TextBlock { Text = Loc.T("· 激活"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)) });
 		f1xSp.Children.Add(f1xHeader);
 
 		_srcFilterPlan1xName = new TextBlock { Text = "FurinaPlayer Gauss Long", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
 		f1xSp.Children.Add(_srcFilterPlan1xName);
 
-		_srcFilterPlan1xDesc = new TextBlock { Text = "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。", FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlan1xDesc = new TextBlock { Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。"), FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		f1xSp.Children.Add(_srcFilterPlan1xDesc);
 
 		_srcFilterPlan1xPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
@@ -945,7 +949,7 @@ public sealed partial class DspPage
 		_srcFilterPlanNxName = new TextBlock { Text = "FurinaPlayer Halfband", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		fnxSp.Children.Add(_srcFilterPlanNxName);
 
-		_srcFilterPlanNxDesc = new TextBlock { Text = "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。", FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlanNxDesc = new TextBlock { Text = Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。"), FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		fnxSp.Children.Add(_srcFilterPlanNxDesc);
 
 		_srcFilterPlanNxPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
@@ -1047,27 +1051,27 @@ public sealed partial class DspPage
 		switch (mode)
 		{
 			case "off":
-				ViewModel.EchoResamplerEnabled = false;
+				ViewModel.FurinaPlayerResamplerEnabled = false;
 				break;
 			case "compatibility48":
-				ViewModel.EchoResamplerEnabled = true;
-				ViewModel.EchoResamplerTargetRate = 48000;
+				ViewModel.FurinaPlayerResamplerEnabled = true;
+				ViewModel.FurinaPlayerResamplerTargetRate = 48000;
 				break;
 			case "family2x":
-				ViewModel.EchoResamplerEnabled = true;
-				ViewModel.EchoResamplerTargetRate = inputRate == 44100 ? 88200 : (inputRate == 48000 ? 96000 : inputRate * 2);
+				ViewModel.FurinaPlayerResamplerEnabled = true;
+				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 88200 : (inputRate == 48000 ? 96000 : inputRate * 2);
 				break;
 			case "family4x":
-				ViewModel.EchoResamplerEnabled = true;
-				ViewModel.EchoResamplerTargetRate = inputRate == 44100 ? 176400 : (inputRate == 48000 ? 192000 : inputRate * 4);
+				ViewModel.FurinaPlayerResamplerEnabled = true;
+				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 176400 : (inputRate == 48000 ? 192000 : inputRate * 4);
 				break;
 			case "family8x":
-				ViewModel.EchoResamplerEnabled = true;
-				ViewModel.EchoResamplerTargetRate = inputRate == 44100 ? 352800 : (inputRate == 48000 ? 384000 : inputRate * 8);
+				ViewModel.FurinaPlayerResamplerEnabled = true;
+				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 352800 : (inputRate == 48000 ? 384000 : inputRate * 8);
 				break;
 		}
 
-		ViewModel.SaveEchoSettings();
+		ViewModel.SaveFurinaPlayerSettings();
 		RefreshSrcUpsamplingState();
 	}
 
@@ -1075,7 +1079,7 @@ public sealed partial class DspPage
 	{
 		if (ViewModel == null) return;
 		ViewModel.FurinaSrcQuality = quality;
-		ViewModel.SaveEchoSettings();
+		ViewModel.SaveFurinaPlayerSettings();
 		RefreshSrcUpsamplingState();
 	}
 
@@ -1083,29 +1087,29 @@ public sealed partial class DspPage
 	{
 		string mode = ViewModel?.FurinaSrcMode ?? "off";
 		string quality = ViewModel?.FurinaSrcQuality ?? "transparent";
-		bool enabled = ViewModel?.EchoResamplerEnabled ?? false;
+		bool enabled = ViewModel?.FurinaPlayerResamplerEnabled ?? false;
 
 		int inputRate = (ViewModel != null && ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100;
 		if (inputRate <= 0) inputRate = 44100;
 
-		int targetRate = ViewModel?.EchoResamplerTargetRate ?? 192000;
+		int targetRate = ViewModel?.FurinaPlayerResamplerTargetRate ?? 192000;
 
 		// Status dot & text
 		if (mode == "off" || !enabled)
 		{
 			if (_srcStatusDot != null) _srcStatusDot.Fill = DspTextMutedBrush; // Gray
-			if (_srcStatusText != null) _srcStatusText.Text = "原生直通";
+			if (_srcStatusText != null) _srcStatusText.Text = Loc.T("原生直通");
 			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:F1} kHz";
 			if (_srcTargetRateText != null) _srcTargetRateText.Text = "--";
 			if (_srcRatioBadge != null) _srcRatioBadge.Text = "";
-			if (_srcStep1Val != null) _srcStep1Val.Text = "关闭";
+			if (_srcStep1Val != null) _srcStep1Val.Text = Loc.T("关闭");
 			if (_srcStep3Val != null) _srcStep3Val.Text = "--";
 			if (_srcFilterSlotValue != null) _srcFilterSlotValue.Text = "Standby";
 		}
 		else
 		{
 			if (_srcStatusDot != null) _srcStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)); // Green
-			if (_srcStatusText != null) _srcStatusText.Text = "升频激活";
+			if (_srcStatusText != null) _srcStatusText.Text = Loc.T("升频激活");
 			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:F1} kHz";
 			if (_srcTargetRateText != null) _srcTargetRateText.Text = $"{targetRate / 1000.0:F1} kHz";
 
@@ -1114,11 +1118,11 @@ public sealed partial class DspPage
 
 			string modeLabel = mode switch
 			{
-				"compatibility48" => "48 kHz 兼容",
+				"compatibility48" => Loc.T("48 kHz 兼容"),
 				"family2x" => "2x PCM",
 				"family4x" => "4x PCM",
 				"family8x" => "8x Ultra",
-				_ => "关闭"
+				_ => Loc.T("关闭")
 			};
 			if (_srcStep1Val != null) _srcStep1Val.Text = modeLabel;
 			if (_srcStep3Val != null) _srcStep3Val.Text = $"{ratio:0.##}x";
@@ -1150,11 +1154,11 @@ public sealed partial class DspPage
 		{
 			_srcModeHint.Text = mode switch
 			{
-				"compatibility48" => "将 PCM 固定转换到 48 kHz，适合只接受 48 kHz 的独占耳机或声卡；默认关闭。",
-				"family2x" => "44.1k 家族升到 88.2k，48k 家族升到 96k。",
-				"family4x" => "44.1k 家族升到 176.4k，48k 家族升到 192k。",
-				"family8x" => "实验档：44.1k 家族升到 352.8k，48k 家族升到 384k。",
-				_ => "保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。"
+				"compatibility48" => Loc.T("将 PCM 固定转换到 48 kHz，适合只接受 48 kHz 的独占耳机或声卡；默认关闭。"),
+				"family2x" => Loc.T("44.1k 家族升到 88.2k，48k 家族升到 96k。"),
+				"family4x" => Loc.T("44.1k 家族升到 176.4k，48k 家族升到 192k。"),
+				"family8x" => Loc.T("实验档：44.1k 家族升到 352.8k，48k 家族升到 384k。"),
+				_ => Loc.T("保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。")
 			};
 		}
 
@@ -1163,9 +1167,9 @@ public sealed partial class DspPage
 		{
 			_srcQualityHint.Text = quality switch
 			{
-				"balanced" => "保持原有 SOXR 档位，兼顾稳定和开销。",
-				"lowLatency" => "降低 SRC 开销，适合低延迟输出。",
-				_ => "最高精度 SOXR，优先透明度和截断失真。"
+				"balanced" => Loc.T("保持原有 SOXR 档位，兼顾稳定和开销。"),
+				"lowLatency" => Loc.T("降低 SRC 开销，适合低延迟输出。"),
+				_ => Loc.T("最高精度 SOXR，优先透明度和截断失真。")
 			};
 		}
 
@@ -1175,15 +1179,15 @@ public sealed partial class DspPage
 		{
 			_srcStep4Val.Text = compute switch
 			{
-				"CPU 多线程" => "CPU 多线程实时路径。",
-				"GPU 加速 (若支持)" => "CUDA FIR 准备中，自动兼顾回落。",
-				_ => "CPU 实时路径,未请求 CUDA。"
+				"CPU 多线程" => Loc.T("CPU 多线程实时路径。"),
+				"GPU 加速 (若支持)" => Loc.T("CUDA FIR 准备中，自动兼顾回落。"),
+				_ => Loc.T("CPU 实时路径,未请求 CUDA。")
 			};
 		}
 
 		// Dither slot
 		string dither = ViewModel?.FurinaSrcDither ?? "Off";
-		if (_srcDitherSlotValue != null) _srcDitherSlotValue.Text = dither == "Off" ? "关闭" : dither;
+		if (_srcDitherSlotValue != null) _srcDitherSlotValue.Text = dither == "Off" ? Loc.T("关闭") : dither;
 	}
 
 	private void UpdateFilter1xHint(string sel)
@@ -1191,12 +1195,12 @@ public sealed partial class DspPage
 		if (_srcFilter1xHint == null) return;
 		_srcFilter1xHint.Text = sel switch
 		{
-			"FurinaPlayer Gauss Short" => "低阶高斯窗 sinc 滤波，瞬态响应快，听感温暖。",
-			"Linear Phase" => "对称 sinc 滤波，群延迟恒定，零相位失真。",
-			"Min Phase" => "最小相位滤波，零前振铃，能量集中于瞬态起音。",
-			"FurinaPlayer Steep Short" => "短阶陡峭滤波，截止带陡峭，适合实时处理。",
-			"FurinaPlayer Steep Long" => "长阶陡峭滤波，>100dB 阻带衰减，母带级透明度。",
-			_ => "高阶量 sinc 滤波，听感更柔和，兼顾瞬态。"
+			"FurinaPlayer Gauss Short" => Loc.T("低阶高斯窗 sinc 滤波，瞬态响应快，听感温暖。"),
+			"Linear Phase" => Loc.T("对称 sinc 滤波，群延迟恒定，零相位失真。"),
+			"Min Phase" => Loc.T("最小相位滤波，零前振铃，能量集中于瞬态起音。"),
+			"FurinaPlayer Steep Short" => Loc.T("短阶陡峭滤波，截止带陡峭，适合实时处理。"),
+			"FurinaPlayer Steep Long" => Loc.T("长阶陡峭滤波，>100dB 阻带衰减，母带级透明度。"),
+			_ => Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。")
 		};
 	}
 
@@ -1205,10 +1209,10 @@ public sealed partial class DspPage
 		if (_srcFilterNxHint == null) return;
 		_srcFilterNxHint.Text = sel switch
 		{
-			"Sinc Polyphase" => "多相 sinc 滤波，频响平直，极低互调失真。",
-			"Steep" => "陡峭过渡带滤波，阻带深度抑制镜像混叠。",
-			"FurinaPlayer Steep XL" => "极限 3071 阶陡峭滤波，用于测量级对照。",
-			_ => "半带 sinc 滤波，适合 2x/4x 先倒频定实时性。"
+			"Sinc Polyphase" => Loc.T("多相 sinc 滤波，频响平直，极低互调失真。"),
+			"Steep" => Loc.T("陡峭过渡带滤波，阻带深度抑制镜像混叠。"),
+			"FurinaPlayer Steep XL" => Loc.T("极限 3071 阶陡峭滤波，用于测量级对照。"),
+			_ => Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。")
 		};
 	}
 
@@ -1217,17 +1221,17 @@ public sealed partial class DspPage
 		if (_srcComputeHint == null) return;
 		_srcComputeHint.Text = sel switch
 		{
-			"CPU 多线程" => "利用多核心并发执行块滤波，降低单核负载与发热。",
-			"GPU 加速 (若支持)" => "实验性 CUDA FIR 路径；需 NVIDIA 显卡驱动支持。",
-			_ => "默认实时路径：极优，无降采样风险，并保证随机可用。"
+			"CPU 多线程" => Loc.T("利用多核心并发执行块滤波，降低单核负载与发热。"),
+			"GPU 加速 (若支持)" => Loc.T("实验性 CUDA FIR 路径；需 NVIDIA 显卡驱动支持。"),
+			_ => Loc.T("默认实时路径：极优，无降采样风险，并保证随机可用。")
 		};
 		if (_srcStep4Val != null)
 		{
 			_srcStep4Val.Text = sel switch
 			{
-				"CPU 多线程" => "CPU 多线程实时路径。",
-				"GPU 加速 (若支持)" => "CUDA FIR 准备中，自动兼顾回落。",
-				_ => "CPU 实时路径,未请求 CUDA。"
+				"CPU 多线程" => Loc.T("CPU 多线程实时路径。"),
+				"GPU 加速 (若支持)" => Loc.T("CUDA FIR 准备中，自动兼顾回落。"),
+				_ => Loc.T("CPU 实时路径,未请求 CUDA。")
 			};
 		}
 	}
@@ -1237,9 +1241,9 @@ public sealed partial class DspPage
 		if (_srcDitherHint == null) return;
 		_srcDitherHint.Text = sel switch
 		{
-			"TPDF" => "标准三角形概率密度抖动，消除 16/24-bit 量化相关失真。",
-			"High-Pass Noise Shaping" => "高通噪声整形：将量化噪声推向 18kHz 以上高频不敏感区。",
-			_ => "保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。"
+			"TPDF" => Loc.T("标准三角形概率密度抖动，消除 16/24-bit 量化相关失真。"),
+			"High-Pass Noise Shaping" => Loc.T("高通噪声整形：将量化噪声推向 18kHz 以上高频不敏感区。"),
+			_ => Loc.T("保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。")
 		};
 	}
 

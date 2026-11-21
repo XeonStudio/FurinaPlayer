@@ -8,7 +8,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.Controls;
@@ -202,7 +203,7 @@ public sealed class SpectrumAnalyzer : UserControl, IComponentConnector
 					IsAntialias = true,
 					Typeface = WaveformControl.CjkTypeface
 				};
-				string peakText = $"峰值: {maxDbFreq:F0} Hz · {maxDb:F1} dBFS";
+				string peakText = Loc.F("峰值: {0:F0} Hz · {1:F1} dBFS", maxDbFreq, maxDb);
 				float tw = hudPaint.MeasureText(peakText);
 				canvas.DrawText(peakText, padLeft + plotW - tw - 8f, padTop + 14f, hudPaint);
 			}

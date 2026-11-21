@@ -1,6 +1,6 @@
 <Solution>
   <Project Path="FurinaPlayer.UI/FurinaPlayer.UI.csproj" />
   <Project Path="FurinaPlayer/FurinaPlayer.csproj" />
-  <Project Path="SonicWave.Audio/SonicWave.Audio.csproj" />
-  <Project Path="SonicWave.Core/SonicWave.Core.csproj" />
+  <Project Path="FurinaPlayer.Audio/FurinaPlayer.Audio.csproj" />
+  <Project Path="FurinaPlayer.Core/FurinaPlayer.Core.csproj" />
 </Solution>

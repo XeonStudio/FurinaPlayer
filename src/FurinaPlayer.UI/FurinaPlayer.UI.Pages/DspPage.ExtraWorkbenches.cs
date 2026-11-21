@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using FurinaPlayer.UI.Controls;
@@ -6,7 +6,8 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.UI.Pages;
 
@@ -45,7 +46,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "听音方案",
+			Text = Loc.T("听音方案"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -68,7 +69,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "当前方案生效中", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+					new TextBlock { Text = Loc.T("当前方案生效中"), FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -80,7 +81,7 @@ public sealed partial class DspPage
 		// 2. Overview description
 		var descTb = new TextBlock
 		{
-			Text = "听音方案一站式整合参数 EQ、目标频响曲线、数字余量 Headroom 与双耳空间互馈，适配不同耳机设备与听音偏好。",
+			Text = Loc.T("听音方案一站式整合参数 EQ、目标频响曲线、数字余量 Headroom 与双耳空间互馈，适配不同耳机设备与听音偏好。"),
 			FontSize = 13,
 			Foreground = DspTextMutedBrush
 		};
@@ -90,12 +91,12 @@ public sealed partial class DspPage
 		// 3. Profiles Grid
 		var profiles = new (string Title, string Target, string Desc, int PresetIndex, string Tag)[]
 		{
-			("日常聆听 · 推荐", "平坦直通 · 自然平衡", "保留音乐原汁原味的录音混音平衡，高动态、无染色。", 0, "Flat"),
-			("Moondrop / Custom", "哈曼目标曲线 Harman Target 2019", "低频适度下潜，人声清晰凝聚，高频顺滑延伸，适合现代流行音乐。", 1, "Harman"),
-			("Sennheiser HD600", "弥散场声学优化 (Diffuse Field)", "优化开放式动圈耳机的高频峰值与次低频滚降，声场开阔通透。", 2, "HD600"),
-			("Sony WH-1000XM5", "深潜动感重低音 (Sub-Bass Boost)", "增强 30Hz~120Hz 次低频冲击力与包围感，适合电音、摇滚与游戏配乐。", 5, "Bass"),
-			("暖声人声流行", "中频饱满 · 齿音平顺", "微幅前移 1kHz~3kHz 人声泛音带，削弱高频尖锐感，聆听舒适耐听。", 7, "Vocal"),
-			("开阔立体声场", "空间展开 · 双耳互馈联合优化", "结合 132% 立体声场宽度与 Chu Moy 双耳互馈，消除头中效应与疲劳感。", 8, "Stage")
+			(Loc.T("日常聆听 · 推荐"), Loc.T("平坦直通 · 自然平衡"), Loc.T("保留音乐原汁原味的录音混音平衡，高动态、无染色。"), 0, "Flat"),
+			("Moondrop / Custom", Loc.T("哈曼目标曲线 Harman Target 2019"), Loc.T("低频适度下潜，人声清晰凝聚，高频顺滑延伸，适合现代流行音乐。"), 1, "Harman"),
+			("Sennheiser HD600", Loc.T("弥散场声学优化 (Diffuse Field)"), Loc.T("优化开放式动圈耳机的高频峰值与次低频滚降，声场开阔通透。"), 2, "HD600"),
+			("Sony WH-1000XM5", Loc.T("深潜动感重低音 (Sub-Bass Boost)"), Loc.T("增强 30Hz~120Hz 次低频冲击力与包围感，适合电音、摇滚与游戏配乐。"), 5, "Bass"),
+			(Loc.T("暖声人声流行"), Loc.T("中频饱满 · 齿音平顺"), Loc.T("微幅前移 1kHz~3kHz 人声泛音带，削弱高频尖锐感，聆听舒适耐听。"), 7, "Vocal"),
+			(Loc.T("开阔立体声场"), Loc.T("空间展开 · 双耳互馈联合优化"), Loc.T("结合 132% 立体声场宽度与 Chu Moy 双耳互馈，消除头中效应与疲劳感。"), 8, "Stage")
 		};
 
 		var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -129,7 +130,7 @@ public sealed partial class DspPage
 
 			var applyBtn = new Button
 			{
-				Content = "应用方案",
+				Content = Loc.T("应用方案"),
 				Padding = new Thickness(14, 6, 14, 6),
 				CornerRadius = new CornerRadius(10),
 				Background = LiquidGlassEngine.CreateSurfaceBrush(LiquidGlassVariant.AccentLensed, isDark: IsDspDark),
@@ -187,7 +188,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "输出安全",
+			Text = Loc.T("输出安全"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -210,7 +211,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE73E", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)) },
-					new TextBlock { Text = "待命 · 实时防护生效中", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+					new TextBlock { Text = Loc.T("待命 · 实时防护生效中"), FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 22, 163, 74)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 				}
 			}
 		};
@@ -225,10 +226,10 @@ public sealed partial class DspPage
 
 		var guards = new (string Title, string Status, string Desc, string Setting)[]
 		{
-			("峰值削波限制器 (True Peak Limiter)", "自动限制: 0.0 dBTP", "实时监测超采样后模拟信号真实重构峰值，杜绝 DAC 互调失真与数字破音。", "已启用 · 释放 80ms"),
-			("直流偏置与次声频滤除 (DC Highpass Filter)", "截止频率: 5.0 Hz", "滤除音频源中直流偏置漂移与超低频次声扰动，保护耳机音圈与音箱低音单元不受直流烧蚀。", "硬件防护 · 持续运行"),
-			("听力安全最大音量软限幅 (Safe Volume Cap)", "安全上限: -0.5 dBFS", "防止切换高电平音源或耳机校正增益过载导致爆音冲击，呵护双耳听力健康。", "全链路约束 · 自动对齐"),
-			("切歌静音平滑淡入 (Soft Anti-Pop Fade)", "淡入耗时: 45 ms", "歌曲起播、暂停恢复或切歌时自动微淡入过渡，消除直流瞬态 POP 杂音与爆鸣。", "平滑引擎 · 已激活")
+			(Loc.T("峰值削波限制器 (True Peak Limiter)"), Loc.T("自动限制: 0.0 dBTP"), Loc.T("实时监测超采样后模拟信号真实重构峰值，杜绝 DAC 互调失真与数字破音。"), Loc.T("已启用 · 释放 80ms")),
+			(Loc.T("直流偏置与次声频滤除 (DC Highpass Filter)"), Loc.T("截止频率: 5.0 Hz"), Loc.T("滤除音频源中直流偏置漂移与超低频次声扰动，保护耳机音圈与音箱低音单元不受直流烧蚀。"), Loc.T("硬件防护 · 持续运行")),
+			(Loc.T("听力安全最大音量软限幅 (Safe Volume Cap)"), Loc.T("安全上限: -0.5 dBFS"), Loc.T("防止切换高电平音源或耳机校正增益过载导致爆音冲击，呵护双耳听力健康。"), Loc.T("全链路约束 · 自动对齐")),
+			(Loc.T("切歌静音平滑淡入 (Soft Anti-Pop Fade)"), Loc.T("淡入耗时: 45 ms"), Loc.T("歌曲起播、暂停恢复或切歌时自动微淡入过渡，消除直流瞬态 POP 杂音与爆鸣。"), Loc.T("平滑引擎 · 已激活"))
 		};
 
 		foreach (var g in guards)
@@ -298,7 +299,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "系统输出与音频设备",
+			Text = Loc.T("系统输出与音频设备"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -314,7 +315,7 @@ public sealed partial class DspPage
 			BorderThickness = new Thickness(1),
 			CornerRadius = new CornerRadius(14),
 			Padding = new Thickness(10, 4, 10, 4),
-			Child = new TextBlock { Text = "自动 · 共享模式 (低延迟)", FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 199, 210, 254) : Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
+			Child = new TextBlock { Text = Loc.T("自动 · 共享模式 (低延迟)"), FontSize = 12, Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 199, 210, 254) : Windows.UI.Color.FromArgb(255, 79, 70, 229)), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold }
 		};
 		Grid.SetColumn(statusPill, 1);
 		headerGrid.Children.Add(statusPill);
@@ -336,21 +337,21 @@ public sealed partial class DspPage
 		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark: IsDspDark, enablePointerTracking: true);
 
 		var cardStack = new StackPanel { Spacing = 14 };
-		cardStack.Children.Add(new TextBlock { Text = "输出驱动与模式配置", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		cardStack.Children.Add(new TextBlock { Text = Loc.T("输出驱动与模式配置"), FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
 
-		var modeCombo = new ComboBox { Header = "音频驱动输出架构", MinWidth = 320, CornerRadius = new CornerRadius(8) };
-		modeCombo.Items.Add(new ComboBoxItem { Content = "WASAPI 共享模式 (默认 · 支持系统并存与音效)" });
-		modeCombo.Items.Add(new ComboBoxItem { Content = "WASAPI 独占模式 (Bit-Perfect 源码输出 · 超低延迟)" });
-		modeCombo.Items.Add(new ComboBoxItem { Content = "ASIO 驱动直通 (专业声卡专用 · 零抖动)" });
+		var modeCombo = new ComboBox { Header = Loc.T("音频驱动输出架构"), MinWidth = 320, CornerRadius = new CornerRadius(8) };
+		modeCombo.Items.Add(new ComboBoxItem { Content = Loc.T("WASAPI 共享模式 (默认 · 支持系统并存与音效)") });
+		modeCombo.Items.Add(new ComboBoxItem { Content = Loc.T("WASAPI 独占模式 (Bit-Perfect 源码输出 · 超低延迟)") });
+		modeCombo.Items.Add(new ComboBoxItem { Content = Loc.T("ASIO 驱动直通 (专业声卡专用 · 零抖动)") });
 		modeCombo.SelectedIndex = 0;
 		cardStack.Children.Add(modeCombo);
 
-		var bufferSlider = new Slider { Header = "硬件缓冲区延迟 Buffer Size (ms)", Minimum = 10, Maximum = 200, StepFrequency = 5, Value = 40, MinWidth = 320 };
+		var bufferSlider = new Slider { Header = Loc.T("硬件缓冲区延迟 Buffer Size (ms)"), Minimum = 10, Maximum = 200, StepFrequency = 5, Value = 40, MinWidth = 320 };
 		cardStack.Children.Add(bufferSlider);
 
 		cardStack.Children.Add(new TextBlock
 		{
-			Text = "FurinaPlayer 音频内核自动检测声卡最佳原生采样率（最高支持 384 kHz / 32-bit Float），配合 DSP 链路实时精密运算，杜绝采样率转换抖动。",
+			Text = Loc.T("FurinaPlayer 音频内核自动检测声卡最佳原生采样率（最高支持 384 kHz / 32-bit Float），配合 DSP 链路实时精密运算，杜绝采样率转换抖动。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap

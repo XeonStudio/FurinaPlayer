@@ -8,7 +8,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Markup;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.Controls;
@@ -215,7 +216,7 @@ public sealed class PhaseAnalyzerControl : UserControl, IComponentConnector
 		}
 
 		// 7. HUD Text Overlay at Bottom-Right
-		string infoText = $"相位差: {_phaseDifference:F1}°   相关度: {_stereoCorrelation:+0.00;-0.00;0.00}";
+		string infoText = Loc.F("相位差: {0:F1}°   相关度: {1:+0.00;-0.00;0.00}", _phaseDifference, _stereoCorrelation);
 		using var hudTextPaint = new SKPaint
 		{
 			Color = new SKColor(226, 232, 240), // #E2E8F0 high contrast on #16191d

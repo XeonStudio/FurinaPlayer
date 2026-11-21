@@ -3,7 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
 
 namespace FurinaPlayer.Avalonia.Controls;
 

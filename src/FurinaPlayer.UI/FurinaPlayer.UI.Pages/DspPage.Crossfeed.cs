@@ -12,7 +12,8 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -155,7 +156,7 @@ public sealed partial class DspPage
 		// 3. 描述说明文本
 		var descTb = new TextBlock
 		{
-			Text = "在 Mid / Side 域收窄低频左右差异，保留高频定位，缓解耳机硬分离。",
+			Text = Loc.T("在 Mid / Side 域收窄低频左右差异，保留高频定位，缓解耳机硬分离。"),
 			FontSize = 13,
 			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			Margin = new Thickness(2, -4, 0, 4)
@@ -168,8 +169,8 @@ public sealed partial class DspPage
 		{
 			IsOpen = false,
 			Severity = InfoBarSeverity.Informational,
-			Title = "声学互斥联动",
-			Message = "已启用交叉馈送，并自动关闭了冲突的虚拟声场处理模块以确保纯净监听。",
+			Title = Loc.T("声学互斥联动"),
+			Message = Loc.T("已启用交叉馈送，并自动关闭了冲突的虚拟声场处理模块以确保纯净监听。"),
 			Margin = new Thickness(0, 0, 0, 6)
 		};
 		mainStack.Children.Add(_crossfeedMutualExclusionInfoBar);
@@ -183,7 +184,7 @@ public sealed partial class DspPage
 		// 7. 底部说明提示
 		var footerHintTb = new TextBlock
 		{
-			Text = "预设立即应用并启用效果；滑块和图上拖动需点击「应用参数」或按 Enter。曲线显示参数响应，不是实时声音测量。",
+			Text = Loc.T("预设立即应用并启用效果；滑块和图上拖动需点击「应用参数」或按 Enter。曲线显示参数响应，不是实时声音测量。"),
 			FontSize = 11.5,
 			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			Margin = new Thickness(2, 4, 0, 0)
@@ -222,9 +223,9 @@ public sealed partial class DspPage
 	{
 		if (ViewModel != null)
 		{
-			_crossfeedEnabled = ViewModel.EchoCrossfeedEnabled;
-			_crossfeedAmount = ViewModel.EchoCrossfeedAmount > 0.0 ? ViewModel.EchoCrossfeedAmount : 0.25;
-			_crossfeedCutoffHz = ViewModel.EchoCrossfeedCutoffHz > 0.0 ? ViewModel.EchoCrossfeedCutoffHz : 700.0;
+			_crossfeedEnabled = ViewModel.FurinaPlayerCrossfeedEnabled;
+			_crossfeedAmount = ViewModel.FurinaPlayerCrossfeedAmount > 0.0 ? ViewModel.FurinaPlayerCrossfeedAmount : 0.25;
+			_crossfeedCutoffHz = ViewModel.FurinaPlayerCrossfeedCutoffHz > 0.0 ? ViewModel.FurinaPlayerCrossfeedCutoffHz : 700.0;
 		}
 		else
 		{
@@ -276,7 +277,7 @@ public sealed partial class DspPage
 
 		var titleTb = new TextBlock
 		{
-			Text = "交叉馈送",
+			Text = Loc.T("交叉馈送"),
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
@@ -310,7 +311,7 @@ public sealed partial class DspPage
 		};
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 		_crossfeedPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 13 };
-		_crossfeedPowerText = new TextBlock { Text = "已旁路 · 点击试听", FontSize = 13, FontWeight = FontWeights.SemiBold };
+		_crossfeedPowerText = new TextBlock { Text = Loc.T("已旁路 · 点击试听"), FontSize = 13, FontWeight = FontWeights.SemiBold };
 		powerSp.Children.Add(_crossfeedPowerIcon);
 		powerSp.Children.Add(_crossfeedPowerText);
 		_crossfeedPowerBtn.Content = powerSp;
@@ -319,7 +320,7 @@ public sealed partial class DspPage
 
 		// 【恢复默认】按钮
 		_crossfeedResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 12, Foreground = GetCrossfeedSubHeaderTextBrush(isDark) };
-		_crossfeedResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = GetCrossfeedSecondaryTextBrush(isDark) };
+		_crossfeedResetText = new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13, Foreground = GetCrossfeedSecondaryTextBrush(isDark) };
 		_crossfeedResetBtn = new Button
 		{
 			Content = new StackPanel
@@ -348,7 +349,7 @@ public sealed partial class DspPage
 			BorderThickness = new Thickness(1)
 		};
 		_crossfeedApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 12 };
-		_crossfeedApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.SemiBold };
+		_crossfeedApplyText = new TextBlock { Text = Loc.T("应用参数"), FontSize = 13, FontWeight = FontWeights.SemiBold };
 		var applySp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
@@ -366,7 +367,7 @@ public sealed partial class DspPage
 		// 未应用角标 (Pending Badge)
 		_crossfeedPendingBadgeText = new TextBlock
 		{
-			Text = "未应用",
+			Text = Loc.T("未应用"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold
 		};
@@ -454,7 +455,7 @@ public sealed partial class DspPage
 		var titleStack = new StackPanel { Spacing = 2 };
 		var chartTitleTb = new TextBlock
 		{
-			Text = "侧声道频率响应",
+			Text = Loc.T("侧声道频率响应"),
 			FontSize = 14,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
@@ -464,7 +465,7 @@ public sealed partial class DspPage
 
 		var chartDescTb = new TextBlock
 		{
-			Text = "按当前馈送量与低通截止推导的 Side 通道衰减曲线；在图上拖动可直接调整截止频率。",
+			Text = Loc.T("按当前馈送量与低通截止推导的 Side 通道衰减曲线；在图上拖动可直接调整截止频率。"),
 			FontSize = 11.5,
 			Foreground = GetCrossfeedMutedTextBrush(isDark)
 		};
@@ -475,7 +476,7 @@ public sealed partial class DspPage
 
 		_crossfeedChartSubtitleTb = new TextBlock
 		{
-			Text = "25% · 700 Hz · 自然",
+			Text = $"25% · 700 Hz · {Loc.T("自然")}",
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetCrossfeedMutedTextBrush(isDark),
@@ -581,7 +582,7 @@ public sealed partial class DspPage
 		};
 		_crossfeedCutoffBadgeTb = new TextBlock
 		{
-			Text = "截止 700 Hz",
+			Text = Loc.F("截止 {0} Hz", 700),
 			FontSize = 10,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetCrossfeedAccentSoftTextBrush(isDark)
@@ -632,7 +633,7 @@ public sealed partial class DspPage
 
 		// 右上角操作提示 Tag: ↔ 可拖动 · 调整截止
 		_crossfeedDragHintArrowTb = new TextBlock { Text = "↔", FontSize = 10, Foreground = mutedBrush };
-		_crossfeedDragHintTextTb = new TextBlock { Text = "可拖动 · 调整截止", FontSize = 10, Foreground = mutedBrush };
+		_crossfeedDragHintTextTb = new TextBlock { Text = Loc.T("可拖动 · 调整截止"), FontSize = 10, Foreground = mutedBrush };
 		_crossfeedMutedTextBlocks.Add(_crossfeedDragHintArrowTb);
 		_crossfeedMutedTextBlocks.Add(_crossfeedDragHintTextTb);
 
@@ -703,7 +704,7 @@ public sealed partial class DspPage
 		var presetsSection = new StackPanel { Spacing = 10 };
 		var presetsHeaderTb = new TextBlock
 		{
-			Text = "试听预设 · 点击即生效",
+			Text = Loc.T("试听预设 · 点击即生效"),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
@@ -713,10 +714,10 @@ public sealed partial class DspPage
 
 		var pillsWrap = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
-		_btnPresetSubtle = CreateCrossfeedPresetPillButton("轻度", 0.10, 650.0);
-		_btnPresetNatural = CreateCrossfeedPresetPillButton("自然", 0.25, 700.0);
-		_btnPresetStrong = CreateCrossfeedPresetPillButton("强烈", 0.45, 750.0);
-		_btnPresetSpeaker = CreateCrossfeedPresetPillButton("音箱模拟", 0.60, 800.0);
+		_btnPresetSubtle = CreateCrossfeedPresetPillButton(Loc.T("轻度"), 0.10, 650.0);
+		_btnPresetNatural = CreateCrossfeedPresetPillButton(Loc.T("自然"), 0.25, 700.0);
+		_btnPresetStrong = CreateCrossfeedPresetPillButton(Loc.T("强烈"), 0.45, 750.0);
+		_btnPresetSpeaker = CreateCrossfeedPresetPillButton(Loc.T("音箱模拟"), 0.60, 800.0);
 
 		pillsWrap.Children.Add(_btnPresetSubtle);
 		pillsWrap.Children.Add(_btnPresetNatural);
@@ -727,7 +728,7 @@ public sealed partial class DspPage
 		// 试听提示
 		var presetHintTb = new TextBlock
 		{
-			Text = "戴耳机从「强烈」开始，用右上角开关对比旁路。低截止与居中的人声、低音变化通常很轻；重点听左右分离的乐器是否向中间靠拢。开启交叉馈送会关闭虚拟声场。",
+			Text = Loc.T("戴耳机从「强烈」开始，用右上角开关对比旁路。低截止与居中的人声、低音变化通常很轻；重点听左右分离的乐器是否向中间靠拢。开启交叉馈送会关闭虚拟声场。"),
 			FontSize = 11.5,
 			Foreground = GetCrossfeedMutedTextBrush(isDark),
 			TextWrapping = TextWrapping.Wrap,
@@ -751,7 +752,7 @@ public sealed partial class DspPage
 		var controlsSection = new StackPanel { Spacing = 14 };
 		var controlsHeaderTb = new TextBlock
 		{
-			Text = "参数控制",
+			Text = Loc.T("参数控制"),
 			FontSize = 13,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark)
@@ -766,7 +767,7 @@ public sealed partial class DspPage
 
 		var modelLabel = new TextBlock
 		{
-			Text = "算法",
+			Text = Loc.T("算法"),
 			FontSize = 13,
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
 			VerticalAlignment = VerticalAlignment.Center
@@ -784,9 +785,9 @@ public sealed partial class DspPage
 			Foreground = GetCrossfeedPrimaryTextBrush(isDark),
 			RequestedTheme = isDark ? ElementTheme.Dark : ElementTheme.Light
 		};
-		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = "原有低频 Side 衰减", Tag = "mid_side" });
-		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = "Bauer BS2B (自然仿真)", Tag = "bs2b" });
-		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = "Chu Moy 经典", Tag = "chu_moy" });
+		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = Loc.T("原有低频 Side 衰减"), Tag = "mid_side" });
+		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = Loc.T("Bauer BS2B (自然仿真)"), Tag = "bs2b" });
+		_crossfeedModelCombo.Items.Add(new ComboBoxItem { Content = Loc.T("Chu Moy 经典"), Tag = "chu_moy" });
 		_crossfeedModelCombo.SelectedIndex = 0;
 		_crossfeedModelCombo.SelectionChanged += (s, e) =>
 		{
@@ -808,7 +809,7 @@ public sealed partial class DspPage
 		var amountHead = new Grid();
 		amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		amountHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var amountLabelTb = new TextBlock { Text = "馈送量", FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
+		var amountLabelTb = new TextBlock { Text = Loc.T("馈送量"), FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
 		_crossfeedPrimaryTextBlocks.Add(amountLabelTb);
 		amountHead.Children.Add(amountLabelTb);
 
@@ -854,7 +855,7 @@ public sealed partial class DspPage
 		var cutoffHead = new Grid();
 		cutoffHead.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		cutoffHead.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		var cutoffLabelTb = new TextBlock { Text = "低通截止", FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
+		var cutoffLabelTb = new TextBlock { Text = Loc.T("低通截止"), FontSize = 13, Foreground = GetCrossfeedPrimaryTextBrush(isDark) };
 		_crossfeedPrimaryTextBlocks.Add(cutoffLabelTb);
 		cutoffHead.Children.Add(cutoffLabelTb);
 
@@ -941,18 +942,18 @@ public sealed partial class DspPage
 		grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
 		// 1. 馈送量
-		var card1 = CreateCrossfeedMetricBox("馈送量", $"{Math.Round(_draftCrossfeedAmount * 100)}%", out _statFeedValueTb);
+		var card1 = CreateCrossfeedMetricBox(Loc.T("馈送量"), $"{Math.Round(_draftCrossfeedAmount * 100)}%", out _statFeedValueTb);
 		Grid.SetColumn(card1, 0);
 		grid.Children.Add(card1);
 
 		// 2. 低频侧衰减
 		double lowCutDb = CalculateCrossfeedLowFrequencySideCutDb(_draftCrossfeedAmount);
-		var card2 = CreateCrossfeedMetricBox("低频侧衰减", $"{lowCutDb:F1} dB", out _statLowCutValueTb);
+		var card2 = CreateCrossfeedMetricBox(Loc.T("低频侧衰减"), $"{lowCutDb:F1} dB", out _statLowCutValueTb);
 		Grid.SetColumn(card2, 1);
 		grid.Children.Add(card2);
 
 		// 3. 过渡频率
-		var card3 = CreateCrossfeedMetricBox("过渡频率", $"{Math.Round(_draftCrossfeedCutoffHz)} Hz", out _statCutoffValueTb);
+		var card3 = CreateCrossfeedMetricBox(Loc.T("过渡频率"), $"{Math.Round(_draftCrossfeedCutoffHz)} Hz", out _statCutoffValueTb);
 		Grid.SetColumn(card3, 2);
 		grid.Children.Add(card3);
 
@@ -1151,7 +1152,7 @@ public sealed partial class DspPage
 
 		if (_crossfeedCutoffBadge != null && _crossfeedCutoffBadgeTb != null)
 		{
-			_crossfeedCutoffBadgeTb.Text = $"截止 {Math.Round(_draftCrossfeedCutoffHz)} Hz";
+			_crossfeedCutoffBadgeTb.Text = Loc.F("截止 {0} Hz", Math.Round(_draftCrossfeedCutoffHz));
 			double badgeX = Math.Clamp(cutoffX + 6, 6, w - 90);
 			Canvas.SetLeft(_crossfeedCutoffBadge, badgeX);
 			Canvas.SetTop(_crossfeedCutoffBadge, h - bottomMargin - 24);
@@ -1357,10 +1358,10 @@ public sealed partial class DspPage
 
 	private static string GetCrossfeedMatchingPresetName(double amount, double cutoffHz)
 	{
-		if (Math.Abs(amount - 0.10) < 0.02 && Math.Abs(cutoffHz - 650) < 25) return "轻度";
-		if (Math.Abs(amount - 0.25) < 0.02 && Math.Abs(cutoffHz - 700) < 25) return "自然";
-		if (Math.Abs(amount - 0.45) < 0.02 && Math.Abs(cutoffHz - 750) < 25) return "强烈";
-		if (Math.Abs(amount - 0.60) < 0.02 && Math.Abs(cutoffHz - 800) < 25) return "音箱模拟";
+		if (Math.Abs(amount - 0.10) < 0.02 && Math.Abs(cutoffHz - 650) < 25) return Loc.T("轻度");
+		if (Math.Abs(amount - 0.25) < 0.02 && Math.Abs(cutoffHz - 700) < 25) return Loc.T("自然");
+		if (Math.Abs(amount - 0.45) < 0.02 && Math.Abs(cutoffHz - 750) < 25) return Loc.T("强烈");
+		if (Math.Abs(amount - 0.60) < 0.02 && Math.Abs(cutoffHz - 800) < 25) return Loc.T("音箱模拟");
 		return string.Empty;
 	}
 	#endregion
@@ -1470,10 +1471,10 @@ public sealed partial class DspPage
 		// 3. 同步至 ViewModel 及持久化设置
 		if (ViewModel != null)
 		{
-			ViewModel.EchoCrossfeedEnabled = _crossfeedEnabled;
-			ViewModel.EchoCrossfeedAmount = _crossfeedAmount;
-			ViewModel.EchoCrossfeedCutoffHz = _crossfeedCutoffHz;
-			ViewModel.SaveEchoSettings();
+			ViewModel.FurinaPlayerCrossfeedEnabled = _crossfeedEnabled;
+			ViewModel.FurinaPlayerCrossfeedAmount = _crossfeedAmount;
+			ViewModel.FurinaPlayerCrossfeedCutoffHz = _crossfeedCutoffHz;
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 
 		_isCrossfeedDirty = false;
@@ -1489,7 +1490,7 @@ public sealed partial class DspPage
 		{
 			if (_crossfeedEnabled)
 			{
-				_crossfeedPowerText.Text = "已开启";
+				_crossfeedPowerText.Text = Loc.T("已开启");
 				ApplyCrossfeedAccentButtonStyle(
 					_crossfeedPowerBtn,
 					isDark,
@@ -1499,7 +1500,7 @@ public sealed partial class DspPage
 			}
 			else
 			{
-				_crossfeedPowerText.Text = "已旁路 · 点击试听";
+				_crossfeedPowerText.Text = Loc.T("已旁路 · 点击试听");
 				ApplyCrossfeedNeutralButtonStyle(
 					_crossfeedPowerBtn,
 					isDark,

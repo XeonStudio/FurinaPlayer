@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Adobe Audition DAW lyrics theme for ECHO Workshop (protocol v1).
+ * Adobe Audition DAW lyrics theme for FurinaPlayer Workshop (protocol v1).
  *
  * Data policy — every panel is driven by real host data:
  *   playback:read  -> state.playback / state.currentTrack / clock
@@ -76,9 +76,12 @@
 
   // ── Multilingual Localization (i18n) ──────────────────────────────────────
   const SUPPORTED_LANGS = [
-    { id: "zh", label: "简体中文", englishName: "Chinese" },
+    { id: "zh", label: "简体中文", englishName: "Chinese (Simplified)" },
+    { id: "zh-TW", label: "繁體中文", englishName: "Chinese (Traditional)" },
     { id: "en", label: "English", englishName: "English" },
     { id: "fr", label: "Français", englishName: "French" },
+    { id: "ru", label: "Русский", englishName: "Russian" },
+    { id: "es", label: "Español", englishName: "Spanish" },
     { id: "ja", label: "日本語", englishName: "Japanese" },
     { id: "ko", label: "한국어", englishName: "Korean" },
   ];
@@ -303,7 +306,7 @@
       "menu.file.copyPath": "复制当前音频路径",
       "menu.file.copyMeta": "复制曲目元数据 (JSON)",
       "menu.file.prefs": "首选项 (Preferences)...",
-      "menu.file.back": "返回 ECHO 主界面",
+      "menu.file.back": "返回 FurinaPlayer 主界面",
 
       "menu.edit.copyTitle": "复制歌曲标题",
       "menu.edit.copyArtist": "复制艺术家信息",
@@ -669,7 +672,7 @@
       "menu.file.copyPath": "Copy Audio File Path",
       "menu.file.copyMeta": "Copy Track Metadata (JSON)",
       "menu.file.prefs": "Preferences...",
-      "menu.file.back": "Back to ECHO",
+      "menu.file.back": "Back to FurinaPlayer",
 
       "menu.edit.copyTitle": "Copy Track Title",
       "menu.edit.copyArtist": "Copy Artist Name",
@@ -1026,7 +1029,7 @@
       "menu.file.copyPath": "Copier le chemin audio",
       "menu.file.copyMeta": "Copier les métadonnées (JSON)",
       "menu.file.prefs": "Préférences...",
-      "menu.file.back": "Retour à ECHO",
+      "menu.file.back": "Retour à FurinaPlayer",
 
       "menu.edit.copyTitle": "Copier le titre du morceau",
       "menu.edit.copyArtist": "Copier l'artiste",
@@ -1392,7 +1395,7 @@
       "menu.file.copyPath": "オーディオパスをコピー",
       "menu.file.copyMeta": "楽曲メタデータをコピー (JSON)",
       "menu.file.prefs": "環境設定 (Preferences)...",
-      "menu.file.back": "ECHO メイン画面に戻る",
+      "menu.file.back": "FurinaPlayer メイン画面に戻る",
 
       "menu.edit.copyTitle": "楽曲タイトルをコピー",
       "menu.edit.copyArtist": "アーティスト名をコピー",
@@ -1758,7 +1761,7 @@
       "menu.file.copyPath": "오디오 파일 경로 복사",
       "menu.file.copyMeta": "곡 메타데이터 복사 (JSON)",
       "menu.file.prefs": "환경설정 (Preferences)...",
-      "menu.file.back": "ECHO 기본 화면으로 복귀",
+      "menu.file.back": "FurinaPlayer 기본 화면으로 복귀",
 
       "menu.edit.copyTitle": "곡 제목 복사",
       "menu.edit.copyArtist": "아티스트 정보 복사",
@@ -1912,6 +1915,1080 @@
       "modal.closeTitle": "닫기 (Esc)",
       "menu.auditionAria": "Audition 메뉴"
 
+    },
+
+    "zh-TW": {
+      langName: "繁體中文",
+      "menu.file": "檔案(F)",
+      "menu.edit": "編輯(E)",
+      "menu.multitrack": "多軌(M)",
+      "menu.clip": "剪輯(C)",
+      "menu.effects": "效果(S)",
+      "menu.zoom": "縮放(Z)",
+      "menu.transport": "控制(T)",
+      "menu.window": "視窗(W)",
+      "menu.language": "語言(L)",
+      "menu.help": "說明(H)",
+
+      "theme.light": "日間",
+      "theme.dark": "黑暗",
+      "theme.toggleTitle": "切換日間 / 黑暗模式 (Ctrl+T)",
+      "wave.blue": "天藍",
+      "wave.pink": "粉櫻",
+      "wave.toggleTitle": "切換波形色彩 (淡雅天藍 / 柔美粉櫻) (Ctrl+Alt+W)",
+      "lang.toggleTitle": "切換介面語言 (Language)",
+
+      "status.connecting": "等待宿主交握…",
+      "status.connected": "已連線",
+      "status.stopped": "未播放",
+      "status.playing": "播放中",
+      "status.paused": "已暫停",
+
+      "panel.tracks": "曲目清單",
+      "panel.history": "播放紀錄",
+      "panel.tracksAria": "曲目清單與播放紀錄",
+      "queue.waiting": "等待播放…",
+      "queue.colIcon": "",
+      "queue.colTitle": "曲目",
+      "queue.colDuration": "時長",
+      "queue.note": "點擊任意曲目即可快速切換並播放，高亮表示目前播放曲目。",
+      "queue.emptyHistory": "暫無播放紀錄",
+
+      "panel.art": "專輯封面",
+      "panel.artAria": "專輯封面與黑膠唱片",
+      "art.hostCover": "宿主封面",
+      "art.embedded": "內嵌封面",
+      "art.default": "預設唱片",
+
+      "panel.properties": "音訊屬性與鏈路",
+      "panel.propertiesAria": "音訊屬性與鏈路",
+      "prop.outputDevice": "輸出",
+      "prop.outputMode": "模式",
+      "prop.sampleRate": "取樣率",
+      "prop.sampleRatePath": "取樣率",
+      "prop.audioSource": "音源",
+      "prop.signalPath": "鏈路",
+      "prop.eq": "EQ",
+      "prop.resampling": "重新取樣",
+      "prop.passthrough": "直通",
+      "prop.directRead": "本機直讀",
+      "prop.latencyBuffer": "延遲",
+      "prop.sharedStability": "Shared 穩定檔",
+      "prop.codec": "編碼格式",
+      "prop.bitDepth": "位元深度",
+      "prop.outputEngine": "輸出後端",
+      "prop.replayGain": "重放增益",
+      "prop.meterSource": "輸入電平源",
+      "prop.sourceRealtime": "宿主即時匯流排",
+
+      "panel.waveform": "波形包絡",
+      "panel.waveformAria": "波形與頻譜",
+      "wave.hint": "由宿主即時電平繪製（協定不提供 PCM 取樣）",
+      "wave.scanBtnTitle": "預掃描整首波形（靜音掃描，可再次點擊取消）",
+      "wave.modeRealtime": "即時",
+      "wave.modePrerender": "預渲染",
+      "wave.modeTitleRealtime": "波形模式：即時（波形隨播放逐步繪製）",
+      "wave.modeTitlePrerender": "波形模式：預渲染（切歌後自動靜音掃描整首）",
+      "wave.qualityFine": "精細",
+      "wave.qualityStandard": "標準",
+      "wave.qualityFast": "極速",
+      "wave.qualityTitle": "預掃描精度：{quality}（5x高密度取樣 · 約 {time} 秒）",
+      "wave.qualityFineDesc": "精細 · 5x高密度超取樣",
+      "wave.qualityStandardDesc": "標準 · 5x平衡取樣",
+      "wave.qualityFastDesc": "極速 · 5x快速概覽",
+      "wave.zoomInTitle": "水平放大 (Ctrl++)",
+      "wave.zoomOutTitle": "水平縮小 (Ctrl+-)",
+      "wave.zoomFitTitle": "適應視窗 (Ctrl+0)",
+      "wave.navTitle": "點擊或拖曳定位",
+      "wave.waterfallTitle": "頻譜瀑布（即時頻段能量）",
+
+      "panel.analyzer": "母帶分析器",
+      "panel.analyzerAria": "效果 - Insight 2 Pro",
+      "analyzer.vstTitle": "效果 - Insight 2 Pro",
+      "analyzer.stateLive": "即時",
+      "analyzer.stateFrozen": "已凍結",
+      "analyzer.sourceLabel": "資料來源",
+      "analyzer.sourceVal": "宿主輸入電平 · 頻譜",
+      "analyzer.freezeTitle": "凍結 / 恢復顯示 (F)",
+      "analyzer.resetTitle": "重設峰值統計 (P)",
+      "analyzer.radarTitle": "響度雷達（即時 RMS）",
+      "analyzer.spectrumTitle": "頻譜與頻率分布",
+      "analyzer.levelsTitle": "輸入電平（單路 Peak / RMS · dBFS）",
+      "analyzer.soundfieldTitle": "Sound Field",
+      "analyzer.soundfieldGear": "聲場顯示選項",
+      "analyzer.tabPolarSample": "Polar Sample",
+      "analyzer.tabPolarLevel": "Polar Level",
+      "analyzer.tabLissajous": "Lissajous",
+
+      "panel.lyrics": "歌詞",
+      "panel.lyricsAria": "歌詞與同步顯示",
+      "lyrics.waiting": "等待歌詞",
+      "lyrics.synced": "同步歌詞",
+      "lyrics.plain": "純文字歌詞",
+      "lyrics.instrumental": "純音樂，請欣賞",
+      "lyrics.empty": "暫無可用歌詞",
+
+      "transport.aria": "播放控制列",
+      "transport.total": "總時長",
+      "transport.remain": "剩餘",
+      "transport.prev": "上一首 (Ctrl+←)",
+      "transport.rw": "倒轉 5 秒 (←)",
+      "transport.playpause": "播放/暫停 (Space)",
+      "transport.ff": "快轉 5 秒 (→)",
+      "transport.next": "下一首 (Ctrl+→)",
+      "transport.repeat": "清單循環",
+      "transport.repeatOne": "單曲循環",
+      "transport.shuffle": "隨機播放",
+      "transport.sequential": "順序播放",
+      "transport.mute": "靜音 (M)",
+      "transport.unmute": "取消靜音 (M)",
+      "transport.volume": "音量",
+      "transport.seek": "播放進度",
+
+      "prefs.title": "偏好設定 (Preferences)",
+      "prefs.renderModeTitle": "波形渲染模式",
+      "prefs.renderModeEnable": "啟用全曲波形預渲染 (Pre-render)",
+      "prefs.renderModeHint": "預設關閉（即時模式）。關閉時波形隨曲目播放動態繪製，效能最高且不佔用多餘記憶體。",
+      "prefs.qualityTitle": "預掃描取樣精度 (Scan Quality - 5x超取樣)",
+      "prefs.qualityFineOpt": "精細 (Fine - 5x 高密度超取樣 · 預設)",
+      "prefs.qualityStandardOpt": "標準 (Standard - 5x 平衡取樣)",
+      "prefs.qualityFastOpt": "極速 (Fast - 5x 快速概覽)",
+      "prefs.waveScaleTitle": "波形振幅量程模式",
+      "prefs.waveScaleLinear": "Adobe Audition 線性振幅 (推薦 · 瞬時陡降動態)",
+      "prefs.waveScaleDb": "對數分貝標尺模式 (Logarithmic dB)",
+      "prefs.waveScaleHint": "線性振幅模式完全對齊 Adobe Audition：-6 dBFS 對應半高振幅，動態起伏清晰且衰減乾脆陡降；對數分貝模式強調極微弱底噪。",
+      "prefs.rangeTitle": "電平表量程標準 (Dynamic Range)",
+      "prefs.rangeDesc": "主電平指示器與分軌刻度已擴展至 <strong>0 ~ -60 dBFS</strong>，完整呈現專業級母帶動態範圍與底噪細節。",
+      "prefs.languageTitle": "介面語言 (Language)",
+      "prefs.languageHint": "支援簡體中文、繁體中文、English、Français、Русский、Español、日本語、한국어，切換後立即生效並儲存。",
+
+      "shortcuts.title": "鍵盤快速鍵 (Keyboard Shortcuts)",
+      "shortcuts.playpause": "播放 / 暫停",
+      "shortcuts.rwff": "倒轉 5 秒 / 快轉 5 秒",
+      "shortcuts.prevnext": "上一首 / 下一首",
+      "shortcuts.vol": "音量增大 / 減小 5%",
+      "shortcuts.mute": "靜音 / 恢復音量",
+      "shortcuts.zoom": "放大時間軸 / 縮小時間軸",
+      "shortcuts.zoomFit": "重設為全曲概覽",
+      "shortcuts.centerPlayhead": "置中對齊播放指標",
+      "shortcuts.freeze": "凍結 / 恢復頻譜分析儀",
+      "shortcuts.resetPeak": "重設所有電平峰值指標",
+      "shortcuts.theme": "切換日間 / 黑暗模式",
+      "shortcuts.waveColor": "切換波形色彩 (天藍 / 粉櫻)",
+      "shortcuts.prefs": "偏好設定",
+      "shortcuts.reload": "重新載入 DAW 介面",
+      "shortcuts.close": "關閉彈窗",
+
+      "about.title": "關於 Adobe Audition DAW",
+      "about.headerTitle": "Adobe Audition DAW 專業母帶主題",
+      "about.version": "版本 1.3.4 (Multilingual Edition)",
+      "about.desc": "高仿真 Adobe Audition 專業數位音訊工作站 (DAW) 沉浸式主題與即時母帶分析儀套件。",
+      "about.featTitle": "功能特性：",
+      "about.f1": "• 支援經典黑暗 / 日間明亮雙主題無縫切換 (Ctrl+T)",
+      "about.f2": "• 波形色彩支援淡雅天藍與柔美粉櫻雙色彩方案 (Ctrl+Alt+W)",
+      "about.f3": "• 完整多語言在地化支援：簡/繁中文、英語、法語、俄語、西班牙語、日語、韓語",
+      "about.f4": "• 專業級多軌時間軸與 0 ~ -60 dBFS 真實動態波形視覺化",
+      "about.f5": "• 即時 FFT 3D 頻譜瀑布流（播放暫停智慧休眠鎖存）",
+      "about.f6": "• 極座標與李薩如 (Lissajous) 立體聲相位聲場雷達儀",
+      "about.f7": "• 廣播級 LUFS 響度與 True Peak 峰值電平指示",
+      "about.f8": "• 頂列專業下拉選單與全域快速鍵（檔案、編輯、多軌、控制、縮放等）",
+      "about.f9": "• 智慧多源串流媒體與本機封面回退保護，零閃爍高保真",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
+
+      "toast.langSwitched": "已切換介面語言：繁體中文",
+      "toast.pathCopied": "已複製音訊路徑至剪貼簿",
+      "toast.pathFailed": "複製失敗",
+      "toast.noPath": "目前無可用音訊檔案路徑",
+      "toast.metaCopied": "已複製曲目中繼資料 JSON",
+      "toast.copied": "已複製",
+      "toast.peakReset": "已重設所有峰值電平指標",
+      "toast.scanStarted": "已啟動目前曲目的完整波形超取樣掃描",
+      "toast.scanRunning": "波形掃描正在執行中…",
+      "toast.scanCancelled": "已請求終止目前掃描任務",
+      "toast.noScan": "目前無進行中的掃描任務",
+      "toast.modeRealtime": "已切換為即時波形模式",
+      "toast.modePrerender": "已開啟預渲染模式，開始掃描波形",
+      "toast.scanQuality": "已設定預掃描精度：{quality}",
+      "toast.soundfield": "已切換聲場顯示：{mode}",
+      "toast.playheadCentered": "已置中對齊播放指標",
+      "toast.viewReset": "檢視已重設為全域概覽",
+      "toast.posCopied": "目前播放位置：{time}",
+      "toast.frozen": "頻譜與聲場已凍結",
+      "toast.unfrozen": "頻譜與聲場已恢復即時",
+      "toast.waterfallCleared": "已清空頻譜瀑布圖歷史",
+      "toast.repeatAll": "已開啟清單循環",
+      "toast.repeatOne": "已開啟單曲循環",
+      "toast.sequential": "已切換為清單順序播放",
+      "toast.repeatOff": "已關閉循環",
+      "toast.muted": "已靜音",
+      "toast.unmuted": "已取消靜音",
+      "toast.volStandard": "已設為標準監聽音量 (80%)",
+      "toast.volMax": "已設為最大輸出音量 (100%)",
+      "toast.syncQueue": "正在從宿主同步播放佇列…",
+      "toast.resize": "已重設並自適應所有 DAW 畫布",
+      "toast.themeLight": "已切換為日間明亮主題",
+      "toast.themeDark": "已切換為黑暗專業主題",
+      "toast.wavePink": "已切換為柔美粉櫻波形色彩",
+      "toast.waveBlue": "已切換為淡雅天藍波形色彩",
+      "toast.waveScale": "波形振幅量程已切換為：{scale}",
+
+      "menu.file.reload": "重新載入介面 (Reload)",
+      "menu.file.copyPath": "複製目前音訊路徑",
+      "menu.file.copyMeta": "複製曲目中繼資料 (JSON)",
+      "menu.file.prefs": "偏好設定 (Preferences)...",
+      "menu.file.back": "返回 FurinaPlayer 主介面",
+
+      "menu.edit.copyTitle": "複製歌曲標題",
+      "menu.edit.copyArtist": "複製藝術家資訊",
+      "menu.edit.resetPeak": "重設歷史峰值指標 (Reset Peak)",
+      "menu.edit.rescan": "重新掃描目前曲目波形",
+
+      "menu.multi.realtime": "波形繪製：即時模式 (隨播放繪製)",
+      "menu.multi.prerender": "波形繪製：預渲染模式 (全曲掃描)",
+      "menu.multi.fine": "掃描精度：精細 (Fine · 5x超取樣)",
+      "menu.multi.standard": "掃描精度：標準 (Standard · 5x取樣)",
+      "menu.multi.fast": "掃描精度：極速 (Fast · 5x取樣)",
+      "menu.multi.scaleLinear": "波形振幅：Adobe Audition 線性 (推薦)",
+      "menu.multi.scaleDb": "波形振幅：對數分貝標尺模式",
+      "menu.multi.polarSample": "聲場：極座標樣本 (Polar Sample)",
+      "menu.multi.polarLevel": "聲場：極座標電平 (Polar Level)",
+      "menu.multi.lissajous": "聲場：李薩如曲線 (Lissajous)",
+
+      "menu.clip.center": "定位播放指標 (Center Playhead)",
+      "menu.clip.fit": "縮放以適應完整曲目",
+      "menu.clip.copyTime": "複製目前時間碼 (Timecode)",
+
+      "menu.fx.vstRack": "批次處理 (效果機架 / VST3 機架)",
+      "menu.fx.vstManager": "音訊增效工具管理員...",
+      "menu.fx.freeze": "頻譜分析儀：凍結 / 恢復",
+      "menu.fx.clearWaterfall": "清空頻譜瀑布流歷史",
+
+      "menu.zoom.in": "放大時間軸 (Zoom In)",
+      "menu.zoom.out": "縮小時間軸 (Zoom Out)",
+      "menu.zoom.fit": "縮放至全曲 (Fit Full)",
+      "menu.zoom.ff5": "快轉 5 秒 (+5s)",
+      "menu.zoom.rw5": "倒轉 5 秒 (-5s)",
+
+      "menu.trans.playpause": "播放 / 暫停 (Play / Pause)",
+      "menu.trans.stop": "停止播放 (Stop)",
+      "menu.trans.prev": "上一首 (Previous)",
+      "menu.trans.next": "下一首 (Next)",
+      "menu.trans.start": "跳轉到曲目開頭 (Rewind to Start)",
+      "menu.trans.rw5": "倒轉 5 秒 (-5s)",
+      "menu.trans.ff5": "快轉 5 秒 (+5s)",
+      "menu.trans.rw15": "倒轉 15 秒 (-15s)",
+      "menu.trans.ff15": "快轉 15 秒 (+15s)",
+      "menu.trans.repeatAll": "清單循環 (Repeat All)",
+      "menu.trans.repeatOne": "單曲循環 (Repeat One)",
+      "menu.trans.sequential": "順序播放 (Sequential)",
+      "menu.trans.shuffle": "隨機播放 (Shuffle)",
+      "menu.trans.cycle": "輪換播放模式 (Cycle Modes)",
+      "menu.trans.mute": "靜音切換 (Mute)",
+      "menu.trans.volUp": "增加音量 (+5%)",
+      "menu.trans.volDown": "減小音量 (-5%)",
+      "menu.trans.vol80": "標準監聽參考音量 (80%)",
+      "menu.trans.vol100": "最大輸出音量 (100%)",
+      "menu.trans.syncQueue": "重新整理同步播放佇列 (Sync Queue)",
+      "menu.trans.scanFull": "立即執行完整波形超取樣掃描",
+      "menu.trans.stopScan": "終止目前波形掃描",
+      "menu.trans.resetHold": "重設峰值保持與 RMS 電平",
+
+      "menu.win.theme": "切換日間 / 黑暗模式",
+      "menu.win.waveBlue": "波形色彩：淡雅天藍",
+      "menu.win.wavePink": "波形色彩：柔美粉櫻",
+      "menu.win.fullscreen": "切換全螢幕顯示",
+      "menu.win.resize": "重新自適應所有畫布",
+
+      "menu.help.shortcuts": "鍵盤快速鍵指南 (Shortcuts)...",
+      "menu.help.prefs": "偏好設定 (Preferences)...",
+      "menu.help.about": "關於 Adobe Audition DAW 主題...",
+      "header.connecting": "等待宿主交握…",
+      "header.live": "即時連線 · 協定 v1",
+      "header.playing": "播放中",
+      "header.paused": "已暫停",
+      "header.error": "異常",
+      "quality.fast": "極速",
+      "quality.standard": "標準",
+      "quality.fine": "精細",
+      "scan.noTrack": "無可掃描曲目",
+      "scan.needPlaying": "需播放中才能取樣",
+      "scan.cancelled": "已取消",
+      "scan.completed": "預掃描完成",
+      "scan.activeStatus": "預掃描 {pct}% · 預計還需 {sec}s · 靜音中，可點擊取消",
+      "scan.envelopeCoverage": "包絡 {coverage}%",
+      "scan.cost": "用時 {sec}s",
+      "wave.pkLaneLinear": "PK 峰值包絡 · 線性振幅 (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK 峰值包絡 · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS 有效值包絡 · 線性振幅 (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS 有效值包絡 · 0…-60 dBFS",
+      "wave.canvasWaiting": "播放後開始擷取電平包絡（宿主不提供 PCM 取樣）",
+      "spectrogram.waiting": "等待頻段能量資料…",
+      "spectrum.low": "低頻",
+      "spectrum.high": "高頻",
+      "lyrics.instrumentalBig": "純音樂",
+      "lyrics.instrumentalDesc": "該曲目被標記為純音樂，請欣賞",
+      "lyrics.emptyBig": "暫無歌詞",
+      "lyrics.emptyDesc": "可在歌詞設定中搜尋或匯入本機歌詞",
+      "lyrics.badgeInstrumental": "純音樂",
+      "lyrics.badgeNoLyrics": "無歌詞",
+      "lyrics.badgeSynced": "逐行同步",
+      "lyrics.badgeTimed": "帶時間軸",
+      "lyrics.badgeText": "純文字歌詞",
+      "lyrics.noteJump": "點擊任意歌詞行可跳轉播放位置",
+      "lyrics.loading": "載入中…",
+      "queue.tracksCount": "{count} 首",
+      "queue.emptyLive": "目前播放佇列為空",
+      "queue.playTitle": "點擊播放：{title}",
+      "track.unknown": "未知曲目",
+      "track.unknownArtist": "未知藝術家",
+      "art.streamCover": "串流媒體封面",
+      "art.noCover": "無封面",
+      "propVal.shared": "共用",
+      "propVal.exclusive": "獨佔",
+      "propVal.directRead": "本機直讀",
+      "propVal.streaming": "串流傳輸",
+      "propVal.bitPerfect": "原生直通",
+      "propVal.standardPath": "標準路徑",
+      "propVal.disabled": "未啟用",
+      "propVal.resampleActive": "重新取樣啟用",
+      "propVal.notResampled": "未重新取樣",
+      "propVal.canPassthrough": "可直通",
+      "propVal.sharedMixer": "共用混音器",
+      "propVal.standardMix": "標準混音",
+      "propVal.unknown": "未知",
+      "propVal.postDsp": "原生 DSP 後",
+      "propVal.preDspEst": "DSP 前估算",
+      "trans.repeatOne": "單曲循環",
+      "trans.repeatAll": "清單循環",
+      "trans.repeatOff": "不循環",
+      "trans.repeatOneOn": "單曲循環：開",
+      "trans.repeatOneOff": "單曲循環：關",
+      "trans.shuffleOn": "隨機播放：開",
+      "trans.shuffleOff": "隨機播放：關",
+      "trans.mute": "靜音",
+      "trans.unmute": "取消靜音",
+      "theme.darkTitle": "切換至經典黑暗模式 (Ctrl+T)",
+      "theme.lightTitle": "切換至日間明亮模式 (Ctrl+T)",
+      "wave.blueTitle": "切換波形色彩至淡雅天藍 (Ctrl+Alt+W)",
+      "wave.pinkTitle": "切換波形色彩至柔美粉櫻 (Ctrl+Alt+W)",
+      "modal.closeTitle": "關閉 (Esc)",
+      "menu.auditionAria": "Audition 選單"
+    },
+
+    ru: {
+      langName: "Русский",
+      "menu.file": "Файл(F)",
+      "menu.edit": "Правка(E)",
+      "menu.multitrack": "Мультитрек(M)",
+      "menu.clip": "Клип(C)",
+      "menu.effects": "Эффекты(S)",
+      "menu.zoom": "Масштаб(Z)",
+      "menu.transport": "Транспорт(T)",
+      "menu.window": "Окно(W)",
+      "menu.language": "Язык(L)",
+      "menu.help": "Справка(H)",
+
+      "theme.light": "Светлая",
+      "theme.dark": "Тёмная",
+      "theme.toggleTitle": "Переключить светлую / тёмную тему (Ctrl+T)",
+      "wave.blue": "Небесная",
+      "wave.pink": "Сакура",
+      "wave.toggleTitle": "Переключить цвет волны (Небесный / Сакура) (Ctrl+Alt+W)",
+      "lang.toggleTitle": "Переключить язык интерфейса (Language)",
+
+      "status.connecting": "Ожидание хоста…",
+      "status.connected": "Подключено",
+      "status.stopped": "Остановлено",
+      "status.playing": "Воспроизведение",
+      "status.paused": "Пауза",
+
+      "panel.tracks": "Список треков",
+      "panel.history": "История",
+      "panel.tracksAria": "Список треков и история воспроизведения",
+      "queue.waiting": "Ожидание воспроизведения…",
+      "queue.colIcon": "",
+      "queue.colTitle": "Трек",
+      "queue.colDuration": "Длит.",
+      "queue.note": "Нажмите на любой трек для быстрого переключения и воспроизведения.",
+      "queue.emptyHistory": "История воспроизведения пуста",
+
+      "panel.art": "Обложка альбома",
+      "panel.artAria": "Обложка альбома и винил",
+      "art.hostCover": "Обложка хоста",
+      "art.embedded": "Встроенная",
+      "art.default": "По умолчанию",
+
+      "panel.properties": "Свойства аудио и тракт",
+      "panel.propertiesAria": "Свойства аудио и сигнальный тракт",
+      "prop.outputDevice": "Вывод",
+      "prop.outputMode": "Режим",
+      "prop.sampleRate": "Частота",
+      "prop.sampleRatePath": "Частота",
+      "prop.audioSource": "Источник",
+      "prop.signalPath": "Тракт",
+      "prop.eq": "EQ",
+      "prop.resampling": "Ресемплинг",
+      "prop.passthrough": "Прямой вывод",
+      "prop.directRead": "Локальный файл",
+      "prop.latencyBuffer": "Задержка",
+      "prop.sharedStability": "Shared стабильный",
+      "prop.codec": "Кодек",
+      "prop.bitDepth": "Разрядность",
+      "prop.outputEngine": "Движок вывода",
+      "prop.replayGain": "ReplayGain",
+      "prop.meterSource": "Источник уровня",
+      "prop.sourceRealtime": "Шина хоста",
+
+      "panel.waveform": "Огибающая волны",
+      "panel.waveformAria": "Осциллограмма и спектр",
+      "wave.hint": "Построено по уровням хоста (PCM-семплы не передаются)",
+      "wave.scanBtnTitle": "Предсканировать волну (тихое сканирование; нажмите снова для отмены)",
+      "wave.modeRealtime": "Реальное время",
+      "wave.modePrerender": "Предрендер",
+      "wave.modeTitleRealtime": "Режим волны: реальное время (рисуется при воспроизведении)",
+      "wave.modeTitlePrerender": "Режим волны: предрендер (тихое сканирование всего трека)",
+      "wave.qualityFine": "Точно",
+      "wave.qualityStandard": "Стандарт",
+      "wave.qualityFast": "Быстро",
+      "wave.qualityTitle": "Точность сканирования: {quality} (5x передискретизация · ~{time} с)",
+      "wave.qualityFineDesc": "Точно · 5x высокая плотность",
+      "wave.qualityStandardDesc": "Стандарт · 5x сбалансировано",
+      "wave.qualityFastDesc": "Быстро · 5x обзор",
+      "wave.zoomInTitle": "Увеличить масштаб (Ctrl++)",
+      "wave.zoomOutTitle": "Уменьшить масштаб (Ctrl+-)",
+      "wave.zoomFitTitle": "Вместить весь трек (Ctrl+0)",
+      "wave.navTitle": "Нажмите или перетащите для навигации",
+      "wave.waterfallTitle": "Спектрограмма-водопад (энергия полос)",
+
+      "panel.analyzer": "Мастеринг-анализатор",
+      "panel.analyzerAria": "Эффекты - Insight 2 Pro",
+      "analyzer.vstTitle": "Эффекты - Insight 2 Pro",
+      "analyzer.stateLive": "ОНЛАЙН",
+      "analyzer.stateFrozen": "ЗАМОРОЖЕНО",
+      "analyzer.sourceLabel": "Источник",
+      "analyzer.sourceVal": "Вход хоста · Спектр",
+      "analyzer.freezeTitle": "Заморозить / возобновить (F)",
+      "analyzer.resetTitle": "Сбросить пики (P)",
+      "analyzer.radarTitle": "Радар громкости (RMS)",
+      "analyzer.spectrumTitle": "Частотный спектр",
+      "analyzer.levelsTitle": "Уровни входа (Peak / RMS · dBFS)",
+      "analyzer.soundfieldTitle": "Sound Field",
+      "analyzer.soundfieldGear": "Настройки звукового поля",
+      "analyzer.tabPolarSample": "Polar Sample",
+      "analyzer.tabPolarLevel": "Polar Level",
+      "analyzer.tabLissajous": "Lissajous",
+
+      "panel.lyrics": "Текст песни",
+      "panel.lyricsAria": "Текст песни и синхронизация",
+      "lyrics.waiting": "Ожидание текста",
+      "lyrics.synced": "Синхронизированный",
+      "lyrics.plain": "Обычный текст",
+      "lyrics.instrumental": "Инструментальная композиция",
+      "lyrics.empty": "Текст песни отсутствует",
+
+      "transport.aria": "Панель управления воспроизведением",
+      "transport.total": "Всего",
+      "transport.remain": "Осталось",
+      "transport.prev": "Предыдущий трек (Ctrl+←)",
+      "transport.rw": "Назад 5 с (←)",
+      "transport.playpause": "Воспроизведение / Пауза (Space)",
+      "transport.ff": "Вперёд 5 с (→)",
+      "transport.next": "Следующий трек (Ctrl+→)",
+      "transport.repeat": "Повтор списка",
+      "transport.repeatOne": "Повтор трека",
+      "transport.shuffle": "Случайно",
+      "transport.sequential": "По порядку",
+      "transport.mute": "Выключить звук (M)",
+      "transport.unmute": "Включить звук (M)",
+      "transport.volume": "Громкость",
+      "transport.seek": "Позиция воспроизведения",
+
+      "prefs.title": "Настройки (Preferences)",
+      "prefs.renderModeTitle": "Режим отрисовки волны",
+      "prefs.renderModeEnable": "Включить предрендер волны всего трека",
+      "prefs.renderModeHint": "По умолчанию выкл. (режим реального времени). Волна строится по ходу воспроизведения с минимальной нагрузкой на память.",
+      "prefs.qualityTitle": "Точность предсканирования (5x передискретизация)",
+      "prefs.qualityFineOpt": "Точно (Fine - 5x высокая плотность · по умолчанию)",
+      "prefs.qualityStandardOpt": "Стандарт (Standard - 5x сбалансировано)",
+      "prefs.qualityFastOpt": "Быстро (Fast - 5x быстрый обзор)",
+      "prefs.waveScaleTitle": "Шкала амплитуды волны",
+      "prefs.waveScaleLinear": "Линейная Adobe Audition (рекомендуется)",
+      "prefs.waveScaleDb": "Логарифмическая шкала дБ (Logarithmic dB)",
+      "prefs.waveScaleHint": "Линейная шкала соответствует Adobe Audition: -6 dBFS = половина высоты, чёткая динамика затухания; логарифмическая выделяет тихие шумы.",
+      "prefs.rangeTitle": "Динамический диапазон измерителя",
+      "prefs.rangeDesc": "Главный и поканальный измерители расширены до <strong>0 ~ -60 dBFS</strong> для точного отображения мастеринговой динамики.",
+      "prefs.languageTitle": "Язык интерфейса (Language)",
+      "prefs.languageHint": "Поддерживаются 简体中文, 繁體中文, English, Français, Русский, Español, 日本語, 한국어. Изменения применяются мгновенно.",
+
+      "shortcuts.title": "Горячие клавиши (Keyboard Shortcuts)",
+      "shortcuts.playpause": "Воспроизведение / Пауза",
+      "shortcuts.rwff": "Назад 5 с / Вперёд 5 с",
+      "shortcuts.prevnext": "Предыдущий / Следующий трек",
+      "shortcuts.vol": "Громкость +/- 5%",
+      "shortcuts.mute": "Выключить / включить звук",
+      "shortcuts.zoom": "Увеличить / уменьшить масштаб",
+      "shortcuts.zoomFit": "Сбросить масштаб (весь трек)",
+      "shortcuts.centerPlayhead": "Центрировать курсор воспроизведения",
+      "shortcuts.freeze": "Заморозить / возобновить анализатор",
+      "shortcuts.resetPeak": "Сбросить все пиковые значения",
+      "shortcuts.theme": "Переключить светлую / тёмную тему",
+      "shortcuts.waveColor": "Переключить цвет волны (Небесный / Сакура)",
+      "shortcuts.prefs": "Настройки",
+      "shortcuts.reload": "Перезагрузить интерфейс DAW",
+      "shortcuts.close": "Закрыть окно",
+
+      "about.title": "О Adobe Audition DAW",
+      "about.headerTitle": "Профессиональная мастеринг-тема Adobe Audition DAW",
+      "about.version": "Версия 1.3.4 (Multilingual Edition)",
+      "about.desc": "Иммерсивная тема цифровой звуковой рабочей станции (DAW) в стиле Adobe Audition с мастеринг-анализатором реального времени.",
+      "about.featTitle": "Возможности:",
+      "about.f1": "• Бесшовное переключение тёмной / светлой темы (Ctrl+T)",
+      "about.f2": "• Две палитры волны: небесно-голубая и розовая сакура (Ctrl+Alt+W)",
+      "about.f3": "• Полная многоязычная локализация (8 языков)",
+      "about.f4": "• Многодорожечная шкала и динамическая волна 0 ~ -60 dBFS",
+      "about.f5": "• 3D-спектрограмма FFT в реальном времени",
+      "about.f6": "• Полярный и Лиссажу (Lissajous) радар стереополя",
+      "about.f7": "• Вещательный измеритель громкости LUFS и True Peak",
+      "about.f8": "• Профессиональное верхнее меню и глобальные горячие клавиши",
+      "about.f9": "• Умное кэширование обложек без мерцания",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
+
+      "toast.langSwitched": "Язык интерфейса: Русский",
+      "toast.pathCopied": "Путь к аудиофайлу скопирован",
+      "toast.pathFailed": "Ошибка копирования",
+      "toast.noPath": "Путь к аудиофайлу недоступен",
+      "toast.metaCopied": "Метаданные трека (JSON) скопированы",
+      "toast.copied": "Скопировано",
+      "toast.peakReset": "Все пиковые индикаторы сброшены",
+      "toast.scanStarted": "Запущено полное сканирование волны",
+      "toast.scanRunning": "Сканирование волны уже выполняется…",
+      "toast.scanCancelled": "Запрошена отмена сканирования",
+      "toast.noScan": "Нет активного сканирования",
+      "toast.modeRealtime": "Включён режим волны в реальном времени",
+      "toast.modePrerender": "Включён предрендер, запуск сканирования",
+      "toast.scanQuality": "Точность сканирования: {quality}",
+      "toast.soundfield": "Режим звукового поля: {mode}",
+      "toast.playheadCentered": "Курсор воспроизведения отцентрирован",
+      "toast.viewReset": "Масштаб сброшен на весь трек",
+      "toast.posCopied": "Текущая позиция: {time}",
+      "toast.frozen": "Спектр и звуковое поле заморожены",
+      "toast.unfrozen": "Спектр и звуковое поле возобновлены",
+      "toast.waterfallCleared": "История спектрограммы очищена",
+      "toast.repeatAll": "Включён повтор списка",
+      "toast.repeatOne": "Включён повтор трека",
+      "toast.sequential": "Включено последовательное воспроизведение",
+      "toast.repeatOff": "Повтор выключен",
+      "toast.muted": "Звук выключен",
+      "toast.unmuted": "Звук включён",
+      "toast.volStandard": "Стандартная громкость мониторинга (80%)",
+      "toast.volMax": "Максимальная громкость (100%)",
+      "toast.syncQueue": "Синхронизация очереди с хостом…",
+      "toast.resize": "Все холсты DAW пересчитаны",
+      "toast.themeLight": "Включена светлая тема",
+      "toast.themeDark": "Включена тёмная тема",
+      "toast.wavePink": "Цвет волны: розовая сакура",
+      "toast.waveBlue": "Цвет волны: небесно-голубой",
+      "toast.waveScale": "Шкала амплитуды: {scale}",
+
+      "menu.file.reload": "Перезагрузить интерфейс (Reload)",
+      "menu.file.copyPath": "Копировать путь к аудиофайлу",
+      "menu.file.copyMeta": "Копировать метаданные (JSON)",
+      "menu.file.prefs": "Настройки (Preferences)...",
+      "menu.file.back": "Вернуться в FurinaPlayer",
+
+      "menu.edit.copyTitle": "Копировать название трека",
+      "menu.edit.copyArtist": "Копировать исполнителя",
+      "menu.edit.resetPeak": "Сбросить пики (Reset Peak)",
+      "menu.edit.rescan": "Пересканировать волну трека",
+
+      "menu.multi.realtime": "Волна: реальное время",
+      "menu.multi.prerender": "Волна: предрендер (полный трек)",
+      "menu.multi.fine": "Точность: высокая (Fine · 5x)",
+      "menu.multi.standard": "Точность: стандарт (Standard · 5x)",
+      "menu.multi.fast": "Точность: быстрая (Fast · 5x)",
+      "menu.multi.scaleLinear": "Амплитуда: линейная Adobe Audition",
+      "menu.multi.scaleDb": "Амплитуда: логарифмическая дБ",
+      "menu.multi.polarSample": "Звуковое поле: Polar Sample",
+      "menu.multi.polarLevel": "Звуковое поле: Polar Level",
+      "menu.multi.lissajous": "Звуковое поле: Lissajous",
+
+      "menu.clip.center": "Центрировать курсор (Center Playhead)",
+      "menu.clip.fit": "Вместить весь трек",
+      "menu.clip.copyTime": "Копировать таймкод (Timecode)",
+
+      "menu.fx.vstRack": "Пакетная обработка (стойка эффектов / VST3)",
+      "menu.fx.vstManager": "Менеджер аудиоплагинов...",
+      "menu.fx.freeze": "Анализатор спектра: заморозить / возобновить",
+      "menu.fx.clearWaterfall": "Очистить историю водопада",
+
+      "menu.zoom.in": "Приблизить (Zoom In)",
+      "menu.zoom.out": "Отдалить (Zoom Out)",
+      "menu.zoom.fit": "По размеру трека (Fit Full)",
+      "menu.zoom.ff5": "Вперёд 5 с (+5s)",
+      "menu.zoom.rw5": "Назад 5 с (-5s)",
+
+      "menu.trans.playpause": "Воспроизведение / Пауза (Play / Pause)",
+      "menu.trans.stop": "Стоп (Stop)",
+      "menu.trans.prev": "Предыдущий (Previous)",
+      "menu.trans.next": "Следующий (Next)",
+      "menu.trans.start": "В начало трека (Rewind to Start)",
+      "menu.trans.rw5": "Назад 5 с (-5s)",
+      "menu.trans.ff5": "Вперёд 5 с (+5s)",
+      "menu.trans.rw15": "Назад 15 с (-15s)",
+      "menu.trans.ff15": "Вперёд 15 с (+15s)",
+      "menu.trans.repeatAll": "Повтор списка (Repeat All)",
+      "menu.trans.repeatOne": "Повтор трека (Repeat One)",
+      "menu.trans.sequential": "По порядку (Sequential)",
+      "menu.trans.shuffle": "Случайно (Shuffle)",
+      "menu.trans.cycle": "Переключить режим (Cycle Modes)",
+      "menu.trans.mute": "Без звука (Mute)",
+      "menu.trans.volUp": "Громче (+5%)",
+      "menu.trans.volDown": "Тише (-5%)",
+      "menu.trans.vol80": "Референсная громкость (80%)",
+      "menu.trans.vol100": "Максимум (100%)",
+      "menu.trans.syncQueue": "Синхронизировать очередь (Sync Queue)",
+      "menu.trans.scanFull": "Сканировать волну полностью",
+      "menu.trans.stopScan": "Остановить сканирование",
+      "menu.trans.resetHold": "Сбросить удержание пиков и RMS",
+
+      "menu.win.theme": "Переключить светлую / тёмную тему",
+      "menu.win.waveBlue": "Цвет волны: небесно-голубой",
+      "menu.win.wavePink": "Цвет волны: розовая сакура",
+      "menu.win.fullscreen": "Полный экран",
+      "menu.win.resize": "Адаптировать все холсты",
+
+      "menu.help.shortcuts": "Горячие клавиши (Shortcuts)...",
+      "menu.help.prefs": "Настройки (Preferences)...",
+      "menu.help.about": "О теме Adobe Audition DAW...",
+      "header.connecting": "Ожидание хоста…",
+      "header.live": "Онлайн · Протокол v1",
+      "header.playing": "Воспроизведение",
+      "header.paused": "Пауза",
+      "header.error": "Ошибка",
+      "quality.fast": "Быстро",
+      "quality.standard": "Стандарт",
+      "quality.fine": "Точно",
+      "scan.noTrack": "Нет трека",
+      "scan.needPlaying": "Требуется воспроизведение",
+      "scan.cancelled": "Отменено",
+      "scan.completed": "Сканирование завершено",
+      "scan.activeStatus": "Скан {pct}% · ~{sec}с · Тихо (нажмите для отмены)",
+      "scan.envelopeCoverage": "Огибающая {coverage}%",
+      "scan.cost": "Заняло {sec}с",
+      "wave.pkLaneLinear": "PK пик · Линейная амплитуда (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK пик · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS эфф. · Линейная амплитуда (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS эфф. · 0…-60 dBFS",
+      "wave.canvasWaiting": "Сбор огибающей начнётся при воспроизведении",
+      "spectrogram.waiting": "Ожидание данных спектра…",
+      "spectrum.low": "НЧ",
+      "spectrum.high": "ВЧ",
+      "lyrics.instrumentalBig": "Инструментал",
+      "lyrics.instrumentalDesc": "Этот трек отмечен как инструментальный",
+      "lyrics.emptyBig": "Нет текста",
+      "lyrics.emptyDesc": "Найдите или импортируйте LRC в настройках текста",
+      "lyrics.badgeInstrumental": "Инструментал",
+      "lyrics.badgeNoLyrics": "Без текста",
+      "lyrics.badgeSynced": "Синхронизированный",
+      "lyrics.badgeTimed": "С таймкодами",
+      "lyrics.badgeText": "Обычный текст",
+      "lyrics.noteJump": "Нажмите на строку текста для перехода",
+      "lyrics.loading": "Загрузка…",
+      "queue.tracksCount": "{count} трек.",
+      "queue.emptyLive": "Очередь воспроизведения пуста",
+      "queue.playTitle": "Воспроизвести: {title}",
+      "track.unknown": "Неизвестный трек",
+      "track.unknownArtist": "Неизвестный исполнитель",
+      "art.streamCover": "Стриминг-обложка",
+      "art.noCover": "Нет обложки",
+      "propVal.shared": "Общий",
+      "propVal.exclusive": "Эксклюзивный",
+      "propVal.directRead": "Локально",
+      "propVal.streaming": "Поток",
+      "propVal.bitPerfect": "Bit-Perfect",
+      "propVal.standardPath": "Стандартный",
+      "propVal.disabled": "Выкл.",
+      "propVal.resampleActive": "Активен",
+      "propVal.notResampled": "Нет",
+      "propVal.canPassthrough": "Доступен",
+      "propVal.sharedMixer": "Общий микшер",
+      "propVal.standardMix": "Стандартный микс",
+      "propVal.unknown": "Неизвестно",
+      "propVal.postDsp": "После DSP",
+      "propVal.preDspEst": "Оценка до DSP",
+      "trans.repeatOne": "Повтор трека",
+      "trans.repeatAll": "Повтор списка",
+      "trans.repeatOff": "Без повтора",
+      "trans.repeatOneOn": "Повтор трека: Вкл.",
+      "trans.repeatOneOff": "Повтор трека: Выкл.",
+      "trans.shuffleOn": "Случайно: Вкл.",
+      "trans.shuffleOff": "Случайно: Выкл.",
+      "trans.mute": "Без звука",
+      "trans.unmute": "Включить звук",
+      "theme.darkTitle": "Переключить на тёмную тему (Ctrl+T)",
+      "theme.lightTitle": "Переключить на светлую тему (Ctrl+T)",
+      "wave.blueTitle": "Цвет волны: небесно-голубой (Ctrl+Alt+W)",
+      "wave.pinkTitle": "Цвет волны: розовая сакура (Ctrl+Alt+W)",
+      "modal.closeTitle": "Закрыть (Esc)",
+      "menu.auditionAria": "Меню Audition"
+    },
+
+    es: {
+      langName: "Español",
+      "menu.file": "Archivo(F)",
+      "menu.edit": "Editar(E)",
+      "menu.multitrack": "Multipista(M)",
+      "menu.clip": "Clip(C)",
+      "menu.effects": "Efectos(S)",
+      "menu.zoom": "Zoom(Z)",
+      "menu.transport": "Transporte(T)",
+      "menu.window": "Ventana(W)",
+      "menu.language": "Idioma(L)",
+      "menu.help": "Ayuda(H)",
+
+      "theme.light": "Claro",
+      "theme.dark": "Oscuro",
+      "theme.toggleTitle": "Cambiar modo claro / oscuro (Ctrl+T)",
+      "wave.blue": "Celeste",
+      "wave.pink": "Sakura",
+      "wave.toggleTitle": "Cambiar color de onda (Celeste / Sakura) (Ctrl+Alt+W)",
+      "lang.toggleTitle": "Cambiar idioma de interfaz (Language)",
+
+      "status.connecting": "Esperando al host…",
+      "status.connected": "Conectado",
+      "status.stopped": "Detenido",
+      "status.playing": "Reproduciendo",
+      "status.paused": "En pausa",
+
+      "panel.tracks": "Lista de pistas",
+      "panel.history": "Historial",
+      "panel.tracksAria": "Lista de pistas e historial de reproducción",
+      "queue.waiting": "Esperando reproducción…",
+      "queue.colIcon": "",
+      "queue.colTitle": "Pista",
+      "queue.colDuration": "Duración",
+      "queue.note": "Haz clic en cualquier pista para cambiar y reproducir al instante.",
+      "queue.emptyHistory": "Sin historial de reproducción",
+
+      "panel.art": "Carátula",
+      "panel.artAria": "Carátula del álbum y vinilo",
+      "art.hostCover": "Carátula del host",
+      "art.embedded": "Incrustada",
+      "art.default": "Predeterminada",
+
+      "panel.properties": "Propiedades de audio y ruta",
+      "panel.propertiesAria": "Propiedades de audio y ruta de señal",
+      "prop.outputDevice": "Salida",
+      "prop.outputMode": "Modo",
+      "prop.sampleRate": "Frecuencia",
+      "prop.sampleRatePath": "Frecuencia",
+      "prop.audioSource": "Fuente",
+      "prop.signalPath": "Ruta",
+      "prop.eq": "EQ",
+      "prop.resampling": "Remuestreo",
+      "prop.passthrough": "Directo",
+      "prop.directRead": "Lectura local",
+      "prop.latencyBuffer": "Latencia",
+      "prop.sharedStability": "Shared estable",
+      "prop.codec": "Códec",
+      "prop.bitDepth": "Profundidad",
+      "prop.outputEngine": "Motor de salida",
+      "prop.replayGain": "ReplayGain",
+      "prop.meterSource": "Fuente de nivel",
+      "prop.sourceRealtime": "Bus en vivo",
+
+      "panel.waveform": "Envolvente de onda",
+      "panel.waveformAria": "Forma de onda y espectro",
+      "wave.hint": "Trazado con niveles en vivo del host (sin muestras PCM)",
+      "wave.scanBtnTitle": "Preescanear toda la onda (escaneo silencioso; clic para cancelar)",
+      "wave.modeRealtime": "Tiempo real",
+      "wave.modePrerender": "Prerender",
+      "wave.modeTitleRealtime": "Modo de onda: tiempo real (se dibuja al reproducir)",
+      "wave.modeTitlePrerender": "Modo de onda: prerender (escaneo silencioso completo)",
+      "wave.qualityFine": "Fino",
+      "wave.qualityStandard": "Estándar",
+      "wave.qualityFast": "Rápido",
+      "wave.qualityTitle": "Precisión de escaneo: {quality} (sobremuestreo 5x · ~{time} s)",
+      "wave.qualityFineDesc": "Fino · 5x alta densidad",
+      "wave.qualityStandardDesc": "Estándar · 5x equilibrado",
+      "wave.qualityFastDesc": "Rápido · 5x vista previa",
+      "wave.zoomInTitle": "Acercar horizontal (Ctrl++)",
+      "wave.zoomOutTitle": "Alejar horizontal (Ctrl+-)",
+      "wave.zoomFitTitle": "Ajustar a la ventana (Ctrl+0)",
+      "wave.navTitle": "Clic o arrastrar para posicionar",
+      "wave.waterfallTitle": "Cascada espectral (energía en vivo)",
+
+      "panel.analyzer": "Analizador de masterización",
+      "panel.analyzerAria": "Efectos - Insight 2 Pro",
+      "analyzer.vstTitle": "Efectos - Insight 2 Pro",
+      "analyzer.stateLive": "EN VIVO",
+      "analyzer.stateFrozen": "CONGELADO",
+      "analyzer.sourceLabel": "Fuente",
+      "analyzer.sourceVal": "Nivel del host · Espectro",
+      "analyzer.freezeTitle": "Congelar / reanudar (F)",
+      "analyzer.resetTitle": "Restablecer picos (P)",
+      "analyzer.radarTitle": "Radar de sonoridad (RMS)",
+      "analyzer.spectrumTitle": "Espectro de frecuencias",
+      "analyzer.levelsTitle": "Niveles de entrada (Peak / RMS · dBFS)",
+      "analyzer.soundfieldTitle": "Sound Field",
+      "analyzer.soundfieldGear": "Opciones de campo sonoro",
+      "analyzer.tabPolarSample": "Polar Sample",
+      "analyzer.tabPolarLevel": "Polar Level",
+      "analyzer.tabLissajous": "Lissajous",
+
+      "panel.lyrics": "Letras",
+      "panel.lyricsAria": "Letras y sincronización",
+      "lyrics.waiting": "Esperando letras",
+      "lyrics.synced": "Letras sincronizadas",
+      "lyrics.plain": "Texto plano",
+      "lyrics.instrumental": "Música instrumental, disfruta",
+      "lyrics.empty": "No hay letras disponibles",
+
+      "transport.aria": "Barra de control de reproducción",
+      "transport.total": "Total",
+      "transport.remain": "Restante",
+      "transport.prev": "Pista anterior (Ctrl+←)",
+      "transport.rw": "Retroceder 5 s (←)",
+      "transport.playpause": "Reproducir / Pausar (Space)",
+      "transport.ff": "Avanzar 5 s (→)",
+      "transport.next": "Pista siguiente (Ctrl+→)",
+      "transport.repeat": "Repetir lista",
+      "transport.repeatOne": "Repetir una",
+      "transport.shuffle": "Aleatorio",
+      "transport.sequential": "Secuencial",
+      "transport.mute": "Silenciar (M)",
+      "transport.unmute": "Activar sonido (M)",
+      "transport.volume": "Volumen",
+      "transport.seek": "Progreso de reproducción",
+
+      "prefs.title": "Preferencias (Preferences)",
+      "prefs.renderModeTitle": "Modo de renderizado de onda",
+      "prefs.renderModeEnable": "Activar prerenderizado completo de onda",
+      "prefs.renderModeHint": "Desactivado por defecto (tiempo real). La onda se dibuja mientras se reproduce con mínimo uso de memoria.",
+      "prefs.qualityTitle": "Calidad de preescaneo (sobremuestreo 5x)",
+      "prefs.qualityFineOpt": "Fino (Fine - 5x alta densidad · predeterminado)",
+      "prefs.qualityStandardOpt": "Estándar (Standard - 5x equilibrado)",
+      "prefs.qualityFastOpt": "Rápido (Fast - 5x vista previa)",
+      "prefs.waveScaleTitle": "Escala de amplitud de onda",
+      "prefs.waveScaleLinear": "Amplitud lineal Adobe Audition (recomendado)",
+      "prefs.waveScaleDb": "Escala logarítmica en dB (Logarithmic dB)",
+      "prefs.waveScaleHint": "El modo lineal coincide con Adobe Audition: -6 dBFS equivale a media altura con decaimiento nítido; el modo logarítmico resalta el ruido de fondo.",
+      "prefs.rangeTitle": "Rango dinámico del medidor",
+      "prefs.rangeDesc": "Los medidores principales y de pista se amplían a <strong>0 ~ -60 dBFS</strong> para mostrar el rango dinámico de masterización.",
+      "prefs.languageTitle": "Idioma de interfaz (Language)",
+      "prefs.languageHint": "Compatible con 简体中文, 繁體中文, English, Français, Русский, Español, 日本語 y 한국어. Se aplica al instante.",
+
+      "shortcuts.title": "Atajos de teclado (Keyboard Shortcuts)",
+      "shortcuts.playpause": "Reproducir / Pausar",
+      "shortcuts.rwff": "Retroceder 5 s / Avanzar 5 s",
+      "shortcuts.prevnext": "Pista anterior / siguiente",
+      "shortcuts.vol": "Subir / bajar volumen 5%",
+      "shortcuts.mute": "Silenciar / activar sonido",
+      "shortcuts.zoom": "Acercar / alejar línea de tiempo",
+      "shortcuts.zoomFit": "Restablecer vista completa",
+      "shortcuts.centerPlayhead": "Centrar cabezal de reproducción",
+      "shortcuts.freeze": "Congelar / reanudar analizador",
+      "shortcuts.resetPeak": "Restablecer todos los picos",
+      "shortcuts.theme": "Cambiar modo claro / oscuro",
+      "shortcuts.waveColor": "Cambiar color de onda (Celeste / Sakura)",
+      "shortcuts.prefs": "Preferencias",
+      "shortcuts.reload": "Recargar interfaz DAW",
+      "shortcuts.close": "Cerrar ventana",
+
+      "about.title": "Acerca de Adobe Audition DAW",
+      "about.headerTitle": "Tema profesional de masterización Adobe Audition DAW",
+      "about.version": "Versión 1.3.4 (Multilingual Edition)",
+      "about.desc": "Tema inmersivo de estación de trabajo de audio digital (DAW) estilo Adobe Audition con analizador de masterización en tiempo real.",
+      "about.featTitle": "Características:",
+      "about.f1": "• Cambio fluido entre tema oscuro y claro (Ctrl+T)",
+      "about.f2": "• Dos paletas de onda: azul celeste y rosa sakura (Ctrl+Alt+W)",
+      "about.f3": "• Localización multilingüe completa (8 idiomas)",
+      "about.f4": "• Línea de tiempo multipista y onda dinámica 0 ~ -60 dBFS",
+      "about.f5": "• Cascada espectral FFT 3D en tiempo real",
+      "about.f6": "• Radar estéreo polar y de Lissajous",
+      "about.f7": "• Medición LUFS de radiodifusión y True Peak",
+      "about.f8": "• Menú superior profesional y atajos globales",
+      "about.f9": "• Caché inteligente de carátulas sin parpadeos",
+      "about.footer": "Inspired by Adobe Audition CC &bull; FurinaPlayer Audio Suite",
+
+      "toast.langSwitched": "Idioma cambiado a: Español",
+      "toast.pathCopied": "Ruta de audio copiada al portapapeles",
+      "toast.pathFailed": "Error al copiar",
+      "toast.noPath": "No hay ruta de archivo de audio disponible",
+      "toast.metaCopied": "Metadatos de pista (JSON) copiados",
+      "toast.copied": "Copiado",
+      "toast.peakReset": "Indicadores de pico restablecidos",
+      "toast.scanStarted": "Escaneo completo de onda iniciado",
+      "toast.scanRunning": "El escaneo de onda ya está en curso…",
+      "toast.scanCancelled": "Cancelación de escaneo solicitada",
+      "toast.noScan": "No hay escaneo en curso",
+      "toast.modeRealtime": "Modo de onda en tiempo real activado",
+      "toast.modePrerender": "Modo prerender activado, iniciando escaneo",
+      "toast.scanQuality": "Calidad de escaneo: {quality}",
+      "toast.soundfield": "Campo sonoro: {mode}",
+      "toast.playheadCentered": "Cabezal de reproducción centrado",
+      "toast.viewReset": "Vista restablecida a resumen completo",
+      "toast.posCopied": "Posición actual: {time}",
+      "toast.frozen": "Espectro y campo sonoro congelados",
+      "toast.unfrozen": "Espectro y campo sonoro reanudados",
+      "toast.waterfallCleared": "Historial de cascada espectral borrado",
+      "toast.repeatAll": "Repetir lista activado",
+      "toast.repeatOne": "Repetir una pista activado",
+      "toast.sequential": "Reproducción secuencial activada",
+      "toast.repeatOff": "Repetición desactivada",
+      "toast.muted": "Silenciado",
+      "toast.unmuted": "Sonido activado",
+      "toast.volStandard": "Volumen de monitoreo estándar (80%)",
+      "toast.volMax": "Volumen máximo (100%)",
+      "toast.syncQueue": "Sincronizando cola desde el host…",
+      "toast.resize": "Todos los lienzos DAW reajustados",
+      "toast.themeLight": "Tema claro activado",
+      "toast.themeDark": "Tema oscuro activado",
+      "toast.wavePink": "Color de onda: rosa sakura",
+      "toast.waveBlue": "Color de onda: azul celeste",
+      "toast.waveScale": "Escala de amplitud: {scale}",
+
+      "menu.file.reload": "Recargar interfaz (Reload)",
+      "menu.file.copyPath": "Copiar ruta de audio actual",
+      "menu.file.copyMeta": "Copiar metadatos de pista (JSON)",
+      "menu.file.prefs": "Preferencias (Preferences)...",
+      "menu.file.back": "Volver a FurinaPlayer",
+
+      "menu.edit.copyTitle": "Copiar título de canción",
+      "menu.edit.copyArtist": "Copiar artista",
+      "menu.edit.resetPeak": "Restablecer picos (Reset Peak)",
+      "menu.edit.rescan": "Reescanear onda de la pista",
+
+      "menu.multi.realtime": "Onda: modo tiempo real",
+      "menu.multi.prerender": "Onda: modo prerender (pista completa)",
+      "menu.multi.fine": "Calidad: Fino (Fine · 5x)",
+      "menu.multi.standard": "Calidad: Estándar (Standard · 5x)",
+      "menu.multi.fast": "Calidad: Rápido (Fast · 5x)",
+      "menu.multi.scaleLinear": "Amplitud: lineal Adobe Audition",
+      "menu.multi.scaleDb": "Amplitud: escala logarítmica dB",
+      "menu.multi.polarSample": "Campo sonoro: Polar Sample",
+      "menu.multi.polarLevel": "Campo sonoro: Polar Level",
+      "menu.multi.lissajous": "Campo sonoro: Lissajous",
+
+      "menu.clip.center": "Centrar cabezal (Center Playhead)",
+      "menu.clip.fit": "Ajustar a pista completa",
+      "menu.clip.copyTime": "Copiar código de tiempo (Timecode)",
+
+      "menu.fx.vstRack": "Procesamiento por lotes (Rack / VST3)",
+      "menu.fx.vstManager": "Administrador de plugins de audio...",
+      "menu.fx.freeze": "Analizador de espectro: congelar / reanudar",
+      "menu.fx.clearWaterfall": "Limpiar historial de cascada",
+
+      "menu.zoom.in": "Acercar (Zoom In)",
+      "menu.zoom.out": "Alejar (Zoom Out)",
+      "menu.zoom.fit": "Ajustar todo (Fit Full)",
+      "menu.zoom.ff5": "Avanzar 5 s (+5s)",
+      "menu.zoom.rw5": "Retroceder 5 s (-5s)",
+
+      "menu.trans.playpause": "Reproducir / Pausar (Play / Pause)",
+      "menu.trans.stop": "Detener (Stop)",
+      "menu.trans.prev": "Anterior (Previous)",
+      "menu.trans.next": "Siguiente (Next)",
+      "menu.trans.start": "Ir al inicio (Rewind to Start)",
+      "menu.trans.rw5": "Retroceder 5 s (-5s)",
+      "menu.trans.ff5": "Avanzar 5 s (+5s)",
+      "menu.trans.rw15": "Retroceder 15 s (-15s)",
+      "menu.trans.ff15": "Avanzar 15 s (+15s)",
+      "menu.trans.repeatAll": "Repetir lista (Repeat All)",
+      "menu.trans.repeatOne": "Repetir una (Repeat One)",
+      "menu.trans.sequential": "Secuencial (Sequential)",
+      "menu.trans.shuffle": "Aleatorio (Shuffle)",
+      "menu.trans.cycle": "Alternar modos (Cycle Modes)",
+      "menu.trans.mute": "Silenciar (Mute)",
+      "menu.trans.volUp": "Subir volumen (+5%)",
+      "menu.trans.volDown": "Bajar volumen (-5%)",
+      "menu.trans.vol80": "Volumen de referencia (80%)",
+      "menu.trans.vol100": "Volumen máximo (100%)",
+      "menu.trans.syncQueue": "Sincronizar cola (Sync Queue)",
+      "menu.trans.scanFull": "Escanear onda completa ahora",
+      "menu.trans.stopScan": "Detener escaneo de onda",
+      "menu.trans.resetHold": "Restablecer retención de picos y RMS",
+
+      "menu.win.theme": "Cambiar modo claro / oscuro",
+      "menu.win.waveBlue": "Color de onda: azul celeste",
+      "menu.win.wavePink": "Color de onda: rosa sakura",
+      "menu.win.fullscreen": "Pantalla completa",
+      "menu.win.resize": "Reajustar todos los lienzos",
+
+      "menu.help.shortcuts": "Atajos de teclado (Shortcuts)...",
+      "menu.help.prefs": "Preferencias (Preferences)...",
+      "menu.help.about": "Acerca de Adobe Audition DAW...",
+      "header.connecting": "Esperando al host…",
+      "header.live": "En vivo · Protocolo v1",
+      "header.playing": "Reproduciendo",
+      "header.paused": "En pausa",
+      "header.error": "Error",
+      "quality.fast": "Rápido",
+      "quality.standard": "Estándar",
+      "quality.fine": "Fino",
+      "scan.noTrack": "Sin pista",
+      "scan.needPlaying": "Requiere reproducción",
+      "scan.cancelled": "Cancelado",
+      "scan.completed": "Escaneo completo",
+      "scan.activeStatus": "Escaneo {pct}% · ~{sec}s · Silencio (clic para cancelar)",
+      "scan.envelopeCoverage": "Envolvente {coverage}%",
+      "scan.cost": "Tiempo {sec}s",
+      "wave.pkLaneLinear": "PK pico · Amplitud lineal (0…-60 dBFS)",
+      "wave.pkLaneDb": "PK pico · 0…-60 dBFS",
+      "wave.rmsLaneLinear": "RMS eficaz · Amplitud lineal (0…-60 dBFS)",
+      "wave.rmsLaneDb": "RMS eficaz · 0…-60 dBFS",
+      "wave.canvasWaiting": "La envolvente se capturará al reproducir",
+      "spectrogram.waiting": "Esperando datos de espectro…",
+      "spectrum.low": "Graves",
+      "spectrum.high": "Agudos",
+      "lyrics.instrumentalBig": "Instrumental",
+      "lyrics.instrumentalDesc": "Pista marcada como instrumental, disfruta",
+      "lyrics.emptyBig": "Sin letras",
+      "lyrics.emptyDesc": "Busca o importa letras LRC en la configuración",
+      "lyrics.badgeInstrumental": "Instrumental",
+      "lyrics.badgeNoLyrics": "Sin letras",
+      "lyrics.badgeSynced": "Sincronizado",
+      "lyrics.badgeTimed": "Con tiempo",
+      "lyrics.badgeText": "Texto plano",
+      "lyrics.noteJump": "Haz clic en cualquier línea para saltar",
+      "lyrics.loading": "Cargando…",
+      "queue.tracksCount": "{count} pistas",
+      "queue.emptyLive": "La cola de reproducción está vacía",
+      "queue.playTitle": "Reproducir: {title}",
+      "track.unknown": "Pista desconocida",
+      "track.unknownArtist": "Artista desconocido",
+      "art.streamCover": "Carátula en línea",
+      "art.noCover": "Sin carátula",
+      "propVal.shared": "Compartido",
+      "propVal.exclusive": "Exclusivo",
+      "propVal.directRead": "Lectura local",
+      "propVal.streaming": "Transmisión",
+      "propVal.bitPerfect": "Bit-Perfect",
+      "propVal.standardPath": "Ruta estándar",
+      "propVal.disabled": "Desactivado",
+      "propVal.resampleActive": "Activo",
+      "propVal.notResampled": "Sin remuestreo",
+      "propVal.canPassthrough": "Compatible",
+      "propVal.sharedMixer": "Mezclador compartido",
+      "propVal.standardMix": "Mezcla estándar",
+      "propVal.unknown": "Desconocido",
+      "propVal.postDsp": "Post-DSP nativo",
+      "propVal.preDspEst": "Estimación pre-DSP",
+      "trans.repeatOne": "Repetir una",
+      "trans.repeatAll": "Repetir lista",
+      "trans.repeatOff": "No repetir",
+      "trans.repeatOneOn": "Repetir una: Sí",
+      "trans.repeatOneOff": "Repetir una: No",
+      "trans.shuffleOn": "Aleatorio: Sí",
+      "trans.shuffleOff": "Aleatorio: No",
+      "trans.mute": "Silenciar",
+      "trans.unmute": "Activar sonido",
+      "theme.darkTitle": "Cambiar al tema oscuro (Ctrl+T)",
+      "theme.lightTitle": "Cambiar al tema claro (Ctrl+T)",
+      "wave.blueTitle": "Color de onda: azul celeste (Ctrl+Alt+W)",
+      "wave.pinkTitle": "Color de onda: rosa sakura (Ctrl+Alt+W)",
+      "modal.closeTitle": "Cerrar (Esc)",
+      "menu.auditionAria": "Menú de Audition"
     }
   };
 
@@ -1920,11 +2997,28 @@
     return dict[key] ?? I18N.zh[key] ?? fallback ?? key;
   }
 
+  function normalizeAuditionLang(lang) {
+    if (!lang) return "zh";
+    const raw = String(lang).trim();
+    if (I18N[raw]) return raw;
+    const s = raw.toLowerCase();
+    if (s.startsWith("zh-tw") || s.startsWith("zh-hk") || s.startsWith("zh-hant")) return "zh-TW";
+    if (s.startsWith("zh")) return "zh";
+    if (s.startsWith("en")) return "en";
+    if (s.startsWith("fr")) return "fr";
+    if (s.startsWith("ru")) return "ru";
+    if (s.startsWith("es")) return "es";
+    if (s.startsWith("ja")) return "ja";
+    if (s.startsWith("ko")) return "ko";
+    return "zh";
+  }
+
   function applyLanguage(lang, persist = true) {
+    lang = normalizeAuditionLang(lang);
     if (!I18N[lang]) lang = "zh";
     state.lang = lang;
 
-    const langCodes = { zh: "zh-CN", en: "en-US", fr: "fr-FR", ja: "ja-JP", ko: "ko-KR" };
+    const langCodes = { zh: "zh-CN", "zh-TW": "zh-TW", en: "en-US", fr: "fr-FR", ru: "ru-RU", es: "es-ES", ja: "ja-JP", ko: "ko-KR" };
     document.documentElement.lang = langCodes[lang] || "zh-CN";
 
     const langBtnLabel = el("lang-toggle-label");
@@ -2004,13 +3098,14 @@
 
     if (persist) {
       try {
-        localStorage.setItem("echo:audition:lang", lang);
+        localStorage.setItem("furinaplayer:audition:lang", lang);
       } catch {}
       scheduleSave();
     }
   }
 
   function setLanguage(lang, showToast = true) {
+    lang = normalizeAuditionLang(lang);
     if (!I18N[lang]) return;
     applyLanguage(lang, true);
     if (showToast) {
@@ -2043,13 +3138,13 @@
     new Promise((resolve) => {
       const requestId = String(++requestSeq);
       pending.set(requestId, resolve);
-      post({ type: "echo:workshop-ui:command", requestId, command: name, payload });
+      post({ type: "furinaplayer:workshop-ui:command", requestId, command: name, payload });
       window.setTimeout(() => {
         if (pending.delete(requestId)) resolve({ ok: false, error: "timeout" });
       }, timeoutMs);
     });
   const commandNoWait = (name, payload = {}) => {
-    post({ type: "echo:workshop-ui:command", requestId: String(++requestSeq), command: name, payload });
+    post({ type: "furinaplayer:workshop-ui:command", requestId: String(++requestSeq), command: name, payload });
   };
 
   // The host answers (or rejects) every command with a result message. Silent
@@ -2276,7 +3371,7 @@
     renderSoundField();
 
     try {
-      localStorage.setItem("echo:audition:themeMode", target);
+      localStorage.setItem("furinaplayer:audition:themeMode", target);
     } catch {}
 
     if (showToast) {
@@ -2365,7 +3460,7 @@
     renderWaveform();
 
     try {
-      localStorage.setItem("echo:audition:waveColor", target);
+      localStorage.setItem("furinaplayer:audition:waveColor", target);
     } catch {}
 
     if (showToast) {
@@ -2431,19 +3526,19 @@
         const sfTabs = document.querySelectorAll(".soundfield-tab");
         sfTabs.forEach((t) => t.classList.toggle("active", t.getAttribute("data-mode") === state.soundfieldMode));
       }
-      if (typeof prefs?.value?.lang === "string" && I18N[prefs.value.lang]) {
-        applyLanguage(prefs.value.lang, false);
+      if (typeof prefs?.value?.lang === "string") {
+        applyLanguage(normalizeAuditionLang(prefs.value.lang), false);
       } else {
         try {
-          const localLang = localStorage.getItem("echo:audition:lang");
-          if (localLang && I18N[localLang]) applyLanguage(localLang, false);
+          const localLang = localStorage.getItem("furinaplayer:audition:lang");
+          if (localLang) applyLanguage(normalizeAuditionLang(localLang), false);
         } catch {}
       }
       if (typeof prefs?.value?.themeMode === "string") {
         setThemeMode(prefs.value.themeMode, false);
       } else {
         try {
-          const local = localStorage.getItem("echo:audition:themeMode");
+          const local = localStorage.getItem("furinaplayer:audition:themeMode");
           if (local === "light" || local === "dark") setThemeMode(local, false);
         } catch {}
       }
@@ -2451,7 +3546,7 @@
         setWaveColor(prefs.value.waveColor, false);
       } else {
         try {
-          const local = localStorage.getItem("echo:audition:waveColor");
+          const local = localStorage.getItem("furinaplayer:audition:waveColor");
           if (local === "blue" || local === "pink") setWaveColor(local, false);
         } catch {}
       }
@@ -2824,7 +3919,7 @@
     state.scan.active = false;
     state.scan.progress = 1;
     state.scan.message = t("scan.completed");
-    post({ type: "echo:audition:getEnvelope", trackId });
+    post({ type: "furinaplayer:audition:getEnvelope", trackId });
     updateScanUi();
   }
 
@@ -2841,7 +3936,7 @@
     state.scan.lastAutoAt = now;
     state.envelopeRetryAt = now;
     state.envelopeRetryCount += 1;
-    post({ type: "echo:audition:getEnvelope", trackId });
+    post({ type: "furinaplayer:audition:getEnvelope", trackId });
   }
 
   // Sanitize measured samples and clamp to [0, 1].
@@ -4133,7 +5228,7 @@
     trackId: null
   };
 
-  // ── ECHO native-style physics-damped lyric scroll follow engine ─────────────
+  // ── FurinaPlayer native-style physics-damped lyric scroll follow engine ─────────────
   let scrollFollowJob = null;
 
   function stopScrollFollow() {
@@ -4213,7 +5308,7 @@
         return;
       }
 
-      // ECHO 软件本体指数阻尼步进公式: factor = 1 - Math.exp(-dt / responseMs)
+      // FurinaPlayer 软件本体指数阻尼步进公式: factor = 1 - Math.exp(-dt / responseMs)
       const factor = 1 - Math.exp(-dt / job.responseMs);
       job.container.scrollTop = cur + remaining * factor;
       scheduleNext(tick);
@@ -4595,7 +5690,7 @@
         const trimmed = c.trim();
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
           try {
-            post({ type: "echo:audition:getCover", trackId: track.id, url: trimmed });
+            post({ type: "furinaplayer:audition:getCover", trackId: track.id, url: trimmed });
           } catch {}
           return null;
         }
@@ -4603,7 +5698,7 @@
       }
     }
     if (typeof track.coverId === "string" && track.coverId.trim().length > 0) {
-      return `echo-cover://large/${encodeURIComponent(track.coverId.trim())}`;
+      return `furinaplayer-cover://large/${encodeURIComponent(track.coverId.trim())}`;
     }
     return null;
   }
@@ -4661,14 +5756,14 @@
     if (!cover && nextTid) {
       scheduleCoverRecovery(state.track.id);
       try {
-        post({ type: "echo:audition:getCover", trackId: state.track.id });
+        post({ type: "furinaplayer:audition:getCover", trackId: state.track.id });
       } catch {}
     }
 
     if (nextTid.startsWith("streaming:")) {
       try {
-        post({ type: "echo:audition:getCover", trackId: state.track.id });
-        post({ type: "echo:audition:getLyrics", trackId: state.track.id });
+        post({ type: "furinaplayer:audition:getCover", trackId: state.track.id });
+        post({ type: "furinaplayer:audition:getLyrics", trackId: state.track.id });
       } catch {}
     }
 
@@ -4699,12 +5794,12 @@
       }
 
       rememberTrack(state.track);
-      post({ type: "echo:audition:getQueue" });
+      post({ type: "furinaplayer:audition:getQueue" });
       renderQueueList();
       maybeAutoScan();
       if (nextTid.startsWith("streaming:")) {
         try {
-          post({ type: "echo:audition:getLyrics", trackId: state.track.id });
+          post({ type: "furinaplayer:audition:getLyrics", trackId: state.track.id });
         } catch {}
       }
     }
@@ -4729,7 +5824,7 @@
 
     if (url.startsWith("http://") || url.startsWith("https://")) {
       try {
-        post({ type: "echo:audition:getCover", trackId: state.track?.id, url });
+        post({ type: "furinaplayer:audition:getCover", trackId: state.track?.id, url });
       } catch {}
       return;
     }
@@ -4737,7 +5832,7 @@
     img.onerror = () => {
       const retryCount = (img._retryCount || 0) + 1;
       img._retryCount = retryCount;
-      if (retryCount <= 2 && (url.startsWith("http") || url.startsWith("echo-cover://") || url.startsWith("echo-image://"))) {
+      if (retryCount <= 2 && (url.startsWith("http") || url.startsWith("furinaplayer-cover://") || url.startsWith("furinaplayer-image://"))) {
         const timer = setTimeout(() => {
           coverRetryTimers.delete(id);
           if (img.getAttribute("src") === url || !img.hidden) {
@@ -5333,7 +6428,7 @@
       state.queueTab = "tracks";
       tabTracks.classList.add("active");
       tabHistory?.classList.remove("active");
-      post({ type: "echo:audition:getQueue" });
+      post({ type: "furinaplayer:audition:getQueue" });
       renderQueueList();
     });
     tabHistory?.addEventListener("click", () => {
@@ -5375,7 +6470,8 @@
 
       if (event.code === "Space") {
         event.preventDefault();
-        commandNoWait("playPause");
+        event.stopPropagation();
+        if (!event.repeat) commandNoWait("playPause");
       } else if (event.key === "ArrowLeft") {
         if (event.ctrlKey) {
           event.preventDefault();
@@ -5451,7 +6547,13 @@
         event.preventDefault();
         showShortcutsModal();
       }
-    });
+    }, true);
+    window.addEventListener("keyup", (event) => {
+      if (event.code === "Space" && !["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName) && !event.target?.isContentEditable) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
   }
 
   function zoomBy(factor) {
@@ -5480,7 +6582,7 @@
     }
     if (!msg) return;
 
-    if (msg.type === "echo:audition:coverData" && msg.coverDataUrl) {
+    if (msg.type === "furinaplayer:audition:coverData" && msg.coverDataUrl) {
       const msgTid = normTrackId(msg.trackId);
       const curTid = activeTrackId();
       if (!msgTid || !curTid || msgTid === curTid) {
@@ -5493,7 +6595,7 @@
       return;
     }
 
-    if (msg.type === "echo:audition:queueData" || msg.type === "shinawase:player:queue") {
+    if (msg.type === "furinaplayer:audition:queueData" || msg.type === "shinawase:player:queue") {
       if (Array.isArray(msg.items) && msg.items.length > 0) {
         state.liveQueue = msg.items.map((it) => ({
           queueId: it.queueId,
@@ -5508,7 +6610,7 @@
       return;
     }
 
-    if (msg.type === "echo:audition:lyricsData" && msg.lyrics) {
+    if (msg.type === "furinaplayer:audition:lyricsData" && msg.lyrics) {
       const msgTid = normTrackId(msg.trackId);
       const curTid = activeTrackId();
       if (!msgTid || !curTid || msgTid === curTid) {
@@ -5518,12 +6620,12 @@
       return;
     }
 
-    if (msg.type === "echo:audition:audioStatus" && msg.status) {
+    if (msg.type === "furinaplayer:audition:audioStatus" && msg.status) {
       applyAudioStatus(msg.status);
       return;
     }
 
-    if (msg.type === "echo:audition:envelopeData" && Array.isArray(msg.p)) {
+    if (msg.type === "furinaplayer:audition:envelopeData" && Array.isArray(msg.p)) {
       const msgTid = normTrackId(msg.trackId);
       const curTid = activeTrackId();
       const rawTid = msgTid || curTid || "current";
@@ -5608,10 +6710,10 @@
     if (msg.protocolVersion !== PROTOCOL) return;
 
     switch (msg.type) {
-      case "echo:workshop-ui:ping":
-        post({ type: "echo:workshop-ui:pong" });
+      case "furinaplayer:workshop-ui:ping":
+        post({ type: "furinaplayer:workshop-ui:pong" });
         return;
-      case "echo:workshop-ui:result": {
+      case "furinaplayer:workshop-ui:result": {
         const resolver = pending.get(msg.requestId);
         if (resolver) {
           pending.delete(msg.requestId);
@@ -5619,14 +6721,18 @@
         }
         return;
       }
-      case "echo:workshop-ui:init": {
+      case "furinaplayer:workshop-ui:init": {
         state.connected = true;
         state.appearance = msg.appearance ?? null;
         applyAppearance(msg.appearance);
+        const initLang = msg.language || msg.appearance?.language;
+        if (initLang) {
+          applyLanguage(normalizeAuditionLang(initLang), false);
+        }
         updateStatusLine();
         break;
       }
-      case "echo:workshop-ui:state": {
+      case "furinaplayer:workshop-ui:state": {
         state.connected = true;
         if (msg.playback) {
           const nextPbTid = normTrackId(msg.playback.currentTrackId ?? msg.currentTrack?.id);
@@ -5662,7 +6768,7 @@
             state.lyricsRequested = tid;
             if (tid.startsWith("streaming:")) {
               try {
-                post({ type: "echo:audition:getLyrics", trackId: state.playback.currentTrackId ?? state.track?.id });
+                post({ type: "furinaplayer:audition:getLyrics", trackId: state.playback.currentTrackId ?? state.track?.id });
               } catch {}
             } else {
               command("lyrics:get", { trackId: tid }).then((res) => {
@@ -5676,7 +6782,7 @@
         updateStatusLine();
         break;
       }
-      case "echo:workshop-ui:lyrics": {
+      case "furinaplayer:workshop-ui:lyrics": {
         const isCurrentCustom = state.customLyricsTrackId && (normTrackId(state.customLyricsTrackId) === normTrackId(msg.trackId ?? state.track?.id));
         if (msg.lyrics && Array.isArray(msg.lyrics.lines) && msg.lyrics.lines.length > 0) {
           state.customLyricsTrackId = null;
@@ -5696,7 +6802,7 @@
         }
         break;
       }
-      case "echo:workshop-ui:clock": {
+      case "furinaplayer:workshop-ui:clock": {
         const incoming = msg.clock ?? null;
         const durMs = num(incoming?.durationMs ?? msg.durationMs, 0) || (num(incoming?.durationSeconds ?? msg.durationSeconds, 0) * 1000);
         if (durMs > 0) {
@@ -5758,7 +6864,7 @@
         maybeAutoScan();
         break;
       }
-      case "echo:workshop-ui:audio": {
+      case "furinaplayer:workshop-ui:audio": {
         const msgTid = normTrackId(msg.trackId);
         const curTid = activeTrackId();
         if (msgTid && curTid && msgTid !== curTid) break;
@@ -5786,9 +6892,14 @@
         }
         break;
       }
-      case "echo:workshop-ui:appearance":
+      case "furinaplayer:workshop-ui:appearance": {
         applyAppearance(msg.appearance);
+        const appLang = msg.language || msg.appearance?.language;
+        if (appLang) {
+          applyLanguage(normalizeAuditionLang(appLang), false);
+        }
         break;
+      }
       default:
         break;
     }
@@ -5858,11 +6969,7 @@
         <div style="margin-bottom:14px;">
           <div style="color:var(--accent-cyan, #00e5ff); font-weight:600; margin-bottom:6px;">${t("prefs.languageTitle")}</div>
           <select id="pref-language" style="background:#23272d; color:#e0e4ea; border:1px solid #3b424d; padding:4px 8px; border-radius:3px; font-size:11px; width:100%;">
-            <option value="zh" ${state.lang === "zh" ? "selected" : ""}>简体中文 (Chinese - 默认)</option>
-            <option value="en" ${state.lang === "en" ? "selected" : ""}>English (English)</option>
-            <option value="fr" ${state.lang === "fr" ? "selected" : ""}>Français (French)</option>
-            <option value="ja" ${state.lang === "ja" ? "selected" : ""}>日本語 (Japanese)</option>
-            <option value="ko" ${state.lang === "ko" ? "selected" : ""}>한국어 (Korean)</option>
+            ${SUPPORTED_LANGS.map((l) => `<option value="${l.id}" ${state.lang === l.id ? "selected" : ""}>${l.label} (${l.englishName})</option>`).join("")}
           </select>
           <div style="color:#828a95; font-size:11px; margin-top:4px;">${t("prefs.languageHint")}</div>
         </div>
@@ -6189,16 +7296,16 @@
           get label() { return t("menu.fx.vstRack"); },
           shortcut: "Ctrl+Alt+R",
           action: () => {
-            try { window.parent.postMessage({ type: "echo:vst3:toggleRack", visible: true }, "*"); } catch(e){}
-            try { window.postMessage({ type: "echo:vst3:toggleRack", visible: true }, "*"); } catch(e){}
+            try { window.parent.postMessage({ type: "furinaplayer:vst3:toggleRack", visible: true }, "*"); } catch(e){}
+            try { window.postMessage({ type: "furinaplayer:vst3:toggleRack", visible: true }, "*"); } catch(e){}
           },
         },
         {
           get label() { return t("menu.fx.vstManager"); },
           shortcut: "Ctrl+Alt+P",
           action: () => {
-            try { window.parent.postMessage({ type: "echo:vst3:openPluginManager" }, "*"); } catch(e){}
-            try { window.postMessage({ type: "echo:vst3:openPluginManager" }, "*"); } catch(e){}
+            try { window.parent.postMessage({ type: "furinaplayer:vst3:openPluginManager" }, "*"); } catch(e){}
+            try { window.postMessage({ type: "furinaplayer:vst3:openPluginManager" }, "*"); } catch(e){}
           },
         },
         { divider: true },
@@ -6408,7 +7515,7 @@
           get label() { return t("menu.trans.syncQueue"); },
           shortcut: "F5",
           action: () => {
-            post({ type: "echo:audition:getQueue" });
+            post({ type: "furinaplayer:audition:getQueue" });
             toast(t("toast.syncQueue"), "ok", 1500);
           },
         },
@@ -6657,22 +7764,17 @@
   // ── boot ──────────────────────────────────────────────────────────────────
   function boot() {
     try {
-      const savedLang = localStorage.getItem("echo:audition:lang");
-      if (savedLang && I18N[savedLang]) {
-        applyLanguage(savedLang, false);
+      const savedLang = localStorage.getItem("furinaplayer:audition:lang");
+      if (savedLang) {
+        applyLanguage(normalizeAuditionLang(savedLang), false);
       } else {
-        const navLang = (navigator.language || "").toLowerCase();
-        if (navLang.startsWith("ja")) applyLanguage("ja", false);
-        else if (navLang.startsWith("fr")) applyLanguage("fr", false);
-        else if (navLang.startsWith("ko")) applyLanguage("ko", false);
-        else if (navLang.startsWith("en")) applyLanguage("en", false);
-        else applyLanguage("zh", false);
+        applyLanguage(normalizeAuditionLang(navigator.language || ""), false);
       }
-      const savedTheme = localStorage.getItem("echo:audition:themeMode");
+      const savedTheme = localStorage.getItem("furinaplayer:audition:themeMode");
       if (savedTheme === "light" || savedTheme === "dark") {
         setThemeMode(savedTheme, false);
       }
-      const savedColor = localStorage.getItem("echo:audition:waveColor");
+      const savedColor = localStorage.getItem("furinaplayer:audition:waveColor");
       if (savedColor === "blue" || savedColor === "pink") {
         setWaveColor(savedColor, false);
       }
@@ -6689,11 +7791,11 @@
 
     window.addEventListener("message", onMessage);
     try {
-      post({ type: "echo:audition:getCover" });
-      post({ type: "echo:audition:getLyrics" });
-      post({ type: "echo:audition:getAudioStatus" });
-      post({ type: "echo:audition:getQueue" });
-      post({ type: "echo:audition:getEnvelope" });
+      post({ type: "furinaplayer:audition:getCover" });
+      post({ type: "furinaplayer:audition:getLyrics" });
+      post({ type: "furinaplayer:audition:getAudioStatus" });
+      post({ type: "furinaplayer:audition:getQueue" });
+      post({ type: "furinaplayer:audition:getEnvelope" });
     } catch {}
     window.addEventListener("pagehide", () => {
       if (rafId !== null) window.cancelAnimationFrame(rafId);
@@ -6723,11 +7825,11 @@
     });
 
     rafId = window.requestAnimationFrame(frame);
-    post({ type: "echo:workshop-ui:ready" });
+    post({ type: "furinaplayer:workshop-ui:ready" });
     window.__dawState = state;
     window.__dawScan = scanWaveform;
     try {
-      post({ type: "echo:audition:getQueue" });
+      post({ type: "furinaplayer:audition:getQueue" });
     } catch (_) {}
   }
 

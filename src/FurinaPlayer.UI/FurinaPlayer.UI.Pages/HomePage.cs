@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,7 +16,8 @@ using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using SkiaSharp.Views.Windows;
-using SonicWave.Core.Models;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 using WinRT.Interop;
 using Windows.Foundation;
@@ -429,11 +430,17 @@ public sealed class HomePage : Page, IComponentConnector
 		Loaded += (s, e) =>
 		{
 			FluentIconFactory.UpgradeButtonsInVisualTree(this);
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 			// EnsureStreamingButton();
 			ApplyHomeLiquidGlass();
+			UpdateAlbumLayoutForSize();
 		};
 		ActualThemeChanged += (s, e) => ApplyHomeLiquidGlass();
-		SizeChanged += (s, e) => _ambientCausticCanvas?.Invalidate();
+		SizeChanged += (s, e) =>
+		{
+			_ambientCausticCanvas?.Invalidate();
+			UpdateAlbumLayoutForSize();
+		};
 	}
 
 	public HomePage(HomeViewModel viewModel)
@@ -452,6 +459,7 @@ public sealed class HomePage : Page, IComponentConnector
 			DataContext = homeViewModel;
 		}
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 			// EnsureStreamingButton();
 		ApplyHomeLiquidGlass();
 		UpdateAlbumToggleBtnIcon();
@@ -459,6 +467,7 @@ public sealed class HomePage : Page, IComponentConnector
 		await ViewModel.InitializeAsync();
 		UpdateAlbumToggleBtnIcon();
 		ApplyHomeLiquidGlass();
+		UpdateAlbumLayoutForSize();
 	}
 
 	private void ApplyHomeLiquidGlass()
@@ -638,7 +647,12 @@ public sealed class HomePage : Page, IComponentConnector
 			AttachSelectorItemLiquidGlass(item);
 			bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
 			LiquidGlassEngine.UpgradeVisualTreeToLiquidGlass(item, isDark);
+			if (sender == _albumMatrixGrid && _currentAlbumMatrixItemWidth > 0)
+			{
+				ApplyAlbumCardResponsiveSize(item, _currentAlbumMatrixItemWidth);
+			}
 		}
+		UpdateAlbumLayoutForSize();
 	}
 
 	private void OnTracksListSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -746,7 +760,7 @@ public sealed class HomePage : Page, IComponentConnector
 	{
 		if (_albumViewToggleBtn != null)
 		{
-			string label = (ViewModel != null && !ViewModel.AlbumGridView) ? "网格视图" : "列表视图";
+			string label = (ViewModel != null && !ViewModel.AlbumGridView) ? Loc.T("网格视图") : Loc.T("列表视图");
 			FluentIconFactory.SetButtonFluentIcon(_albumViewToggleBtn, FluentIconKind.AlbumGrid, label, 16);
 			_albumViewToggleBtn.Tag = "__fluent_upgraded";
 		}
@@ -819,11 +833,282 @@ public sealed class HomePage : Page, IComponentConnector
 		}
 	}
 
+	private double _currentAlbumMatrixItemWidth;
+	private System.Threading.CancellationTokenSource? _searchDebounceCts;
+	private Flyout? _searchSuggestFlyout;
+	private StackPanel? _searchSuggestPanel;
+
+	private static void ApplyAlbumCardResponsiveSize(GridViewItem item, double itemWidth)
+	{
+		item.Width = itemWidth;
+		item.Padding = new Thickness(4);
+		item.Margin = new Thickness(0, 0, 0, 6);
+		item.HorizontalContentAlignment = HorizontalAlignment.Center;
+
+		double coverSize = Math.Max(88.0, itemWidth - 16.0);
+		if (item.ContentTemplateRoot is FrameworkElement root)
+		{
+			root.Width = coverSize;
+			root.HorizontalAlignment = HorizontalAlignment.Center;
+			ResizeAlbumTemplateTree(root, coverSize);
+		}
+	}
+
+	private static void ResizeAlbumTemplateTree(DependencyObject node, double coverSize)
+	{
+		int count = VisualTreeHelper.GetChildrenCount(node);
+		for (int i = 0; i < count; i++)
+		{
+			DependencyObject child = VisualTreeHelper.GetChild(node, i);
+			if (child is Image img)
+			{
+				img.Width = coverSize;
+				img.Height = coverSize;
+				img.Stretch = Stretch.UniformToFill;
+				img.HorizontalAlignment = HorizontalAlignment.Center;
+				img.VerticalAlignment = VerticalAlignment.Center;
+			}
+			else if (child is Border b && ((b.Width > 60 && !double.IsNaN(b.Width)) || b.Child is Image || b.Child is Grid))
+			{
+				b.Width = coverSize;
+				b.Height = coverSize;
+				b.CornerRadius = new CornerRadius(10);
+				b.HorizontalAlignment = HorizontalAlignment.Center;
+				b.Clip = null;
+			}
+			else if (child is TextBlock tb)
+			{
+				tb.MaxWidth = coverSize;
+			}
+			ResizeAlbumTemplateTree(child, coverSize);
+		}
+	}
+
+	private void UpdateAlbumLayoutForSize()
+	{
+		try
+		{
+			static void StretchControl(FrameworkElement? el)
+			{
+				if (el == null) return;
+				el.HorizontalAlignment = HorizontalAlignment.Stretch;
+				el.Width = double.NaN;
+				el.MaxWidth = double.PositiveInfinity;
+				if (el.Parent is FrameworkElement parent)
+				{
+					parent.HorizontalAlignment = HorizontalAlignment.Stretch;
+					parent.Width = double.NaN;
+					parent.MaxWidth = double.PositiveInfinity;
+				}
+			}
+
+			StretchControl(_albumMatrixGrid);
+			StretchControl(_albumStripGrid);
+
+			if (_albumMatrixGrid != null)
+			{
+				double avail = _albumMatrixGrid.ActualWidth > 40
+					? _albumMatrixGrid.ActualWidth - 16.0
+					: Math.Max(320.0, ActualWidth - 48.0);
+				if (avail > 80.0)
+				{
+					int cols = Math.Max(2, (int)Math.Floor((avail + 8.0) / 162.0));
+					double itemWidth = Math.Max(128.0, Math.Floor((avail - (cols - 1) * 6.0) / cols));
+					_currentAlbumMatrixItemWidth = itemWidth;
+
+					if (_albumMatrixGrid.ItemsPanelRoot is ItemsWrapGrid wrapGrid)
+					{
+						wrapGrid.MaximumRowsOrColumns = -1;
+						wrapGrid.Orientation = Orientation.Horizontal;
+						wrapGrid.ItemWidth = itemWidth;
+						foreach (UIElement child in wrapGrid.Children)
+						{
+							if (child is GridViewItem gvi)
+							{
+								ApplyAlbumCardResponsiveSize(gvi, itemWidth);
+							}
+						}
+					}
+				}
+			}
+
+			if (_albumStripGrid != null)
+			{
+				ScrollViewer.SetHorizontalScrollBarVisibility(_albumStripGrid, ScrollBarVisibility.Auto);
+				if (_albumStripGrid.ItemsPanelRoot is ItemsWrapGrid stripWrap)
+				{
+					stripWrap.MaximumRowsOrColumns = -1;
+				}
+			}
+		}
+		catch { }
+	}
+
 	private async void OnSearchKeyDown(object sender, KeyRoutedEventArgs e)
 	{
 		if (e.Key == VirtualKey.Enter)
 		{
+			_searchDebounceCts?.Cancel();
+			_searchSuggestFlyout?.Hide();
+			if (_searchBox != null)
+			{
+				ViewModel.SearchText = _searchBox.Text ?? string.Empty;
+			}
 			await ViewModel.SearchCommand.ExecuteAsync(null);
+		}
+		else if (e.Key == VirtualKey.Escape)
+		{
+			_searchSuggestFlyout?.Hide();
+		}
+	}
+
+	private async void OnSearchTextChanged(object sender, TextChangedEventArgs e)
+	{
+		if (_searchBox == null) return;
+		string query = _searchBox.Text ?? string.Empty;
+		_searchDebounceCts?.Cancel();
+		_searchDebounceCts = new System.Threading.CancellationTokenSource();
+		var ct = _searchDebounceCts.Token;
+
+		try
+		{
+			await Task.Delay(150, ct);
+		}
+		catch (OperationCanceledException)
+		{
+			return;
+		}
+		if (ct.IsCancellationRequested) return;
+
+		ViewModel.SearchText = query;
+		await ViewModel.SearchCommand.ExecuteAsync(null);
+
+		if (string.IsNullOrWhiteSpace(query))
+		{
+			_searchSuggestFlyout?.Hide();
+			return;
+		}
+
+		ShowSearchCandidatesFlyout(query);
+	}
+
+	private void ShowSearchCandidatesFlyout(string query)
+	{
+		if (_searchBox == null || this.XamlRoot == null) return;
+		var candidates = ViewModel.GetSearchCandidates(query, maxPerGroup: 4);
+		if (candidates.Count == 0)
+		{
+			_searchSuggestFlyout?.Hide();
+			return;
+		}
+
+		if (_searchSuggestFlyout == null)
+		{
+			_searchSuggestPanel = new StackPanel { Spacing = 4, Width = Math.Max(320, _searchBox.ActualWidth) };
+			var scroll = new ScrollViewer
+			{
+				Content = _searchSuggestPanel,
+				MaxHeight = 360,
+				VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+			};
+			_searchSuggestFlyout = new Flyout
+			{
+				Content = scroll,
+				Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.BottomEdgeAlignedLeft,
+				AllowFocusOnInteraction = false,
+				ShouldConstrainToRootBounds = false
+			};
+		}
+
+		_searchSuggestPanel!.Children.Clear();
+		_searchSuggestPanel.Width = Math.Max(320, _searchBox.ActualWidth);
+		bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+
+		foreach (var cand in candidates)
+		{
+			var btn = new Button
+			{
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				HorizontalContentAlignment = HorizontalAlignment.Stretch,
+				Padding = new Thickness(10, 7, 10, 7),
+				CornerRadius = new CornerRadius(8),
+				Background = new SolidColorBrush(Colors.Transparent),
+				BorderThickness = new Thickness(0)
+			};
+
+			var row = new Grid { ColumnSpacing = 10 };
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+			row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+			Windows.UI.Color badgeColor = cand.Kind switch
+			{
+				"专辑" => Windows.UI.Color.FromArgb(255, 16, 185, 129),
+				"艺术家" => Windows.UI.Color.FromArgb(255, 245, 158, 11),
+				_ => Windows.UI.Color.FromArgb(255, 14, 165, 233)
+			};
+			var badge = new Border
+			{
+				CornerRadius = new CornerRadius(5),
+				Padding = new Thickness(6, 2, 6, 2),
+				VerticalAlignment = VerticalAlignment.Center,
+				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(36, badgeColor.R, badgeColor.G, badgeColor.B)),
+				Child = new TextBlock
+				{
+					Text = Loc.T(cand.Kind),
+					FontSize = 11,
+					FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+					Foreground = new SolidColorBrush(badgeColor)
+				}
+			};
+			Grid.SetColumn(badge, 0);
+			row.Children.Add(badge);
+
+			var textStack = new StackPanel { Spacing = 1 };
+			textStack.Children.Add(new TextBlock
+			{
+				Text = cand.Title,
+				FontSize = 13,
+				FontWeight = Microsoft.UI.Text.FontWeights.Medium,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				Foreground = new SolidColorBrush(isDark ? Colors.White : Windows.UI.Color.FromArgb(255, 15, 23, 42))
+			});
+			textStack.Children.Add(new TextBlock
+			{
+				Text = cand.Subtitle,
+				FontSize = 11,
+				Opacity = 0.7,
+				TextTrimming = TextTrimming.CharacterEllipsis,
+				Foreground = new SolidColorBrush(isDark ? Windows.UI.Color.FromArgb(255, 203, 213, 225) : Windows.UI.Color.FromArgb(255, 71, 85, 105))
+			});
+			Grid.SetColumn(textStack, 1);
+			row.Children.Add(textStack);
+
+			btn.Content = row;
+			btn.Click += async (_, _) =>
+			{
+				_searchSuggestFlyout?.Hide();
+				if (cand.Track != null)
+				{
+					ViewModel.PlayTrack(cand.Track);
+				}
+				else if (cand.Album != null)
+				{
+					ViewModel.SetAlbumFilter(cand.Album.Name);
+				}
+				else if (!string.IsNullOrWhiteSpace(cand.ArtistName))
+				{
+					_searchDebounceCts?.Cancel();
+					if (_searchBox != null) _searchBox.Text = cand.ArtistName;
+					ViewModel.SearchText = cand.ArtistName;
+					await ViewModel.SearchCommand.ExecuteAsync(null);
+				}
+			};
+			_searchSuggestPanel.Children.Add(btn);
+		}
+
+		if (!_searchSuggestFlyout.IsOpen)
+		{
+			_searchSuggestFlyout.ShowAt(_searchBox);
 		}
 	}
 
@@ -853,6 +1138,7 @@ public sealed class HomePage : Page, IComponentConnector
 	{
 		ViewModel.ToggleAlbumViewCommand.Execute(null);
 		UpdateAlbumToggleBtnIcon();
+		DispatcherQueue?.TryEnqueue(() => UpdateAlbumLayoutForSize());
 	}
 
 	private void OnTrackRightTapped(object sender, RightTappedRoutedEventArgs e)
@@ -861,7 +1147,7 @@ public sealed class HomePage : Page, IComponentConnector
 		Track t = obj as Track;
 		if (t != null)
 		{
-			ShowRemoveMenu((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender), "从库中移除（不删除本地文件）", async () =>
+			ShowRemoveMenu((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender), Loc.T("从库中移除（不删除本地文件）"), async () =>
 			{
 				await ViewModel.RemoveTrackCommand.ExecuteAsync(t);
 			});
@@ -874,7 +1160,7 @@ public sealed class HomePage : Page, IComponentConnector
 		Album a = obj as Album;
 		if (a != null)
 		{
-			ShowRemoveMenu((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender), "从库中移除整张专辑（不删除本地文件）", async () =>
+			ShowRemoveMenu((FrameworkElement)sender, e.GetPosition((FrameworkElement)sender), Loc.T("从库中移除整张专辑（不删除本地文件）"), async () =>
 			{
 				await ViewModel.RemoveAlbumCommand.ExecuteAsync(a);
 			});
@@ -896,10 +1182,10 @@ public sealed class HomePage : Page, IComponentConnector
 		{
 			if (await new ContentDialog
 			{
-				Title = "确认移除",
-				Content = "仅从音乐库中移除，不会删除本地文件。确定继续？",
-				PrimaryButtonText = "移除",
-				CloseButtonText = "取消",
+				Title = Loc.T("确认移除"),
+				Content = Loc.T("仅从音乐库中移除，不会删除本地文件。确定继续？"),
+				PrimaryButtonText = Loc.T("移除"),
+				CloseButtonText = Loc.T("取消"),
 				XamlRoot = XamlRoot,
 				DefaultButton = ContentDialogButton.Close
 			}.ShowAsync() == ContentDialogResult.Primary)
@@ -999,6 +1285,7 @@ public sealed class HomePage : Page, IComponentConnector
 			_albumStripGrid = target.As<GridView>();
 			_albumStripGrid.ItemClick += OnAlbumClick;
 			_albumStripGrid.ContainerContentChanging += OnAlbumGridContainerContentChanging;
+			_albumStripGrid.SizeChanged += (_, _) => UpdateAlbumLayoutForSize();
 			break;
 		case 14:
 		{
@@ -1007,6 +1294,7 @@ public sealed class HomePage : Page, IComponentConnector
 			gridView.ItemClick += OnAlbumClick;
 			gridView.RightTapped += OnAlbumRightTapped;
 			gridView.ContainerContentChanging += OnAlbumGridContainerContentChanging;
+			gridView.SizeChanged += (_, _) => UpdateAlbumLayoutForSize();
 			break;
 		}
 		case 17:
@@ -1016,6 +1304,7 @@ public sealed class HomePage : Page, IComponentConnector
 		case 18:
 			_searchBox = target.As<TextBox>();
 			_searchBox.KeyDown += OnSearchKeyDown;
+			_searchBox.TextChanged += OnSearchTextChanged;
 			break;
 		case 19:
 			_scanFolderBtn = target.As<Button>();
@@ -1071,8 +1360,8 @@ public sealed class HomePage : Page, IComponentConnector
 	{
 		var dialog = new ContentDialog
 		{
-			Title = "FurinaPlayer 流媒体音乐中心",
-			CloseButtonText = "关闭",
+			Title = Loc.T("FurinaPlayer 流媒体音乐中心"),
+			CloseButtonText = Loc.T("关闭"),
 			XamlRoot = this.XamlRoot,
 			CornerRadius = new CornerRadius(16),
 			DefaultButton = ContentDialogButton.Primary
@@ -1082,7 +1371,7 @@ public sealed class HomePage : Page, IComponentConnector
 
 		var tipTb = new TextBlock
 		{
-			Text = "支持输入网络音频直链（HTTP/HTTPS/HLS/M3U8）或直接搜索在线音乐，直通 FurinaPlayer 高保真 DSP 引擎播放。",
+			Text = Loc.T("支持输入网络音频直链（HTTP/HTTPS/HLS/M3U8）或直接搜索在线音乐，直通 FurinaPlayer 高保真 DSP 引擎播放。"),
 			FontSize = 12,
 			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)),
 			TextWrapping = TextWrapping.Wrap
@@ -1092,7 +1381,7 @@ public sealed class HomePage : Page, IComponentConnector
 		var pivot = new Pivot();
 
 		// 1. 在线搜索
-		var searchTab = new PivotItem { Header = "在线曲库搜索" };
+		var searchTab = new PivotItem { Header = Loc.T("在线曲库搜索") };
 		var searchSp = new StackPanel { Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
 
 		var searchBoxGrid = new Grid();
@@ -1101,7 +1390,7 @@ public sealed class HomePage : Page, IComponentConnector
 
 		var queryTb = new TextBox
 		{
-			PlaceholderText = "输入歌曲名、歌手，例如：昔涟、原神、Furina",
+			PlaceholderText = Loc.T("输入歌曲名、歌手，例如：昔涟、原神、Furina"),
 			CornerRadius = new CornerRadius(8)
 		};
 		Grid.SetColumn(queryTb, 0);
@@ -1109,7 +1398,7 @@ public sealed class HomePage : Page, IComponentConnector
 
 		var searchDoBtn = new Button
 		{
-			Content = "搜索",
+			Content = Loc.T("搜索"),
 			Margin = new Thickness(8, 0, 0, 0),
 			CornerRadius = new CornerRadius(8)
 		};
@@ -1130,7 +1419,7 @@ public sealed class HomePage : Page, IComponentConnector
 			string q = queryTb.Text.Trim();
 			if (string.IsNullOrEmpty(q)) return;
 			searchDoBtn.IsEnabled = false;
-			searchDoBtn.Content = "搜索中...";
+			searchDoBtn.Content = Loc.T("搜索中...");
 			try
 			{
 				var list = await ViewModel.SearchStreamingTracksAsync(q);
@@ -1152,7 +1441,7 @@ public sealed class HomePage : Page, IComponentConnector
 					};
 					btnItem.Click += async (s3, e3) =>
 					{
-						if (s3 is Button b && b.Tag is SonicWave.Core.Services.StreamingTrackInfo trackInfo)
+						if (s3 is Button b && b.Tag is FurinaPlayer.Core.Services.StreamingTrackInfo trackInfo)
 						{
 							await ViewModel.PlayStreamingTrackAsync(trackInfo);
 							dialog.Hide();
@@ -1162,41 +1451,41 @@ public sealed class HomePage : Page, IComponentConnector
 				}
 				if (list.Count == 0)
 				{
-					resultsListView.Items.Add(new TextBlock { Text = "未找到匹配在线曲目", Margin = new Thickness(10), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
+					resultsListView.Items.Add(new TextBlock { Text = Loc.T("未找到匹配在线曲目"), Margin = new Thickness(10), Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 100, 116, 139)) });
 				}
 			}
 			finally
 			{
 				searchDoBtn.IsEnabled = true;
-				searchDoBtn.Content = "搜索";
+				searchDoBtn.Content = Loc.T("搜索");
 			}
 		};
 		searchTab.Content = searchSp;
 		pivot.Items.Add(searchTab);
 
 		// 2. 网络直链
-		var urlTab = new PivotItem { Header = "网络音频直链" };
+		var urlTab = new PivotItem { Header = Loc.T("网络音频直链") };
 		var urlSp = new StackPanel { Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
 
 		var urlInput = new TextBox
 		{
-			Header = "音频 URL 直链 (HTTP / HTTPS / M3U8 / RTSP)",
-			PlaceholderText = "https://example.com/audio.mp3 或广播流 URL",
+			Header = Loc.T("音频 URL 直链 (HTTP / HTTPS / M3U8 / RTSP)"),
+			PlaceholderText = Loc.T("https://example.com/audio.mp3 或广播流 URL"),
 			CornerRadius = new CornerRadius(8)
 		};
 		urlSp.Children.Add(urlInput);
 
 		var titleInput = new TextBox
 		{
-			Header = "曲目名称 (可选)",
-			PlaceholderText = "例如：网络实时广播",
+			Header = Loc.T("曲目名称 (可选)"),
+			PlaceholderText = Loc.T("例如：网络实时广播"),
 			CornerRadius = new CornerRadius(8)
 		};
 		urlSp.Children.Add(titleInput);
 
 		var playUrlBtn = new Button
 		{
-			Content = "立即播放网络直链",
+			Content = Loc.T("立即播放网络直链"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8),
 			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)),

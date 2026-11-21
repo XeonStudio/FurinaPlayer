@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.Foundation;
 using Windows.UI;
@@ -61,7 +62,8 @@ public enum FluentIconKind
     WindowClose,
     ChevronUp,
     ChevronDown,
-    EditResize
+    EditResize,
+    FormatConverter
 }
 
 /// <summary>
@@ -206,6 +208,9 @@ public static class FluentIconFactory
             case FluentIconKind.RefreshReset:
                 BuildRefreshReset(root, s);
                 break;
+            case FluentIconKind.FormatConverter:
+                BuildFormatConverter(root, s);
+                break;
             case FluentIconKind.Save:
                 BuildSave(root, s);
                 break;
@@ -249,6 +254,20 @@ public static class FluentIconFactory
 
     private static void BuildAppLogo(Grid root, double s)
     {
+        string logoPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "AppLogo.png");
+        if (System.IO.File.Exists(logoPath))
+        {
+            var img = new Image
+            {
+                Width = s,
+                Height = s,
+                Stretch = Stretch.Uniform,
+                Source = new BitmapImage(new Uri(logoPath))
+            };
+            root.Children.Add(img);
+            return;
+        }
+
         root.Children.Add(new Border
         {
             Width = s * 0.78,
@@ -1692,5 +1711,29 @@ public static class FluentIconFactory
         }
 
         return null;
+    }
+
+    private static void BuildFormatConverter(Grid root, double s)
+    {
+        var plate = new Border
+        {
+            Width = s,
+            Height = s,
+            CornerRadius = new CornerRadius(s * 0.28),
+            Background = Grad(14, 165, 233, 99, 102, 241),
+            BorderBrush = Solid(255, 255, 255, 65),
+            BorderThickness = new Thickness(1)
+        };
+        root.Children.Add(plate);
+
+        var icon = new FontIcon
+        {
+            Glyph = "\uE8AB",
+            FontSize = Math.Max(10, s * 0.54),
+            Foreground = Solid(255, 255, 255),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        root.Children.Add(icon);
     }
 }

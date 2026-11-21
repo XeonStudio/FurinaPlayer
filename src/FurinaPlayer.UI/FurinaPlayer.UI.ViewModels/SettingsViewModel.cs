@@ -11,9 +11,9 @@ using CommunityToolkit.Mvvm.Input;
 using FurinaPlayer.UI.Controls;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using SonicWave.Audio.Output;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio.Output;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.ViewModels;
@@ -41,16 +41,16 @@ public class SettingsViewModel : ObservableObject
 	private ObservableCollection<AudioDeviceInfo> asioDevices = new ObservableCollection<AudioDeviceInfo>();
 
 	[ObservableProperty]
-	private string outputModeText = "软件解码";
+	private string outputModeText = Loc.T("软件解码");
 
 	[ObservableProperty]
-	private string themeText = "跟随系统";
+	private string themeText = Loc.T("跟随系统");
 
 	[ObservableProperty]
 	private string materialText = "Mica";
 
 	[ObservableProperty]
-	private string wallpaperText = "Bing 每日壁纸";
+	private string wallpaperText = Loc.T("Bing 每日壁纸");
 
 	[ObservableProperty]
 	private string musicFoldersText = string.Empty;
@@ -66,7 +66,7 @@ public class SettingsViewModel : ObservableObject
 	private string lyricFontFilePath = string.Empty;
 
 	[ObservableProperty]
-	private string albumArtStatus = "未执行（手动触发，每分钟最多 2 次）";
+	private string albumArtStatus = Loc.T("未执行（手动触发，每分钟最多 2 次）");
 
 	[ObservableProperty]
 	[NotifyPropertyChangedFor("CanFetchAlbumArt")]
@@ -99,7 +99,7 @@ public class SettingsViewModel : ObservableObject
 	private int crossfadeSeconds = 3;
 
 	[ObservableProperty]
-	private string eqPresetName = "平坦";
+	private string eqPresetName = Loc.T("平坦");
 	private double uiScale = 1.0;
 	public double UiScale
 	{
@@ -197,7 +197,7 @@ public class SettingsViewModel : ObservableObject
 			{
 				return string.Empty;
 			}
-			return $"下次可刷新：{AlbumArtCooldownSeconds} 秒后";
+			return Loc.F("下次可刷新：{0} 秒后", AlbumArtCooldownSeconds);
 		}
 	}
 
@@ -644,7 +644,15 @@ public class SettingsViewModel : ObservableObject
 	public event Action<bool>? PreventSystemSleepChanged;
 	public event Action? AppearanceChanged;
 
-	public string EchoThemeMode => _settings.EchoThemeMode ?? "liquid-glass";
+	public event Action<bool>? PetVisibilityChanged;
+	public event Action<int>? PetScaleChanged;
+	public event Action? PetPositionResetRequested;
+	public event Action<string, string?>? PetCustomGifChanged;
+	public event Action<bool>? PetLyricsChanged;
+	public event Action<int>? PetGifSpeedChanged;
+	public event Action<int>? PetBubbleScaleChanged;
+
+	public string FurinaPlayerThemeMode => _settings.FurinaPlayerThemeMode ?? "liquid-glass";
 	public bool AcrylicKeepTranslucentWhenUnfocused => _settings.AcrylicKeepTranslucentWhenUnfocused;
 	public int AcrylicOpacityPercent => Math.Clamp(_settings.AcrylicOpacityPercent, 0, 100);
 	public bool ScheduledDarkModeEnabled => _settings.ScheduledDarkModeEnabled;
@@ -682,19 +690,19 @@ public class SettingsViewModel : ObservableObject
 			Track track = await _albumArt.FindMissingCoverTrackAsync();
 			if (track == null)
 			{
-				AlbumArtStatus = "曲库中没有缺少封面的歌曲";
+				AlbumArtStatus = Loc.T("曲库中没有缺少封面的歌曲");
 				return;
 			}
-			AlbumArtStatus = "正在为《" + track.DisplayTitle + "》搜索封面…";
+			AlbumArtStatus = Loc.F("正在为《{0}》搜索封面…", track.DisplayTitle);
 			if (!(await AlbumArtService.WaitForSlotAsync(TimeSpan.FromSeconds(3.0))))
 			{
-				AlbumArtStatus = "已达限流上限，请稍后再试：" + AlbumArtService.RateStatusText();
+				AlbumArtStatus = Loc.F("已达限流上限，请稍后再试：{0}", AlbumArtService.RateStatusText());
 				return;
 			}
 			(bool, string, Track) tuple = await _albumArt.FetchAndApplyCoverAsync(track);
 			bool item = tuple.Item1;
 			string item2 = tuple.Item2;
-			AlbumArtStatus = (item ? ("封面已添加：《" + track.DisplayTitle + "》") : item2);
+			AlbumArtStatus = (item ? Loc.F("封面已添加：《{0}》", track.DisplayTitle) : item2);
 			if (item)
 			{
 				AlbumCoverUpdated?.Invoke();
@@ -702,7 +710,7 @@ public class SettingsViewModel : ObservableObject
 		}
 		catch (Exception ex)
 		{
-			AlbumArtStatus = "操作异常：" + ex.Message;
+			AlbumArtStatus = Loc.F("操作异常：{0}", ex.Message);
 		}
 		finally
 		{
@@ -711,6 +719,113 @@ public class SettingsViewModel : ObservableObject
 		}
 	}
 
+	private System.Threading.CancellationTokenSource? _integrityCts;
+
+	private bool _isCheckingLibraryIntegrity;
+	public bool IsCheckingLibraryIntegrity
+	{
+		get => _isCheckingLibraryIntegrity;
+		private set => SetProperty(ref _isCheckingLibraryIntegrity, value);
+	}
+
+	private double _libraryIntegrityProgress;
+	public double LibraryIntegrityProgress
+	{
+		get => _libraryIntegrityProgress;
+		private set => SetProperty(ref _libraryIntegrityProgress, value);
+	}
+
+	private string _libraryIntegrityStatus = Loc.T("尚未扫描（多线程并行检查元数据、内嵌歌词与专辑封面）");
+	public string LibraryIntegrityStatus
+	{
+		get => _libraryIntegrityStatus;
+		private set => SetProperty(ref _libraryIntegrityStatus, value);
+	}
+
+	public void CancelLibraryIntegrityScan()
+	{
+		_integrityCts?.Cancel();
+	}
+
+	public async Task ScanLibraryIntegrityAsync()
+	{
+		if (IsCheckingLibraryIntegrity || _albumArt == null)
+		{
+			return;
+		}
+		_integrityCts?.Dispose();
+		_integrityCts = new System.Threading.CancellationTokenSource();
+		var ct = _integrityCts.Token;
+
+		IsCheckingLibraryIntegrity = true;
+		LibraryIntegrityProgress = 0;
+		LibraryIntegrityStatus = Loc.T("正在多线程检查曲库文件完整性…");
+
+		try
+		{
+			var integritySvc = new LibraryIntegrityService(_albumArt.Library);
+			var progress = new Progress<LibraryIntegrityProgress>(p =>
+			{
+				void UpdateUi()
+				{
+					LibraryIntegrityProgress = p.Percent;
+					LibraryIntegrityStatus = Loc.F(
+						"进度 {0}/{1} ({2:0}%) · 正在检查：{3} | 补齐 元数据:{4} 歌词:{5} 封面:{6}",
+						p.ProcessedCount,
+						p.TotalCount,
+						p.Percent,
+						p.CurrentTrackTitle,
+						p.RepairedMetadataCount,
+						p.RepairedLyricsCount,
+						p.RepairedCoverCount);
+				}
+
+				if (_uiDispatcher != null) _uiDispatcher.TryEnqueue(UpdateUi);
+				else UpdateUi();
+			});
+
+			LibraryIntegrityReport report = await integritySvc.CheckAndRepairLibraryAsync(progress, maxConcurrency: 4, ct);
+			if (report.TotalCount == 0)
+			{
+				LibraryIntegrityStatus = Loc.T("曲库内暂无可检查的音乐文件");
+			}
+			else if (report.Cancelled)
+			{
+				LibraryIntegrityStatus = Loc.F(
+					"完整性检查已取消（已处理 {0}/{1} 首，补齐 元数据 {2} / 歌词 {3} / 封面 {4}）",
+					report.ProcessedCount,
+					report.TotalCount,
+					report.RepairedMetadataCount,
+					report.RepairedLyricsCount,
+					report.RepairedCoverCount);
+			}
+			else
+			{
+				LibraryIntegrityProgress = 100.0;
+				LibraryIntegrityStatus = Loc.F(
+					"完整性检查完成（共 {0} 首）：完整 {1} 首，补齐 元数据 {2} / 歌词 {3} / 封面 {4}，失败 {5} 首",
+					report.TotalCount,
+					report.AlreadyCompleteCount,
+					report.RepairedMetadataCount,
+					report.RepairedLyricsCount,
+					report.RepairedCoverCount,
+					report.FailedCount);
+			}
+
+			if (report.RepairedCoverCount > 0 || report.RepairedMetadataCount > 0)
+			{
+				AlbumCoverUpdated?.Invoke();
+			}
+		}
+		catch (Exception ex)
+		{
+			LibraryIntegrityStatus = Loc.F("操作异常：{0}", ex.Message);
+		}
+		finally
+		{
+			IsCheckingLibraryIntegrity = false;
+		}
+	}
 	private void StartAlbumArtCooldown()
 	{
 		try
@@ -762,30 +877,30 @@ public class SettingsViewModel : ObservableObject
 		MusicFoldersText = string.Join("\n", _settings.MusicFolders);
 		OutputModeText = _settings.OutputMode switch
 		{
-			OutputMode.WasapiShared => "WASAPI 共享", 
-			OutputMode.WasapiExclusive => "WASAPI 独占", 
+			OutputMode.WasapiShared => Loc.T("WASAPI 共享"), 
+			OutputMode.WasapiExclusive => Loc.T("WASAPI 独占"), 
 			OutputMode.Asio => "ASIO", 
-			_ => "软件解码", 
+			_ => Loc.T("软件解码"), 
 		};
 		ThemeText = _settings.Theme switch
 		{
-			ThemeMode.Dark => "深色", 
-			ThemeMode.Light => "浅色", 
-			_ => "跟随系统", 
+			ThemeMode.Dark => Loc.T("深色"), 
+			ThemeMode.Light => Loc.T("浅色"), 
+			_ => Loc.T("跟随系统"), 
 		};
 		MaterialText = _settings.BackgroundMaterial switch
 		{
 			BackgroundMaterial.MicaAlt => "Mica Alt", 
-			BackgroundMaterial.Acrylic => "亚克力", 
-			BackgroundMaterial.LiquidGlass => "液态玻璃", 
-			BackgroundMaterial.LiquidGlassDwm => "液态玻璃（新版·重启生效）", 
+			BackgroundMaterial.Acrylic => Loc.T("亚克力"), 
+			BackgroundMaterial.LiquidGlass => Loc.T("液态玻璃"), 
+			BackgroundMaterial.LiquidGlassDwm => Loc.T("液态玻璃（新版·重启生效）"), 
 			_ => "Mica", 
 		};
 		WallpaperText = _settings.WallpaperSource switch
 		{
-			WallpaperSource.LocalImage => "本地图片", 
-			WallpaperSource.SolidColor => "纯色", 
-			_ => "Bing 每日壁纸", 
+			WallpaperSource.LocalImage => Loc.T("本地图片"), 
+			WallpaperSource.SolidColor => Loc.T("纯色"), 
+			_ => Loc.T("Bing 每日壁纸"), 
 		};
 		LocalWallpaperPath = _settings.LocalWallpaperPath ?? string.Empty;
 		LyricFontFamily = _settings.LyricFontFamily ?? string.Empty;
@@ -794,11 +909,11 @@ public class SettingsViewModel : ObservableObject
 		SelectedAsioDriver = _settings.OutputDeviceId ?? string.Empty;
 		if (_settings.EqGains.All((double g) => g == 0.0))
 		{
-			EqPresetName = "平坦";
+			EqPresetName = Loc.T("平坦");
 		}
 		else
 		{
-			EqPresetName = "自定义";
+			EqPresetName = Loc.T("自定义");
 		}
 		UiScale = _settings.UiScale > 0.5 ? _settings.UiScale : 1.0;
 		CloseToTray = _settings.CloseToTray;
@@ -832,13 +947,13 @@ public class SettingsViewModel : ObservableObject
 	{
 		_settings.Theme = theme;
 		_settings.Theme = theme;
-		_settings.EchoThemeMode = theme switch
+		_settings.FurinaPlayerThemeMode = theme switch
 		{
 			ThemeMode.Dark => "dark",
 			ThemeMode.Light => "light",
 			_ => "system"
 		};
-		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		LiquidGlassEngine.ActiveThemeMode = _settings.FurinaPlayerThemeMode;
 		_settingsService.Save(_settings);
 		ThemeChanged?.Invoke(theme);
 		AppearanceChanged?.Invoke();
@@ -850,21 +965,21 @@ public class SettingsViewModel : ObservableObject
 		MaterialText = material switch
 		{
 			BackgroundMaterial.MicaAlt => "Mica Alt", 
-			BackgroundMaterial.Acrylic => "亚克力", 
-			BackgroundMaterial.LiquidGlass => "液态玻璃", 
-			BackgroundMaterial.LiquidGlassDwm => "液态玻璃（新版）", 
+			BackgroundMaterial.Acrylic => Loc.T("亚克力"), 
+			BackgroundMaterial.LiquidGlass => Loc.T("液态玻璃"), 
+			BackgroundMaterial.LiquidGlassDwm => Loc.T("液态玻璃（新版）"), 
 			_ => "Mica", 
 		};
 		_settingsService.Save(_settings);
 		if (material == BackgroundMaterial.Acrylic)
 		{
-			_settings.EchoThemeMode = "acrylic";
+			_settings.FurinaPlayerThemeMode = "acrylic";
 		}
 		else if (material == BackgroundMaterial.LiquidGlass || material == BackgroundMaterial.LiquidGlassDwm)
 		{
-			_settings.EchoThemeMode = "liquid-glass";
+			_settings.FurinaPlayerThemeMode = "liquid-glass";
 		}
-		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		LiquidGlassEngine.ActiveThemeMode = _settings.FurinaPlayerThemeMode;
 		_settingsService.Save(_settings);
 		MaterialChanged?.Invoke(material);
 		AppearanceChanged?.Invoke();
@@ -960,6 +1075,17 @@ public class SettingsViewModel : ObservableObject
 		_deviceManager.Dispose();
 	}
 
+	public string Language => Loc.NormalizeLanguage(_settings.Language);
+
+	public void SetLanguage(string languageCode)
+	{
+		string norm = Loc.NormalizeLanguage(languageCode);
+		_settings.Language = norm;
+		_settingsService.Save(_settings);
+		OnPropertyChanged(nameof(Language));
+		Loc.CurrentLanguage = norm;
+	}
+
 	public void SetUiScale(double scale)
 	{
 		UiScale = scale;
@@ -993,9 +1119,9 @@ public class SettingsViewModel : ObservableObject
 
 	public void SyncLiquidGlassEngineFromSettings()
 	{
-		if (string.IsNullOrWhiteSpace(_settings.EchoThemeMode))
+		if (string.IsNullOrWhiteSpace(_settings.FurinaPlayerThemeMode))
 		{
-			_settings.EchoThemeMode = _settings.BackgroundMaterial switch
+			_settings.FurinaPlayerThemeMode = _settings.BackgroundMaterial switch
 			{
 				BackgroundMaterial.Acrylic => "acrylic",
 				BackgroundMaterial.LiquidGlass or BackgroundMaterial.LiquidGlassDwm => "liquid-glass",
@@ -1008,7 +1134,7 @@ public class SettingsViewModel : ObservableObject
 			};
 		}
 		LiquidGlassEngine.LoadCustomPresetsFromJson(_settings.CustomThemePresetsJson);
-		LiquidGlassEngine.ActiveThemeMode = _settings.EchoThemeMode;
+		LiquidGlassEngine.ActiveThemeMode = _settings.FurinaPlayerThemeMode;
 		LiquidGlassEngine.AcrylicOpacityScale = Math.Clamp(_settings.AcrylicOpacityPercent / 100.0, 0.0, 1.0);
 		LiquidGlassEngine.KeepTranslucentWhenUnfocused = _settings.AcrylicKeepTranslucentWhenUnfocused;
 		LiquidGlassEngine.RainbowModeEnabled = _settings.RainbowModeEnabled;
@@ -1016,10 +1142,10 @@ public class SettingsViewModel : ObservableObject
 		LiquidGlassEngine.SelectPreset(_settings.SelectedThemePresetId);
 	}
 
-	public void SetEchoThemeMode(string mode)
+	public void SetFurinaPlayerThemeMode(string mode)
 	{
 		if (string.IsNullOrWhiteSpace(mode)) mode = "liquid-glass";
-		_settings.EchoThemeMode = mode;
+		_settings.FurinaPlayerThemeMode = mode;
 		LiquidGlassEngine.ActiveThemeMode = mode;
 
 		switch (mode)
@@ -1114,19 +1240,19 @@ public class SettingsViewModel : ObservableObject
 		LiquidGlassEngine.SelectPreset(presetId);
 		var preset = LiquidGlassEngine.ActivePreset;
 		_settings.SelectedThemePresetId = preset.Id;
-		if (_settings.EchoThemeMode == "ambient" || _settings.EchoThemeMode == "acrylic" || _settings.EchoThemeMode == "liquid-glass")
+		if (_settings.FurinaPlayerThemeMode == "ambient" || _settings.FurinaPlayerThemeMode == "acrylic" || _settings.FurinaPlayerThemeMode == "liquid-glass")
 		{
 			_settings.Theme = preset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
 		}
-		else if (preset.IsDark && _settings.EchoThemeMode == "light")
+		else if (preset.IsDark && _settings.FurinaPlayerThemeMode == "light")
 		{
-			_settings.EchoThemeMode = "dark";
+			_settings.FurinaPlayerThemeMode = "dark";
 			_settings.Theme = ThemeMode.Dark;
 			LiquidGlassEngine.ActiveThemeMode = "dark";
 		}
-		else if (!preset.IsDark && _settings.EchoThemeMode == "dark")
+		else if (!preset.IsDark && _settings.FurinaPlayerThemeMode == "dark")
 		{
-			_settings.EchoThemeMode = "light";
+			_settings.FurinaPlayerThemeMode = "light";
 			_settings.Theme = ThemeMode.Light;
 			LiquidGlassEngine.ActiveThemeMode = "light";
 		}
@@ -1135,7 +1261,7 @@ public class SettingsViewModel : ObservableObject
 		AppearanceChanged?.Invoke();
 	}
 
-	public EchoThemePreset GenerateAndApplyRandomPreset()
+	public FurinaPlayerThemePreset GenerateAndApplyRandomPreset()
 	{
 		bool preferDark = _settings.Theme == ThemeMode.Dark || LiquidGlassEngine.ActivePreset.IsDark;
 		var preset = LiquidGlassEngine.GenerateRandomPreset(preferDark);
@@ -1145,12 +1271,12 @@ public class SettingsViewModel : ObservableObject
 		return preset;
 	}
 
-	public EchoThemePreset CreateCustomThemePreset(string name, string stageTopHex, string stageMidHex, string accentHex, bool isDark)
+	public FurinaPlayerThemePreset CreateCustomThemePreset(string name, string stageTopHex, string stageMidHex, string accentHex, bool isDark)
 	{
 		var preset = LiquidGlassEngine.AddCustomPreset(name, stageTopHex, stageMidHex, accentHex, isDark);
 		_settings.CustomThemePresetsJson = LiquidGlassEngine.SerializeCustomPresets();
 		_settings.SelectedThemePresetId = preset.Id;
-		if (_settings.EchoThemeMode == "ambient" || _settings.EchoThemeMode == "acrylic" || _settings.EchoThemeMode == "liquid-glass")
+		if (_settings.FurinaPlayerThemeMode == "ambient" || _settings.FurinaPlayerThemeMode == "acrylic" || _settings.FurinaPlayerThemeMode == "liquid-glass")
 		{
 			_settings.Theme = preset.IsDark ? ThemeMode.Dark : ThemeMode.Light;
 		}
@@ -1192,5 +1318,143 @@ public class SettingsViewModel : ObservableObject
 	{
 		_settings.ThemePresetsExpanded = expanded;
 		_settingsService.Save(_settings);
+	}
+
+	public bool PetEnabled
+	{
+		get => _settings.PetEnabled;
+		set
+		{
+			if (_settings.PetEnabled != value)
+			{
+				_settings.PetEnabled = value;
+				OnPropertyChanged(nameof(PetEnabled));
+				OnPropertyChanged(nameof(PetStatusText));
+				_settingsService.Save(_settings);
+				PetVisibilityChanged?.Invoke(value);
+			}
+		}
+	}
+
+	public int PetScalePercent
+	{
+		get => Math.Clamp(_settings.PetScalePercent, 60, 180);
+		set
+		{
+			int clamped = Math.Clamp(value, 60, 180);
+			if (_settings.PetScalePercent != clamped)
+			{
+				_settings.PetScalePercent = clamped;
+				OnPropertyChanged(nameof(PetScalePercent));
+				_settingsService.Save(_settings);
+				PetScaleChanged?.Invoke(clamped);
+			}
+		}
+	}
+
+	public string PetStatusText => PetEnabled ? Loc.T("已显示") : Loc.T("已隐藏");
+
+	public string? PetCustomIdleGifPath => _settings.PetCustomIdleGifPath;
+	public string? PetCustomGrooveGifPath => _settings.PetCustomGrooveGifPath;
+	public string? PetCustomClickGifPath => _settings.PetCustomClickGifPath;
+
+	public void TogglePetVisibility()
+	{
+		PetEnabled = !PetEnabled;
+	}
+
+	public bool PetLyricsEnabled
+	{
+		get => _settings.PetLyricsEnabled;
+		set
+		{
+			if (_settings.PetLyricsEnabled != value)
+			{
+				_settings.PetLyricsEnabled = value;
+				OnPropertyChanged(nameof(PetLyricsEnabled));
+				_settingsService.Save(_settings);
+				PetLyricsChanged?.Invoke(value);
+			}
+		}
+	}
+
+	public void TogglePetLyrics()
+	{
+		PetLyricsEnabled = !PetLyricsEnabled;
+	}
+
+	public int PetGifSpeedPercent
+	{
+		get => Math.Clamp(_settings.PetGifSpeedPercent, 50, 200);
+		set
+		{
+			int clamped = Math.Clamp(value, 50, 200);
+			if (_settings.PetGifSpeedPercent != clamped)
+			{
+				_settings.PetGifSpeedPercent = clamped;
+				OnPropertyChanged(nameof(PetGifSpeedPercent));
+				_settingsService.Save(_settings);
+				PetGifSpeedChanged?.Invoke(clamped);
+			}
+		}
+	}
+
+	public int PetBubbleScalePercent
+	{
+		get => Math.Clamp(_settings.PetBubbleScalePercent, 60, 180);
+		set
+		{
+			int clamped = Math.Clamp(value, 60, 180);
+			if (_settings.PetBubbleScalePercent != clamped)
+			{
+				_settings.PetBubbleScalePercent = clamped;
+				OnPropertyChanged(nameof(PetBubbleScalePercent));
+				_settingsService.Save(_settings);
+				PetBubbleScaleChanged?.Invoke(clamped);
+			}
+		}
+	}
+
+	public void ResetPetPosition()
+	{
+		_settings.PetLeft = null;
+		_settings.PetTop = null;
+		_settingsService.Save(_settings);
+		PetPositionResetRequested?.Invoke();
+	}
+
+	public void SavePetPosition(int left, int top)
+	{
+		if (_settings.PetLeft == left && _settings.PetTop == top)
+			return;
+		_settings.PetLeft = left;
+		_settings.PetTop = top;
+		_settingsService.Save(_settings);
+	}
+
+	public void SetCustomPetGif(string kind, string? path)
+	{
+		string normalizedPath = string.IsNullOrWhiteSpace(path) ? string.Empty : path.Trim();
+		string? finalPath = string.IsNullOrEmpty(normalizedPath) ? null : normalizedPath;
+		string key = (kind ?? string.Empty).Trim().ToLowerInvariant();
+		switch (key)
+		{
+			case "idle":
+				_settings.PetCustomIdleGifPath = finalPath;
+				OnPropertyChanged(nameof(PetCustomIdleGifPath));
+				break;
+			case "groove":
+				_settings.PetCustomGrooveGifPath = finalPath;
+				OnPropertyChanged(nameof(PetCustomGrooveGifPath));
+				break;
+			case "click":
+				_settings.PetCustomClickGifPath = finalPath;
+				OnPropertyChanged(nameof(PetCustomClickGifPath));
+				break;
+			default:
+				return;
+		}
+		_settingsService.Save(_settings);
+		PetCustomGifChanged?.Invoke(key, finalPath);
 	}
 }

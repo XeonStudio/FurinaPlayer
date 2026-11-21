@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -16,7 +16,8 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Web.WebView2.Core;
 using SkiaSharp;
-using SonicWave.Core.Models;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.System;
 using Windows.UI;
@@ -76,12 +77,18 @@ public sealed partial class StreamingPage : Page
 	private Button? _loadMoreBtn;
 	private ComboBox? _qualityCombo;
 	private bool _refreshResultsQueued;
+	private Border? _albumDetailHeaderCard;
+	private Grid? _tableHeaderGrid;
 	private StreamingViewModel? _boundViewModel;
 
 	public StreamingPage()
 	{
 		BuildLayout();
-		Loaded += (s, e) => ApplyStreamingLiquidGlass();
+		Loaded += (s, e) =>
+		{
+			ApplyStreamingLiquidGlass();
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
+		};
 		ActualThemeChanged += (s, e) => ApplyStreamingLiquidGlass();
 		SizeChanged += (s, e) => SyncMainAreaWidth();
 	}
@@ -102,7 +109,7 @@ public sealed partial class StreamingPage : Page
 			}
 
 			bool invert = LiquidGlassEngine.InvertModeEnabled;
-			string mode = settings?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			string mode = settings?.FurinaPlayerThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
 
 			if (string.Equals(mode, "dark", StringComparison.OrdinalIgnoreCase))
 			{
@@ -343,6 +350,7 @@ public sealed partial class StreamingPage : Page
 			BindViewModel();
 		}
 		ApplyStreamingLiquidGlass();
+		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 	}
 
 	private void BuildLayout()
@@ -373,7 +381,7 @@ public sealed partial class StreamingPage : Page
 		var platTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
 		_platformHeaderTb = new TextBlock
 		{
-			Text = "流媒体平台",
+			Text = Loc.T("流媒体平台"),
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = StreamingTextSubHeaderBrush
@@ -446,7 +454,7 @@ public sealed partial class StreamingPage : Page
 		var recTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
 		_recentHeaderTb = new TextBlock
 		{
-			Text = "最近搜索",
+			Text = Loc.T("最近搜索"),
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = StreamingTextSubHeaderBrush
@@ -472,7 +480,7 @@ public sealed partial class StreamingPage : Page
 
 		_clearRecentBtn = new Button
 		{
-			Content = "清空",
+			Content = Loc.T("清空"),
 			FontSize = 11,
 			Padding = new Thickness(6, 2, 6, 2),
 			Background = new SolidColorBrush(Colors.Transparent),
@@ -511,7 +519,7 @@ public sealed partial class StreamingPage : Page
 		// 2.1 主标题
 		_pageTitleTb = new TextBlock
 		{
-			Text = "流媒体音乐",
+			Text = Loc.T("流媒体音乐"),
 			FontSize = 22,
 			FontWeight = FontWeights.ExtraBold,
 			Foreground = StreamingTextPrimaryBrush
@@ -548,7 +556,7 @@ public sealed partial class StreamingPage : Page
 
 		_searchTextBox = new TextBox
 		{
-			PlaceholderText = "输入歌曲名、歌手、原声带或直接粘贴网络直链 (HTTP/HTTPS/M3U8)...",
+			PlaceholderText = Loc.T("输入歌曲名、歌手、原声带或直接粘贴网络直链 (HTTP/HTTPS/M3U8)..."),
 			Text = "原神",
 			FontSize = 14,
 			BorderThickness = new Thickness(0),
@@ -580,7 +588,7 @@ public sealed partial class StreamingPage : Page
 			Padding = new Thickness(0),
 			Content = new FontIcon { Glyph = "\uE721", FontSize = 14, Foreground = new SolidColorBrush(Colors.White) }
 		};
-		ToolTipService.SetToolTip(searchDoBtn, "检索在线曲目 (Enter)");
+		ToolTipService.SetToolTip(searchDoBtn, Loc.T("检索在线曲目 (Enter)"));
 		searchDoBtn.PointerEntered += (s, e) => searchDoBtn.Background = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229));
 		searchDoBtn.PointerExited += (s, e) => searchDoBtn.Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
 		searchDoBtn.Click += (s, e) => TriggerSearch();
@@ -615,16 +623,16 @@ public sealed partial class StreamingPage : Page
 			HorizontalAlignment = HorizontalAlignment.Right,
 			VerticalAlignment = VerticalAlignment.Center
 		};
-		_qualityCombo.Items.Add(new ComboBoxItem { Content = "高音质" });
-		_qualityCombo.Items.Add(new ComboBoxItem { Content = "无损 FLAC" });
-		_qualityCombo.Items.Add(new ComboBoxItem { Content = "Hi-Res FLAC" });
-		_qualityCombo.Items.Add(new ComboBoxItem { Content = "标准 128k" });
+		_qualityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("高音质"), Tag = "高音质" });
+		_qualityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("无损 FLAC"), Tag = "无损 FLAC" });
+		_qualityCombo.Items.Add(new ComboBoxItem { Content = "Hi-Res FLAC", Tag = "Hi-Res FLAC" });
+		_qualityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("标准 128k"), Tag = "标准 128k" });
 		_qualityCombo.SelectedIndex = 0;
 		_qualityCombo.SelectionChanged += (s, e) =>
 		{
 			if (_qualityCombo.SelectedItem is ComboBoxItem item && ViewModel != null)
 			{
-				ViewModel.SelectedQuality = item.Content.ToString() ?? "高音质";
+				ViewModel.SelectedQuality = item.Tag?.ToString() ?? item.Content?.ToString() ?? "高音质";
 			}
 		};
 		Grid.SetColumn(_qualityCombo, 1);
@@ -635,7 +643,7 @@ public sealed partial class StreamingPage : Page
 		// 2.4 状态通知条
 		_statusNoticeTb = new TextBlock
 		{
-			Text = "已读取 10 个歌单，可同步全部或勾选后同步。",
+			Text = Loc.T("已读取 10 个歌单，可同步全部或勾选后同步。"),
 			FontSize = 11,
 			Foreground = StreamingTextMutedBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis,
@@ -645,8 +653,21 @@ public sealed partial class StreamingPage : Page
 		};
 		mainAreaStack.Children.Add(_statusNoticeTb);
 
+		// 2.4.5 专辑二级菜单详情头卡（仅在进入专辑内曲目列表时展示）
+		_albumDetailHeaderCard = new Border
+		{
+			Visibility = Visibility.Collapsed,
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(14, 12, 14, 12),
+			Margin = new Thickness(0, 2, 0, 4),
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			MinWidth = 0
+		};
+		mainAreaStack.Children.Add(_albumDetailHeaderCard);
+
 		// 2.5 歌曲列表表头
 		var tableHeaderGrid = new Grid { Padding = new Thickness(8, 8, 8, 8), HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+		_tableHeaderGrid = tableHeaderGrid;
 		ApplyResultTableColumns(tableHeaderGrid);
 
 		_tableHeaderCells.Clear();
@@ -669,10 +690,10 @@ public sealed partial class StreamingPage : Page
 		}
 
 		AddHeaderCell("#", 0);
-		_tableTitleHeaderTb = AddHeaderCell("歌曲", 1);
-		AddHeaderCell("来源 / 音质", 2);
-		AddHeaderCell("时长", 3, HorizontalAlignment.Right);
-		var actionsHeaderTb = AddHeaderCell("操作", 4, HorizontalAlignment.Right);
+		_tableTitleHeaderTb = AddHeaderCell(Loc.T("歌曲"), 1);
+		AddHeaderCell(Loc.T("来源 / 音质"), 2);
+		AddHeaderCell(Loc.T("时长"), 3, HorizontalAlignment.Right);
+		var actionsHeaderTb = AddHeaderCell(Loc.T("操作"), 4, HorizontalAlignment.Right);
 		actionsHeaderTb.Margin = new Thickness(0, 0, 4, 0);
 		mainAreaStack.Children.Add(tableHeaderGrid);
 
@@ -683,7 +704,7 @@ public sealed partial class StreamingPage : Page
 		// 2.7 加载更多按钮
 		_loadMoreBtn = new Button
 		{
-			Content = "加载更多",
+			Content = Loc.T("加载更多"),
 			HorizontalAlignment = HorizontalAlignment.Center,
 			Margin = new Thickness(0, 14, 0, 10),
 			Padding = new Thickness(28, 8, 28, 8),
@@ -747,7 +768,7 @@ public sealed partial class StreamingPage : Page
 		var sp = new StackPanel { Spacing = 4, HorizontalAlignment = HorizontalAlignment.Center };
 		var tb = new TextBlock
 		{
-			Text = tabName,
+			Text = Loc.T(tabName),
 			FontSize = 13,
 			TextAlignment = TextAlignment.Center,
 			HorizontalAlignment = HorizontalAlignment.Center,
@@ -792,7 +813,7 @@ public sealed partial class StreamingPage : Page
 			UpdateTabHighlights(tabName);
 			if (_tableTitleHeaderTb != null)
 			{
-				_tableTitleHeaderTb.Text = tabName;
+				_tableTitleHeaderTb.Text = Loc.T(tabName);
 			}
 			_mainAreaScroll?.ChangeView(null, 0, null, disableAnimation: true);
 		}
@@ -862,8 +883,26 @@ public sealed partial class StreamingPage : Page
 						if (_loadMoreBtn != null)
 						{
 							_loadMoreBtn.IsEnabled = !ViewModel.IsSearching;
-							_loadMoreBtn.Content = ViewModel.IsSearching ? "加载中..." : "加载更多";
+							_loadMoreBtn.Content = ViewModel.IsSearching ? Loc.T("加载中...") : Loc.T("加载更多");
 						}
+					}
+					else if (e.PropertyName == nameof(ViewModel.IsInAlbumDetail) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingAlbumTracks) ||
+					         e.PropertyName == nameof(ViewModel.CurrentAlbumItem) ||
+					         e.PropertyName == nameof(ViewModel.IsInArtistDetail) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingArtistDetail) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingMoreArtistSongs) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingMoreArtistAlbums) ||
+					         e.PropertyName == nameof(ViewModel.HasMoreArtistSongs) ||
+					         e.PropertyName == nameof(ViewModel.HasMoreArtistAlbums) ||
+					         e.PropertyName == nameof(ViewModel.CurrentArtistItem) ||
+					         e.PropertyName == nameof(ViewModel.IsInPlaylistDetail) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingPlaylistTracks) ||
+					         e.PropertyName == nameof(ViewModel.IsLoadingMorePlaylistSongs) ||
+					         e.PropertyName == nameof(ViewModel.HasMorePlaylistSongs) ||
+					         e.PropertyName == nameof(ViewModel.CurrentPlaylistItem))
+					{
+						RefreshResultsUi();
 					}
 					else if (e.PropertyName == nameof(ViewModel.IsNeteaseLoggedIn) ||
 					         e.PropertyName == nameof(ViewModel.NeteaseNickname) ||
@@ -879,6 +918,50 @@ public sealed partial class StreamingPage : Page
 			ViewModel.RecentSearches.CollectionChanged += (s, e) =>
 			{
 				DispatcherQueue.TryEnqueue(RefreshRecentSearchesUi);
+			};
+
+			ViewModel.ArtistSongs.CollectionChanged += (s, e) =>
+			{
+				if (_refreshResultsQueued) return;
+				_refreshResultsQueued = true;
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					_refreshResultsQueued = false;
+					RefreshResultsUi();
+				});
+			};
+
+			ViewModel.ArtistAlbums.CollectionChanged += (s, e) =>
+			{
+				if (_refreshResultsQueued) return;
+				_refreshResultsQueued = true;
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					_refreshResultsQueued = false;
+					RefreshResultsUi();
+				});
+			};
+
+			ViewModel.PlaylistSongs.CollectionChanged += (s, e) =>
+			{
+				if (_refreshResultsQueued) return;
+				_refreshResultsQueued = true;
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					_refreshResultsQueued = false;
+					RefreshResultsUi();
+				});
+			};
+
+			ViewModel.AlbumTracks.CollectionChanged += (s, e) =>
+			{
+				if (_refreshResultsQueued) return;
+				_refreshResultsQueued = true;
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					_refreshResultsQueued = false;
+					RefreshResultsUi();
+				});
 			};
 
 			ViewModel.Results.CollectionChanged += (s, e) =>
@@ -900,7 +983,7 @@ public sealed partial class StreamingPage : Page
 		UpdateTabHighlights(ViewModel.SelectedTab);
 		if (_tableTitleHeaderTb != null)
 		{
-			_tableTitleHeaderTb.Text = ViewModel.SelectedTab;
+			_tableTitleHeaderTb.Text = Loc.T(ViewModel.SelectedTab);
 		}
 		if (_statusNoticeTb != null)
 		{
@@ -1016,7 +1099,7 @@ public sealed partial class StreamingPage : Page
 
 			var sp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
 			sp.Children.Add(new FontIcon { Glyph = "\uE77B", FontSize = 11, Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241)) });
-			sp.Children.Add(new TextBlock { Text = $"登录 {ViewModel.SelectedPlatform}", FontSize = 11, Foreground = secondaryBrush });
+			sp.Children.Add(new TextBlock { Text = Loc.F("登录 {0}", Loc.T(ViewModel.SelectedPlatform)), FontSize = 11, Foreground = secondaryBrush });
 
 			_loginBtn.Content = sp;
 		}
@@ -1099,7 +1182,7 @@ public sealed partial class StreamingPage : Page
 			});
 			info.Children.Add(new TextBlock
 			{
-				Text = $"{acc.Platform} · {acc.VipStatus} · 在线",
+				Text = Loc.F("{0} · {1} · 在线", Loc.T(acc.Platform), Loc.T(acc.VipStatus)),
 				FontSize = 9.5,
 				Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 22, 163, 74))
 			});
@@ -1198,7 +1281,7 @@ public sealed partial class StreamingPage : Page
 			var sp = new StackPanel { Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
 			sp.Children.Add(new TextBlock
 			{
-				Text = p.Name,
+				Text = Loc.T(p.Name),
 				FontSize = 12,
 				FontWeight = p.IsSelected ? FontWeights.Bold : FontWeights.SemiBold,
 				Foreground = titleBrush
@@ -1260,8 +1343,8 @@ public sealed partial class StreamingPage : Page
 
 		var dialog = new ContentDialog
 		{
-			Title = "流媒体账号认证与登录",
-			CloseButtonText = "取消",
+			Title = Loc.T("流媒体账号认证与登录"),
+			CloseButtonText = Loc.T("取消"),
 			CornerRadius = new CornerRadius(16),
 			XamlRoot = this.XamlRoot
 		};
@@ -1285,7 +1368,7 @@ public sealed partial class StreamingPage : Page
 
 		var introTb = new TextBlock
 		{
-			Text = "连接各大流媒体音乐平台账号，可同步个人收藏、导入专属歌单，并直通最高音质与 VIP 音源解析播放。凭证将自动加密保存在本地配置中。",
+			Text = Loc.T("连接各大流媒体音乐平台账号，可同步个人收藏、导入专属歌单，并直通最高音质与 VIP 音源解析播放。凭证将自动加密保存在本地配置中。"),
 			FontSize = 12,
 			Foreground = dialogMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -1304,7 +1387,7 @@ public sealed partial class StreamingPage : Page
 				Children =
 				{
 					new FontIcon { Glyph = "\uEC64", FontSize = 12 },
-					new TextBlock { Text = "网易云扫码", FontSize = 12 }
+					new TextBlock { Text = Loc.T("网易云扫码"), FontSize = 12 }
 				}
 			}
 		};
@@ -1346,7 +1429,7 @@ public sealed partial class StreamingPage : Page
 		};
 		var refreshOverlayBtn = new Button
 		{
-			Content = "二维码已失效，点击刷新",
+			Content = Loc.T("二维码已失效，点击刷新"),
 			FontSize = 11.5,
 			Padding = new Thickness(12, 6, 12, 6),
 			CornerRadius = new CornerRadius(6),
@@ -1363,7 +1446,7 @@ public sealed partial class StreamingPage : Page
 
 		var statusTb = new TextBlock
 		{
-			Text = "正在生成登录二维码...",
+			Text = Loc.T("正在生成登录二维码..."),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = dialogSubHeaderBrush,
@@ -1374,13 +1457,13 @@ public sealed partial class StreamingPage : Page
 		var qrActionSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Center };
 		var refreshBtn = new Button
 		{
-			Content = "刷新二维码",
+			Content = Loc.T("刷新二维码"),
 			FontSize = 11,
 			CornerRadius = new CornerRadius(6)
 		};
 		var copyLinkBtn = new Button
 		{
-			Content = "复制扫码直链",
+			Content = Loc.T("复制扫码直链"),
 			FontSize = 11,
 			CornerRadius = new CornerRadius(6)
 		};
@@ -1401,7 +1484,7 @@ public sealed partial class StreamingPage : Page
 				Children =
 				{
 					new FontIcon { Glyph = "\uE8C8", FontSize = 12 },
-					new TextBlock { Text = "网易云 Cookie", FontSize = 12 }
+					new TextBlock { Text = Loc.T("网易云 Cookie"), FontSize = 12 }
 				}
 			}
 		};
@@ -1409,7 +1492,7 @@ public sealed partial class StreamingPage : Page
 		var cookieStack = new StackPanel { Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
 		cookieStack.Children.Add(new TextBlock
 		{
-			Text = "支持直接粘贴网易云音乐账号凭据中的 MUSIC_U 字段值或完整 Cookie 字符串：",
+			Text = Loc.T("支持直接粘贴网易云音乐账号凭据中的 MUSIC_U 字段值或完整 Cookie 字符串："),
 			FontSize = 12,
 			Foreground = dialogSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -1417,7 +1500,7 @@ public sealed partial class StreamingPage : Page
 
 		var cookieBox = new TextBox
 		{
-			PlaceholderText = "粘贴包含 MUSIC_U=xxxx 的 Cookie 字符串，或直接粘贴 MUSIC_U 值...",
+			PlaceholderText = Loc.T("粘贴包含 MUSIC_U=xxxx 的 Cookie 字符串，或直接粘贴 MUSIC_U 值..."),
 			AcceptsReturn = true,
 			TextWrapping = TextWrapping.Wrap,
 			Height = 85,
@@ -1436,7 +1519,7 @@ public sealed partial class StreamingPage : Page
 
 		var cookieLoginBtn = new Button
 		{
-			Content = "验证并登录网易云",
+			Content = Loc.T("验证并登录网易云"),
 			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = FontWeights.SemiBold,
@@ -1444,40 +1527,81 @@ public sealed partial class StreamingPage : Page
 			Padding = new Thickness(24, 7, 24, 7),
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
-		cookieLoginBtn.Click += async (s, e) =>
+		bool neteaseCookieSubmitting = false;
+		CancellationTokenSource? neteaseCookieDebounceCts = null;
+		async Task SubmitNeteaseCookieAsync(string txt, bool isAuto)
 		{
-			string txt = cookieBox.Text.Trim();
+			if (neteaseCookieSubmitting || cts.IsCancellationRequested) return;
 			if (string.IsNullOrEmpty(txt))
 			{
-				cookieStatusTb.Text = "请输入或粘贴 Cookie 内容！";
-				cookieStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
-				cookieStatusTb.Visibility = Visibility.Visible;
+				if (!isAuto)
+				{
+					cookieStatusTb.Text = Loc.T("请输入或粘贴 Cookie 内容！");
+					cookieStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+					cookieStatusTb.Visibility = Visibility.Visible;
+				}
 				return;
 			}
 
+			neteaseCookieSubmitting = true;
 			cookieLoginBtn.IsEnabled = false;
-			cookieLoginBtn.Content = "正在校验...";
-			cookieStatusTb.Text = "正在向网易云服务器验证登录凭证...";
+			cookieLoginBtn.Content = Loc.T("正在校验...");
+			cookieStatusTb.Text = isAuto
+				? Loc.T("检测到网易云登录凭证，正在自动验证并保存...")
+				: Loc.T("正在向网易云服务器验证登录凭证...");
 			cookieStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241));
 			cookieStatusTb.Visibility = Visibility.Visible;
 
 			var (ok, msg) = await ViewModel.LoginWithCookieAsync(txt);
 			cookieLoginBtn.IsEnabled = true;
-			cookieLoginBtn.Content = "验证并登录网易云";
+			cookieLoginBtn.Content = Loc.T("验证并登录网易云");
 
 			if (ok)
 			{
-				cookieStatusTb.Text = msg;
+				cookieStatusTb.Text = Loc.F("🎉 {0} 已保存并应用凭证，正在关闭窗口...", msg);
 				cookieStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
-				await Task.Delay(1000);
-				dialog.Hide();
+				UpdateLoginButtonUi();
+				RefreshPlatformsUi();
+				RefreshAccountCardUi();
+				if (ViewModel.SelectedTab == "歌单" && string.IsNullOrWhiteSpace(ViewModel.SearchQuery))
+				{
+					_ = ViewModel.LoadUserPlaylistsAsync();
+				}
+				await Task.Delay(600);
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					try { cts.Cancel(); dialog.Hide(); } catch { }
+				});
 			}
 			else
 			{
+				neteaseCookieSubmitting = false;
 				cookieStatusTb.Text = msg;
 				cookieStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 			}
+		}
+
+		cookieBox.TextChanged += async (s, e) =>
+		{
+			string txt = cookieBox.Text.Trim();
+			if (string.IsNullOrEmpty(txt) || neteaseCookieSubmitting) return;
+			bool looksComplete = txt.Contains("MUSIC_U=", StringComparison.OrdinalIgnoreCase) || txt.Length >= 60;
+			if (!looksComplete) return;
+			try { neteaseCookieDebounceCts?.Cancel(); neteaseCookieDebounceCts?.Dispose(); } catch { }
+			var localCts = new CancellationTokenSource();
+			neteaseCookieDebounceCts = localCts;
+			try
+			{
+				await Task.Delay(500, localCts.Token);
+				if (!localCts.Token.IsCancellationRequested && !cts.IsCancellationRequested)
+				{
+					await SubmitNeteaseCookieAsync(cookieBox.Text.Trim(), isAuto: true);
+				}
+			}
+			catch { }
 		};
+
+		cookieLoginBtn.Click += async (s, e) => await SubmitNeteaseCookieAsync(cookieBox.Text.Trim(), isAuto: false);
 		cookieStack.Children.Add(cookieLoginBtn);
 
 		cookieTab.Content = cookieStack;
@@ -1493,7 +1617,7 @@ public sealed partial class StreamingPage : Page
 				Children =
 				{
 					new FontIcon { Glyph = "\uE717", FontSize = 12 },
-					new TextBlock { Text = "QQ音乐 扫码登录", FontSize = 12 }
+					new TextBlock { Text = Loc.T("QQ音乐 扫码登录"), FontSize = 12 }
 				}
 			}
 		};
@@ -1508,14 +1632,14 @@ public sealed partial class StreamingPage : Page
 		var qqIntroSp = new StackPanel { Spacing = 2 };
 		qqIntroSp.Children.Add(new TextBlock
 		{
-			Text = "请使用手机 QQ 或微信扫描下方二维码登录：",
+			Text = Loc.T("请使用手机 QQ 或微信扫描下方二维码登录："),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = dialogPrimaryBrush
 		});
 		qqIntroSp.Children.Add(new TextBlock
 		{
-			Text = "授权后自动拦截凭证并完成绿钻与 VIP 无损解析绑定",
+			Text = Loc.T("授权后自动拦截凭证并完成绿钻与 VIP 无损解析绑定"),
 			FontSize = 11,
 			Foreground = dialogMutedBrush
 		});
@@ -1526,7 +1650,7 @@ public sealed partial class StreamingPage : Page
 		var qqToolsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
 		var qqModeBtn = new Button
 		{
-			Content = "QQ 扫码",
+			Content = Loc.T("QQ 扫码"),
 			FontSize = 11,
 			Padding = new Thickness(8, 4, 8, 4),
 			CornerRadius = new CornerRadius(6),
@@ -1535,21 +1659,21 @@ public sealed partial class StreamingPage : Page
 		};
 		var wxModeBtn = new Button
 		{
-			Content = "微信扫码",
+			Content = Loc.T("微信扫码"),
 			FontSize = 11,
 			Padding = new Thickness(8, 4, 8, 4),
 			CornerRadius = new CornerRadius(6)
 		};
 		var qqRefreshBtn = new Button
 		{
-			Content = "刷新二维码",
+			Content = Loc.T("刷新二维码"),
 			FontSize = 11,
 			Padding = new Thickness(8, 4, 8, 4),
 			CornerRadius = new CornerRadius(6)
 		};
 		var qqToggleManualBtn = new Button
 		{
-			Content = "手动 Cookie",
+			Content = Loc.T("手动 Cookie"),
 			FontSize = 11,
 			Padding = new Thickness(8, 4, 8, 4),
 			CornerRadius = new CornerRadius(6)
@@ -1591,7 +1715,7 @@ public sealed partial class StreamingPage : Page
 		var qqLoadingRing = new ProgressRing { IsActive = true, Width = 32, Height = 32 };
 		var qqLoadingTb = new TextBlock
 		{
-			Text = "正在加载 QQ 音乐扫码登录页面...",
+			Text = Loc.T("正在加载 QQ 音乐扫码登录页面..."),
 			FontSize = 12,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 100, 116, 139))
 		};
@@ -1614,13 +1738,13 @@ public sealed partial class StreamingPage : Page
 		var qqManualPanel = new StackPanel { Spacing = 8, Visibility = Visibility.Collapsed };
 		qqManualPanel.Children.Add(new TextBlock
 		{
-			Text = "备用方案：手动粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie：",
+			Text = Loc.T("备用方案：手动粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie："),
 			FontSize = 11.5,
 			Foreground = dialogMutedBrush
 		});
 		var qqCookieBox = new TextBox
 		{
-			PlaceholderText = "粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie 字符串...",
+			PlaceholderText = Loc.T("粘贴包含 uin=xxxx; qm_keyst=xxxx 的完整 Cookie 字符串..."),
 			AcceptsReturn = true,
 			TextWrapping = TextWrapping.Wrap,
 			Height = 70,
@@ -1630,7 +1754,7 @@ public sealed partial class StreamingPage : Page
 		qqManualPanel.Children.Add(qqCookieBox);
 		var qqManualLoginBtn = new Button
 		{
-			Content = "验证并导入 Cookie",
+			Content = Loc.T("验证并导入 Cookie"),
 			Background = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = FontWeights.SemiBold,
@@ -1651,8 +1775,8 @@ public sealed partial class StreamingPage : Page
 		bool qqIsInitialized = false;
 
 		string GetQQAuthTargetUrl() => qqUseWeChatMode
-			? SonicWave.Core.Services.QQMusicAuthHelper.WeChatLoginQrUrl
-			: SonicWave.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl;
+			? FurinaPlayer.Core.Services.QQMusicAuthHelper.WeChatLoginQrUrl
+			: FurinaPlayer.Core.Services.QQMusicAuthHelper.QQLoginAuthorizeUrl;
 
 		void UpdateQQModeButtonsUi()
 		{
@@ -1670,7 +1794,7 @@ public sealed partial class StreamingPage : Page
 		{
 			if (qqWebView.CoreWebView2 == null) return;
 			var cm = qqWebView.CoreWebView2.CookieManager;
-			foreach (string origin in SonicWave.Core.Services.QQMusicAuthHelper.CookieOrigins)
+			foreach (string origin in FurinaPlayer.Core.Services.QQMusicAuthHelper.CookieOrigins)
 			{
 				try
 				{
@@ -1689,7 +1813,7 @@ public sealed partial class StreamingPage : Page
 		{
 			if (qqWebView.CoreWebView2 == null) return;
 			qqLoadingOverlay.Visibility = Visibility.Visible;
-			qqLoadingTb.Text = qqUseWeChatMode ? "正在加载微信扫码登录页面..." : "正在加载 QQ 扫码登录页面...";
+			qqLoadingTb.Text = qqUseWeChatMode ? Loc.T("正在加载微信扫码登录页面...") : Loc.T("正在加载 QQ 扫码登录页面...");
 			if (clearCookies)
 			{
 				await ClearStaleQQWebCookiesAsync();
@@ -1704,7 +1828,7 @@ public sealed partial class StreamingPage : Page
 			try
 			{
 				qqLoadingOverlay.Visibility = Visibility.Visible;
-				qqLoadingTb.Text = "正在初始化安全内嵌浏览器...";
+				qqLoadingTb.Text = Loc.T("正在初始化安全内嵌浏览器...");
 				await qqWebView.EnsureCoreWebView2Async();
 				qqWebView.CoreWebView2.Settings.IsWebMessageEnabled = false;
 				qqWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
@@ -1719,6 +1843,36 @@ public sealed partial class StreamingPage : Page
 					}
 				};
 
+				qqWebView.CoreWebView2.NavigationStarting += (s, args) =>
+				{
+					string navUrl = args.Uri ?? string.Empty;
+					if (navUrl.Contains("wx_redirect.html", StringComparison.OrdinalIgnoreCase) ||
+						navUrl.Contains("y.qq.com", StringComparison.OrdinalIgnoreCase))
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							qqStatusTb.Text = Loc.T("检测到授权跳转，正在自动扫描并提取登录凭证...");
+							qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
+							qqStatusTb.Visibility = Visibility.Visible;
+						});
+					}
+				};
+
+				qqWebView.CoreWebView2.SourceChanged += async (s, args) =>
+				{
+					if (!qqIsProcessing && !cts.IsCancellationRequested)
+					{
+						await Task.Delay(250);
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							if (!qqIsProcessing && !cts.IsCancellationRequested)
+							{
+								qqTimer.Start();
+							}
+						});
+					}
+				};
+
 				qqWebView.CoreWebView2.NavigationCompleted += async (s, args) =>
 				{
 					qqLoadingOverlay.Visibility = Visibility.Collapsed;
@@ -1727,11 +1881,20 @@ public sealed partial class StreamingPage : Page
 					{
 						try
 						{
-							await qqWebView.CoreWebView2!.ExecuteScriptAsync(SonicWave.Core.Services.QQMusicAuthHelper.CompactOAuthLayoutScript);
+							await qqWebView.CoreWebView2!.ExecuteScriptAsync(FurinaPlayer.Core.Services.QQMusicAuthHelper.CompactOAuthLayoutScript);
 						}
 						catch { }
 					}
-					if (!qqIsProcessing) qqTimer.Start();
+					if (!qqIsProcessing)
+					{
+						if (qqStatusTb.Visibility == Visibility.Collapsed)
+						{
+							qqStatusTb.Text = Loc.T("请使用手机 QQ 或微信扫描上方二维码，授权后将自动保存凭证并关闭窗口");
+							qqStatusTb.Foreground = dialogMutedBrush;
+							qqStatusTb.Visibility = Visibility.Visible;
+						}
+						qqTimer.Start();
+					}
 				};
 
 				await NavigateQQAuthAsync(clearCookies: true);
@@ -1739,7 +1902,7 @@ public sealed partial class StreamingPage : Page
 			catch (Exception ex)
 			{
 				qqLoadingOverlay.Visibility = Visibility.Collapsed;
-				qqStatusTb.Text = $"内嵌浏览器加载失败 ({ex.Message})，请使用手动 Cookie 导入。";
+				qqStatusTb.Text = Loc.F("内嵌浏览器加载失败 ({0})，请使用手动 Cookie 导入。", ex.Message);
 				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 				qqStatusTb.Visibility = Visibility.Visible;
 				qqManualPanel.Visibility = Visibility.Visible;
@@ -1783,7 +1946,7 @@ public sealed partial class StreamingPage : Page
 				var cookieManager = qqWebView.CoreWebView2.CookieManager;
 				var cookieDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-				foreach (string origin in SonicWave.Core.Services.QQMusicAuthHelper.CookieOrigins)
+				foreach (string origin in FurinaPlayer.Core.Services.QQMusicAuthHelper.CookieOrigins)
 				{
 					try
 					{
@@ -1800,7 +1963,21 @@ public sealed partial class StreamingPage : Page
 					catch { }
 				}
 
-				if (!SonicWave.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
+				try
+				{
+					string docCookieRaw = await qqWebView.CoreWebView2.ExecuteScriptAsync("document.cookie");
+					if (!string.IsNullOrWhiteSpace(docCookieRaw) && docCookieRaw != "null" && docCookieRaw != "\"\"")
+					{
+						string unquoted = System.Text.Json.JsonSerializer.Deserialize<string>(docCookieRaw) ?? string.Empty;
+						foreach (var kv in FurinaPlayer.Core.Services.QQMusicAuthHelper.ParseCookieString(unquoted))
+						{
+							if (!cookieDict.ContainsKey(kv.Key)) cookieDict[kv.Key] = kv.Value;
+						}
+					}
+				}
+				catch { }
+
+				if (!FurinaPlayer.Core.Services.QQMusicAuthHelper.TryBuildAuthenticatedCookieHeader(
 					cookieDict,
 					qqWebView.CoreWebView2.Source,
 					out string detectedUserId,
@@ -1812,14 +1989,28 @@ public sealed partial class StreamingPage : Page
 				qqIsProcessing = true;
 				qqTimer.Stop();
 
-				qqStatusTb.Text = $"检测到登录凭据 ({detectedUserId})，正在验证账号并保存配置...";
+				qqStatusTb.Text = Loc.F("检测到登录凭据 ({0})，正在验证账号并保存配置...", detectedUserId);
 				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
 				qqStatusTb.Visibility = Visibility.Visible;
 
 				var (ok, msg) = await ViewModel.LoginQQWithCookieAsync(cookieHeader);
 				if (ok)
 				{
-					qqStatusTb.Text = $"🎉 {msg} 登录成功，正在关闭...";
+					qqStatusTb.Text = Loc.F("🎉 {0} 已保存并应用凭证，正在关闭窗口...", msg);
+					qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
+					UpdateLoginButtonUi();
+					RefreshPlatformsUi();
+					RefreshAccountCardUi();
+					if (ViewModel.SelectedTab == "歌单" && string.IsNullOrWhiteSpace(ViewModel.SearchQuery))
+					{
+						_ = ViewModel.LoadUserPlaylistsAsync();
+					}
+					await Task.Delay(600);
+					DispatcherQueue.TryEnqueue(() =>
+					{
+						try { cts.Cancel(); dialog.Hide(); } catch { }
+					});
+					return;
 					qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
 					await Task.Delay(1000);
 					dialog.Hide();
@@ -1838,40 +2029,82 @@ public sealed partial class StreamingPage : Page
 			}
 		};
 
-		qqManualLoginBtn.Click += async (s, e) =>
+		bool qqManualSubmitting = false;
+		CancellationTokenSource? qqManualDebounceCts = null;
+		async Task SubmitQQManualCookieAsync(string txt, bool isAuto)
 		{
-			string txt = qqCookieBox.Text.Trim();
+			if (qqManualSubmitting || qqIsProcessing || cts.IsCancellationRequested) return;
 			if (string.IsNullOrEmpty(txt))
 			{
-				qqStatusTb.Text = "请输入或粘贴 QQ 音乐 Cookie 内容！";
-				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
-				qqStatusTb.Visibility = Visibility.Visible;
+				if (!isAuto)
+				{
+					qqStatusTb.Text = Loc.T("请输入或粘贴 QQ 音乐 Cookie 内容！");
+					qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+					qqStatusTb.Visibility = Visibility.Visible;
+				}
 				return;
 			}
 
+			qqManualSubmitting = true;
 			qqManualLoginBtn.IsEnabled = false;
-			qqManualLoginBtn.Content = "正在校验...";
-			qqStatusTb.Text = "正在解析 QQ 音乐账号凭据...";
+			qqManualLoginBtn.Content = Loc.T("正在校验...");
+			qqStatusTb.Text = isAuto
+				? Loc.T("检测到 QQ 音乐登录凭据，正在自动验证并保存...")
+				: Loc.T("正在解析 QQ 音乐账号凭据...");
 			qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
 			qqStatusTb.Visibility = Visibility.Visible;
 
 			var (ok, msg) = await ViewModel.LoginQQWithCookieAsync(txt);
 			qqManualLoginBtn.IsEnabled = true;
-			qqManualLoginBtn.Content = "验证并导入 Cookie";
+			qqManualLoginBtn.Content = Loc.T("验证并导入 Cookie");
 
 			if (ok)
 			{
-				qqStatusTb.Text = msg;
+				qqIsProcessing = true;
+				qqTimer.Stop();
+				qqStatusTb.Text = Loc.F("🎉 {0} 已保存并应用凭证，正在关闭窗口...", msg);
 				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
-				await Task.Delay(1000);
-				dialog.Hide();
+				UpdateLoginButtonUi();
+				RefreshPlatformsUi();
+				RefreshAccountCardUi();
+				if (ViewModel.SelectedTab == "歌单" && string.IsNullOrWhiteSpace(ViewModel.SearchQuery))
+				{
+					_ = ViewModel.LoadUserPlaylistsAsync();
+				}
+				await Task.Delay(600);
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					try { cts.Cancel(); dialog.Hide(); } catch { }
+				});
 			}
 			else
 			{
+				qqManualSubmitting = false;
 				qqStatusTb.Text = msg;
 				qqStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 			}
+		}
+
+		qqCookieBox.TextChanged += async (s, e) =>
+		{
+			string txt = qqCookieBox.Text.Trim();
+			if (string.IsNullOrEmpty(txt) || qqManualSubmitting || qqIsProcessing) return;
+			if (!FurinaPlayer.Core.Services.QQMusicAuthHelper.HasValidManualCookie(txt)) return;
+			try { qqManualDebounceCts?.Cancel(); qqManualDebounceCts?.Dispose(); } catch { }
+			var localCts = new CancellationTokenSource();
+			qqManualDebounceCts = localCts;
+			try
+			{
+				await Task.Delay(500, localCts.Token);
+				if (!localCts.Token.IsCancellationRequested && !cts.IsCancellationRequested)
+				{
+					await SubmitQQManualCookieAsync(qqCookieBox.Text.Trim(), isAuto: true);
+				}
+			}
+			catch { }
 		};
+
+		qqManualLoginBtn.Click += async (s, e) => await SubmitQQManualCookieAsync(qqCookieBox.Text.Trim(), isAuto: false);
 
 		dialog.Closed += (s, e) =>
 		{
@@ -1896,7 +2129,7 @@ public sealed partial class StreamingPage : Page
 				Children =
 				{
 					new FontIcon { Glyph = "\uE93C", FontSize = 12 },
-					new TextBlock { Text = "Spotify 凭证", FontSize = 12 }
+					new TextBlock { Text = Loc.T("Spotify 凭证"), FontSize = 12 }
 				}
 			}
 		};
@@ -1904,7 +2137,7 @@ public sealed partial class StreamingPage : Page
 		var spStack = new StackPanel { Spacing = 10, Margin = new Thickness(0, 10, 0, 0) };
 		spStack.Children.Add(new TextBlock
 		{
-			Text = "支持导入 Spotify 官方 Access Token (BQD...) 或网页端 sp_dc 会话 Cookie，用于同步 Spotify 音乐账户：",
+			Text = Loc.T("支持导入 Spotify 官方 Access Token (BQD...) 或网页端 sp_dc 会话 Cookie，用于同步 Spotify 音乐账户："),
 			FontSize = 12,
 			Foreground = dialogSubHeaderBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -1912,7 +2145,7 @@ public sealed partial class StreamingPage : Page
 
 		var spCredentialBox = new TextBox
 		{
-			PlaceholderText = "粘贴 Spotify Access Token 或 sp_dc=xxxx Cookie 字符串...",
+			PlaceholderText = Loc.T("粘贴 Spotify Access Token 或 sp_dc=xxxx Cookie 字符串..."),
 			AcceptsReturn = true,
 			TextWrapping = TextWrapping.Wrap,
 			Height = 85,
@@ -1931,7 +2164,7 @@ public sealed partial class StreamingPage : Page
 
 		var spLoginBtn = new Button
 		{
-			Content = "验证并登录 Spotify",
+			Content = Loc.T("验证并登录 Spotify"),
 			Background = new SolidColorBrush(Color.FromArgb(255, 30, 215, 96)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = FontWeights.SemiBold,
@@ -1939,40 +2172,77 @@ public sealed partial class StreamingPage : Page
 			Padding = new Thickness(24, 7, 24, 7),
 			HorizontalAlignment = HorizontalAlignment.Right
 		};
-		spLoginBtn.Click += async (s, e) =>
+		bool spSubmitting = false;
+		CancellationTokenSource? spDebounceCts = null;
+		async Task SubmitSpotifyCredentialAsync(string txt, bool isAuto)
 		{
-			string txt = spCredentialBox.Text.Trim();
+			if (spSubmitting || cts.IsCancellationRequested) return;
 			if (string.IsNullOrEmpty(txt))
 			{
-				spStatusTb.Text = "请输入或粘贴 Spotify Token 或 Cookie！";
-				spStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
-				spStatusTb.Visibility = Visibility.Visible;
+				if (!isAuto)
+				{
+					spStatusTb.Text = Loc.T("请输入或粘贴 Spotify Token 或 Cookie！");
+					spStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+					spStatusTb.Visibility = Visibility.Visible;
+				}
 				return;
 			}
 
+			spSubmitting = true;
 			spLoginBtn.IsEnabled = false;
-			spLoginBtn.Content = "正在校验...";
-			spStatusTb.Text = "正在向 Spotify 验证账户凭证...";
+			spLoginBtn.Content = Loc.T("正在校验...");
+			spStatusTb.Text = isAuto
+				? Loc.T("检测到 Spotify 登录凭证，正在自动验证并保存...")
+				: Loc.T("正在向 Spotify 验证账户凭证...");
 			spStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 30, 215, 96));
 			spStatusTb.Visibility = Visibility.Visible;
 
 			var (ok, msg) = await ViewModel.LoginSpotifyWithCredentialAsync(txt);
 			spLoginBtn.IsEnabled = true;
-			spLoginBtn.Content = "验证并登录 Spotify";
+			spLoginBtn.Content = Loc.T("验证并登录 Spotify");
 
 			if (ok)
 			{
-				spStatusTb.Text = msg;
+				spStatusTb.Text = Loc.F("🎉 {0} 已保存并应用凭证，正在关闭窗口...", msg);
 				spStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
-				await Task.Delay(1000);
-				dialog.Hide();
+				UpdateLoginButtonUi();
+				RefreshPlatformsUi();
+				RefreshAccountCardUi();
+				await Task.Delay(600);
+				DispatcherQueue.TryEnqueue(() =>
+				{
+					try { cts.Cancel(); dialog.Hide(); } catch { }
+				});
 			}
 			else
 			{
+				spSubmitting = false;
 				spStatusTb.Text = msg;
 				spStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 			}
+		}
+
+		spCredentialBox.TextChanged += async (s, e) =>
+		{
+			string txt = spCredentialBox.Text.Trim();
+			if (string.IsNullOrEmpty(txt) || spSubmitting) return;
+			bool looksComplete = txt.Contains("sp_dc=", StringComparison.OrdinalIgnoreCase) || txt.Length >= 40;
+			if (!looksComplete) return;
+			try { spDebounceCts?.Cancel(); spDebounceCts?.Dispose(); } catch { }
+			var localCts = new CancellationTokenSource();
+			spDebounceCts = localCts;
+			try
+			{
+				await Task.Delay(500, localCts.Token);
+				if (!localCts.Token.IsCancellationRequested && !cts.IsCancellationRequested)
+				{
+					await SubmitSpotifyCredentialAsync(spCredentialBox.Text.Trim(), isAuto: true);
+				}
+			}
+			catch { }
 		};
+
+		spLoginBtn.Click += async (s, e) => await SubmitSpotifyCredentialAsync(spCredentialBox.Text.Trim(), isAuto: false);
 		spStack.Children.Add(spLoginBtn);
 
 		spTab.Content = spStack;
@@ -2004,14 +2274,14 @@ public sealed partial class StreamingPage : Page
 		{
 			expiredOverlay.Visibility = Visibility.Collapsed;
 			qrLoadingRing.IsActive = true;
-			statusTb.Text = "正在向网易云请求登录二维码...";
+			statusTb.Text = Loc.T("正在向网易云请求登录二维码...");
 			statusTb.Foreground = dialogSubHeaderBrush;
 
 			string? unikey = await ViewModel.RequestQrKeyAsync();
 			if (string.IsNullOrEmpty(unikey))
 			{
 				qrLoadingRing.IsActive = false;
-				statusTb.Text = "获取二维码密钥失败，请检查网络后重试。";
+				statusTb.Text = Loc.T("获取二维码密钥失败，请检查网络后重试。");
 				statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
 				expiredOverlay.Visibility = Visibility.Visible;
 				return;
@@ -2046,7 +2316,7 @@ public sealed partial class StreamingPage : Page
 			}
 
 			qrLoadingRing.IsActive = false;
-			statusTb.Text = "请使用网易云音乐手机 App 扫码登录";
+			statusTb.Text = Loc.T("请使用网易云音乐手机 App 扫码登录");
 			statusTb.Foreground = dialogSubHeaderBrush;
 
 			_ = PollQrStatusAsync(unikey, cts.Token);
@@ -2056,30 +2326,74 @@ public sealed partial class StreamingPage : Page
 		{
 			while (!ct.IsCancellationRequested)
 			{
-				await Task.Delay(2000, ct).ContinueWith(_ => { });
-				if (ct.IsCancellationRequested || unikey != currentUnikey) break;
-
-				var (code, msg, success) = await ViewModel.CheckQrStatusAsync(unikey);
-				if (success)
+				try
 				{
-					statusTb.Text = "授权登录成功！正在加载账号资料...";
-					statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
-					await Task.Delay(1000);
-					dialog.Hide();
+					await Task.Delay(2000, ct);
+					if (ct.IsCancellationRequested || unikey != currentUnikey) break;
+
+					var (code, msg, success) = await ViewModel.CheckQrStatusAsync(unikey);
+					if (ct.IsCancellationRequested || unikey != currentUnikey) break;
+
+					if (success)
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							statusTb.Text = Loc.F("🎉 {0} 已保存并应用凭证，正在关闭窗口...", msg);
+							statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 34, 197, 94));
+							UpdateLoginButtonUi();
+							RefreshPlatformsUi();
+							RefreshAccountCardUi();
+							if (ViewModel.SelectedTab == "歌单" && string.IsNullOrWhiteSpace(ViewModel.SearchQuery))
+							{
+								_ = ViewModel.LoadUserPlaylistsAsync();
+							}
+						});
+						await Task.Delay(600, ct);
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							try { cts.Cancel(); dialog.Hide(); } catch { }
+						});
+						break;
+					}
+
+					if (code == 800) // 二维码已过期
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							statusTb.Text = Loc.T("二维码已过期，请点击刷新");
+							statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+							expiredOverlay.Visibility = Visibility.Visible;
+						});
+						break;
+					}
+					else if (code == 802) // 已扫码待确认
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							statusTb.Text = Loc.T("扫描成功，请在手机端点击【确认登录】");
+							statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 88, 12));
+						});
+					}
+					else if (code == 803)
+					{
+						DispatcherQueue.TryEnqueue(() =>
+						{
+							statusTb.Text = string.IsNullOrWhiteSpace(msg) ? Loc.T("授权已确认，正在重新提取凭证...") : msg;
+							statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+						});
+					}
+				}
+				catch (OperationCanceledException)
+				{
 					break;
 				}
-
-				if (code == 800) // 二维码已过期
+				catch (Exception ex)
 				{
-					statusTb.Text = "二维码已过期，请点击刷新";
-					statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
-					expiredOverlay.Visibility = Visibility.Visible;
-					break;
-				}
-				else if (code == 802) // 已扫码待确认
-				{
-					statusTb.Text = "扫描成功，请在手机端点击【确认登录】";
-					statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 88, 12));
+					DispatcherQueue.TryEnqueue(() =>
+					{
+						statusTb.Text = Loc.F("登录状态轮询异常，请刷新重试: {0}", ex.Message);
+						statusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68));
+					});
 				}
 			}
 		}
@@ -2093,8 +2407,8 @@ public sealed partial class StreamingPage : Page
 				var dp = new DataPackage();
 				dp.SetText(currentQrUrl);
 				Clipboard.SetContent(dp);
-				copyLinkBtn.Content = "已复制直链！";
-				_ = Task.Delay(2000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => copyLinkBtn.Content = "复制扫码直链"));
+				copyLinkBtn.Content = Loc.T("已复制直链！");
+				_ = Task.Delay(2000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() => copyLinkBtn.Content = Loc.T("复制扫码直链")));
 			}
 		};
 
@@ -2155,8 +2469,8 @@ public sealed partial class StreamingPage : Page
 
 		var dialog = new ContentDialog
 		{
-			Title = $"{platform} · 账号信息",
-			CloseButtonText = "关闭",
+			Title = Loc.F("{0} · 账号信息", Loc.T(platform)),
+			CloseButtonText = Loc.T("关闭"),
 			CornerRadius = new CornerRadius(16),
 			XamlRoot = this.XamlRoot
 		};
@@ -2212,7 +2526,7 @@ public sealed partial class StreamingPage : Page
 		var infoSp = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
 		infoSp.Children.Add(new TextBlock
 		{
-			Text = !string.IsNullOrEmpty(acc.Nickname) ? acc.Nickname : (string.IsNullOrEmpty(acc.UserIdStr) ? "认证用户" : acc.UserIdStr),
+			Text = !string.IsNullOrEmpty(acc.Nickname) ? acc.Nickname : (string.IsNullOrEmpty(acc.UserIdStr) ? Loc.T("认证用户") : acc.UserIdStr),
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
 			Foreground = primaryBrush
@@ -2255,7 +2569,7 @@ public sealed partial class StreamingPage : Page
 
 		infoSp.Children.Add(new TextBlock
 		{
-			Text = "状态: 已通过认证 · 凭据已持久化",
+			Text = Loc.T("状态: 已通过认证 · 凭据已持久化"),
 			FontSize = 10.5,
 			Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 74, 222, 128) : Color.FromArgb(255, 34, 197, 94))
 		});
@@ -2269,7 +2583,7 @@ public sealed partial class StreamingPage : Page
 				: c;
 			infoSp.Children.Add(new TextBlock
 			{
-				Text = $"凭证: {preview}",
+				Text = Loc.F("凭证: {0}", preview),
 				FontSize = 9.5,
 				Foreground = mutedBrush,
 				TextTrimming = TextTrimming.CharacterEllipsis
@@ -2288,17 +2602,17 @@ public sealed partial class StreamingPage : Page
 
 		var refreshBtn = new Button
 		{
-			Content = "刷新状态",
+			Content = Loc.T("刷新状态"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8)
 		};
 		refreshBtn.Click += async (s, e) =>
 		{
 			refreshBtn.IsEnabled = false;
-			refreshBtn.Content = "刷新中...";
+			refreshBtn.Content = Loc.T("刷新中...");
 			var (ok, msg) = await ViewModel.RefreshAccountStatusAsync(platform);
 			refreshBtn.IsEnabled = true;
-			refreshBtn.Content = "刷新状态";
+			refreshBtn.Content = Loc.T("刷新状态");
 			if (!ok)
 			{
 				dialog.Hide();
@@ -2309,7 +2623,7 @@ public sealed partial class StreamingPage : Page
 
 		var logoutBtn = new Button
 		{
-			Content = "退出登录",
+			Content = Loc.T("退出登录"),
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			CornerRadius = new CornerRadius(8)
@@ -2391,6 +2705,484 @@ public sealed partial class StreamingPage : Page
 		}
 	}
 
+	private void RefreshAlbumDetailHeaderCard(StreamingItemViewModel albumItem)
+	{
+		if (_albumDetailHeaderCard == null || ViewModel == null) return;
+		bool isDark = IsStreamingDark;
+
+		var cardBg = isDark ? Color.FromArgb(40, 30, 41, 59) : Color.FromArgb(215, 255, 255, 255);
+		var cardBorder = isDark ? Color.FromArgb(75, 148, 163, 184) : Color.FromArgb(90, 203, 213, 225);
+		_albumDetailHeaderCard.Background = new SolidColorBrush(cardBg);
+		_albumDetailHeaderCard.BorderBrush = new SolidColorBrush(cardBorder);
+		_albumDetailHeaderCard.BorderThickness = new Thickness(1);
+
+		var titleBrush = isDark ? new SolidColorBrush(Colors.White) : StreamingTextPrimaryBrush;
+		var subtitleBrush = isDark ? new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)) : StreamingTextMutedBrush;
+		var accentColor = isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241);
+
+		var rootStack = new StackPanel { Spacing = 10 };
+
+		// 顶部返回按钮行
+		var backBtn = new Button
+		{
+			Padding = new Thickness(10, 4, 12, 4),
+			CornerRadius = new CornerRadius(14),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(35, 255, 255, 255) : Color.FromArgb(18, 15, 23, 42)),
+			BorderThickness = new Thickness(0),
+			HorizontalAlignment = HorizontalAlignment.Left
+		};
+		var backSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		backSp.Children.Add(new FontIcon { Glyph = "\uE72B", FontSize = 11, Foreground = titleBrush });
+		backSp.Children.Add(new TextBlock { Text = ViewModel.CanReturnToArtistFromAlbum ? Loc.T("返回艺人") : Loc.T("返回专辑列表"), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		backBtn.Content = backSp;
+		backBtn.Click += (s, e) => ViewModel?.BackToAlbumList();
+		rootStack.Children.Add(backBtn);
+
+		// 专辑封面 + 信息 + 队列播放操作栏
+		var infoGrid = new Grid { ColumnSpacing = 14 };
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var coverBorder = new Border
+		{
+			Width = 64,
+			Height = 64,
+			CornerRadius = new CornerRadius(10),
+			Background = isDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
+		};
+		if (!string.IsNullOrEmpty(albumItem.CoverUrl) && Uri.TryCreate(albumItem.CoverUrl, UriKind.Absolute, out var coverUri))
+		{
+			try
+			{
+				coverBorder.Background = new ImageBrush
+				{
+					ImageSource = new BitmapImage(coverUri) { DecodePixelWidth = 128, DecodePixelHeight = 128 },
+					Stretch = Stretch.UniformToFill
+				};
+			}
+			catch
+			{
+				coverBorder.Child = new FontIcon { Glyph = "\uE93C", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+			}
+		}
+		else
+		{
+			coverBorder.Child = new FontIcon { Glyph = "\uE93C", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+		}
+		Grid.SetColumn(coverBorder, 0);
+		infoGrid.Children.Add(coverBorder);
+
+		var metaStack = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = albumItem.Title,
+			FontSize = 15,
+			FontWeight = FontWeights.Bold,
+			Foreground = titleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = $"{albumItem.RawInfo.Artist} · {Loc.T(albumItem.RawInfo.Source)}",
+			FontSize = 12,
+			Foreground = subtitleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = ViewModel.IsLoadingAlbumTracks
+				? Loc.T("正在加载专辑曲目...")
+				: Loc.F("共 {0} 首曲目", ViewModel.AlbumTracks.Count),
+			FontSize = 11,
+			Foreground = new SolidColorBrush(accentColor)
+		});
+		Grid.SetColumn(metaStack, 1);
+		infoGrid.Children.Add(metaStack);
+
+		var actionStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+
+		var playAllBtn = new Button
+		{
+			Padding = new Thickness(14, 7, 14, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = new SolidColorBrush(Colors.White),
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.AlbumTracks.Count > 0
+		};
+		var playAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		playAllSp.Children.Add(new FontIcon { Glyph = "\uE768", FontSize = 11, Foreground = new SolidColorBrush(Colors.White) });
+		playAllSp.Children.Add(new TextBlock { Text = Loc.T("播放整张专辑"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+		playAllBtn.Content = playAllSp;
+		playAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.PlayAlbumAllAsync();
+		};
+		actionStack.Children.Add(playAllBtn);
+
+		var addAllBtn = new Button
+		{
+			Padding = new Thickness(12, 7, 12, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(22, 99, 102, 241)),
+			Foreground = titleBrush,
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.AlbumTracks.Count > 0
+		};
+		var addAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		addAllSp.Children.Add(new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = new SolidColorBrush(accentColor) });
+		addAllSp.Children.Add(new TextBlock { Text = Loc.T("整张加入队列"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		addAllBtn.Content = addAllSp;
+		addAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.AddAlbumToQueueAsync();
+		};
+		actionStack.Children.Add(addAllBtn);
+
+		Grid.SetColumn(actionStack, 2);
+		infoGrid.Children.Add(actionStack);
+
+		rootStack.Children.Add(infoGrid);
+		_albumDetailHeaderCard.Child = rootStack;
+	}
+
+	private void RefreshArtistDetailHeaderCard(StreamingItemViewModel artistItem)
+	{
+		if (_albumDetailHeaderCard == null || ViewModel == null) return;
+		bool isDark = IsStreamingDark;
+
+		var cardBg = isDark ? Color.FromArgb(40, 30, 41, 59) : Color.FromArgb(215, 255, 255, 255);
+		var cardBorder = isDark ? Color.FromArgb(75, 148, 163, 184) : Color.FromArgb(90, 203, 213, 225);
+		_albumDetailHeaderCard.Background = new SolidColorBrush(cardBg);
+		_albumDetailHeaderCard.BorderBrush = new SolidColorBrush(cardBorder);
+		_albumDetailHeaderCard.BorderThickness = new Thickness(1);
+
+		var titleBrush = isDark ? new SolidColorBrush(Colors.White) : StreamingTextPrimaryBrush;
+		var subtitleBrush = isDark ? new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)) : StreamingTextMutedBrush;
+		var accentColor = isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241);
+
+		var rootStack = new StackPanel { Spacing = 10 };
+
+		var backBtn = new Button
+		{
+			Padding = new Thickness(10, 4, 12, 4),
+			CornerRadius = new CornerRadius(14),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(35, 255, 255, 255) : Color.FromArgb(18, 15, 23, 42)),
+			BorderThickness = new Thickness(0),
+			HorizontalAlignment = HorizontalAlignment.Left
+		};
+		var backSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		backSp.Children.Add(new FontIcon { Glyph = "\uE72B", FontSize = 11, Foreground = titleBrush });
+		backSp.Children.Add(new TextBlock { Text = Loc.T("返回艺人列表"), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		backBtn.Content = backSp;
+		backBtn.Click += (s, e) => ViewModel?.BackToArtistList();
+		rootStack.Children.Add(backBtn);
+
+		var infoGrid = new Grid { ColumnSpacing = 14 };
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var avatarBorder = new Border
+		{
+			Width = 64,
+			Height = 64,
+			CornerRadius = new CornerRadius(32),
+			Background = isDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
+		};
+		if (!string.IsNullOrEmpty(artistItem.CoverUrl) && Uri.TryCreate(artistItem.CoverUrl, UriKind.Absolute, out var coverUri))
+		{
+			try
+			{
+				avatarBorder.Background = new ImageBrush
+				{
+					ImageSource = new BitmapImage(coverUri) { DecodePixelWidth = 128, DecodePixelHeight = 128 },
+					Stretch = Stretch.UniformToFill
+				};
+			}
+			catch
+			{
+				avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+			}
+		}
+		else
+		{
+			avatarBorder.Child = new FontIcon { Glyph = "\uE77B", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+		}
+		Grid.SetColumn(avatarBorder, 0);
+		infoGrid.Children.Add(avatarBorder);
+
+		var metaStack = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = artistItem.Title,
+			FontSize = 15,
+			FontWeight = FontWeights.Bold,
+			Foreground = titleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = $"{Loc.T("艺人")} · {Loc.T(artistItem.RawInfo.Source)}",
+			FontSize = 12,
+			Foreground = subtitleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = ViewModel.IsLoadingArtistDetail
+				? Loc.T("正在加载艺人歌曲与专辑...")
+				: Loc.F("{0} 首歌曲 · {1} 张专辑", ViewModel.ArtistTotalSongsLoaded, ViewModel.ArtistTotalAlbumsLoaded),
+			FontSize = 11,
+			Foreground = new SolidColorBrush(accentColor)
+		});
+		Grid.SetColumn(metaStack, 1);
+		infoGrid.Children.Add(metaStack);
+
+		var actionStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+
+		var playAllBtn = new Button
+		{
+			Padding = new Thickness(14, 7, 14, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = new SolidColorBrush(Colors.White),
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.ArtistTotalSongsLoaded > 0
+		};
+		var playAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		playAllSp.Children.Add(new FontIcon { Glyph = "\uE768", FontSize = 11, Foreground = new SolidColorBrush(Colors.White) });
+		playAllSp.Children.Add(new TextBlock { Text = Loc.T("播放全部歌曲"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+		playAllBtn.Content = playAllSp;
+		playAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.PlayArtistAllAsync();
+		};
+		actionStack.Children.Add(playAllBtn);
+
+		var addAllBtn = new Button
+		{
+			Padding = new Thickness(12, 7, 12, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(22, 99, 102, 241)),
+			Foreground = titleBrush,
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.ArtistTotalSongsLoaded > 0
+		};
+		var addAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		addAllSp.Children.Add(new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = new SolidColorBrush(accentColor) });
+		addAllSp.Children.Add(new TextBlock { Text = Loc.T("全部加入队列"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		addAllBtn.Content = addAllSp;
+		addAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.AddArtistSongsToQueueAsync();
+		};
+		actionStack.Children.Add(addAllBtn);
+
+		Grid.SetColumn(actionStack, 2);
+		infoGrid.Children.Add(actionStack);
+
+		rootStack.Children.Add(infoGrid);
+		_albumDetailHeaderCard.Child = rootStack;
+	}
+
+	private Grid BuildSectionHeaderRow(string titleLabel, Brush subHeaderBrush)
+	{
+		var hdr = new Grid { Padding = new Thickness(8, 10, 8, 6), HorizontalAlignment = HorizontalAlignment.Stretch, MinWidth = 0 };
+		ApplyResultTableColumns(hdr);
+		TextBlock AddCell(string text, int col, HorizontalAlignment align = HorizontalAlignment.Left)
+		{
+			var tb = new TextBlock
+			{
+				Text = text,
+				FontSize = 11,
+				FontWeight = FontWeights.SemiBold,
+				Foreground = subHeaderBrush,
+				HorizontalAlignment = align,
+				MinWidth = 0,
+				TextTrimming = TextTrimming.CharacterEllipsis
+			};
+			Grid.SetColumn(tb, col);
+			hdr.Children.Add(tb);
+			return tb;
+		}
+		AddCell("#", 0);
+		AddCell(titleLabel, 1);
+		AddCell(Loc.T("来源 / 音质"), 2);
+		AddCell(Loc.T("时长"), 3, HorizontalAlignment.Right);
+		var act = AddCell(Loc.T("操作"), 4, HorizontalAlignment.Right);
+		act.Margin = new Thickness(0, 0, 4, 0);
+		return hdr;
+	}
+
+	private Button BuildShowMoreInlineButton(bool isLoading, Func<Task> onClick)
+	{
+		bool isDark = IsStreamingDark;
+		var btn = new Button
+		{
+			Content = isLoading ? Loc.T("加载中...") : Loc.T("显示更多..."),
+			IsEnabled = !isLoading,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			Margin = new Thickness(0, 8, 0, 12),
+			Padding = new Thickness(24, 6, 24, 6),
+			CornerRadius = new CornerRadius(14),
+			Background = new SolidColorBrush(Color.FromArgb(25, 99, 102, 241)),
+			Foreground = new SolidColorBrush(isDark ? Color.FromArgb(255, 199, 210, 254) : Color.FromArgb(255, 99, 102, 241)),
+			FontSize = 12,
+			FontWeight = FontWeights.SemiBold,
+			BorderThickness = new Thickness(0)
+		};
+		btn.Click += async (s, e) => await onClick();
+		return btn;
+	}
+
+	private void RefreshPlaylistDetailHeaderCard(StreamingItemViewModel playlistItem)
+	{
+		if (_albumDetailHeaderCard == null || ViewModel == null) return;
+		bool isDark = IsStreamingDark;
+
+		var cardBg = isDark ? Color.FromArgb(40, 30, 41, 59) : Color.FromArgb(215, 255, 255, 255);
+		var cardBorder = isDark ? Color.FromArgb(75, 148, 163, 184) : Color.FromArgb(90, 203, 213, 225);
+		_albumDetailHeaderCard.Background = new SolidColorBrush(cardBg);
+		_albumDetailHeaderCard.BorderBrush = new SolidColorBrush(cardBorder);
+		_albumDetailHeaderCard.BorderThickness = new Thickness(1);
+
+		var titleBrush = isDark ? new SolidColorBrush(Colors.White) : StreamingTextPrimaryBrush;
+		var subtitleBrush = isDark ? new SolidColorBrush(Color.FromArgb(255, 203, 213, 225)) : StreamingTextMutedBrush;
+		var accentColor = isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241);
+
+		var rootStack = new StackPanel { Spacing = 10 };
+
+		var backBtn = new Button
+		{
+			Padding = new Thickness(10, 4, 12, 4),
+			CornerRadius = new CornerRadius(14),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(35, 255, 255, 255) : Color.FromArgb(18, 15, 23, 42)),
+			BorderThickness = new Thickness(0),
+			HorizontalAlignment = HorizontalAlignment.Left
+		};
+		var backSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		backSp.Children.Add(new FontIcon { Glyph = "\uE72B", FontSize = 11, Foreground = titleBrush });
+		backSp.Children.Add(new TextBlock { Text = Loc.T("返回歌单列表"), FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		backBtn.Content = backSp;
+		backBtn.Click += (s, e) => ViewModel?.BackToPlaylistList();
+		rootStack.Children.Add(backBtn);
+
+		var infoGrid = new Grid { ColumnSpacing = 14 };
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+		infoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+		var coverBorder = new Border
+		{
+			Width = 64,
+			Height = 64,
+			CornerRadius = new CornerRadius(10),
+			Background = isDark ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(255, 238, 242, 255))
+		};
+		if (!string.IsNullOrEmpty(playlistItem.CoverUrl) && Uri.TryCreate(playlistItem.CoverUrl, UriKind.Absolute, out var coverUri))
+		{
+			try
+			{
+				coverBorder.Background = new ImageBrush
+				{
+					ImageSource = new BitmapImage(coverUri) { DecodePixelWidth = 128, DecodePixelHeight = 128 },
+					Stretch = Stretch.UniformToFill
+				};
+			}
+			catch
+			{
+				coverBorder.Child = new FontIcon { Glyph = "\uE8FD", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+			}
+		}
+		else
+		{
+			coverBorder.Child = new FontIcon { Glyph = "\uE8FD", FontSize = 22, Foreground = new SolidColorBrush(accentColor) };
+		}
+		Grid.SetColumn(coverBorder, 0);
+		infoGrid.Children.Add(coverBorder);
+
+		var metaStack = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center, MinWidth = 0 };
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = playlistItem.Title,
+			FontSize = 15,
+			FontWeight = FontWeights.Bold,
+			Foreground = titleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = $"{playlistItem.RawInfo.Artist} · {Loc.T(playlistItem.RawInfo.Source)}",
+			FontSize = 12,
+			Foreground = subtitleBrush,
+			TextTrimming = TextTrimming.CharacterEllipsis,
+			MaxLines = 1
+		});
+		metaStack.Children.Add(new TextBlock
+		{
+			Text = ViewModel.IsLoadingPlaylistTracks
+				? Loc.T("正在加载歌单曲目...")
+				: Loc.F("共 {0} 首曲目", ViewModel.PlaylistTotalSongsLoaded),
+			FontSize = 11,
+			Foreground = new SolidColorBrush(accentColor)
+		});
+		Grid.SetColumn(metaStack, 1);
+		infoGrid.Children.Add(metaStack);
+
+		var actionStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+
+		var playAllBtn = new Button
+		{
+			Padding = new Thickness(14, 7, 14, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(Color.FromArgb(255, 99, 102, 241)),
+			Foreground = new SolidColorBrush(Colors.White),
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.PlaylistTotalSongsLoaded > 0
+		};
+		var playAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		playAllSp.Children.Add(new FontIcon { Glyph = "\uE768", FontSize = 11, Foreground = new SolidColorBrush(Colors.White) });
+		playAllSp.Children.Add(new TextBlock { Text = Loc.T("播放歌单全部"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) });
+		playAllBtn.Content = playAllSp;
+		playAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.PlayPlaylistAllAsync();
+		};
+		actionStack.Children.Add(playAllBtn);
+
+		var addAllBtn = new Button
+		{
+			Padding = new Thickness(12, 7, 12, 7),
+			CornerRadius = new CornerRadius(16),
+			Background = new SolidColorBrush(isDark ? Color.FromArgb(40, 255, 255, 255) : Color.FromArgb(22, 99, 102, 241)),
+			Foreground = titleBrush,
+			BorderThickness = new Thickness(0),
+			IsEnabled = ViewModel.PlaylistTotalSongsLoaded > 0
+		};
+		var addAllSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+		addAllSp.Children.Add(new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = new SolidColorBrush(accentColor) });
+		addAllSp.Children.Add(new TextBlock { Text = Loc.T("全部加入队列"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = titleBrush });
+		addAllBtn.Content = addAllSp;
+		addAllBtn.Click += async (s, e) =>
+		{
+			if (ViewModel != null) await ViewModel.AddPlaylistSongsToQueueAsync();
+		};
+		actionStack.Children.Add(addAllBtn);
+
+		Grid.SetColumn(actionStack, 2);
+		infoGrid.Children.Add(actionStack);
+
+		rootStack.Children.Add(infoGrid);
+		_albumDetailHeaderCard.Child = rootStack;
+	}
+
 	private void RefreshResultsUi()
 	{
 		if (_songListStackPanel == null || ViewModel == null) return;
@@ -2408,8 +3200,166 @@ public sealed partial class StreamingPage : Page
 		var mutedBrush = StreamingTextMutedBrush;
 		var accentIconColor = isDark ? Color.FromArgb(255, 165, 180, 252) : Color.FromArgb(255, 99, 102, 241);
 
-		foreach (var item in ViewModel.Results)
+		bool inArtistDetail = ViewModel.IsInArtistDetail && ViewModel.CurrentArtistItem != null;
+		bool inPlaylistDetail = !inArtistDetail && ViewModel.IsInPlaylistDetail && ViewModel.CurrentPlaylistItem != null;
+		bool inAlbumDetail = !inArtistDetail && !inPlaylistDetail && ViewModel.IsInAlbumDetail && ViewModel.CurrentAlbumItem != null;
+		if (_tableHeaderGrid != null)
 		{
+			_tableHeaderGrid.Visibility = inArtistDetail ? Visibility.Collapsed : Visibility.Visible;
+		}
+		if (_albumDetailHeaderCard != null)
+		{
+			_albumDetailHeaderCard.Visibility = (inArtistDetail || inPlaylistDetail || inAlbumDetail) ? Visibility.Visible : Visibility.Collapsed;
+			if (inArtistDetail && ViewModel.CurrentArtistItem != null)
+			{
+				RefreshArtistDetailHeaderCard(ViewModel.CurrentArtistItem);
+			}
+			else if (inPlaylistDetail && ViewModel.CurrentPlaylistItem != null)
+			{
+				RefreshPlaylistDetailHeaderCard(ViewModel.CurrentPlaylistItem);
+			}
+			else if (inAlbumDetail && ViewModel.CurrentAlbumItem != null)
+			{
+				RefreshAlbumDetailHeaderCard(ViewModel.CurrentAlbumItem);
+			}
+		}
+		if (_loadMoreBtn != null)
+		{
+			_loadMoreBtn.Visibility = (inArtistDetail || inPlaylistDetail || inAlbumDetail) ? Visibility.Collapsed : Visibility.Visible;
+		}
+		if (_tableTitleHeaderTb != null)
+		{
+			_tableTitleHeaderTb.Text = (inAlbumDetail || inPlaylistDetail)
+				? Loc.T("歌曲")
+				: (!string.IsNullOrWhiteSpace(ViewModel.SelectedTab) ? Loc.T(ViewModel.SelectedTab) : Loc.T("歌曲"));
+		}
+
+		if (inPlaylistDetail)
+		{
+			if (ViewModel.IsLoadingPlaylistTracks && ViewModel.PlaylistSongs.Count == 0)
+			{
+				_songListStackPanel.Children.Add(new TextBlock
+				{
+					Text = Loc.T("正在加载歌单曲目..."),
+					FontSize = 12,
+					Foreground = mutedBrush,
+					HorizontalAlignment = HorizontalAlignment.Center,
+					Margin = new Thickness(0, 24, 0, 24)
+				});
+				SyncMainAreaWidth();
+				return;
+			}
+
+			foreach (var plSong in ViewModel.PlaylistSongs)
+			{
+				_songListStackPanel.Children.Add(CreateResultRowCard(plSong, isAlbumRow: false, isArtistRow: false, isPlaylistRow: false, openAlbumViaArtist: false, isDark, titleBrush, subtitleBrush, sourceBrush, mutedBrush, accentIconColor));
+			}
+			if (ViewModel.HasMorePlaylistSongs)
+			{
+				_songListStackPanel.Children.Add(BuildShowMoreInlineButton(ViewModel.IsLoadingMorePlaylistSongs, () => ViewModel.LoadMorePlaylistSongsAsync()));
+			}
+
+			SyncMainAreaWidth();
+			return;
+		}
+
+		if (inAlbumDetail && ViewModel.IsLoadingAlbumTracks && ViewModel.AlbumTracks.Count == 0)
+		{
+			_songListStackPanel.Children.Add(new TextBlock
+			{
+				Text = Loc.T("正在加载专辑曲目..."),
+				FontSize = 12,
+				Foreground = mutedBrush,
+				HorizontalAlignment = HorizontalAlignment.Center,
+				Margin = new Thickness(0, 24, 0, 24)
+			});
+			SyncMainAreaWidth();
+			return;
+		}
+
+		if (inArtistDetail)
+		{
+			if (ViewModel.IsLoadingArtistDetail && ViewModel.ArtistSongs.Count == 0 && ViewModel.ArtistAlbums.Count == 0)
+			{
+				_songListStackPanel.Children.Add(new TextBlock
+				{
+					Text = Loc.T("正在加载艺人歌曲与专辑..."),
+					FontSize = 12,
+					Foreground = mutedBrush,
+					HorizontalAlignment = HorizontalAlignment.Center,
+					Margin = new Thickness(0, 24, 0, 24)
+				});
+				SyncMainAreaWidth();
+				return;
+			}
+
+			// 分区 1：艺人歌曲（默认最多显示 20 条，底部提供「显示更多...」）
+			_songListStackPanel.Children.Add(new TextBlock
+			{
+				Text = Loc.F("热门歌曲 ({0})", ViewModel.ArtistSongs.Count),
+				FontSize = 13.5,
+				FontWeight = FontWeights.Bold,
+				Foreground = titleBrush,
+				Margin = new Thickness(4, 8, 0, 2)
+			});
+			_songListStackPanel.Children.Add(BuildSectionHeaderRow(Loc.T("歌曲"), sourceBrush));
+			foreach (var songItem in ViewModel.ArtistSongs)
+			{
+				_songListStackPanel.Children.Add(CreateResultRowCard(songItem, isAlbumRow: false, isArtistRow: false, isPlaylistRow: false, openAlbumViaArtist: false, isDark, titleBrush, subtitleBrush, sourceBrush, mutedBrush, accentIconColor));
+			}
+			if (ViewModel.HasMoreArtistSongs)
+			{
+				_songListStackPanel.Children.Add(BuildShowMoreInlineButton(ViewModel.IsLoadingMoreArtistSongs, () => ViewModel.LoadMoreArtistSongsAsync()));
+			}
+
+			// 分区 2：艺人专辑（默认最多显示 20 条，底部提供「显示更多...」）
+			_songListStackPanel.Children.Add(new TextBlock
+			{
+				Text = Loc.F("艺人专辑 ({0})", ViewModel.ArtistAlbums.Count),
+				FontSize = 13.5,
+				FontWeight = FontWeights.Bold,
+				Foreground = titleBrush,
+				Margin = new Thickness(4, 14, 0, 2)
+			});
+			_songListStackPanel.Children.Add(BuildSectionHeaderRow(Loc.T("专辑"), sourceBrush));
+			foreach (var albItem in ViewModel.ArtistAlbums)
+			{
+				_songListStackPanel.Children.Add(CreateResultRowCard(albItem, isAlbumRow: true, isArtistRow: false, isPlaylistRow: false, openAlbumViaArtist: true, isDark, titleBrush, subtitleBrush, sourceBrush, mutedBrush, accentIconColor));
+			}
+			if (ViewModel.HasMoreArtistAlbums)
+			{
+				_songListStackPanel.Children.Add(BuildShowMoreInlineButton(ViewModel.IsLoadingMoreArtistAlbums, () => ViewModel.LoadMoreArtistAlbumsAsync()));
+			}
+
+			SyncMainAreaWidth();
+			return;
+		}
+
+		var itemsToRender = inAlbumDetail ? ViewModel.AlbumTracks : ViewModel.Results;
+		foreach (var item in itemsToRender)
+		{
+			bool isAlbumRow = !inAlbumDetail && StreamingService.IsAlbumItem(item.RawInfo);
+			bool isArtistRow = !inAlbumDetail && !isAlbumRow && StreamingService.IsArtistItem(item.RawInfo);
+			bool isPlaylistRow = !inAlbumDetail && !isAlbumRow && !isArtistRow && StreamingService.IsPlaylistItem(item.RawInfo);
+			_songListStackPanel.Children.Add(CreateResultRowCard(item, isAlbumRow, isArtistRow, isPlaylistRow, openAlbumViaArtist: false, isDark, titleBrush, subtitleBrush, sourceBrush, mutedBrush, accentIconColor));
+		}
+
+		SyncMainAreaWidth();
+	}
+
+	private Border CreateResultRowCard(
+		StreamingItemViewModel item,
+		bool isAlbumRow,
+		bool isArtistRow,
+		bool isPlaylistRow,
+		bool openAlbumViaArtist,
+		bool isDark,
+		Brush titleBrush,
+		Brush subtitleBrush,
+		Brush sourceBrush,
+		Brush mutedBrush,
+		Color accentIconColor)
+	{
 			var rowCard = new Border
 			{
 				CornerRadius = new CornerRadius(8),
@@ -2514,6 +3464,17 @@ public sealed partial class StreamingPage : Page
 			});
 			Grid.SetColumn(titleStack, 1);
 			songInfoGrid.Children.Add(titleStack);
+			if (isAlbumRow || isArtistRow || isPlaylistRow)
+			{
+				songInfoGrid.Tapped += async (s, e) =>
+				{
+					e.Handled = true;
+					if (isArtistRow) await ViewModel!.OpenArtistAsync(item);
+					else if (isPlaylistRow) await ViewModel!.OpenPlaylistAsync(item);
+					else if (openAlbumViaArtist) await ViewModel!.OpenAlbumFromArtistAsync(item);
+					else await ViewModel!.OpenAlbumAsync(item);
+				};
+			}
 			Grid.SetColumn(songInfoGrid, 1);
 			rowGrid.Children.Add(songInfoGrid);
 
@@ -2573,12 +3534,16 @@ public sealed partial class StreamingPage : Page
 				Content = new FontIcon { Glyph = "\uE768", FontSize = 12, Foreground = new SolidColorBrush(accentIconColor) },
 				Tag = item
 			};
+			ToolTipService.SetToolTip(playBtn, isArtistRow ? Loc.T("播放艺人全部歌曲") : (isPlaylistRow ? Loc.T("播放歌单全部") : (isAlbumRow ? Loc.T("播放整张专辑") : Loc.T("播放单曲"))));
 			ApplyFlatActionButtonStyle(playBtn);
 			playBtn.Click += async (s, e) =>
 			{
 				if (s is Button b && b.Tag is StreamingItemViewModel m)
 				{
-					await ViewModel.PlayTrackAsync(m);
+					if (isArtistRow) await ViewModel!.PlayArtistAllAsync(m);
+					else if (isPlaylistRow) await ViewModel!.PlayPlaylistAllAsync(m);
+					else if (isAlbumRow) await ViewModel!.PlayAlbumAllAsync(m);
+					else await ViewModel.PlayTrackAsync(m);
 				}
 			};
 			actionsSp.Children.Add(playBtn);
@@ -2595,12 +3560,16 @@ public sealed partial class StreamingPage : Page
 				Content = new FontIcon { Glyph = "\uE93C", FontSize = 11, Foreground = mutedBrush },
 				Tag = item
 			};
+			ToolTipService.SetToolTip(queueBtn, isArtistRow ? Loc.T("艺人歌曲加入队列") : (isPlaylistRow ? Loc.T("歌单加入队列") : (isAlbumRow ? Loc.T("整张加入队列") : Loc.T("加入播放队列"))));
 			ApplyFlatActionButtonStyle(queueBtn);
 			queueBtn.Click += async (s, e) =>
 			{
 				if (s is Button b && b.Tag is StreamingItemViewModel m)
 				{
-					await ViewModel.AddToQueueAsync(m);
+					if (isArtistRow) await ViewModel!.AddArtistSongsToQueueAsync(m);
+					else if (isPlaylistRow) await ViewModel!.AddPlaylistSongsToQueueAsync(m);
+					else if (isAlbumRow) await ViewModel!.AddAlbumToQueueAsync(m);
+					else await ViewModel.AddToQueueAsync(m);
 				}
 			};
 			actionsSp.Children.Add(queueBtn);
@@ -2617,6 +3586,7 @@ public sealed partial class StreamingPage : Page
 				Content = new FontIcon { Glyph = "\uE896", FontSize = 11, Foreground = mutedBrush },
 				Tag = item
 			};
+			ToolTipService.SetToolTip(downloadBtn, Loc.T("缓存到本地"));
 			ApplyFlatActionButtonStyle(downloadBtn);
 			downloadBtn.Click += async (s, e) =>
 			{
@@ -2625,7 +3595,38 @@ public sealed partial class StreamingPage : Page
 					await ViewModel.DownloadTrackAsync(m);
 				}
 			};
-			actionsSp.Children.Add(downloadBtn);
+			if (isAlbumRow || isArtistRow || isPlaylistRow)
+			{
+				var enterAlbumBtn = new Button
+				{
+					Width = 28,
+					Height = 28,
+					Padding = new Thickness(0),
+					CornerRadius = new CornerRadius(14),
+					Background = new SolidColorBrush(Colors.Transparent),
+					BorderThickness = new Thickness(0),
+					BorderBrush = new SolidColorBrush(Colors.Transparent),
+					Content = new FontIcon { Glyph = "\uE76C", FontSize = 11, Foreground = new SolidColorBrush(accentIconColor) },
+					Tag = item
+				};
+				ToolTipService.SetToolTip(enterAlbumBtn, isArtistRow ? Loc.T("进入艺人查看歌曲与专辑") : (isPlaylistRow ? Loc.T("进入歌单查看曲目") : Loc.T("进入专辑查看曲目")));
+				ApplyFlatActionButtonStyle(enterAlbumBtn);
+				enterAlbumBtn.Click += async (s, e) =>
+				{
+					if (s is Button b && b.Tag is StreamingItemViewModel m)
+					{
+						if (isArtistRow) await ViewModel!.OpenArtistAsync(m);
+						else if (isPlaylistRow) await ViewModel!.OpenPlaylistAsync(m);
+						else if (openAlbumViaArtist) await ViewModel!.OpenAlbumFromArtistAsync(m);
+						else await ViewModel!.OpenAlbumAsync(m);
+					}
+				};
+				actionsSp.Children.Add(enterAlbumBtn);
+			}
+			else
+			{
+				actionsSp.Children.Add(downloadBtn);
+			}
 
 			Grid.SetColumn(actionsSp, 4);
 			rowGrid.Children.Add(actionsSp);
@@ -2634,13 +3635,14 @@ public sealed partial class StreamingPage : Page
 
 			rowCard.DoubleTapped += async (s, e) =>
 			{
-				await ViewModel.PlayTrackAsync(item);
+				if (isArtistRow) await ViewModel!.OpenArtistAsync(item);
+				else if (isPlaylistRow) await ViewModel!.OpenPlaylistAsync(item);
+				else if (isAlbumRow && openAlbumViaArtist) await ViewModel!.OpenAlbumFromArtistAsync(item);
+				else if (isAlbumRow) await ViewModel!.OpenAlbumAsync(item);
+				else await ViewModel.PlayTrackAsync(item);
 			};
 
-			_songListStackPanel.Children.Add(rowCard);
-		}
-
-		SyncMainAreaWidth();
+			return rowCard;
 	}
 
 	private static void ApplyInteractiveButtonResources(

@@ -12,8 +12,9 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Windows.UI;
 
 namespace FurinaPlayer.UI.Pages;
@@ -87,7 +88,7 @@ public sealed partial class DspPage
 		titleSp.Children.Add(iconBorder);
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "音量均衡",
+			Text = Loc.T("音量均衡"),
 			FontSize = 22,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -114,21 +115,21 @@ public sealed partial class DspPage
 		var bannerLeftSp = new StackPanel { Spacing = 3, VerticalAlignment = VerticalAlignment.Center };
 		bannerLeftSp.Children.Add(new TextBlock
 		{
-			Text = "曲库响度",
+			Text = Loc.T("曲库响度"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
 		});
 		bannerLeftSp.Children.Add(new TextBlock
 		{
-			Text = "先补齐缺失的曲库响度，再按目标均衡。分析会等待暂停或停止播放。",
+			Text = Loc.T("先补齐缺失的曲库响度，再按目标均衡。分析会等待暂停或停止播放。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		});
 
 		_rgLibraryProgressTb = new TextBlock
 		{
-			Text = "正在排队分析曲目响度...",
+			Text = Loc.T("正在排队分析曲目响度..."),
 			FontSize = 11,
 			Foreground = DspAccentSoftTextBrush,
 			Visibility = Visibility.Collapsed,
@@ -152,7 +153,7 @@ public sealed partial class DspPage
 		var bannerRightSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12, VerticalAlignment = VerticalAlignment.Center };
 		var btnViewLoudness = new Button
 		{
-			Content = "查看响度数据",
+			Content = Loc.T("查看响度数据"),
 			FontSize = 12,
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
@@ -163,7 +164,7 @@ public sealed partial class DspPage
 
 		_rgScanLoudnessBtn = new Button
 		{
-			Content = "补齐曲库响度",
+			Content = Loc.T("补齐曲库响度"),
 			FontSize = 12,
 			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
 			Padding = new Thickness(14, 6, 14, 6),
@@ -205,7 +206,7 @@ public sealed partial class DspPage
 
 		targetHeaderGrid.Children.Add(new TextBlock
 		{
-			Text = "目标响度",
+			Text = Loc.T("目标响度"),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextSecondaryBrush
@@ -221,7 +222,7 @@ public sealed partial class DspPage
 		};
 		var powerLabelTb = new TextBlock
 		{
-			Text = (_rgPowerSwitch.IsOn) ? "已开启" : "未开启",
+			Text = (_rgPowerSwitch.IsOn) ? Loc.T("已开启") : Loc.T("未开启"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -229,7 +230,7 @@ public sealed partial class DspPage
 		_rgPowerSwitch.Toggled += (s, e) =>
 		{
 			bool on = _rgPowerSwitch.IsOn;
-			powerLabelTb.Text = on ? "已开启" : "未开启";
+			powerLabelTb.Text = on ? Loc.T("已开启") : Loc.T("未开启");
 			if (ViewModel != null)
 			{
 				ViewModel.FurinaReplayGainEnabled = on;
@@ -266,7 +267,7 @@ public sealed partial class DspPage
 
 		targetCard.Children.Add(new TextBlock
 		{
-			Text = "让不同歌曲的音量更接近，减少切歌时的忽大忽小。不改写音乐文件。",
+			Text = Loc.T("让不同歌曲的音量更接近，减少切歌时的忽大忽小。不改写音乐文件。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 0, 0, 8)
@@ -310,7 +311,7 @@ public sealed partial class DspPage
 		var r1 = new Grid();
 		r1.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		r1.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		r1.Children.Add(new TextBlock { Text = "综合响度", FontSize = 11, Foreground = DspTextMutedBrush });
+		r1.Children.Add(new TextBlock { Text = Loc.T("综合响度"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_rgAppliedLufsTb = new TextBlock
 		{
 			Text = ViewModel?.FurinaReplayGainIntegratedLufs.HasValue == true
@@ -339,7 +340,7 @@ public sealed partial class DspPage
 		var r2 = new Grid { Margin = new Thickness(0, 4, 0, 0) };
 		r2.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		r2.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		r2.Children.Add(new TextBlock { Text = "目标响度", FontSize = 11, Foreground = DspTextMutedBrush });
+		r2.Children.Add(new TextBlock { Text = Loc.T("目标响度"), FontSize = 11, Foreground = DspTextMutedBrush });
 		double targetLufs = ViewModel?.FurinaReplayGainTargetLufs ?? -14.0;
 		_rgTargetScaleValueTb = new TextBlock
 		{
@@ -456,12 +457,12 @@ public sealed partial class DspPage
 			return btn;
 		}
 
-		grid.Children.Add(CreatePresetButton(-14.0, "日常聆听 · 推荐", 0));
-		grid.Children.Add(CreatePresetButton(-18.0, "安静", 1));
+		grid.Children.Add(CreatePresetButton(-14.0, Loc.T("日常聆听 · 推荐"), 0));
+		grid.Children.Add(CreatePresetButton(-18.0, Loc.T("安静"), 1));
 		grid.Children.Add(CreatePresetButton(-23.0, "EBU R128", 2));
 
 		var customSp = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
-		customSp.Children.Add(new TextBlock { Text = "自定义目标", FontSize = 12, Foreground = DspTextMutedBrush });
+		customSp.Children.Add(new TextBlock { Text = Loc.T("自定义目标"), FontSize = 12, Foreground = DspTextMutedBrush });
 		var inputSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		_rgCustomTargetTb = new TextBox
 		{
@@ -495,7 +496,7 @@ public sealed partial class DspPage
 		var root = new StackPanel { Spacing = 10, Margin = new Thickness(0, 14, 0, 0) };
 		root.Children.Add(new TextBlock
 		{
-			Text = "模式",
+			Text = Loc.T("模式"),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextSecondaryBrush
@@ -557,9 +558,9 @@ public sealed partial class DspPage
 			return btn;
 		}
 
-		grid.Children.Add(CreateModeCard(0, "自动", "连续播放同一专辑用专辑增益；混合播放用单曲增益。", 0));
-		grid.Children.Add(CreateModeCard(1, "单曲", "适合随机播放，让每首歌的音量更接近。", 1));
-		grid.Children.Add(CreateModeCard(2, "专辑", "适合整张专辑，保留曲目之间原有的强弱。", 2));
+		grid.Children.Add(CreateModeCard(0, Loc.T("自动"), Loc.T("连续播放同一专辑用专辑增益；混合播放用单曲增益。"), 0));
+		grid.Children.Add(CreateModeCard(1, Loc.T("单曲"), Loc.T("适合随机播放，让每首歌的音量更接近。"), 1));
+		grid.Children.Add(CreateModeCard(2, Loc.T("专辑"), Loc.T("适合整张专辑，保留曲目之间原有的强弱。"), 2));
 
 		root.Children.Add(grid);
 		return root;
@@ -575,7 +576,7 @@ public sealed partial class DspPage
 
 		headerGrid.Children.Add(new TextBlock
 		{
-			Text = "前级增益",
+			Text = Loc.T("前级增益"),
 			FontSize = 13,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextSecondaryBrush
@@ -647,7 +648,7 @@ public sealed partial class DspPage
 
 		headGrid.Children.Add(new TextBlock
 		{
-			Text = "当前状态",
+			Text = Loc.T("当前状态"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -662,7 +663,7 @@ public sealed partial class DspPage
 				Children =
 				{
 					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = DspTextMutedBrush },
-					new TextBlock { Text = "刷新", FontSize = 12, Foreground = DspTextSubHeaderBrush }
+					new TextBlock { Text = Loc.T("刷新"), FontSize = 12, Foreground = DspTextSubHeaderBrush }
 				}
 			},
 			Background = new SolidColorBrush(Colors.Transparent),
@@ -679,8 +680,8 @@ public sealed partial class DspPage
 		_rgAppliedGainTb = new TextBlock
 		{
 			Text = ViewModel?.FurinaReplayGainCurrentAppliedDb.HasValue == true
-				? $"当前应用  {ViewModel.FurinaReplayGainCurrentAppliedDb.Value:+0.0;-0.0;0.0} dB"
-				: "当前应用  --",
+				? Loc.F("当前应用  {0:+0.0;-0.0;0.0} dB", ViewModel.FurinaReplayGainCurrentAppliedDb.Value)
+				: Loc.T("当前应用  --"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		};
@@ -688,7 +689,7 @@ public sealed partial class DspPage
 
 		_rgStatusLargeTb = new TextBlock
 		{
-			Text = (ViewModel?.FurinaReplayGainEnabled ?? false) ? "已开启" : "未开启",
+			Text = (ViewModel?.FurinaReplayGainEnabled ?? false) ? Loc.T("已开启") : Loc.T("未开启"),
 			FontSize = 26,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = (ViewModel?.FurinaReplayGainEnabled ?? false)
@@ -701,8 +702,8 @@ public sealed partial class DspPage
 		_rgStatusDetailTb = new TextBlock
 		{
 			Text = (ViewModel?.FurinaReplayGainEnabled ?? false)
-				? "音量均衡已生效。系统将自动按目标响度调节各曲目播放增益，保障听感一致。"
-				: "请先补齐曲库响度。分析结果会保存在曲库中，下次播放直接使用。",
+				? Loc.T("音量均衡已生效。系统将自动按目标响度调节各曲目播放增益，保障听感一致。")
+				: Loc.T("请先补齐曲库响度。分析结果会保存在曲库中，下次播放直接使用。"),
 			FontSize = 12,
 			TextWrapping = TextWrapping.Wrap,
 			LineHeight = 18,
@@ -722,7 +723,7 @@ public sealed partial class DspPage
 		// Expander: 高级设置
 		var expander = new Expander
 		{
-			Header = "高级设置",
+			Header = Loc.T("高级设置"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			HorizontalContentAlignment = HorizontalAlignment.Stretch,
 			Background = new SolidColorBrush(Colors.Transparent),
@@ -751,14 +752,14 @@ public sealed partial class DspPage
 			return sp;
 		}
 
-		factsGrid.Children.Add(CreateFactItem("综合响度", out _factIntegratedTb, 0, 0));
-		factsGrid.Children.Add(CreateFactItem("选用增益", out _factSelectedGainTb, 0, 1));
-		factsGrid.Children.Add(CreateFactItem("音频峰值", out _factPeakTb, 1, 0));
-		factsGrid.Children.Add(CreateFactItem("曲目增益", out _factTrackGainTb, 1, 1));
-		factsGrid.Children.Add(CreateFactItem("专辑增益", out _factAlbumGainTb, 2, 0));
-		factsGrid.Children.Add(CreateFactItem("数据来源", out _factSourceTb, 2, 1));
-		factsGrid.Children.Add(CreateFactItem("当前模式", out _factEffectiveModeTb, 3, 0));
-		factsGrid.Children.Add(CreateFactItem("防削波限幅", out _factClippingTb, 3, 1));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("综合响度"), out _factIntegratedTb, 0, 0));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("选用增益"), out _factSelectedGainTb, 0, 1));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("音频峰值"), out _factPeakTb, 1, 0));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("曲目增益"), out _factTrackGainTb, 1, 1));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("专辑增益"), out _factAlbumGainTb, 2, 0));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("数据来源"), out _factSourceTb, 2, 1));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("当前模式"), out _factEffectiveModeTb, 3, 0));
+		factsGrid.Children.Add(CreateFactItem(Loc.T("防削波限幅"), out _factClippingTb, 3, 1));
 		advStack.Children.Add(factsGrid);
 
 		advStack.Children.Add(new Border { Height = 1, Background = DspSoftSurfaceBrush, Margin = new Thickness(0, 4, 0, 4) });
@@ -767,7 +768,7 @@ public sealed partial class DspPage
 		var unknownGrid = new Grid();
 		unknownGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		unknownGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		unknownGrid.Children.Add(new TextBlock { Text = "响度未知时", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center });
+		unknownGrid.Children.Add(new TextBlock { Text = Loc.T("响度未知时"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextSecondaryBrush, VerticalAlignment = VerticalAlignment.Center });
 
 		var unkInputSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
 		_rgUnknownLoudnessTb = new TextBox
@@ -795,7 +796,7 @@ public sealed partial class DspPage
 
 		advStack.Children.Add(new TextBlock
 		{
-			Text = "默认衰减 5 dB。0 dB 关闭保护；前置增益不作用于未知响度。",
+			Text = Loc.T("默认衰减 5 dB。0 dB 关闭保护；前置增益不作用于未知响度。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -805,7 +806,7 @@ public sealed partial class DspPage
 		// Checkboxes
 		_rgPreventClippingCb = new CheckBox
 		{
-			Content = "防爆音 / 防削波保护",
+			Content = Loc.T("防爆音 / 防削波保护"),
 			IsChecked = ViewModel?.FurinaReplayGainPreventClipping ?? true,
 			FontSize = 12
 		};
@@ -814,7 +815,7 @@ public sealed partial class DspPage
 		advStack.Children.Add(_rgPreventClippingCb);
 		advStack.Children.Add(new TextBlock
 		{
-			Text = "当增益导致峰值超过 0 dBFS 时自动下调，避免削波失真。",
+			Text = Loc.T("当增益导致峰值超过 0 dBFS 时自动下调，避免削波失真。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -823,7 +824,7 @@ public sealed partial class DspPage
 
 		_rgAnalyzeOnScanCb = new CheckBox
 		{
-			Content = "扫描后分析",
+			Content = Loc.T("扫描后分析"),
 			IsChecked = ViewModel?.FurinaReplayGainAnalyzeOnScan ?? false,
 			FontSize = 12
 		};
@@ -833,7 +834,7 @@ public sealed partial class DspPage
 
 		_rgTruePeakCb = new CheckBox
 		{
-			Content = "开启真峰值扫描 (True Peak)",
+			Content = Loc.T("开启真峰值扫描 (True Peak)"),
 			IsChecked = ViewModel?.FurinaReplayGainTruePeak ?? true,
 			FontSize = 12
 		};
@@ -844,7 +845,7 @@ public sealed partial class DspPage
 		var protoGrid = new Grid { Margin = new Thickness(0, 2, 0, 4) };
 		protoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		protoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-		protoGrid.Children.Add(new TextBlock { Text = "响度分析协议", FontSize = 12, Foreground = DspTextSubHeaderBrush, VerticalAlignment = VerticalAlignment.Center });
+		protoGrid.Children.Add(new TextBlock { Text = Loc.T("响度分析协议"), FontSize = 12, Foreground = DspTextSubHeaderBrush, VerticalAlignment = VerticalAlignment.Center });
 		var tbProto = new TextBlock { Text = "EBU R128 / BS.1770-4", FontSize = 11, Foreground = DspAccentSoftTextBrush, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
 		Grid.SetColumn(tbProto, 1);
 		protoGrid.Children.Add(tbProto);
@@ -852,7 +853,7 @@ public sealed partial class DspPage
 
 		var btnRestoreRec = new Button
 		{
-			Content = "恢复推荐设置",
+			Content = Loc.T("恢复推荐设置"),
 			FontSize = 12,
 			HorizontalAlignment = HorizontalAlignment.Right,
 			Padding = new Thickness(10, 4, 10, 4),
@@ -960,7 +961,7 @@ public sealed partial class DspPage
 
 		if (_rgStatusLargeTb != null)
 		{
-			_rgStatusLargeTb.Text = on ? "已开启" : "未开启";
+			_rgStatusLargeTb.Text = on ? Loc.T("已开启") : Loc.T("未开启");
 			_rgStatusLargeTb.Foreground = on
 				? new SolidColorBrush(Color.FromArgb(255, 22, 163, 74))
 				: DspTextPrimaryBrush;
@@ -969,15 +970,15 @@ public sealed partial class DspPage
 		if (_rgAppliedGainTb != null)
 		{
 			_rgAppliedGainTb.Text = (on && ViewModel.FurinaReplayGainCurrentAppliedDb.HasValue)
-				? $"当前应用  {ViewModel.FurinaReplayGainCurrentAppliedDb.Value:+0.0;-0.0;0.0} dB"
-				: "当前应用  --";
+				? Loc.F("当前应用  {0:+0.0;-0.0;0.0} dB", ViewModel.FurinaReplayGainCurrentAppliedDb.Value)
+				: Loc.T("当前应用  --");
 		}
 
 		if (_rgStatusDetailTb != null)
 		{
 			_rgStatusDetailTb.Text = on
-				? "音量均衡已生效。系统将自动按目标响度调节各曲目播放增益，保障听感一致。"
-				: "请先补齐曲库响度。分析结果会保存在曲库中，下次播放直接使用。";
+				? Loc.T("音量均衡已生效。系统将自动按目标响度调节各曲目播放增益，保障听感一致。")
+				: Loc.T("请先补齐曲库响度。分析结果会保存在曲库中，下次播放直接使用。");
 		}
 
 		if (_rgAppliedLufsTb != null)
@@ -1020,21 +1021,21 @@ public sealed partial class DspPage
 		}
 		if (_factSourceTb != null)
 		{
-			_factSourceTb.Text = on ? ViewModel.FurinaReplayGainSource : "未开启";
+			_factSourceTb.Text = on ? Loc.T(ViewModel.FurinaReplayGainSource) : Loc.T("未开启");
 		}
 		if (_factEffectiveModeTb != null)
 		{
 			_factEffectiveModeTb.Text = ViewModel.FurinaReplayGainMode switch
 			{
-				0 => "自动 (单曲/专辑)",
-				1 => "单曲 (Track)",
-				2 => "专辑 (Album)",
-				_ => "单曲"
+				0 => Loc.T("自动 (单曲/专辑)"),
+				1 => Loc.T("单曲 (Track)"),
+				2 => Loc.T("专辑 (Album)"),
+				_ => Loc.T("单曲")
 			};
 		}
 		if (_factClippingTb != null)
 		{
-			_factClippingTb.Text = ViewModel.FurinaReplayGainPreventedClipping ? "已限幅" : "未限幅";
+			_factClippingTb.Text = ViewModel.FurinaReplayGainPreventedClipping ? Loc.T("已限幅") : Loc.T("未限幅");
 			_factClippingTb.Foreground = ViewModel.FurinaReplayGainPreventedClipping
 				? new SolidColorBrush(Color.FromArgb(255, 234, 88, 12))
 				: new SolidColorBrush(Color.FromArgb(255, 22, 163, 74));
@@ -1046,7 +1047,7 @@ public sealed partial class DspPage
 		var contentSp = new StackPanel { Spacing = 12 };
 		contentSp.Children.Add(new TextBlock
 		{
-			Text = "曲库已实测 100% 音频文件。所有曲目已具备 ITU-R BS.1770-4 综合响度与真峰值数据。",
+			Text = Loc.T("曲库已实测 100% 音频文件。所有曲目已具备 ITU-R BS.1770-4 综合响度与真峰值数据。"),
 			FontSize = 13,
 			Foreground = DspTextSecondaryBrush
 		});
@@ -1074,20 +1075,20 @@ public sealed partial class DspPage
 			grid.Children.Add(tbK); grid.Children.Add(tbV);
 		}
 
-		AddRow(0, "分析协议：", "ITU-R BS.1770-4 / EBU R128");
-		AddRow(1, "参考目标响度：", $"{ViewModel?.FurinaReplayGainTargetLufs ?? -14.0:F1} LUFS");
-		AddRow(2, "综合响度范围 (LRA)：", "4.5 ~ 8.2 LU");
-		AddRow(3, "True Peak 过采样：", "4x Polyphase Oversampling");
-		AddRow(4, "削波保护门限：", "-0.0 dBFS (True Peak Limited)");
+		AddRow(0, Loc.T("分析协议："), "ITU-R BS.1770-4 / EBU R128");
+		AddRow(1, Loc.T("参考目标响度："), $"{ViewModel?.FurinaReplayGainTargetLufs ?? -14.0:F1} LUFS");
+		AddRow(2, Loc.T("综合响度范围 (LRA)："), "4.5 ~ 8.2 LU");
+		AddRow(3, Loc.T("True Peak 过采样："), "4x Polyphase Oversampling");
+		AddRow(4, Loc.T("削波保护门限："), "-0.0 dBFS (True Peak Limited)");
 
 		border.Child = grid;
 		contentSp.Children.Add(border);
 
 		await new ContentDialog
 		{
-			Title = "曲库响度分析数据",
+			Title = Loc.T("曲库响度分析数据"),
 			Content = contentSp,
-			CloseButtonText = "确定",
+			CloseButtonText = Loc.T("确定"),
 			XamlRoot = XamlRoot
 		}.ShowAsync();
 	}
@@ -1099,17 +1100,17 @@ public sealed partial class DspPage
 			// Cancel scanning
 			_scanCts?.Cancel();
 			_isLoudnessScanning = false;
-			if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = "补齐曲库响度";
-			if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = "已取消分析。";
+			if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = Loc.T("补齐曲库响度");
+			if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = Loc.T("已取消分析。");
 			if (_rgLibraryProgressBar != null) _rgLibraryProgressBar.Visibility = Visibility.Collapsed;
 			return;
 		}
 
 		_isLoudnessScanning = true;
-		if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = "取消分析";
+		if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = Loc.T("取消分析");
 		if (_rgLibraryProgressTb != null)
 		{
-			_rgLibraryProgressTb.Text = "正在扫描曲库响度... (0%)";
+			_rgLibraryProgressTb.Text = Loc.T("正在扫描曲库响度... (0%)");
 			_rgLibraryProgressTb.Visibility = Visibility.Visible;
 		}
 		if (_rgLibraryProgressBar != null)
@@ -1134,14 +1135,14 @@ public sealed partial class DspPage
 					DispatcherQueue.TryEnqueue(() =>
 					{
 						if (_rgLibraryProgressBar != null) _rgLibraryProgressBar.Value = pct;
-						if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = $"正在测量曲库响度... {pct}% ({i}/10 专辑已校验)";
+						if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = Loc.F("正在测量曲库响度... {0}% ({1}/10 专辑已校验)", pct, i);
 					});
 				}
 			}, token);
 
 			if (!token.IsCancellationRequested)
 			{
-				if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = "曲库响度分析完成，已全部对齐。";
+				if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = Loc.T("曲库响度分析完成，已全部对齐。");
 				if (_rgLibraryProgressBar != null) _rgLibraryProgressBar.Value = 100;
 				if (ViewModel != null)
 				{
@@ -1157,12 +1158,12 @@ public sealed partial class DspPage
 		}
 		catch (OperationCanceledException)
 		{
-			if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = "分析已取消。";
+			if (_rgLibraryProgressTb != null) _rgLibraryProgressTb.Text = Loc.T("分析已取消。");
 		}
 		finally
 		{
 			_isLoudnessScanning = false;
-			if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = "补齐曲库响度";
+			if (_rgScanLoudnessBtn != null) _rgScanLoudnessBtn.Content = Loc.T("补齐曲库响度");
 		}
 	}
 }

@@ -13,8 +13,9 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Vst3;
-using SonicWave.Core.Models;
+using FurinaPlayer.Audio.Vst3;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.System;
@@ -55,6 +56,8 @@ public sealed partial class DspPage
 
 	// Right Card: Discovered Plugins & Rack Slots
 	private TextBox? _vst3SearchBox;
+	private ScrollViewer? _vst3ScrollViewer;
+	private FrameworkElement? _vst3MainGrid;
 	private string _vst3SearchQuery = string.Empty;
 	private string _vst3FilterMode = "all"; // "all" or "enabled"
 	private Button? _vst3FilterAllBtn;
@@ -153,11 +156,35 @@ public sealed partial class DspPage
 		Grid.SetRow(mainGrid, 2);
 		root.Children.Add(mainGrid);
 
+		_vst3ScrollViewer = sv;
+		_vst3MainGrid = mainGrid as FrameworkElement;
 		sv.Content = root;
 		_vst3RackWorkbench = sv;
 
 		RefreshVst3RackUi();
 		return _vst3RackWorkbench;
+	}
+
+	public void FocusVst3Section(string section)
+	{
+		DispatcherQueue?.TryEnqueue(() =>
+		{
+			try
+			{
+				if (string.Equals(section, "manager", StringComparison.OrdinalIgnoreCase))
+				{
+					_vst3ScrollViewer?.ChangeView(null, 260, null, false);
+					_vst3SearchBox?.Focus(FocusState.Programmatic);
+				}
+				else
+				{
+					_vst3ScrollViewer?.ChangeView(null, 0, null, false);
+				}
+			}
+			catch
+			{
+			}
+		});
 	}
 
 	private FrameworkElement CreateVst3HeaderBar()
@@ -191,14 +218,14 @@ public sealed partial class DspPage
 		var titleStack = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
 		titleStack.Children.Add(new TextBlock
 		{
-			Text = "VST3 机架 / 插件管理器",
+			Text = Loc.T("VST3 机架 / 插件管理器"),
 			FontSize = 20,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
 		});
 		titleStack.Children.Add(new TextBlock
 		{
-			Text = "Steinberg VST3 64位原生宿主 · 支持实时音频流宿主渲染与原生插件 GUI 窗口交互",
+			Text = Loc.T("Steinberg VST3 64位原生宿主 · 支持实时音频流宿主渲染与原生插件 GUI 窗口交互"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush
 		});
@@ -212,7 +239,7 @@ public sealed partial class DspPage
 
 		var btnScan = new Button
 		{
-			Content = "🔍 扫描目录",
+			Content = Loc.T("🔍 扫描目录"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 6, 12, 6),
@@ -231,7 +258,7 @@ public sealed partial class DspPage
 
 		var btnLoadFile = new Button
 		{
-			Content = "➕ 加载 .vst3 文件",
+			Content = Loc.T("➕ 加载 .vst3 文件"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 6, 12, 6),
@@ -271,7 +298,7 @@ public sealed partial class DspPage
 		var flowTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		flowTitleSp.Children.Add(new TextBlock
 		{
-			Text = "实时 VST3 宿主信号链路 (Active VST3 Signal Chain)",
+			Text = Loc.T("实时 VST3 宿主信号链路 (Active VST3 Signal Chain)"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -297,7 +324,7 @@ public sealed partial class DspPage
 
 		_vst3LiveStatusTb = new TextBlock
 		{
-			Text = ViewModel?.Vst3StatusText ?? "宿主就绪",
+			Text = ViewModel?.Vst3StatusText ?? Loc.T("宿主就绪"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -316,7 +343,7 @@ public sealed partial class DspPage
 			});
 		}
 
-		var node0 = CreateVst3FlowNode("\uE767", "音频解码输入", "PCM 32-bit Float", out _vst3NodeInputSubTb, out _);
+		var node0 = CreateVst3FlowNode("\uE767", Loc.T("音频解码输入"), "PCM 32-bit Float", out _vst3NodeInputSubTb, out _);
 		Grid.SetColumn(node0, 0);
 		nodesGrid.Children.Add(node0);
 
@@ -324,7 +351,7 @@ public sealed partial class DspPage
 		Grid.SetColumn(arr0, 1);
 		nodesGrid.Children.Add(arr0);
 
-		var node1 = CreateVst3FlowNode("\uE995", "ECHO DSP 前级链路", "EQ / 压缩 / 空间处理", out _, out _);
+		var node1 = CreateVst3FlowNode("\uE995", Loc.T("FurinaPlayer DSP 前级链路"), Loc.T("EQ / 压缩 / 空间处理"), out _, out _);
 		Grid.SetColumn(node1, 2);
 		nodesGrid.Children.Add(node1);
 
@@ -332,7 +359,7 @@ public sealed partial class DspPage
 		Grid.SetColumn(arr1, 3);
 		nodesGrid.Children.Add(arr1);
 
-		var node2 = CreateVst3FlowNode("\uE8B8", "VST3 原生宿主插槽", "Active Slot (待命)", out _vst3NodeSlotSubTb, out _vst3NodeSlotBorder);
+		var node2 = CreateVst3FlowNode("\uE8B8", Loc.T("VST3 原生宿主插槽"), Loc.T("Active Slot (待命)"), out _vst3NodeSlotSubTb, out _vst3NodeSlotBorder);
 		Grid.SetColumn(node2, 4);
 		nodesGrid.Children.Add(node2);
 
@@ -340,7 +367,7 @@ public sealed partial class DspPage
 		Grid.SetColumn(arr2, 5);
 		nodesGrid.Children.Add(arr2);
 
-		var node3 = CreateVst3FlowNode("\uE737", "原生 GUI 编辑器", "IPlugView 窗口", out _vst3NodeGuiSubTb, out _vst3NodeGuiBorder);
+		var node3 = CreateVst3FlowNode("\uE737", Loc.T("原生 GUI 编辑器"), Loc.T("IPlugView 窗口"), out _vst3NodeGuiSubTb, out _vst3NodeGuiBorder);
 		Grid.SetColumn(node3, 6);
 		nodesGrid.Children.Add(node3);
 
@@ -348,7 +375,7 @@ public sealed partial class DspPage
 		Grid.SetColumn(arr3, 7);
 		nodesGrid.Children.Add(arr3);
 
-		var node4 = CreateVst3FlowNode("\uE72E", "安全限幅输出", "防削波直通音频设备", out _, out _);
+		var node4 = CreateVst3FlowNode("\uE72E", Loc.T("安全限幅输出"), Loc.T("防削波直通音频设备"), out _, out _);
 		Grid.SetColumn(node4, 8);
 		nodesGrid.Children.Add(node4);
 
@@ -372,7 +399,7 @@ public sealed partial class DspPage
 		var activeTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 		activeTitleRow.Children.Add(new TextBlock
 		{
-			Text = "当前挂载插件：",
+			Text = Loc.T("当前挂载插件："),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextMutedBrush,
@@ -380,7 +407,7 @@ public sealed partial class DspPage
 		});
 		_vst3ActiveNameTb = new TextBlock
 		{
-			Text = "未启用插件 (直通模式)",
+			Text = Loc.T("未启用插件 (直通模式)"),
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -399,7 +426,7 @@ public sealed partial class DspPage
 		};
 		_vst3ActiveStateBadgeTb = new TextBlock
 		{
-			Text = "待命 (直通)",
+			Text = Loc.T("待命 (直通)"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSubHeaderBrush
@@ -410,15 +437,15 @@ public sealed partial class DspPage
 
 		// Metadata badges row: Vendor | Version | Host Status | SampleRate
 		var metaWrap = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 16 };
-		metaWrap.Children.Add(CreateTelemetryMetric("厂商 (Vendor)", out _vst3ActiveVendorTb, "--"));
-		metaWrap.Children.Add(CreateTelemetryMetric("版本 (Version)", out _vst3ActiveVersionTb, "--"));
-		metaWrap.Children.Add(CreateTelemetryMetric("宿主状态 (Host)", out _vst3ActiveHostStateTb, "待命 (直通)"));
-		metaWrap.Children.Add(CreateTelemetryMetric("采样率与声道", out _vst3ActiveSampleRateTb, "48000 Hz / Stereo"));
+		metaWrap.Children.Add(CreateTelemetryMetric(Loc.T("厂商 (Vendor)"), out _vst3ActiveVendorTb, "--"));
+		metaWrap.Children.Add(CreateTelemetryMetric(Loc.T("版本 (Version)"), out _vst3ActiveVersionTb, "--"));
+		metaWrap.Children.Add(CreateTelemetryMetric(Loc.T("宿主状态 (Host)"), out _vst3ActiveHostStateTb, Loc.T("待命 (直通)")));
+		metaWrap.Children.Add(CreateTelemetryMetric(Loc.T("采样率与声道"), out _vst3ActiveSampleRateTb, "48000 Hz / Stereo"));
 		detailsStack.Children.Add(metaWrap);
 
 		_vst3ActivePathTb = new TextBlock
 		{
-			Text = "插件路径：可在下方机架列表中启用任意 VST3 插件，或直接点击“🎛️ 界面”一键挂载并打开原生窗口。",
+			Text = Loc.T("插件路径：可在下方机架列表中启用任意 VST3 插件，或直接点击“🎛️ 界面”一键挂载并打开原生窗口。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
@@ -438,7 +465,7 @@ public sealed partial class DspPage
 
 		_vst3HeroOpenGuiBtn = new Button
 		{
-			Content = "🎛️ 打开选中/活动插件原生界面",
+			Content = Loc.T("🎛️ 打开选中/活动插件原生界面"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(14, 8, 14, 8),
@@ -461,7 +488,7 @@ public sealed partial class DspPage
 		};
 		_vst3HeroBypassBtnTb = new TextBlock
 		{
-			Text = "⏸ 旁通当前插件",
+			Text = Loc.T("⏸ 旁通当前插件"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSecondaryBrush
@@ -472,7 +499,7 @@ public sealed partial class DspPage
 
 		_vst3HeroUnloadAllBtn = new Button
 		{
-			Content = "⏹ 全部停用 (卸载宿主)",
+			Content = Loc.T("⏹ 全部停用 (卸载宿主)"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 8, 12, 8),
@@ -617,14 +644,14 @@ public sealed partial class DspPage
 		var titleStack = new StackPanel { Spacing = 2 };
 		titleStack.Children.Add(new TextBlock
 		{
-			Text = "扫描目录管理",
+			Text = Loc.T("扫描目录管理"),
 			FontSize = 15,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
 		});
 		titleStack.Children.Add(new TextBlock
 		{
-			Text = "管理 VST3 插件搜索目录（无高度截断）",
+			Text = Loc.T("管理 VST3 插件搜索目录（无高度截断）"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		});
@@ -642,7 +669,7 @@ public sealed partial class DspPage
 		};
 		_vst3FolderCountBadgeTb = new TextBlock
 		{
-			Text = "0 个目录",
+			Text = Loc.T("0 个目录"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSubHeaderBrush
@@ -657,7 +684,7 @@ public sealed partial class DspPage
 
 		var btnScanAll = new Button
 		{
-			Content = "⚡ 立即扫描全部目录",
+			Content = Loc.T("⚡ 立即扫描全部目录"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
@@ -681,7 +708,7 @@ public sealed partial class DspPage
 
 		var btnAddFolder = new Button
 		{
-			Content = "📁 添加扫描目录",
+			Content = Loc.T("📁 添加扫描目录"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
@@ -698,7 +725,7 @@ public sealed partial class DspPage
 
 		var btnRestoreDefault = new Button
 		{
-			Content = "恢复默认目录",
+			Content = Loc.T("恢复默认目录"),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
@@ -763,7 +790,7 @@ public sealed partial class DspPage
 
 		_vst3SearchBox = new TextBox
 		{
-			PlaceholderText = "搜索插件名称、厂商 (如 Insight, Melodyne, FabFilter, iZotope)...",
+			PlaceholderText = Loc.T("搜索插件名称、厂商 (如 Insight, Melodyne, FabFilter, iZotope)..."),
 			FontSize = 12,
 			CornerRadius = new CornerRadius(8),
 			VerticalAlignment = VerticalAlignment.Center
@@ -785,7 +812,7 @@ public sealed partial class DspPage
 			CornerRadius = new CornerRadius(16),
 			BorderThickness = new Thickness(1)
 		};
-		_vst3FilterAllTb = new TextBlock { Text = "全部插件 (0)", FontSize = 12, FontWeight = FontWeights.SemiBold };
+		_vst3FilterAllTb = new TextBlock { Text = Loc.T("全部插件 (0)"), FontSize = 12, FontWeight = FontWeights.SemiBold };
 		_vst3FilterAllBtn.Content = _vst3FilterAllTb;
 		_vst3FilterAllBtn.Click += (s, e) =>
 		{
@@ -800,7 +827,7 @@ public sealed partial class DspPage
 			CornerRadius = new CornerRadius(16),
 			BorderThickness = new Thickness(1)
 		};
-		_vst3FilterEnabledTb = new TextBlock { Text = "已启用 (0)", FontSize = 12, FontWeight = FontWeights.SemiBold };
+		_vst3FilterEnabledTb = new TextBlock { Text = Loc.T("已启用 (0)"), FontSize = 12, FontWeight = FontWeights.SemiBold };
 		_vst3FilterEnabledBtn.Content = _vst3FilterEnabledTb;
 		_vst3FilterEnabledBtn.Click += (s, e) =>
 		{
@@ -814,7 +841,7 @@ public sealed partial class DspPage
 
 		_vst3TotalCountTb = new TextBlock
 		{
-			Text = "共发现 0 个 VST3 插件",
+			Text = Loc.T("共发现 0 个 VST3 插件"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush,
@@ -882,35 +909,35 @@ public sealed partial class DspPage
 				if (activePlugin != null && activePlugin.IsActive)
 				{
 					_vst3NodeSlotSubTb.Text = activePlugin.Name;
-					_vst3NodeSlotBorder.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 240, 253, 244));
-					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172));
+					_vst3NodeSlotBorder.Background = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(55, 34, 197, 94) : Windows.UI.Color.FromArgb(255, 240, 253, 244));
+					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(130, 74, 222, 128) : Windows.UI.Color.FromArgb(255, 134, 239, 172));
 				}
 				else if (activePlugin != null && activePlugin.Bypass)
 				{
-					_vst3NodeSlotSubTb.Text = $"{activePlugin.Name} (已旁通)";
-					_vst3NodeSlotBorder.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 252, 232));
-					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 253, 224, 71));
+					_vst3NodeSlotSubTb.Text = Loc.F("{0} (已旁通)", activePlugin.Name);
+					_vst3NodeSlotBorder.Background = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(55, 245, 158, 11) : Windows.UI.Color.FromArgb(255, 254, 252, 232));
+					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(130, 251, 191, 36) : Windows.UI.Color.FromArgb(255, 253, 224, 71));
 				}
 				else
 				{
-					_vst3NodeSlotSubTb.Text = "Active Slot (直通待命)";
-					_vst3NodeSlotBorder.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252));
-					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240));
+					_vst3NodeSlotSubTb.Text = Loc.T("Active Slot (直通待命)");
+					_vst3NodeSlotBorder.Background = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(40, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 248, 250, 252));
+					_vst3NodeSlotBorder.BorderBrush = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(65, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 226, 232, 240));
 				}
 			}
 			if (_vst3NodeGuiSubTb != null && _vst3NodeGuiBorder != null)
 			{
 				if (editorOpen)
 				{
-					_vst3NodeGuiSubTb.Text = "原生窗口已打开 (Active)";
-					_vst3NodeGuiBorder.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 238, 242, 255));
-					_vst3NodeGuiBorder.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 165, 180, 252));
+					_vst3NodeGuiSubTb.Text = Loc.T("原生窗口已打开 (Active)");
+					_vst3NodeGuiBorder.Background = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(55, 99, 102, 241) : Windows.UI.Color.FromArgb(255, 238, 242, 255));
+					_vst3NodeGuiBorder.BorderBrush = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(130, 165, 180, 252) : Windows.UI.Color.FromArgb(255, 165, 180, 252));
 				}
 				else
 				{
-					_vst3NodeGuiSubTb.Text = "点击 [🎛️ 界面] 随时唤起";
-					_vst3NodeGuiBorder.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 248, 250, 252));
-					_vst3NodeGuiBorder.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 226, 232, 240));
+					_vst3NodeGuiSubTb.Text = Loc.T("点击 [🎛️ 界面] 随时唤起");
+					_vst3NodeGuiBorder.Background = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(40, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 248, 250, 252));
+					_vst3NodeGuiBorder.BorderBrush = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(65, 255, 255, 255) : Windows.UI.Color.FromArgb(255, 226, 232, 240));
 				}
 			}
 
@@ -926,14 +953,14 @@ public sealed partial class DspPage
 					_vst3ActiveNameTb.Text = activePlugin.Name;
 					if (activePlugin.IsActive)
 					{
-						_vst3ActiveStateBadgeTb.Text = "实时运行中";
+						_vst3ActiveStateBadgeTb.Text = Loc.T("实时运行中");
 						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 134, 239, 172) : Windows.UI.Color.FromArgb(255, 21, 128, 61));
 						_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 34, 197, 94)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 252, 231));
 						_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(90, 134, 239, 172)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 134, 239, 172));
 					}
 					else
 					{
-						_vst3ActiveStateBadgeTb.Text = "已旁通 (Bypass)";
+						_vst3ActiveStateBadgeTb.Text = Loc.T("已旁通 (Bypass)");
 						_vst3ActiveStateBadgeTb.Foreground = new SolidColorBrush(IsDspDark ? Windows.UI.Color.FromArgb(255, 253, 224, 71) : Windows.UI.Color.FromArgb(255, 180, 83, 9));
 						_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(55, 245, 158, 11)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 254, 243, 199));
 						_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(90, 252, 211, 77)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 252, 211, 77));
@@ -941,8 +968,8 @@ public sealed partial class DspPage
 				}
 				else
 				{
-					_vst3ActiveNameTb.Text = "未启用插件 (直通模式)";
-					_vst3ActiveStateBadgeTb.Text = "待命 (直通)";
+					_vst3ActiveNameTb.Text = Loc.T("未启用插件 (直通模式)");
+					_vst3ActiveStateBadgeTb.Text = Loc.T("待命 (直通)");
 					_vst3ActiveStateBadgeTb.Foreground = DspTextSubHeaderBrush;
 					_vst3ActiveStateBadge.Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249));
 					_vst3ActiveStateBadge.BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(65, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(255, 203, 213, 225));
@@ -959,7 +986,7 @@ public sealed partial class DspPage
 			}
 			if (_vst3ActiveHostStateTb != null)
 			{
-				_vst3ActiveHostStateTb.Text = hostLoaded ? "原生宿主已挂载 (Native Active)" : "待命 (直通)";
+				_vst3ActiveHostStateTb.Text = hostLoaded ? Loc.T("原生宿主已挂载 (Native Active)") : Loc.T("待命 (直通)");
 			}
 			if (_vst3ActiveSampleRateTb != null)
 			{
@@ -968,19 +995,19 @@ public sealed partial class DspPage
 			if (_vst3ActivePathTb != null)
 			{
 				_vst3ActivePathTb.Text = activePlugin != null
-					? $"插件路径：{activePlugin.Path}"
-					: "插件路径：可在下方机架列表中启用任意 VST3 插件，或直接点击“🎛️ 界面”一键挂载并打开原生窗口。";
+					? Loc.F("插件路径：{0}", activePlugin.Path)
+					: Loc.T("插件路径：可在下方机架列表中启用任意 VST3 插件，或直接点击“🎛️ 界面”一键挂载并打开原生窗口。");
 			}
 
 			if (_vst3HeroBypassBtnTb != null)
 			{
-				_vst3HeroBypassBtnTb.Text = (activePlugin != null && activePlugin.Bypass) ? "▶ 恢复插件处理" : "⏸ 旁通当前插件";
+				_vst3HeroBypassBtnTb.Text = (activePlugin != null && activePlugin.Bypass) ? Loc.T("▶ 恢复插件处理") : Loc.T("⏸ 旁通当前插件");
 			}
 
 			// 3. Filter Pills Appearance
-			if (_vst3FilterAllTb != null) _vst3FilterAllTb.Text = $"全部插件 ({totalCount})";
-			if (_vst3FilterEnabledTb != null) _vst3FilterEnabledTb.Text = $"已启用 ({enabledCount})";
-			if (_vst3TotalCountTb != null) _vst3TotalCountTb.Text = $"共发现 {totalCount} 个 VST3 插件";
+			if (_vst3FilterAllTb != null) _vst3FilterAllTb.Text = Loc.F("全部插件 ({0})", totalCount);
+			if (_vst3FilterEnabledTb != null) _vst3FilterEnabledTb.Text = Loc.F("已启用 ({0})", enabledCount);
+			if (_vst3TotalCountTb != null) _vst3TotalCountTb.Text = Loc.F("共发现 {0} 个 VST3 插件", totalCount);
 
 			UpdateFilterButtonVisual(_vst3FilterAllBtn, _vst3FilterAllTb, _vst3FilterMode == "all");
 			UpdateFilterButtonVisual(_vst3FilterEnabledBtn, _vst3FilterEnabledTb, _vst3FilterMode == "enabled");
@@ -1024,7 +1051,7 @@ public sealed partial class DspPage
 		var folders = ViewModel.Vst3Folders;
 		if (_vst3FolderCountBadgeTb != null)
 		{
-			_vst3FolderCountBadgeTb.Text = $"{folders.Count} 个目录";
+			_vst3FolderCountBadgeTb.Text = Loc.F("{0} 个目录", folders.Count);
 		}
 
 		if (folders.Count == 0)
@@ -1038,7 +1065,7 @@ public sealed partial class DspPage
 				Padding = new Thickness(14, 16, 14, 16),
 				Child = new TextBlock
 				{
-					Text = "暂未配置扫描目录。可点击“恢复默认目录”或“📁 添加扫描目录”。",
+					Text = Loc.T("暂未配置扫描目录。可点击“恢复默认目录”或“📁 添加扫描目录”。"),
 					FontSize = 12,
 					Foreground = DspTextMutedBrush,
 					TextWrapping = TextWrapping.Wrap
@@ -1103,7 +1130,7 @@ public sealed partial class DspPage
 
 			var btnOpenDir = new Button
 			{
-				Content = "打开文件夹",
+				Content = Loc.T("打开文件夹"),
 				FontSize = 11,
 				Padding = new Thickness(8, 3, 8, 3),
 				CornerRadius = new CornerRadius(6),
@@ -1122,7 +1149,7 @@ public sealed partial class DspPage
 					}
 					else if (ViewModel != null)
 					{
-						ViewModel.Vst3StatusText = "该目录当前不存在：" + currentFolder;
+						ViewModel.Vst3StatusText = Loc.F("该目录当前不存在：{0}", currentFolder);
 						RefreshVst3RackUi();
 					}
 				}
@@ -1150,7 +1177,7 @@ public sealed partial class DspPage
 			});
 			removeContent.Children.Add(new TextBlock
 			{
-				Text = "移除",
+				Text = Loc.T("移除"),
 				FontSize = 11,
 				Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 220, 38, 38))
 			});
@@ -1205,7 +1232,7 @@ public sealed partial class DspPage
 					{
 						new TextBlock
 						{
-							Text = ViewModel.Vst3Plugins.Count == 0 ? "尚未发现任何 VST3 插件" : "没有符合当前筛选或搜索条件的插件",
+							Text = ViewModel.Vst3Plugins.Count == 0 ? Loc.T("尚未发现任何 VST3 插件") : Loc.T("没有符合当前筛选或搜索条件的插件"),
 							FontSize = 14,
 							FontWeight = FontWeights.Bold,
 							Foreground = DspTextSecondaryBrush,
@@ -1214,8 +1241,8 @@ public sealed partial class DspPage
 						new TextBlock
 						{
 							Text = ViewModel.Vst3Plugins.Count == 0
-								? "点击左侧“⚡ 立即扫描全部目录”自动发现系统中的 Steinberg VST3 插件，或点击顶部“➕ 加载 .vst3 文件”直接载入。"
-								: "请尝试清空搜索关键词或切换回“全部插件”视图。",
+								? Loc.T("点击左侧“⚡ 立即扫描全部目录”自动发现系统中的 Steinberg VST3 插件，或点击顶部“➕ 加载 .vst3 文件”直接载入。")
+								: Loc.T("请尝试清空搜索关键词或切换回“全部插件”视图。"),
 							FontSize = 12,
 							Foreground = DspTextMutedBrush,
 							HorizontalAlignment = HorizontalAlignment.Center,
@@ -1302,7 +1329,7 @@ public sealed partial class DspPage
 			Fill = new SolidColorBrush(ledColor),
 			VerticalAlignment = VerticalAlignment.Center
 		};
-		ToolTipService.SetToolTip(ledDot, isActive ? "处理中 (Active)" : (isBypassed ? "已启用但旁通 (Bypassed)" : "未启用"));
+		ToolTipService.SetToolTip(ledDot, isActive ? Loc.T("处理中 (Active)") : (isBypassed ? Loc.T("已启用但旁通 (Bypassed)") : Loc.T("未启用")));
 		leftStack.Children.Add(ledDot);
 
 		Grid.SetColumn(leftStack, 0);
@@ -1334,7 +1361,7 @@ public sealed partial class DspPage
 				VerticalAlignment = VerticalAlignment.Center,
 				Child = new TextBlock
 				{
-					Text = isEditorOpenForThis ? "运行中 · 界面已开" : "运行中",
+					Text = isEditorOpenForThis ? Loc.T("运行中 · 界面已开") : Loc.T("运行中"),
 					FontSize = 10,
 					FontWeight = FontWeights.Bold,
 					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94))
@@ -1353,7 +1380,7 @@ public sealed partial class DspPage
 				VerticalAlignment = VerticalAlignment.Center,
 				Child = new TextBlock
 				{
-					Text = "已旁通",
+					Text = Loc.T("已旁通"),
 					FontSize = 10,
 					FontWeight = FontWeights.Bold,
 					Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11))
@@ -1391,7 +1418,7 @@ public sealed partial class DspPage
 		// 1. Enable Pill Button / Toggle
 		var btnEnable = new Button
 		{
-			Content = plugin.Enabled ? "● 已启用" : "○ 启用",
+			Content = plugin.Enabled ? Loc.T("● 已启用") : Loc.T("○ 启用"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 6, 12, 6),
@@ -1413,7 +1440,7 @@ public sealed partial class DspPage
 		// 2. Bypass Button
 		var btnBypass = new Button
 		{
-			Content = plugin.Bypass ? "已旁通" : "旁通",
+			Content = plugin.Bypass ? Loc.T("已旁通") : Loc.T("旁通"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Padding = new Thickness(10, 6, 10, 6),
@@ -1451,8 +1478,8 @@ public sealed partial class DspPage
 			}
 			ViewModel.ApplyVst3Command.Execute(null);
 			ViewModel.Vst3StatusText = plugin.Bypass
-				? $"已旁通插件：{plugin.Name}"
-				: $"已恢复插件处理：{plugin.Name}";
+				? Loc.F("已旁通插件：{0}", plugin.Name)
+				: Loc.F("已恢复插件处理：{0}", plugin.Name);
 			RefreshVst3RackUi();
 		};
 		rightControls.Children.Add(btnBypass);
@@ -1460,7 +1487,7 @@ public sealed partial class DspPage
 		// 3. Open Native GUI Button ("🎛️ 界面")
 		var btnGui = new Button
 		{
-			Content = "🎛️ 界面",
+			Content = Loc.T("🎛️ 界面"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Padding = new Thickness(12, 6, 12, 6),
@@ -1515,7 +1542,7 @@ public sealed partial class DspPage
 			plugin.Enabled = true;
 			plugin.Bypass = false;
 			CloseMismatchedVst3Editor(plugin.Path);
-			ViewModel.Vst3StatusText = $"已启用 VST3 插件：{plugin.Name} ({plugin.Vendor})";
+			ViewModel.Vst3StatusText = Loc.F("已启用 VST3 插件：{0} ({1})", plugin.Name, plugin.Vendor);
 		}
 		else
 		{
@@ -1525,7 +1552,7 @@ public sealed partial class DspPage
 			{
 				CloseVst3Editor();
 			}
-			ViewModel.Vst3StatusText = $"已停用 VST3 插件：{plugin.Name}";
+			ViewModel.Vst3StatusText = Loc.F("已停用 VST3 插件：{0}", plugin.Name);
 		}
 		ViewModel.ApplyVst3Command.Execute(null);
 		RefreshVst3RackUi();
@@ -1574,7 +1601,7 @@ public sealed partial class DspPage
 					prev.Plugin.Bypass = stillLoaded && prev.Bypass;
 				}
 				ViewModel.ApplyVst3Command.Execute(null);
-				ViewModel.Vst3StatusText = "打开插件界面失败：" + error;
+				ViewModel.Vst3StatusText = Loc.F("打开插件界面失败：{0}", error);
 				RefreshVst3RackUi();
 				return;
 			}
@@ -1584,12 +1611,12 @@ public sealed partial class DspPage
 			tag.Enabled = true;
 			tag.Bypass = false;
 			ViewModel.ApplyVst3Command.Execute(null);
-			ViewModel.Vst3StatusText = "已打开插件原生界面：" + tag.Name + "，实时处理当前音频流";
+			ViewModel.Vst3StatusText = Loc.F("已打开插件原生界面：{0}，实时处理当前音频流", tag.Name);
 			RefreshVst3RackUi();
 		}
 		catch (Exception ex)
 		{
-			ViewModel.Vst3StatusText = "打开插件界面异常：" + ex.Message;
+			ViewModel.Vst3StatusText = Loc.F("打开插件界面异常：{0}", ex.Message);
 			RefreshVst3RackUi();
 		}
 	}
@@ -1602,7 +1629,7 @@ public sealed partial class DspPage
 			?? ViewModel.Vst3Plugins.FirstOrDefault(p => p != null);
 		if (target == null)
 		{
-			ViewModel.Vst3StatusText = "当前列表中暂无可用插件，请先扫描目录或加载 .vst3 文件";
+			ViewModel.Vst3StatusText = Loc.T("当前列表中暂无可用插件，请先扫描目录或加载 .vst3 文件");
 			RefreshVst3RackUi();
 			return;
 		}
@@ -1615,7 +1642,7 @@ public sealed partial class DspPage
 		Vst3PluginState? active = ViewModel.Vst3Plugins.FirstOrDefault(p => p != null && p.Enabled);
 		if (active == null)
 		{
-			ViewModel.Vst3StatusText = "当前没有已启用的插件可供旁通";
+			ViewModel.Vst3StatusText = Loc.T("当前没有已启用的插件可供旁通");
 			RefreshVst3RackUi();
 			return;
 		}
@@ -1628,8 +1655,8 @@ public sealed partial class DspPage
 		active.Bypass = nextBypass;
 		ViewModel.ApplyVst3Command.Execute(null);
 		ViewModel.Vst3StatusText = active.Bypass
-			? $"已旁通当前插件：{active.Name}"
-			: $"已恢复当前插件处理：{active.Name}";
+			? Loc.F("已旁通当前插件：{0}", active.Name)
+			: Loc.F("已恢复当前插件处理：{0}", active.Name);
 		RefreshVst3RackUi();
 	}
 
@@ -1643,7 +1670,7 @@ public sealed partial class DspPage
 		{
 			Vst3NativeHost.Instance.Unload();
 		}
-		ViewModel.Vst3StatusText = "已全部停用并卸载 VST3 原生宿主，音频恢复直通";
+		ViewModel.Vst3StatusText = Loc.T("已全部停用并卸载 VST3 原生宿主，音频恢复直通");
 		RefreshVst3RackUi();
 	}
 
@@ -1670,7 +1697,7 @@ public sealed partial class DspPage
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.Vst3StatusText = "添加目录失败：" + ex.Message;
+				ViewModel.Vst3StatusText = Loc.F("添加目录失败：{0}", ex.Message);
 			}
 			RefreshVst3RackUi();
 		}
@@ -1705,7 +1732,7 @@ public sealed partial class DspPage
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.Vst3StatusText = "加载 .vst3 文件失败：" + ex.Message;
+				ViewModel.Vst3StatusText = Loc.F("加载 .vst3 文件失败：{0}", ex.Message);
 			}
 			RefreshVst3RackUi();
 		}
@@ -1717,15 +1744,15 @@ public sealed partial class DspPage
 		Vst3PluginState? activePlugin = ViewModel.Vst3Plugins.FirstOrDefault(p => p != null && p.IsActive);
 		if (activePlugin != null)
 		{
-			_vst3NavSubTb.Text = "已启用 · " + activePlugin.Name;
+			_vst3NavSubTb.Text = Loc.F("已启用 · {0}", activePlugin.Name);
 		}
 		else if (ViewModel.Vst3Plugins.Count > 0)
 		{
-			_vst3NavSubTb.Text = $"已就绪 · {ViewModel.Vst3Plugins.Count} 个插件";
+			_vst3NavSubTb.Text = Loc.F("已就绪 · {0} 个插件", ViewModel.Vst3Plugins.Count);
 		}
 		else
 		{
-			_vst3NavSubTb.Text = "原生插件宿主";
+			_vst3NavSubTb.Text = Loc.T("原生插件宿主");
 		}
 	}
 }

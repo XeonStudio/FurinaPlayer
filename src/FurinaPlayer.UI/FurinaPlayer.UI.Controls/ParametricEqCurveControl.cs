@@ -5,14 +5,15 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.UI.Controls;
 
 public sealed class ParametricEqCurveControl : UserControl
 {
 	private readonly SKXamlCanvas _canvas;
-	private readonly List<EchoBiquadFilter> _bands = new();
+	private readonly List<FurinaPlayerBiquadFilter> _bands = new();
 	private int _selectedBandIndex = 0;
 	private double _preampDb = 0.0;
 	private double _dbRange = 12.0; // ±12 dB
@@ -26,7 +27,7 @@ public sealed class ParametricEqCurveControl : UserControl
 	public event Action<int, double, double>? BandChanged;
 	public event Action<int>? BandSelected;
 
-	public IReadOnlyList<EchoBiquadFilter> Bands => _bands;
+	public IReadOnlyList<FurinaPlayerBiquadFilter> Bands => _bands;
 
 	public int SelectedBandIndex
 	{
@@ -80,7 +81,7 @@ public sealed class ParametricEqCurveControl : UserControl
 		PointerCaptureLost += OnPointerReleased;
 	}
 
-	public void SetBands(IEnumerable<EchoBiquadFilter> bands, int selectedIndex = 0)
+	public void SetBands(IEnumerable<FurinaPlayerBiquadFilter> bands, int selectedIndex = 0)
 	{
 		_bands.Clear();
 		if (bands != null)
@@ -199,7 +200,7 @@ public sealed class ParametricEqCurveControl : UserControl
 		float width = e.Info.Width;
 		float height = e.Info.Height;
 
-		// Audition / ECHO light mode white acrylic translucent background
+		// Audition / FurinaPlayer light mode white acrylic translucent background
 		canvas.Clear(new SKColor(255, 255, 255, 225));
 
 		if (width <= 50f || height <= 50f) return;
@@ -217,11 +218,11 @@ public sealed class ParametricEqCurveControl : UserControl
 		// 1. Shaded Band Regions at the top (light mode gentle pastel bands)
 		var regions = new (double Start, double End, string Name, SKColor Bg)[]
 		{
-			(20, 250, "低频", new SKColor(241, 245, 249, 160)),
-			(250, 500, "中低频", new SKColor(238, 242, 255, 160)),
-			(500, 2000, "中频", new SKColor(240, 253, 244, 160)),
-			(2000, 6000, "临场感", new SKColor(254, 249, 195, 140)),
-			(6000, 20000, "明亮", new SKColor(243, 244, 246, 160))
+			(20, 250, Loc.T("低频"), new SKColor(241, 245, 249, 160)),
+			(250, 500, Loc.T("中低频"), new SKColor(238, 242, 255, 160)),
+			(500, 2000, Loc.T("中频"), new SKColor(240, 253, 244, 160)),
+			(2000, 6000, Loc.T("临场感"), new SKColor(254, 249, 195, 140)),
+			(6000, 20000, Loc.T("明亮"), new SKColor(243, 244, 246, 160))
 		};
 
 		using var regionTextPaint = new SKPaint

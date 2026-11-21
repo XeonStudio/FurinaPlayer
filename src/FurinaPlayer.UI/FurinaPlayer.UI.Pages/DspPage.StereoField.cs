@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using FurinaPlayer.Core.Services;
 using FurinaPlayer.UI.Controls;
 using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
@@ -234,7 +235,7 @@ public sealed partial class DspPage
 		var textSp = new StackPanel { Spacing = 2, VerticalAlignment = VerticalAlignment.Center };
 		_sfSubtitleCatTb = new TextBlock
 		{
-			Text = "FurinaPlayer Spatial Workbench · Mid / Side 声像重塑",
+			Text = Loc.T("FurinaPlayer Spatial Workbench · Mid / Side 声像重塑"),
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspAccentSoftTextBrush
@@ -243,7 +244,7 @@ public sealed partial class DspPage
 
 		var mainTitleTb = new TextBlock
 		{
-			Text = "立体声场 (Stereo Field)",
+			Text = Loc.T("立体声场 (Stereo Field)"),
 			FontSize = 22,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -271,7 +272,7 @@ public sealed partial class DspPage
 
 		_sfHeaderWidthSubTb = new TextBlock
 		{
-			Text = "原声平衡",
+			Text = Loc.T("原声平衡"),
 			FontSize = 12,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextMutedBrush,
@@ -304,7 +305,7 @@ public sealed partial class DspPage
 
 		// 开关按钮
 		_sfPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 14, Foreground = DspTextMutedBrush };
-		_sfPowerText = new TextBlock { Text = "立体声场已旁路", FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSubHeaderBrush };
+		_sfPowerText = new TextBlock { Text = Loc.T("立体声场已旁路"), FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSubHeaderBrush };
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { _sfPowerIcon, _sfPowerText } };
 		_sfPowerBtn = new Button
 		{
@@ -323,7 +324,7 @@ public sealed partial class DspPage
 
 		// 恢复默认按钮
 		_sfResetIcon = new FontIcon { Glyph = "\uE777", FontSize = 13, Foreground = DspTextSubHeaderBrush };
-		_sfResetText = new TextBlock { Text = "恢复默认", FontSize = 13, Foreground = DspTextSecondaryBrush };
+		_sfResetText = new TextBlock { Text = Loc.T("恢复默认"), FontSize = 13, Foreground = DspTextSecondaryBrush };
 		var resetSp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
@@ -343,7 +344,7 @@ public sealed partial class DspPage
 
 		// 应用参数按钮
 		_sfApplyIcon = new FontIcon { Glyph = "\uE74E", FontSize = 13, Foreground = DspTextSubHeaderBrush };
-		_sfApplyText = new TextBlock { Text = "应用参数", FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSecondaryBrush };
+		_sfApplyText = new TextBlock { Text = Loc.T("应用参数"), FontSize = 13, FontWeight = FontWeights.Medium, Foreground = DspTextSecondaryBrush };
 		var applySp = new StackPanel
 		{
 			Orientation = Orientation.Horizontal,
@@ -364,7 +365,7 @@ public sealed partial class DspPage
 		// 未应用状态胶囊 (Dirty Badge)
 		_sfPendingBadgeText = new TextBlock
 		{
-			Text = "未应用修改",
+			Text = Loc.T("未应用修改"),
 			FontSize = 11.5,
 			FontWeight = FontWeights.SemiBold
 		};
@@ -388,7 +389,7 @@ public sealed partial class DspPage
 		// 描述说明文字
 		var descTb = new TextBlock
 		{
-			Text = "在 Mid / Side 域调节立体声场宽度、中央人声专注度与侧向空间感。0% 为完全单声道，100% 为原始立体声，200% 为超宽空间。",
+			Text = Loc.T("在 Mid / Side 域调节立体声场宽度、中央人声专注度与侧向空间感。0% 为完全单声道，100% 为原始立体声，200% 为超宽空间。"),
 			FontSize = 12.5,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -443,7 +444,7 @@ public sealed partial class DspPage
 		var headLeft = new StackPanel { Spacing = 2 };
 		var radarTitleTb = new TextBlock
 		{
-			Text = "M/S 声像仪",
+			Text = Loc.T("M/S 声像仪"),
 			FontSize = 15,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush
@@ -453,7 +454,7 @@ public sealed partial class DspPage
 
 		var radarSubTb = new TextBlock
 		{
-			Text = "由宽度与增益推导的能量分布椭圆；虚线圆为 0dB 参考。",
+			Text = Loc.T("由宽度与增益推导的能量分布椭圆；虚线圆为 0dB 参考。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		};
@@ -463,7 +464,7 @@ public sealed partial class DspPage
 		head.Children.Add(headLeft);
 
 		_sfRadarDragIcon = new FontIcon { Glyph = "\uE749", FontSize = 10, Foreground = DspAccentSoftTextBrush };
-		_sfRadarDragText = new TextBlock { Text = "可拖动 · 调整场宽", FontSize = 10.5, FontWeight = FontWeights.Medium, Foreground = DspAccentSoftTextBrush };
+		_sfRadarDragText = new TextBlock { Text = Loc.T("可拖动 · 调整场宽"), FontSize = 10.5, FontWeight = FontWeights.Medium, Foreground = DspAccentSoftTextBrush };
 		_sfRadarDragTag = new Border
 		{
 			Background = DspAccentSoftBgBrush,
@@ -646,7 +647,7 @@ public sealed partial class DspPage
 
 		_radarStatMidTb = new TextBlock
 		{
-			Text = "中置能量: M × 1.00 (0.0 dB)",
+			Text = Loc.T("中置能量: M × 1.00 (0.0 dB)"),
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextSecondaryBrush
@@ -657,7 +658,7 @@ public sealed partial class DspPage
 
 		_radarStatSideTb = new TextBlock
 		{
-			Text = "侧向能量: S × 1.00 (0.0 dB)",
+			Text = Loc.T("侧向能量: S × 1.00 (0.0 dB)"),
 			FontSize = 11.5,
 			FontWeight = FontWeights.Medium,
 			Foreground = DspTextSecondaryBrush,
@@ -677,7 +678,7 @@ public sealed partial class DspPage
 
 		var corrLabel = new TextBlock
 		{
-			Text = "声像相关性",
+			Text = Loc.T("声像相关性"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center,
@@ -712,7 +713,7 @@ public sealed partial class DspPage
 
 		_radarCorrelationTb = new TextBlock
 		{
-			Text = "+1.00 (聚焦中置)",
+			Text = Loc.T("+1.00 (聚焦中置)"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),
@@ -796,7 +797,7 @@ public sealed partial class DspPage
 		_sfPresetsIcon = new FontIcon { Glyph = "\uE8B7", FontSize = 13, Foreground = DspAccentSoftTextBrush };
 		var presetsTitleTb = new TextBlock
 		{
-			Text = "快速预设 (PRESETS)",
+			Text = Loc.T("快速预设 (PRESETS)"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -809,7 +810,7 @@ public sealed partial class DspPage
 
 		var presetsSub = new TextBlock
 		{
-			Text = "一键套用经典声像比例",
+			Text = Loc.T("一键套用经典声像比例"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -868,7 +869,7 @@ public sealed partial class DspPage
 		_sfControlsIcon = new FontIcon { Glyph = "\uE994", FontSize = 13, Foreground = DspAccentSoftTextBrush };
 		var controlsTitleTb = new TextBlock
 		{
-			Text = "参数控制 (CONTROLS)",
+			Text = Loc.T("参数控制 (CONTROLS)"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -881,7 +882,7 @@ public sealed partial class DspPage
 
 		var controlsHint = new TextBlock
 		{
-			Text = "双击滑块可恢复默认",
+			Text = Loc.T("双击滑块可恢复默认"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -893,8 +894,8 @@ public sealed partial class DspPage
 
 		// 滑块 1: 场宽 (Width) 0% ~ 200%
 		var widthSliderCard = CreateStereoSliderRow(
-			"场宽 (Stereo Width)",
-			"0% (单声道) 至 200% (超宽)",
+			Loc.T("场宽 (Stereo Width)"),
+			Loc.T("0% (单声道) 至 200% (超宽)"),
 			0.0, 200.0, 1.0,
 			_stereoFieldWidth * 100.0,
 			100.0,
@@ -907,8 +908,8 @@ public sealed partial class DspPage
 
 		// 滑块 2: 中置增益 (Mid Gain) -12.0 ~ +6.0 dB
 		var midSliderCard = CreateStereoSliderRow(
-			"中置增益 (Mid Gain)",
-			"调整居中人声与主乐器音量权重",
+			Loc.T("中置增益 (Mid Gain)"),
+			Loc.T("调整居中人声与主乐器音量权重"),
 			-12.0, 6.0, 0.1,
 			_stereoFieldMidGainDb,
 			0.0,
@@ -921,8 +922,8 @@ public sealed partial class DspPage
 
 		// 滑块 3: 侧边增益 (Side Gain) -12.0 ~ +6.0 dB
 		var sideSliderCard = CreateStereoSliderRow(
-			"侧向增益 (Side Gain)",
-			"增强或抑制声场两侧空间氛围",
+			Loc.T("侧向增益 (Side Gain)"),
+			Loc.T("增强或抑制声场两侧空间氛围"),
 			-12.0, 6.0, 0.1,
 			_stereoFieldSideGainDb,
 			0.0,
@@ -935,8 +936,8 @@ public sealed partial class DspPage
 
 		// 滑块 4: 单声道低频保留 20 ~ 300 Hz
 		var monoBassSliderCard = CreateStereoSliderRow(
-			"单声道低频保留 (Mono Bass)",
-			"将设定频点以下合并为单声道，保障低音扎实下潜",
+			Loc.T("单声道低频保留 (Mono Bass)"),
+			Loc.T("将设定频点以下合并为单声道，保障低音扎实下潜"),
 			20.0, 300.0, 1.0,
 			_stereoFieldMonoBassHz,
 			80.0,
@@ -968,7 +969,7 @@ public sealed partial class DspPage
 		var sp = new StackPanel { Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center };
 		var titleTb = new TextBlock
 		{
-			Text = preset.Name,
+			Text = Loc.T(preset.Name),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextSecondaryBrush,
@@ -976,7 +977,7 @@ public sealed partial class DspPage
 		};
 		var subTb = new TextBlock
 		{
-			Text = preset.Subtitle,
+			Text = Loc.T(preset.Subtitle),
 			FontSize = 9.5,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
@@ -1102,10 +1103,10 @@ public sealed partial class DspPage
 
 		// 卡片 1: 立体声场宽
 		var card1 = CreateStereoSingleStatCard(
-			"立体声场宽",
+			Loc.T("立体声场宽"),
 			"\uE895",
 			"100%",
-			"原声平衡",
+			Loc.T("原声平衡"),
 			Color.FromArgb(255, 79, 70, 229),
 			Color.FromArgb(255, 165, 180, 252),
 			out _bottomWidthBigTb,
@@ -1115,10 +1116,10 @@ public sealed partial class DspPage
 
 		// 卡片 2: 中置偏置 (Mid)
 		var card2 = CreateStereoSingleStatCard(
-			"中置偏置 (Mid)",
+			Loc.T("中置偏置 (Mid)"),
 			"\uE994",
 			"0.0 dB",
-			"中央人声基准",
+			Loc.T("中央人声基准"),
 			Color.FromArgb(255, 5, 150, 105),
 			Color.FromArgb(255, 52, 211, 153),
 			out _bottomMidBigTb,
@@ -1128,10 +1129,10 @@ public sealed partial class DspPage
 
 		// 卡片 3: 侧向增益 (Side)
 		var card3 = CreateStereoSingleStatCard(
-			"侧向增益 (Side)",
+			Loc.T("侧向增益 (Side)"),
 			"\uE8B8",
 			"0.0 dB",
-			"空间氛围自然",
+			Loc.T("空间氛围自然"),
 			Color.FromArgb(255, 139, 92, 246),
 			Color.FromArgb(255, 196, 181, 253),
 			out _bottomSideBigTb,
@@ -1244,7 +1245,7 @@ public sealed partial class DspPage
 
 		var tipTextTb = new TextBlock
 		{
-			Text = "双击滑块可恢复默认值。高宽度的侧向声场建议配合低频保留，以保持低音下潜扎实。",
+			Text = Loc.T("双击滑块可恢复默认值。高宽度的侧向声场建议配合低频保留，以保持低音下潜扎实。"),
 			FontSize = 12.5,
 			Foreground = DspTextSubHeaderBrush,
 			VerticalAlignment = VerticalAlignment.Center
@@ -1262,10 +1263,10 @@ public sealed partial class DspPage
 	{
 		if (ViewModel != null)
 		{
-			_stereoFieldEnabled = ViewModel.EchoStereoFieldEnabled;
-			_stereoFieldWidth = ViewModel.EchoStereoWidth;
-			_stereoFieldMidGainDb = ViewModel.EchoStereoCenterGainDb;
-			_stereoFieldSideGainDb = ViewModel.EchoStereoSideGainDb;
+			_stereoFieldEnabled = ViewModel.FurinaPlayerStereoFieldEnabled;
+			_stereoFieldWidth = ViewModel.FurinaPlayerStereoWidth;
+			_stereoFieldMidGainDb = ViewModel.FurinaPlayerStereoCenterGainDb;
+			_stereoFieldSideGainDb = ViewModel.FurinaPlayerStereoSideGainDb;
 			_stereoFieldMonoBassHz = 80.0;
 		}
 		else
@@ -1405,10 +1406,10 @@ public sealed partial class DspPage
 	{
 		if (ViewModel == null) return;
 
-		ViewModel.EchoStereoFieldEnabled = _stereoFieldEnabled;
-		ViewModel.EchoStereoWidth = _stereoFieldWidth;
-		ViewModel.EchoStereoCenterGainDb = _stereoFieldMidGainDb;
-		ViewModel.EchoStereoSideGainDb = _stereoFieldSideGainDb;
+		ViewModel.FurinaPlayerStereoFieldEnabled = _stereoFieldEnabled;
+		ViewModel.FurinaPlayerStereoWidth = _stereoFieldWidth;
+		ViewModel.FurinaPlayerStereoCenterGainDb = _stereoFieldMidGainDb;
+		ViewModel.FurinaPlayerStereoSideGainDb = _stereoFieldSideGainDb;
 
 		// 调用 AudioEngine 底层方法 SetFurinaStereoField
 		ViewModel.AudioEngine?.SetFurinaStereoField(
@@ -1419,7 +1420,7 @@ public sealed partial class DspPage
 
 		if (immediatePersistence)
 		{
-			ViewModel.SaveEchoSettings();
+			ViewModel.SaveFurinaPlayerSettings();
 		}
 	}
 	#endregion
@@ -1624,7 +1625,7 @@ public sealed partial class DspPage
 
 			_sfPowerIcon.Glyph = "\uE7E8";
 			_sfPowerIcon.Foreground = whiteBrush;
-			_sfPowerText.Text = "立体声场已开启";
+			_sfPowerText.Text = Loc.T("立体声场已开启");
 			_sfPowerText.Foreground = whiteBrush;
 		}
 		else
@@ -1635,7 +1636,7 @@ public sealed partial class DspPage
 
 			_sfPowerIcon.Glyph = "\uE7E8";
 			_sfPowerIcon.Foreground = mutedBrush;
-			_sfPowerText.Text = "立体声场已旁路";
+			_sfPowerText.Text = Loc.T("立体声场已旁路");
 			_sfPowerText.Foreground = subHeaderBrush;
 		}
 	}
@@ -1697,12 +1698,12 @@ public sealed partial class DspPage
 		// 3. 更新声像仪底部读数与相位相关度
 		if (_radarStatMidTb != null)
 		{
-			_radarStatMidTb.Text = $"中置能量: M × {midLevel:0.00} ({_stereoFieldMidGainDb:+0.0;-0.0;0.0} dB)";
+			_radarStatMidTb.Text = Loc.F("中置能量: M × {0:0.00} ({1:+0.0;-0.0;0.0} dB)", midLevel, _stereoFieldMidGainDb);
 		}
 		if (_radarStatSideTb != null)
 		{
 			string sideDbStr = sideLevel <= 0.0001 ? "−∞ dB" : $"{_stereoFieldSideGainDb:+0.0;-0.0;0.0} dB";
-			_radarStatSideTb.Text = $"侧向能量: S × {sideLevel:0.00} ({sideDbStr})";
+			_radarStatSideTb.Text = Loc.F("侧向能量: S × {0:0.00} ({1})", sideLevel, sideDbStr);
 		}
 
 		// 相位相关度: r = (M^2 - S^2) / (M^2 + S^2)
@@ -1714,11 +1715,11 @@ public sealed partial class DspPage
 		{
 			string corrDesc = corr switch
 			{
-				> 0.85 => "纯同相 · 聚焦中置",
-				> 0.40 => "同相 · 原声立体声",
-				> 0.05 => "开阔 · 空间漫射",
-				> -0.15 => "边缘 · 宽体临界",
-				_ => "反相风险 · 宽体抵消"
+				> 0.85 => Loc.T("纯同相 · 聚焦中置"),
+				> 0.40 => Loc.T("同相 · 原声立体声"),
+				> 0.05 => Loc.T("开阔 · 空间漫射"),
+				> -0.15 => Loc.T("边缘 · 宽体临界"),
+				_ => Loc.T("反相风险 · 宽体抵消")
 			};
 			Color corrColor = corr switch
 			{
@@ -1791,9 +1792,9 @@ public sealed partial class DspPage
 		{
 			_bottomMidSubTb.Text = _stereoFieldMidGainDb switch
 			{
-				> 1.0 => "人声增强强化",
-				< -1.0 => "弱化中心伴奏",
-				_ => "中央人声基准"
+				> 1.0 => Loc.T("人声增强强化"),
+				< -1.0 => Loc.T("弱化中心伴奏"),
+				_ => Loc.T("中央人声基准")
 			};
 		}
 
@@ -1802,9 +1803,9 @@ public sealed partial class DspPage
 		{
 			_bottomSideSubTb.Text = _stereoFieldSideGainDb switch
 			{
-				> 1.0 => "空间氛围扩展",
-				< -1.0 => "收敛侧声道混响",
-				_ => "自然空间感"
+				> 1.0 => Loc.T("空间氛围扩展"),
+				< -1.0 => Loc.T("收敛侧声道混响"),
+				_ => Loc.T("自然空间感")
 			};
 		}
 	}
@@ -1851,11 +1852,11 @@ public sealed partial class DspPage
 
 	private static string GetStereoWidthPresetLabel(double width, double midDb, double sideDb)
 	{
-		if (width <= 0.05) return "纯单声道";
-		if (width < 0.85) return midDb > 0.5 ? "聚焦中置" : "收拢场宽";
-		if (Math.Abs(width - 1.0) <= 0.08 && Math.Abs(midDb) <= 0.2 && Math.Abs(sideDb) <= 0.2) return "原声平衡";
-		if (width < 1.45) return "宽阔声场";
-		return "超宽环绕";
+		if (width <= 0.05) return Loc.T("纯单声道");
+		if (width < 0.85) return midDb > 0.5 ? Loc.T("聚焦中置") : Loc.T("收拢场宽");
+		if (Math.Abs(width - 1.0) <= 0.08 && Math.Abs(midDb) <= 0.2 && Math.Abs(sideDb) <= 0.2) return Loc.T("原声平衡");
+		if (width < 1.45) return Loc.T("宽阔声场");
+		return Loc.T("超宽环绕");
 	}
 
 	private static void AddStereoCanvasText(Canvas canvas, string text, double left, double top, Brush foreground, double fontSize = 11, bool isBold = false)

@@ -18,9 +18,9 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
 using SkiaSharp;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 using WinRT.Interop;
 using Windows.Foundation;
@@ -400,7 +400,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 	private TextBlock? _grValueText;
 	private TextBlock? _irInfoText;
 	private DispatcherQueueTimer? _dspMeterTimer;
-	private bool _echoPanelsInitialized;
+	private bool _furinaPlayerPanelsInitialized;
 	private string _currentDspCategory = "param_eq";
 	private readonly List<Button> _categoryTabButtons = new();
 	private Border? _parametricEqWorkbench;
@@ -493,7 +493,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			}
 
 			bool invert = LiquidGlassEngine.InvertModeEnabled;
-			string mode = settings?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			string mode = settings?.FurinaPlayerThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
 
 			if (string.Equals(mode, "dark", StringComparison.OrdinalIgnoreCase))
 			{
@@ -898,7 +898,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		_layout.RegisterResizeHandle(TimbreResizeHandle, TimbrePanel);
 		_layout.RegisterResizeHandle(Vst3ResizeHandle, Vst3Panel);
 
-		InitializeEchoDspPanels();
+		InitializeFurinaPlayerDspPanels();
 
 		PanelLayoutController layout = _layout;
 		layout.LayoutChanged = (Action)Delegate.Combine(layout.LayoutChanged, new Action(SaveLayouts));
@@ -911,6 +911,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 				StartEqSpectrumTimer();
 			}
 			ApplyDspLiquidGlass();
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 		};
 		Unloaded += (object _, RoutedEventArgs _) =>
 		{
@@ -955,6 +956,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			StartEqSpectrumTimer();
 		}
 		ApplyDspLiquidGlass();
+		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 	}
 
 	private void RestoreLayouts(bool forceReset = false)
@@ -1099,7 +1101,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Border border = (Border)FindName(tag + "Panel");
 			if (!(border == null))
 			{
-				await _layout.ShowResizeDialogAsync(XamlRoot, border, "调整面板大小");
+				await _layout.ShowResizeDialogAsync(XamlRoot, border, Loc.T("调整面板大小"));
 				SaveLayouts();
 			}
 		}
@@ -1146,7 +1148,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		}
 		catch (Exception ex)
 		{
-			ViewModel.Vst3StatusText = "添加目录失败：" + ex.Message;
+			ViewModel.Vst3StatusText = Loc.F("添加目录失败：{0}", ex.Message);
 		}
 	}
 
@@ -1203,7 +1205,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Vst3EditorWindow? editor = Vst3EditorWindow.Open(tag.Path, sampleRate, 2, out string error);
 			if (editor == null)
 			{
-				ViewModel.Vst3StatusText = "打开插件界面失败：" + error;
+				ViewModel.Vst3StatusText = Loc.F("打开插件界面失败：{0}", error);
 				return;
 			}
 			_vst3EditorWindow = editor;
@@ -1219,11 +1221,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			tag.Enabled = true;
 			tag.Bypass = false;
 			ViewModel.ApplyVst3Command.Execute(null);
-			ViewModel.Vst3StatusText = "已打开插件原生界面：" + tag.Name + "，实时处理与播放当前歌曲";
+			ViewModel.Vst3StatusText = Loc.F("已打开插件原生界面：{0}，实时处理与播放当前歌曲", tag.Name);
 		}
 		catch (Exception ex)
 		{
-			ViewModel.Vst3StatusText = "打开插件界面异常：" + ex.Message;
+			ViewModel.Vst3StatusText = Loc.F("打开插件界面异常：{0}", ex.Message);
 		}
 	}
 
@@ -1243,7 +1245,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (vst3PluginState != null && vst3PluginState.IsActive)
 			{
 				// Keep plugin audio processing active in rack when GUI window is closed without interrupting playback
-				ViewModel.Vst3StatusText = "已关闭《" + vst3PluginState.Name + "》原生窗口：插件仍在机架后台实时处理音频（可随时重新打开界面或停用）";
+				ViewModel.Vst3StatusText = Loc.F("已关闭《{0}》原生窗口：插件仍在机架后台实时处理音频（可随时重新打开界面或停用）", vst3PluginState.Name);
 				RefreshVst3RackUi();
 			}
 		}
@@ -1314,10 +1316,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 		EqCurveCanvas.Children.Add(polyline);
 	}
 
-	private void InitializeEchoDspPanels()
+	private void InitializeFurinaPlayerDspPanels()
 	{
-		if (_echoPanelsInitialized || PanelCanvas == null) return;
-		_echoPanelsInitialized = true;
+		if (_furinaPlayerPanelsInitialized || PanelCanvas == null) return;
+		_furinaPlayerPanelsInitialized = true;
 
 		try
 		{
@@ -1339,12 +1341,12 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 			if (Content is Grid rootGrid)
 			{
-				SetupUnifiedEchoDspLayout(rootGrid);
+				SetupUnifiedFurinaPlayerDspLayout(rootGrid);
 			}
 		}
 		catch (Exception ex)
 		{
-			Debug.WriteLine($"InitializeEchoDspPanels failed: {ex.Message}");
+			Debug.WriteLine($"InitializeFurinaPlayerDspPanels failed: {ex.Message}");
 		}
 	}
 
@@ -1411,7 +1413,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			VerticalAlignment = VerticalAlignment.Bottom,
 			Background = new SolidColorBrush(Colors.Transparent)
 		};
-		ToolTipService.SetToolTip(resizeGrid, "拖拽调整大小");
+		ToolTipService.SetToolTip(resizeGrid, Loc.T("拖拽调整大小"));
 		var resizePath = new Path
 		{
 			Data = (Geometry)XamlReader.Load("<Geometry xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'>M0,20 L20,0 L20,20 Z</Geometry>"),
@@ -1438,27 +1440,27 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var toggle = new ToggleSwitch
 		{
-			Header = "启用母带动态压缩器",
-			IsOn = ViewModel?.EchoCompressorEnabled ?? false
+			Header = Loc.T("启用母带动态压缩器"),
+			IsOn = ViewModel?.FurinaPlayerCompressorEnabled ?? false
 		};
-		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorEnabled = toggle.IsOn; };
+		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorEnabled = toggle.IsOn; };
 		sp.Children.Add(toggle);
 
-		var sThresh = new Slider { Header = "阈值 Threshold (-60 ~ 0 dB)", Minimum = -60, Maximum = 0, StepFrequency = 0.5, Value = ViewModel?.EchoCompressorThresholdDb ?? -18.0 };
-		sThresh.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorThresholdDb = e.NewValue; };
+		var sThresh = new Slider { Header = Loc.T("阈值 Threshold (-60 ~ 0 dB)"), Minimum = -60, Maximum = 0, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerCompressorThresholdDb ?? -18.0 };
+		sThresh.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorThresholdDb = e.NewValue; };
 		sp.Children.Add(sThresh);
 
-		var sRatio = new Slider { Header = "压缩比 Ratio (1:1 ~ 20:1)", Minimum = 1.0, Maximum = 20.0, StepFrequency = 0.1, Value = ViewModel?.EchoCompressorRatio ?? 3.0 };
-		sRatio.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorRatio = e.NewValue; };
+		var sRatio = new Slider { Header = Loc.T("压缩比 Ratio (1:1 ~ 20:1)"), Minimum = 1.0, Maximum = 20.0, StepFrequency = 0.1, Value = ViewModel?.FurinaPlayerCompressorRatio ?? 3.0 };
+		sRatio.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorRatio = e.NewValue; };
 		sp.Children.Add(sRatio);
 
 		var gridTime = new Grid { ColumnSpacing = 12 };
 		gridTime.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		gridTime.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		var sAttack = new Slider { Header = "起音 Attack (ms)", Minimum = 0.1, Maximum = 100.0, StepFrequency = 0.5, Value = ViewModel?.EchoCompressorAttackMs ?? 15.0 };
-		sAttack.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorAttackMs = e.NewValue; };
-		var sRelease = new Slider { Header = "释放 Release (ms)", Minimum = 10, Maximum = 1000, StepFrequency = 5, Value = ViewModel?.EchoCompressorReleaseMs ?? 120.0 };
-		sRelease.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorReleaseMs = e.NewValue; };
+		var sAttack = new Slider { Header = Loc.T("起音 Attack (ms)"), Minimum = 0.1, Maximum = 100.0, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerCompressorAttackMs ?? 15.0 };
+		sAttack.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorAttackMs = e.NewValue; };
+		var sRelease = new Slider { Header = Loc.T("释放 Release (ms)"), Minimum = 10, Maximum = 1000, StepFrequency = 5, Value = ViewModel?.FurinaPlayerCompressorReleaseMs ?? 120.0 };
+		sRelease.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorReleaseMs = e.NewValue; };
 		Grid.SetColumn(sAttack, 0);
 		Grid.SetColumn(sRelease, 1);
 		gridTime.Children.Add(sAttack);
@@ -1468,10 +1470,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var gridKnee = new Grid { ColumnSpacing = 12 };
 		gridKnee.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		gridKnee.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		var sKnee = new Slider { Header = "软拐点 Knee (dB)", Minimum = 0, Maximum = 24, StepFrequency = 0.5, Value = ViewModel?.EchoCompressorKneeDb ?? 6.0 };
-		sKnee.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorKneeDb = e.NewValue; };
-		var sMakeup = new Slider { Header = "增益补偿 Makeup (dB)", Minimum = 0, Maximum = 24, StepFrequency = 0.5, Value = ViewModel?.EchoCompressorMakeupDb ?? 0.0 };
-		sMakeup.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCompressorMakeupDb = e.NewValue; };
+		var sKnee = new Slider { Header = Loc.T("软拐点 Knee (dB)"), Minimum = 0, Maximum = 24, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerCompressorKneeDb ?? 6.0 };
+		sKnee.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorKneeDb = e.NewValue; };
+		var sMakeup = new Slider { Header = Loc.T("增益补偿 Makeup (dB)"), Minimum = 0, Maximum = 24, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerCompressorMakeupDb ?? 0.0 };
+		sMakeup.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCompressorMakeupDb = e.NewValue; };
 		Grid.SetColumn(sKnee, 0);
 		Grid.SetColumn(sMakeup, 1);
 		gridKnee.Children.Add(sKnee);
@@ -1479,14 +1481,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 		sp.Children.Add(gridKnee);
 
 		var grStack = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
-		grStack.Children.Add(new TextBlock { Text = "实时减益 GR:", FontSize = 12, Opacity = 0.8, VerticalAlignment = VerticalAlignment.Center });
+		grStack.Children.Add(new TextBlock { Text = Loc.T("实时减益 GR:"), FontSize = 12, Opacity = 0.8, VerticalAlignment = VerticalAlignment.Center });
 		_grProgressBar = new ProgressBar { Minimum = 0, Maximum = 24, Height = 10, Width = 220, VerticalAlignment = VerticalAlignment.Center, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 255, 90, 95)) };
 		_grValueText = new TextBlock { Text = "0.0 dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
 		grStack.Children.Add(_grProgressBar);
 		grStack.Children.Add(_grValueText);
 		sp.Children.Add(grStack);
 
-		return CreatePanelCard("母带动态压缩器 (FurinaPlayer Compressor)", "\uE9D9", sp, out var h, out var r, 600, 370);
+		return CreatePanelCard(Loc.T("母带动态压缩器 (FurinaPlayer Compressor)"), "\uE9D9", sp, out var h, out var r, 600, 370);
 	}
 
 	private Border CreateSpatialCrossfeedPanel()
@@ -1495,40 +1497,40 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var toggle = new ToggleSwitch
 		{
-			Header = "启用双耳互馈 (Crossfeed)",
-			IsOn = ViewModel?.EchoCrossfeedEnabled ?? false
+			Header = Loc.T("启用双耳互馈 (Crossfeed)"),
+			IsOn = ViewModel?.FurinaPlayerCrossfeedEnabled ?? false
 		};
-		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoCrossfeedEnabled = toggle.IsOn; };
+		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCrossfeedEnabled = toggle.IsOn; };
 		sp.Children.Add(toggle);
 
-		var comboMode = new ComboBox { Header = "互馈滤波曲线", MinWidth = 200, SelectedIndex = 0 };
-		comboMode.Items.Add(new ComboBoxItem { Content = "Chu Moy (经典自然)" });
-		comboMode.Items.Add(new ComboBoxItem { Content = "Jan Meier (宽深舒适)" });
-		comboMode.Items.Add(new ComboBoxItem { Content = "Linkwitz (温暖声场)" });
+		var comboMode = new ComboBox { Header = Loc.T("互馈滤波曲线"), MinWidth = 200, SelectedIndex = 0 };
+		comboMode.Items.Add(new ComboBoxItem { Content = Loc.T("Chu Moy (经典自然)") });
+		comboMode.Items.Add(new ComboBoxItem { Content = Loc.T("Jan Meier (宽深舒适)") });
+		comboMode.Items.Add(new ComboBoxItem { Content = Loc.T("Linkwitz (温暖声场)") });
 		sp.Children.Add(comboMode);
 
-		var sAmount = new Slider { Header = "互馈深度 Amount (0% ~ 100%)", Minimum = 0.0, Maximum = 1.0, StepFrequency = 0.05, Value = ViewModel?.EchoCrossfeedAmount ?? 0.35 };
-		sAmount.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCrossfeedAmount = e.NewValue; };
+		var sAmount = new Slider { Header = Loc.T("互馈深度 Amount (0% ~ 100%)"), Minimum = 0.0, Maximum = 1.0, StepFrequency = 0.05, Value = ViewModel?.FurinaPlayerCrossfeedAmount ?? 0.35 };
+		sAmount.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCrossfeedAmount = e.NewValue; };
 		sp.Children.Add(sAmount);
 
-		var sCutoff = new Slider { Header = "低通截止 Cutoff (400 ~ 1000 Hz)", Minimum = 400, Maximum = 1000, StepFrequency = 10, Value = ViewModel?.EchoCrossfeedCutoffHz ?? 650.0 };
-		sCutoff.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoCrossfeedCutoffHz = e.NewValue; };
+		var sCutoff = new Slider { Header = Loc.T("低通截止 Cutoff (400 ~ 1000 Hz)"), Minimum = 400, Maximum = 1000, StepFrequency = 10, Value = ViewModel?.FurinaPlayerCrossfeedCutoffHz ?? 650.0 };
+		sCutoff.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerCrossfeedCutoffHz = e.NewValue; };
 		sp.Children.Add(sCutoff);
 
-		var sWidth = new Slider { Header = "立体声宽度 Stereo Width (0% 单声道 ~ 200% 超宽)", Minimum = 0.0, Maximum = 2.0, StepFrequency = 0.05, Value = ViewModel?.EchoStereoWidth ?? 1.0 };
-		sWidth.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoStereoWidth = e.NewValue; };
+		var sWidth = new Slider { Header = Loc.T("立体声宽度 Stereo Width (0% 单声道 ~ 200% 超宽)"), Minimum = 0.0, Maximum = 2.0, StepFrequency = 0.05, Value = ViewModel?.FurinaPlayerStereoWidth ?? 1.0 };
+		sWidth.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerStereoWidth = e.NewValue; };
 		sp.Children.Add(sWidth);
 
-		var comboMatrix = new ComboBox { Header = "声道矩阵模式 (Channel Matrix)", MinWidth = 200 };
-		comboMatrix.Items.Add(new ComboBoxItem { Content = "正常立体声 (Normal)" });
-		comboMatrix.Items.Add(new ComboBoxItem { Content = "左右声道对调 (Swap L/R)" });
-		comboMatrix.Items.Add(new ComboBoxItem { Content = "单声道混合 (Mono Mix)" });
-		comboMatrix.Items.Add(new ComboBoxItem { Content = "反相 (Invert Phase)" });
-		comboMatrix.SelectedIndex = Math.Clamp(ViewModel?.EchoChannelMatrixPreset ?? 0, 0, 3);
-		comboMatrix.SelectionChanged += (s, e) => { if (ViewModel != null && comboMatrix.SelectedIndex >= 0) ViewModel.EchoChannelMatrixPreset = comboMatrix.SelectedIndex; };
+		var comboMatrix = new ComboBox { Header = Loc.T("声道矩阵模式 (Channel Matrix)"), MinWidth = 200 };
+		comboMatrix.Items.Add(new ComboBoxItem { Content = Loc.T("正常立体声 (Normal)") });
+		comboMatrix.Items.Add(new ComboBoxItem { Content = Loc.T("左右声道对调 (Swap L/R)") });
+		comboMatrix.Items.Add(new ComboBoxItem { Content = Loc.T("单声道混合 (Mono Mix)") });
+		comboMatrix.Items.Add(new ComboBoxItem { Content = Loc.T("反相 (Invert Phase)") });
+		comboMatrix.SelectedIndex = Math.Clamp(ViewModel?.FurinaPlayerChannelMatrixPreset ?? 0, 0, 3);
+		comboMatrix.SelectionChanged += (s, e) => { if (ViewModel != null && comboMatrix.SelectedIndex >= 0) ViewModel.FurinaPlayerChannelMatrixPreset = comboMatrix.SelectedIndex; };
 		sp.Children.Add(comboMatrix);
 
-		return CreatePanelCard("空间声场与双耳互馈 (Crossfeed & Spatial)", "\uE950", sp, out var h, out var r, 560, 370);
+		return CreatePanelCard(Loc.T("空间声场与双耳互馈 (Crossfeed & Spatial)"), "\uE950", sp, out var h, out var r, 560, 370);
 	}
 
 	private Border CreateConvolutionPanel()
@@ -1537,10 +1539,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var toggle = new ToggleSwitch
 		{
-			Header = "启用 FIR 卷积耳机/房间校正",
-			IsOn = ViewModel?.EchoConvolutionEnabled ?? false
+			Header = Loc.T("启用 FIR 卷积耳机/房间校正"),
+			IsOn = ViewModel?.FurinaPlayerConvolutionEnabled ?? false
 		};
-		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoConvolutionEnabled = toggle.IsOn; };
+		toggle.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerConvolutionEnabled = toggle.IsOn; };
 		sp.Children.Add(toggle);
 
 		var btnLoad = new Button
@@ -1548,32 +1550,32 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Padding = new Thickness(12, 6, 12, 6),
 			Tag = "__fluent_upgraded"
 		};
-		FluentIconFactory.SetButtonFluentIcon(btnLoad, FluentIconKind.FolderScan, "载入脉冲响应 IR (.wav)", 18);
+		FluentIconFactory.SetButtonFluentIcon(btnLoad, FluentIconKind.FolderScan, Loc.T("载入脉冲响应 IR (.wav)"), 18);
 		btnLoad.Click += OnConvolutionImportClick;
 		sp.Children.Add(btnLoad);
 
 		_irInfoText = new TextBlock
 		{
-			Text = string.IsNullOrEmpty(ViewModel?.EchoConvolutionFilePath) ? "当前未载入脉冲响应文件（支持 44.1k/48k/96k 双声道 IR）" : $"已载入 IR: {System.IO.Path.GetFileName(ViewModel.EchoConvolutionFilePath)}",
+			Text = string.IsNullOrEmpty(ViewModel?.FurinaPlayerConvolutionFilePath) ? Loc.T("当前未载入脉冲响应文件（支持 44.1k/48k/96k 双声道 IR）") : Loc.F("已载入 IR: {0}", System.IO.Path.GetFileName(ViewModel.FurinaPlayerConvolutionFilePath)),
 			FontSize = 11,
 			Opacity = 0.7,
 			TextWrapping = TextWrapping.Wrap
 		};
 		sp.Children.Add(_irInfoText);
 
-		var sTrim = new Slider { Header = "输出电平衰减 Trim (-24 ~ +6 dB)", Minimum = -24.0, Maximum = 6.0, StepFrequency = 0.5, Value = ViewModel?.EchoConvolutionTrimDb ?? 0.0 };
-		sTrim.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoConvolutionTrimDb = e.NewValue; };
+		var sTrim = new Slider { Header = Loc.T("输出电平衰减 Trim (-24 ~ +6 dB)"), Minimum = -24.0, Maximum = 6.0, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerConvolutionTrimDb ?? 0.0 };
+		sTrim.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerConvolutionTrimDb = e.NewValue; };
 		sp.Children.Add(sTrim);
 
 		sp.Children.Add(new TextBlock
 		{
-			Text = "FIR 卷积引擎支持高精度直接卷积与耳机逆滤波器，实时修正频响曲线与房间混响失真。",
+			Text = Loc.T("FIR 卷积引擎支持高精度直接卷积与耳机逆滤波器，实时修正频响曲线与房间混响失真。"),
 			FontSize = 11,
 			Opacity = 0.55,
 			TextWrapping = TextWrapping.Wrap
 		});
 
-		return CreatePanelCard("FIR 卷积房间/耳机校正 (Convolution)", "\uE8B7", sp, out var h, out var r, 580, 380);
+		return CreatePanelCard(Loc.T("FIR 卷积房间/耳机校正 (Convolution)"), "\uE8B7", sp, out var h, out var r, 580, 380);
 	}
 
 	private Border CreateAdvancedDspPanel()
@@ -1582,25 +1584,25 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var toggleResample = new ToggleSwitch
 		{
-			Header = "启用实时多相高阶升频重采样 (Resampler)",
-			IsOn = ViewModel?.EchoResamplerEnabled ?? false
+			Header = Loc.T("启用实时多相高阶升频重采样 (Resampler)"),
+			IsOn = ViewModel?.FurinaPlayerResamplerEnabled ?? false
 		};
-		toggleResample.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoResamplerEnabled = toggleResample.IsOn; };
+		toggleResample.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerResamplerEnabled = toggleResample.IsOn; };
 		sp.Children.Add(toggleResample);
 
-		var comboRate = new ComboBox { Header = "目标采样率 Target SampleRate", MinWidth = 200 };
-		comboRate.Items.Add(new ComboBoxItem { Content = "自动保持原始 (Auto)" });
+		var comboRate = new ComboBox { Header = Loc.T("目标采样率 Target SampleRate"), MinWidth = 200 };
+		comboRate.Items.Add(new ComboBoxItem { Content = Loc.T("自动保持原始 (Auto)") });
 		comboRate.Items.Add(new ComboBoxItem { Content = "48.0 kHz" });
-		comboRate.Items.Add(new ComboBoxItem { Content = "96.0 kHz (高解析)" });
-		comboRate.Items.Add(new ComboBoxItem { Content = "192.0 kHz (母带级)" });
-		comboRate.Items.Add(new ComboBoxItem { Content = "384.0 kHz (极限高保真)" });
-		int curRate = ViewModel?.EchoResamplerTargetRate ?? 0;
+		comboRate.Items.Add(new ComboBoxItem { Content = Loc.T("96.0 kHz (高解析)") });
+		comboRate.Items.Add(new ComboBoxItem { Content = Loc.T("192.0 kHz (母带级)") });
+		comboRate.Items.Add(new ComboBoxItem { Content = Loc.T("384.0 kHz (极限高保真)") });
+		int curRate = ViewModel?.FurinaPlayerResamplerTargetRate ?? 0;
 		comboRate.SelectedIndex = curRate switch { 48000 => 1, 96000 => 2, 192000 => 3, 384000 => 4, _ => 0 };
 		comboRate.SelectionChanged += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoResamplerTargetRate = comboRate.SelectedIndex switch
+				ViewModel.FurinaPlayerResamplerTargetRate = comboRate.SelectedIndex switch
 				{
 					1 => 48000,
 					2 => 96000,
@@ -1614,23 +1616,23 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var toggleSdm = new ToggleSwitch
 		{
-			Header = "启用 PCM 转 DSD 调制器 (SDM Modulator)",
-			IsOn = ViewModel?.EchoSdmEnabled ?? false
+			Header = Loc.T("启用 PCM 转 DSD 调制器 (SDM Modulator)"),
+			IsOn = ViewModel?.FurinaPlayerSdmEnabled ?? false
 		};
-		toggleSdm.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoSdmEnabled = toggleSdm.IsOn; };
+		toggleSdm.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerSdmEnabled = toggleSdm.IsOn; };
 		sp.Children.Add(toggleSdm);
 
-		var comboDsd = new ComboBox { Header = "DSD 阶数模式", MinWidth = 200 };
+		var comboDsd = new ComboBox { Header = Loc.T("DSD 阶数模式"), MinWidth = 200 };
 		comboDsd.Items.Add(new ComboBoxItem { Content = "DSD64 (2.822 MHz / 1-bit)" });
 		comboDsd.Items.Add(new ComboBoxItem { Content = "DSD128 (5.644 MHz / 1-bit)" });
 		comboDsd.Items.Add(new ComboBoxItem { Content = "DSD256 (11.289 MHz / 1-bit)" });
-		int curSdmRate = ViewModel?.EchoSdmRate ?? 2822400;
+		int curSdmRate = ViewModel?.FurinaPlayerSdmRate ?? 2822400;
 		comboDsd.SelectedIndex = curSdmRate switch { 5644800 => 1, 11289600 => 2, _ => 0 };
 		comboDsd.SelectionChanged += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoSdmRate = comboDsd.SelectedIndex switch
+				ViewModel.FurinaPlayerSdmRate = comboDsd.SelectedIndex switch
 				{
 					1 => 5644800,
 					2 => 11289600,
@@ -1642,52 +1644,52 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		sp.Children.Add(new TextBlock
 		{
-			Text = "5阶五极点噪声整形滤波器持续运行，将量化噪声推向 50kHz 以上超声频段，保留纯净模拟质感。",
+			Text = Loc.T("5阶五极点噪声整形滤波器持续运行，将量化噪声推向 50kHz 以上超声频段，保留纯净模拟质感。"),
 			FontSize = 11,
 			Opacity = 0.55,
 			TextWrapping = TextWrapping.Wrap
 		});
 
-		return CreatePanelCard("实时升频与 PCM 转 DSD (SDM Modulator)", "\uE774", sp, out var h, out var r, 580, 360);
+		return CreatePanelCard(Loc.T("实时升频与 PCM 转 DSD (SDM Modulator)"), "\uE774", sp, out var h, out var r, 580, 360);
 	}
 
 	private Border CreateReplayGainHeadroomPanel()
 	{
 		var sp = new StackPanel { Spacing = 12 };
 
-		var comboRg = new ComboBox { Header = "ReplayGain 响度均衡模式", MinWidth = 200 };
-		comboRg.Items.Add(new ComboBoxItem { Content = "关闭 (Off)" });
-		comboRg.Items.Add(new ComboBoxItem { Content = "按曲目 (Track Gain)" });
-		comboRg.Items.Add(new ComboBoxItem { Content = "按专辑 (Album Gain)" });
-		comboRg.SelectedIndex = Math.Clamp(ViewModel?.EchoReplayGainMode ?? 0, 0, 2);
-		comboRg.SelectionChanged += (s, e) => { if (ViewModel != null && comboRg.SelectedIndex >= 0) ViewModel.EchoReplayGainMode = comboRg.SelectedIndex; };
+		var comboRg = new ComboBox { Header = Loc.T("ReplayGain 响度均衡模式"), MinWidth = 200 };
+		comboRg.Items.Add(new ComboBoxItem { Content = Loc.T("关闭 (Off)") });
+		comboRg.Items.Add(new ComboBoxItem { Content = Loc.T("按曲目 (Track Gain)") });
+		comboRg.Items.Add(new ComboBoxItem { Content = Loc.T("按专辑 (Album Gain)") });
+		comboRg.SelectedIndex = Math.Clamp(ViewModel?.FurinaPlayerReplayGainMode ?? 0, 0, 2);
+		comboRg.SelectionChanged += (s, e) => { if (ViewModel != null && comboRg.SelectedIndex >= 0) ViewModel.FurinaPlayerReplayGainMode = comboRg.SelectedIndex; };
 		sp.Children.Add(comboRg);
 
-		var sPreamp = new Slider { Header = "PreAmp 前置增益 (-12 ~ +12 dB)", Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = ViewModel?.EchoReplayGainPreampDb ?? 0.0 };
-		sPreamp.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoReplayGainPreampDb = e.NewValue; };
+		var sPreamp = new Slider { Header = Loc.T("PreAmp 前置增益 (-12 ~ +12 dB)"), Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerReplayGainPreampDb ?? 0.0 };
+		sPreamp.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerReplayGainPreampDb = e.NewValue; };
 		sp.Children.Add(sPreamp);
 
 		var togglePreventClip = new ToggleSwitch
 		{
-			Header = "削波溢出防护 (Prevent Clipping)",
-			IsOn = ViewModel?.EchoReplayGainPreventClipping ?? true
+			Header = Loc.T("削波溢出防护 (Prevent Clipping)"),
+			IsOn = ViewModel?.FurinaPlayerReplayGainPreventClipping ?? true
 		};
-		togglePreventClip.Toggled += (s, e) => { if (ViewModel != null) ViewModel.EchoReplayGainPreventClipping = togglePreventClip.IsOn; };
+		togglePreventClip.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerReplayGainPreventClipping = togglePreventClip.IsOn; };
 		sp.Children.Add(togglePreventClip);
 
-		var sHeadroom = new Slider { Header = "数字余量衰减 Headroom (0 ~ -12 dB)", Minimum = -12.0, Maximum = 0.0, StepFrequency = 0.5, Value = ViewModel?.EchoHeadroomDb ?? -1.0 };
-		sHeadroom.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.EchoHeadroomDb = e.NewValue; };
+		var sHeadroom = new Slider { Header = Loc.T("数字余量衰减 Headroom (0 ~ -12 dB)"), Minimum = -12.0, Maximum = 0.0, StepFrequency = 0.5, Value = ViewModel?.FurinaPlayerHeadroomDb ?? -1.0 };
+		sHeadroom.ValueChanged += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerHeadroomDb = e.NewValue; };
 		sp.Children.Add(sHeadroom);
 
 		sp.Children.Add(new TextBlock
 		{
-			Text = "在进入 DSP 链路前留出充足计算余量，配合峰值削波限制器杜绝数字破音。",
+			Text = Loc.T("在进入 DSP 链路前留出充足计算余量，配合峰值削波限制器杜绝数字破音。"),
 			FontSize = 11,
 			Opacity = 0.55,
 			TextWrapping = TextWrapping.Wrap
 		});
 
-		return CreatePanelCard("响度均衡与数字余量 (ReplayGain & Headroom)", "\uE994", sp, out var h, out var r, 560, 380);
+		return CreatePanelCard(Loc.T("响度均衡与数字余量 (ReplayGain & Headroom)"), "\uE994", sp, out var h, out var r, 560, 380);
 	}
 
 	private Border CreateDspRackOrderPanel()
@@ -1696,16 +1698,16 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var modules = new (string Name, FluentIconKind Kind, string Desc)[]
 		{
-			("余量管理 (Headroom)", FluentIconKind.Dynamics, "数字余量下压防削波"),
-			("响度均衡 (ReplayGain)", FluentIconKind.Volume, "曲目/专辑感知响度自动对齐"),
-			("10段图形EQ & AutoEq", FluentIconKind.Eq, "多段高精度参数化均衡校准"),
-			("母带动态压缩器 (Compressor)", FluentIconKind.Dynamics, "瞬态与动态范围塑造"),
-			("双耳互馈 (Crossfeed)", FluentIconKind.Spatial, "消除耳机听觉疲劳与头中效应"),
-			("声场宽度与声道矩阵", FluentIconKind.Spatial, "0~200% 声场宽度与极性控制"),
-			("FIR 卷积房间校正", FluentIconKind.FolderScan, "脉冲响应逆滤波器修正"),
-			("多相升频重采样 (Resampler)", FluentIconKind.HiRes, "最高 384kHz 高解析升频"),
-			("PCM 转 DSD (SDM 调制器)", FluentIconKind.HiRes, "DSD64/128/256 高阶噪声整形"),
-			("VST3 插件宿主", FluentIconKind.VstPlugin, "外接第三方专业音频效果器")
+			(Loc.T("余量管理 (Headroom)"), FluentIconKind.Dynamics, Loc.T("数字余量下压防削波")),
+			(Loc.T("响度均衡 (ReplayGain)"), FluentIconKind.Volume, Loc.T("曲目/专辑感知响度自动对齐")),
+			(Loc.T("10段图形EQ & AutoEq"), FluentIconKind.Eq, Loc.T("多段高精度参数化均衡校准")),
+			(Loc.T("母带动态压缩器 (Compressor)"), FluentIconKind.Dynamics, Loc.T("瞬态与动态范围塑造")),
+			(Loc.T("双耳互馈 (Crossfeed)"), FluentIconKind.Spatial, Loc.T("消除耳机听觉疲劳与头中效应")),
+			(Loc.T("声场宽度与声道矩阵"), FluentIconKind.Spatial, Loc.T("0~200% 声场宽度与极性控制")),
+			(Loc.T("FIR 卷积房间校正"), FluentIconKind.FolderScan, Loc.T("脉冲响应逆滤波器修正")),
+			(Loc.T("多相升频重采样 (Resampler)"), FluentIconKind.HiRes, Loc.T("最高 384kHz 高解析升频")),
+			(Loc.T("PCM 转 DSD (SDM 调制器)"), FluentIconKind.HiRes, Loc.T("DSD64/128/256 高阶噪声整形")),
+			(Loc.T("VST3 插件宿主"), FluentIconKind.VstPlugin, Loc.T("外接第三方专业音频效果器"))
 		};
 
 		var listGrid = new Grid { RowSpacing = 6 };
@@ -1742,7 +1744,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255)),
 				VerticalAlignment = VerticalAlignment.Center
 			};
-			ToolTipService.SetToolTip(indicator, "处理链路活动中");
+			ToolTipService.SetToolTip(indicator, Loc.T("处理链路活动中"));
 			Grid.SetColumn(indicator, 2);
 
 			rowGrid.Children.Add(chk);
@@ -1756,7 +1758,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		sp.Children.Add(listGrid);
 
-		return CreatePanelCard("全链路 DSP Rack 机架编排 (DSP Order & Bypass)", "\uE8B8", sp, out var h, out var r, 1160, 370);
+		return CreatePanelCard(Loc.T("全链路 DSP Rack 机架编排 (DSP Order & Bypass)"), "\uE8B8", sp, out var h, out var r, 1160, 370);
 	}
 
 	private void SetupAutoEqButton()
@@ -1771,7 +1773,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 					CornerRadius = new CornerRadius(6),
 					Tag = "__fluent_upgraded"
 				};
-				FluentIconFactory.SetButtonFluentIcon(btnAutoEq, FluentIconKind.Eq, "导入 AutoEq 耳机预设", 18);
+				FluentIconFactory.SetButtonFluentIcon(btnAutoEq, FluentIconKind.Eq, Loc.T("导入 AutoEq 耳机预设"), 18);
 				btnAutoEq.Click += OnAutoEqImportClick;
 				presetStack.Children.Add(btnAutoEq);
 			}
@@ -1782,7 +1784,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		}
 	}
 
-	private void SetupUnifiedEchoDspLayout(Grid rootGrid)
+	private void SetupUnifiedFurinaPlayerDspLayout(Grid rootGrid)
 	{
 		try
 		{
@@ -1800,7 +1802,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Grid.SetColumnSpan(causticBackdrop, 2);
 			rootGrid.Children.Add(causticBackdrop);
 
-			var sidebar = CreateEchoSidebar();
+			var sidebar = CreateFurinaPlayerSidebar();
 			Grid.SetColumn(sidebar, 0);
 			rootGrid.Children.Add(sidebar);
 
@@ -1817,11 +1819,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 		}
 		catch (Exception ex)
 		{
-			Debug.WriteLine($"SetupUnifiedEchoDspLayout failed: {ex.Message}");
+			Debug.WriteLine($"SetupUnifiedFurinaPlayerDspLayout failed: {ex.Message}");
 		}
 	}
 
-	private FrameworkElement CreateEchoSidebar()
+	private FrameworkElement CreateFurinaPlayerSidebar()
 	{
 		var border = new Border
 		{
@@ -1859,7 +1861,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		headerStack.Children.Add(_sidebarBrandTitleTb);
 		_sidebarSubtitleTb = new TextBlock
 		{
-			Text = "信号控制",
+			Text = Loc.T("信号控制"),
 			FontSize = 11,
 			Foreground = DspTextSubHeaderBrush
 		};
@@ -1938,9 +1940,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (key == "headroom")
 			{
 				_headroomNavSubTb = subTb;
-				double initialDb = ViewModel?.EchoHeadroomDb ?? -3.0;
-				bool enabled = ViewModel?.EchoHeadroomEnabled ?? true;
-				subTb.Text = !enabled ? "已旁路" : $"{initialDb:+0.0;-0.0;0.0} dB";
+				double initialDb = ViewModel?.FurinaPlayerHeadroomDb ?? -3.0;
+				bool enabled = ViewModel?.FurinaPlayerHeadroomEnabled ?? true;
+				subTb.Text = !enabled ? Loc.T("已旁路") : $"{initialDb:+0.0;-0.0;0.0} dB";
 			}
 			else if (key == "headphone")
 			{
@@ -1949,15 +1951,15 @@ public sealed partial class DspPage : Page, IComponentConnector
 			else if (key == "room")
 			{
 				_roomNavSubTb = subTb;
-				bool enabled = ViewModel?.EchoConvolutionEnabled ?? false;
-				string? irPath = ViewModel?.EchoConvolutionFilePath;
-				subTb.Text = string.IsNullOrEmpty(irPath) ? "无 IR" : (enabled ? "已启用" : "已载入");
+				bool enabled = ViewModel?.FurinaPlayerConvolutionEnabled ?? false;
+				string? irPath = ViewModel?.FurinaPlayerConvolutionFilePath;
+				subTb.Text = string.IsNullOrEmpty(irPath) ? Loc.T("无 IR") : (enabled ? Loc.T("已启用") : Loc.T("已载入"));
 			}
 			else if (key == "channel")
 			{
 				_channelNavSubTb = subTb;
 				bool enabled = ViewModel?.FurinaChannelToolEnabled ?? false;
-				subTb.Text = !enabled ? "立体声直通" : "已启用";
+				subTb.Text = !enabled ? Loc.T("立体声直通") : Loc.T("已启用");
 			}
 			else if (key == "vst3")
 			{
@@ -2015,25 +2017,25 @@ public sealed partial class DspPage : Page, IComponentConnector
 		}
 
 		// Items:
-		itemsStack.Children.Add(CreateNavButton("listening_plan", "\uE7F6", "听音方案", "Moondrop / Custom"));
+		itemsStack.Children.Add(CreateNavButton("listening_plan", "\uE7F6", Loc.T("听音方案"), "Moondrop / Custom"));
 
-		AddNavSectionHeader("电平");
-		itemsStack.Children.Add(CreateNavButton("level_gain", "\uE767", "音量均衡", "已旁路"));
+		AddNavSectionHeader(Loc.T("电平"));
+		itemsStack.Children.Add(CreateNavButton("level_gain", "\uE767", Loc.T("音量均衡"), Loc.T("已旁路")));
 		itemsStack.Children.Add(CreateNavButton("headroom", "\uE916", "Headroom", "-3 dB", hasCheck: true));
 
-		AddNavSectionHeader("采样转换");
-		itemsStack.Children.Add(CreateNavButton("resampler", "\uE774", "升频", "已旁路"));
-		itemsStack.Children.Add(CreateNavButton("dsd", "\uE8B7", "DSD 转换 测试版", "已旁路"));
+		AddNavSectionHeader(Loc.T("采样转换"));
+		itemsStack.Children.Add(CreateNavButton("resampler", "\uE774", Loc.T("升频"), Loc.T("已旁路")));
+		itemsStack.Children.Add(CreateNavButton("dsd", "\uE8B7", Loc.T("DSD 转换 测试版"), Loc.T("已旁路")));
 
-		AddNavSectionHeader("音色");
-		itemsStack.Children.Add(CreateNavButton("param_eq", "\uE995", "参数 EQ", "已启用 · 10频段", hasCheck: true));
-		itemsStack.Children.Add(CreateNavButton("headphone", "\uE7F5", "耳机校正", "已旁路"));
-		AddNavSectionHeader("插件宿主");
-		itemsStack.Children.Add(CreateNavButton("vst3", "\uE8B8", "VST3 机架", "原生插件宿主"));
-		AddNavSectionHeader("空间与输出");
-		itemsStack.Children.Add(CreateNavButton("room", "\uE7BE", "房间校正", "无 IR"));
-		itemsStack.Children.Add(CreateNavButton("channel", "\uE768", "声道工具", "立体声直通"));
-		itemsStack.Children.Add(CreateNavButton("safety", "\uE72E", "输出安全", "待命"));
+		AddNavSectionHeader(Loc.T("音色"));
+		itemsStack.Children.Add(CreateNavButton("param_eq", "\uE995", Loc.T("参数 EQ"), Loc.T("已启用 · 10频段"), hasCheck: true));
+		itemsStack.Children.Add(CreateNavButton("headphone", "\uE7F5", Loc.T("耳机校正"), Loc.T("已旁路")));
+		AddNavSectionHeader(Loc.T("插件宿主"));
+		itemsStack.Children.Add(CreateNavButton("vst3", "\uE8B8", Loc.T("VST3 机架"), Loc.T("原生插件宿主")));
+		AddNavSectionHeader(Loc.T("空间与输出"));
+		itemsStack.Children.Add(CreateNavButton("room", "\uE7BE", Loc.T("房间校正"), Loc.T("无 IR")));
+		itemsStack.Children.Add(CreateNavButton("channel", "\uE768", Loc.T("声道工具"), Loc.T("立体声直通")));
+		itemsStack.Children.Add(CreateNavButton("safety", "\uE72E", Loc.T("输出安全"), Loc.T("待命")));
 
 		// 高级设置 (含折叠/展开指示与状态)
 		var advHeaderGrid = new Grid { Margin = new Thickness(8, 12, 8, 4) };
@@ -2042,7 +2044,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var advTitle = new TextBlock
 		{
-			Text = "高级设置",
+			Text = Loc.T("高级设置"),
 			FontSize = 11,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextSubHeaderBrush
@@ -2077,14 +2079,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 		};
 		itemsStack.Children.Add(advHeaderGrid);
 
-		advPanel.Children.Add(CreateNavButton("compressor", "\uE9D9", "压缩器", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("multiband", "\uE994", "三频段压缩", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("deesser", "\uE74F", "去齿音", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("limiter", "\uE71A", "限幅", "自动上限", hasCheck: true));
-		advPanel.Children.Add(CreateNavButton("crossfeed", "\uE7F5", "交叉馈送", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("virtual_stage", "\uE995", "虚拟声场", "已旁路"));
-		advPanel.Children.Add(CreateNavButton("stereo_field", "\uE7BE", "立体声场", "132%", hasCheck: true));
-		advPanel.Children.Add(CreateNavButton("channel_matrix", "\uE8AB", "声道矩阵", "已旁路"));
+		advPanel.Children.Add(CreateNavButton("compressor", "\uE9D9", Loc.T("压缩器"), Loc.T("已旁路")));
+		advPanel.Children.Add(CreateNavButton("multiband", "\uE994", Loc.T("三频段压缩"), Loc.T("已旁路")));
+		advPanel.Children.Add(CreateNavButton("deesser", "\uE74F", Loc.T("去齿音"), Loc.T("已旁路")));
+		advPanel.Children.Add(CreateNavButton("limiter", "\uE71A", Loc.T("限幅"), Loc.T("自动上限"), hasCheck: true));
+		advPanel.Children.Add(CreateNavButton("crossfeed", "\uE7F5", Loc.T("交叉馈送"), Loc.T("已旁路")));
+		advPanel.Children.Add(CreateNavButton("virtual_stage", "\uE995", Loc.T("虚拟声场"), Loc.T("已旁路")));
+		advPanel.Children.Add(CreateNavButton("stereo_field", "\uE7BE", Loc.T("立体声场"), "132%", hasCheck: true));
+		advPanel.Children.Add(CreateNavButton("channel_matrix", "\uE8AB", Loc.T("声道矩阵"), Loc.T("已旁路")));
 		// VST3 promoted to top-level section "插件宿主"
 		itemsStack.Children.Add(advPanel);
 		sv.Content = itemsStack;
@@ -2092,7 +2094,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		sidebarGrid.Children.Add(sv);
 
 		// 3. Footer device
-		var footerBtn = CreateNavButton("device", "\uE774", "系统输出", "自动 · 共享模式");
+		var footerBtn = CreateNavButton("device", "\uE774", Loc.T("系统输出"), Loc.T("自动 · 共享模式"));
 		footerBtn.Margin = new Thickness(0, 10, 0, 0);
 		Grid.SetRow(footerBtn, 2);
 		sidebarGrid.Children.Add(footerBtn);
@@ -2161,8 +2163,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var safetyStack = new StackPanel { Spacing = 10 };
 
 		var safetyTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-		safetyTitleSp.Children.Add(new TextBlock { Text = "增益与峰值安全", FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
-		safetyTitleSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
+		safetyTitleSp.Children.Add(new TextBlock { Text = Loc.T("增益与峰值安全"), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
+		safetyTitleSp.Children.Add(new TextBlock { Text = Loc.T("等待当前宿主读数"), FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
 		safetyStack.Children.Add(safetyTitleSp);
 
 		var indGrid3 = new Grid { ColumnSpacing = 16 };
@@ -2170,9 +2172,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		indGrid3.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		var ind1 = new TextBlock { Text = "配置风险估计: 未报告", FontSize = 12, Foreground = DspTextSubHeaderBrush };
-		var ind2 = new TextBlock { Text = "实测峰值超限: 未知", FontSize = 12, Foreground = DspTextSubHeaderBrush };
-		var ind3 = new TextBlock { Text = "当前限幅: 未知", FontSize = 12, Foreground = DspTextSubHeaderBrush };
+		var ind1 = new TextBlock { Text = Loc.T("配置风险估计: 未报告"), FontSize = 12, Foreground = DspTextSubHeaderBrush };
+		var ind2 = new TextBlock { Text = Loc.T("实测峰值超限: 未知"), FontSize = 12, Foreground = DspTextSubHeaderBrush };
+		var ind3 = new TextBlock { Text = Loc.T("当前限幅: 未知"), FontSize = 12, Foreground = DspTextSubHeaderBrush };
 		Grid.SetColumn(ind1, 0); indGrid3.Children.Add(ind1);
 		Grid.SetColumn(ind2, 1); indGrid3.Children.Add(ind2);
 		Grid.SetColumn(ind3, 2); indGrid3.Children.Add(ind3);
@@ -2191,10 +2193,10 @@ public sealed partial class DspPage : Page, IComponentConnector
 			box.Children.Add(new TextBlock { Text = val, FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush });
 			return box;
 		}
-		var m1 = MakeMetricBox("限幅前", "未知");
-		var m2 = MakeMetricBox("DSP 后", "未知");
-		var m3 = MakeMetricBox("Limiter 衰减", "未知");
-		var m4 = MakeMetricBox("历史输出超限次数", "未知");
+		var m1 = MakeMetricBox(Loc.T("限幅前"), Loc.T("未知"));
+		var m2 = MakeMetricBox(Loc.T("DSP 后"), Loc.T("未知"));
+		var m3 = MakeMetricBox(Loc.T("Limiter 衰减"), Loc.T("未知"));
+		var m4 = MakeMetricBox(Loc.T("历史输出超限次数"), Loc.T("未知"));
 		Grid.SetColumn(m1, 0); metricsGrid.Children.Add(m1);
 		Grid.SetColumn(m2, 1); metricsGrid.Children.Add(m2);
 		Grid.SetColumn(m3, 2); metricsGrid.Children.Add(m3);
@@ -2203,7 +2205,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		safetyStack.Children.Add(new TextBlock
 		{
-			Text = "限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只需覆盖所报告的阶段。",
+			Text = Loc.T("限幅前超过 0 dBTP 不等于输出已被削波。历史次数不代表当前仍在削波；读数只需覆盖所报告的阶段。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -2211,7 +2213,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var foldBtn = new Button
 		{
-			Content = "▶ 处理位置与可见边界",
+			Content = Loc.T("▶ 处理位置与可见边界"),
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 4, 0, 4),
@@ -2229,7 +2231,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Padding = new Thickness(12, 10, 12, 10),
 			Child = new TextBlock
 			{
-				Text = "在 32 位浮点架构下，DSP 信号链内部可保留大于 0 dBFS 的电平余量，不会发生数字硬削波截断。Headroom 控制位于主输出级，可在进入声卡 DAC 之前预留安全的采样间真实峰值 (True Peak) 余量，结合限幅器确保无失真高保真还原。",
+				Text = Loc.T("在 32 位浮点架构下，DSP 信号链内部可保留大于 0 dBFS 的电平余量，不会发生数字硬削波截断。Headroom 控制位于主输出级，可在进入声卡 DAC 之前预留安全的采样间真实峰值 (True Peak) 余量，结合限幅器确保无失真高保真还原。"),
 				FontSize = 11,
 				Foreground = DspTextSecondaryBrush,
 				TextWrapping = TextWrapping.Wrap
@@ -2240,12 +2242,12 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (foldContent.Visibility == Visibility.Visible)
 			{
 				foldContent.Visibility = Visibility.Collapsed;
-				foldBtn.Content = "▶ 处理位置与可见边界";
+				foldBtn.Content = Loc.T("▶ 处理位置与可见边界");
 			}
 			else
 			{
 				foldContent.Visibility = Visibility.Visible;
-				foldBtn.Content = "▼ 处理位置与可见边界";
+				foldBtn.Content = Loc.T("▼ 处理位置与可见边界");
 			}
 		};
 		safetyStack.Children.Add(foldBtn);
@@ -2270,7 +2272,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var dynLoudTitleTb = new TextBlock
 		{
-			Text = "动态等响补偿",
+			Text = Loc.T("动态等响补偿"),
 			FontSize = 14,
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
@@ -2281,23 +2283,23 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		_headroomDynamicLoudnessCb = new CheckBox
 		{
-			IsChecked = ViewModel?.EchoDynamicLoudnessCompensation ?? false,
+			IsChecked = ViewModel?.FurinaPlayerDynamicLoudnessCompensation ?? false,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_headroomDynamicLoudnessCb.Checked += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoDynamicLoudnessCompensation = true;
-				ViewModel.SaveEchoSettings();
+				ViewModel.FurinaPlayerDynamicLoudnessCompensation = true;
+				ViewModel.SaveFurinaPlayerSettings();
 			}
 		};
 		_headroomDynamicLoudnessCb.Unchecked += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoDynamicLoudnessCompensation = false;
-				ViewModel.SaveEchoSettings();
+				ViewModel.FurinaPlayerDynamicLoudnessCompensation = false;
+				ViewModel.SaveFurinaPlayerSettings();
 			}
 		};
 		Grid.SetColumn(_headroomDynamicLoudnessCb, 1);
@@ -2329,7 +2331,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		gainTopRow.Children.Add(new TextBlock
 		{
-			Text = "增益",
+			Text = Loc.T("增益"),
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush,
@@ -2338,9 +2340,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		_headroomPowerSwitch = new ToggleSwitch
 		{
-			IsOn = ViewModel?.EchoHeadroomEnabled ?? true,
-			OnContent = "已启用",
-			OffContent = "已旁路",
+			IsOn = ViewModel?.FurinaPlayerHeadroomEnabled ?? true,
+			OnContent = Loc.T("已启用"),
+			OffContent = Loc.T("已旁路"),
 			VerticalAlignment = VerticalAlignment.Center
 		};
 
@@ -2351,7 +2353,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var numSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 4, 0, 0) };
 		_headroomGainBigTb = new TextBlock
 		{
-			Text = $"{ViewModel?.EchoHeadroomDb ?? -3.0:0.#}",
+			Text = $"{ViewModel?.FurinaPlayerHeadroomDb ?? -3.0:0.#}",
 			FontSize = 54,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold,
 			Foreground = DspTextPrimaryBrush,
@@ -2370,7 +2372,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		numSp.Children.Add(unitTb);
 		gainStack.Children.Add(numSp);
 
-		double initDb = ViewModel?.EchoHeadroomDb ?? -3.0;
+		double initDb = ViewModel?.FurinaPlayerHeadroomDb ?? -3.0;
 		double initRatio = Math.Pow(10.0, initDb / 20.0);
 		_headroomAmpRatioTb = new TextBlock
 		{
@@ -2402,8 +2404,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(1),
 			Foreground = DspTextPrimaryBrush
 		};
-		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnMinus, "减少 Headroom 增益 0.5 dB");
-		ToolTipService.SetToolTip(btnMinus, "步进减少 0.5 dB (下限 -12 dB)");
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnMinus, Loc.T("减少 Headroom 增益 0.5 dB"));
+		ToolTipService.SetToolTip(btnMinus, Loc.T("步进减少 0.5 dB (下限 -12 dB)"));
 		Grid.SetColumn(btnMinus, 0);
 		sliderRow.Children.Add(btnMinus);
 
@@ -2413,11 +2415,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Minimum = -12.0,
 			Maximum = 12.0,
 			StepFrequency = 0.5,
-			Value = ViewModel?.EchoHeadroomDb ?? -3.0,
+			Value = ViewModel?.FurinaPlayerHeadroomDb ?? -3.0,
 			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
-		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomGainSlider, "Headroom 增益控制滑块");
-		ToolTipService.SetToolTip(_headroomGainSlider, "调节输出 Headroom 增益 (-12 dB ~ +12 dB)");
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomGainSlider, Loc.T("Headroom 增益控制滑块"));
+		ToolTipService.SetToolTip(_headroomGainSlider, Loc.T("调节输出 Headroom 增益 (-12 dB ~ +12 dB)"));
 		sliderColSp.Children.Add(_headroomGainSlider);
 
 		var scaleGrid = new Grid();
@@ -2457,8 +2459,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderThickness = new Thickness(1),
 			Foreground = DspTextPrimaryBrush
 		};
-		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnPlus, "增加 Headroom 增益 0.5 dB");
-		ToolTipService.SetToolTip(btnPlus, "步进增加 0.5 dB (上限 +12 dB)");
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(btnPlus, Loc.T("增加 Headroom 增益 0.5 dB"));
+		ToolTipService.SetToolTip(btnPlus, Loc.T("步进增加 0.5 dB (上限 +12 dB)"));
 		Grid.SetColumn(btnPlus, 2);
 		sliderRow.Children.Add(btnPlus);
 
@@ -2479,8 +2481,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
 				BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225))
 			};
-			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pillBtn, $"快速应用 {label} {targetDb:+0;-0;0} dB");
-			ToolTipService.SetToolTip(pillBtn, $"快速切换至 {label} {targetDb:+0;-0;0} dB");
+			Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pillBtn, Loc.F("快速应用 {0} {1} dB", label, $"{targetDb:+0;-0;0}"));
+			ToolTipService.SetToolTip(pillBtn, Loc.F("快速切换至 {0} {1} dB", label, $"{targetDb:+0;-0;0}"));
 			var contentSp = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Center };
 			contentSp.Children.Add(new TextBlock { Text = label, FontSize = 11, Foreground = DspTextMutedBrush, HorizontalAlignment = HorizontalAlignment.Center });
 			contentSp.Children.Add(new TextBlock { Text = $"{targetDb:+0;-0;0} dB", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, HorizontalAlignment = HorizontalAlignment.Center });
@@ -2493,9 +2495,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 			return pillBtn;
 		}
 
-		presetsSp.Children.Add(CreatePresetPill("增益", 6.0));
-		presetsSp.Children.Add(CreatePresetPill("直通", 0.0));
-		presetsSp.Children.Add(CreatePresetPill("日常", -3.0));
+		presetsSp.Children.Add(CreatePresetPill(Loc.T("增益"), 6.0));
+		presetsSp.Children.Add(CreatePresetPill(Loc.T("直通"), 0.0));
+		presetsSp.Children.Add(CreatePresetPill(Loc.T("日常"), -3.0));
 		presetsSp.Children.Add(CreatePresetPill("DSP", -6.0));
 
 		_headroomAuditionBtn = new Button
@@ -2507,7 +2509,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 				Children =
 				{
 					new FontIcon { Glyph = "\uE7F6", FontSize = 13, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) },
-					new TextBlock { Text = "按住听直通", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush }
+					new TextBlock { Text = Loc.T("按住听直通"), FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.Medium, Foreground = DspTextSecondaryBrush }
 				}
 			},
 			Padding = new Thickness(14, 8, 14, 8),
@@ -2516,28 +2518,28 @@ public sealed partial class DspPage : Page, IComponentConnector
 			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1)
 		};
-		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomAuditionBtn, "按住临时直通试听");
-		ToolTipService.SetToolTip(_headroomAuditionBtn, "按住此按钮可临时旁路 Headroom 增益进行原声 A/B 试听，松开恢复预设");
+		Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_headroomAuditionBtn, Loc.T("按住临时直通试听"));
+		ToolTipService.SetToolTip(_headroomAuditionBtn, Loc.T("按住此按钮可临时旁路 Headroom 增益进行原声 A/B 试听，松开恢复预设"));
 		_headroomAuditionBtn.PointerPressed += (s, e) =>
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoHeadroomDirectBypassActive = true;
+				ViewModel.FurinaPlayerHeadroomDirectBypassActive = true;
 				ViewModel.ApplyHeadroomSettings();
 				if (_headroomGainBigTb != null) _headroomGainBigTb.Text = "0";
-				if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = "×1.000  100.0% amplitude (直通试听中)";
+				if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = Loc.T("×1.000  100.0% amplitude (直通试听中)");
 			}
 		};
 		void ReleaseAudition()
 		{
-			if (ViewModel != null && ViewModel.EchoHeadroomDirectBypassActive)
+			if (ViewModel != null && ViewModel.FurinaPlayerHeadroomDirectBypassActive)
 			{
-				ViewModel.EchoHeadroomDirectBypassActive = false;
+				ViewModel.FurinaPlayerHeadroomDirectBypassActive = false;
 				ViewModel.ApplyHeadroomSettings();
 				if (ViewModel != null)
 				{
-					if (_headroomGainBigTb != null) _headroomGainBigTb.Text = $"{ViewModel.EchoHeadroomDb:+0.0;-0.0;0.0}".TrimEnd('0').TrimEnd('.');
-					double amp = Math.Pow(10.0, ViewModel.EchoHeadroomDb / 20.0);
+					if (_headroomGainBigTb != null) _headroomGainBigTb.Text = $"{ViewModel.FurinaPlayerHeadroomDb:+0.0;-0.0;0.0}".TrimEnd('0').TrimEnd('.');
+					double amp = Math.Pow(10.0, ViewModel.FurinaPlayerHeadroomDb / 20.0);
 					if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = $"×{amp:F3}  {amp * 100.0:F1}% amplitude";
 				}
 			}
@@ -2552,7 +2554,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		gainStack.Children.Add(new TextBlock
 		{
-			Text = "向右提高增益会直接加大音量。还没有峰值读数，安全范围先按不超过 0 dB。",
+			Text = Loc.T("向右提高增益会直接加大音量。还没有峰值读数，安全范围先按不超过 0 dB。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			Margin = new Thickness(0, 10, 0, 0)
@@ -2575,7 +2577,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		rightStack.Children.Add(new TextBlock
 		{
-			Text = "实时余量",
+			Text = Loc.T("实时余量"),
 			FontSize = 15,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
@@ -2593,7 +2595,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var lampSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 		var lampDot = new Ellipse { Width = 8, Height = 8, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94)) };
 		lampSp.Children.Add(lampDot);
-		lampSp.Children.Add(new TextBlock { Text = "等待当前宿主读数", FontSize = 12, Foreground = DspTextMutedBrush });
+		lampSp.Children.Add(new TextBlock { Text = Loc.T("等待当前宿主读数"), FontSize = 12, Foreground = DspTextMutedBrush });
 		rightStack.Children.Add(lampSp);
 
 		var recoCard = new Border
@@ -2609,19 +2611,19 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		var recoHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		recoHeadSp.Children.Add(new FontIcon { Glyph = "\uEA18", FontSize = 12, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 99, 102, 241)) });
-		recoHeadSp.Children.Add(new TextBlock { Text = "建议 · 安全", FontSize = 11, Foreground = DspTextSubHeaderBrush });
+		recoHeadSp.Children.Add(new TextBlock { Text = Loc.T("建议 · 安全"), FontSize = 11, Foreground = DspTextSubHeaderBrush });
 		recoStack.Children.Add(recoHeadSp);
 
 		recoStack.Children.Add(new TextBlock
 		{
-			Text = "保持待命",
+			Text = Loc.T("保持待命"),
 			FontSize = 18,
 			FontWeight = Microsoft.UI.Text.FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
 		});
 		recoStack.Children.Add(new TextBlock
 		{
-			Text = "有 DSP 模块开启，但暂未检测到风险。",
+			Text = Loc.T("有 DSP 模块开启，但暂未检测到风险。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap
@@ -2630,7 +2632,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		var recoBtnsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 4, 0, 0) };
 		var btnApplyNeg3 = new Button
 		{
-			Content = "应用 -3 dB",
+			Content = Loc.T("应用 -3 dB"),
 			Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 79, 70, 229)),
 			Foreground = new SolidColorBrush(Colors.White),
 			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -2643,7 +2645,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		};
 		var btnSetNeg6 = new Button
 		{
-			Content = "设为 -6 dB",
+			Content = Loc.T("设为 -6 dB"),
 			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
 			BorderBrush = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(70, 255, 255, 255)) : new SolidColorBrush(Windows.UI.Color.FromArgb(180, 203, 213, 225)),
 			BorderThickness = new Thickness(1),
@@ -2685,15 +2687,15 @@ public sealed partial class DspPage : Page, IComponentConnector
 		budgetHeadGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var budgetHeadSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
-		budgetHeadSp.Children.Add(new TextBlock { Text = "Headroom 预算", FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
-		_headroomStreamInfoTb = new TextBlock { Text = "等待当前音乐流数据", FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center };
+		budgetHeadSp.Children.Add(new TextBlock { Text = Loc.T("Headroom 预算"), FontSize = 15, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = DspTextPrimaryBrush });
+		_headroomStreamInfoTb = new TextBlock { Text = Loc.T("等待当前音乐流数据"), FontSize = 12, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center };
 		budgetHeadSp.Children.Add(_headroomStreamInfoTb);
 		Grid.SetColumn(budgetHeadSp, 0);
 		budgetHeadGrid.Children.Add(budgetHeadSp);
 
 		var btnRefreshBudget = new Button
 		{
-			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = DspTextMutedBrush }, new TextBlock { Text = "刷新状态", FontSize = 12, Foreground = DspTextSecondaryBrush } } },
+			Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, Children = { new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = DspTextMutedBrush }, new TextBlock { Text = Loc.T("刷新状态"), FontSize = 12, Foreground = DspTextSecondaryBrush } } },
 			Padding = new Thickness(10, 4, 10, 4),
 			CornerRadius = new CornerRadius(6),
 			Background = IsDspDark ? new SolidColorBrush(Windows.UI.Color.FromArgb(120, 30, 41, 59)) : new SolidColorBrush(Windows.UI.Color.FromArgb(210, 255, 255, 255)),
@@ -2704,14 +2706,14 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			if (_headroomClipCountTb != null)
 			{
-				_headroomClipCountTb.Text = $"{_headroomClipCount} 次";
+				_headroomClipCountTb.Text = Loc.F("{0} 次", _headroomClipCount);
 				_headroomClipCountTb.Foreground = new SolidColorBrush(_headroomClipCount == 0
 					? Windows.UI.Color.FromArgb(255, 34, 197, 94)
 					: Windows.UI.Color.FromArgb(255, 239, 68, 68));
 			}
 			if (_headroomLastClipTb != null)
 			{
-				_headroomLastClipTb.Text = _headroomLastClipTime.HasValue ? _headroomLastClipTime.Value.ToString("HH:mm:ss") : "无记录";
+				_headroomLastClipTb.Text = _headroomLastClipTime.HasValue ? _headroomLastClipTime.Value.ToString("HH:mm:ss") : Loc.T("无记录");
 				_headroomLastClipTb.Foreground = DspTextSecondaryBrush;
 			}
 			if (_headroomMarginTb != null)
@@ -2721,7 +2723,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			}
 			if (_headroomProtectStatusTb != null)
 			{
-				_headroomProtectStatusTb.Text = _headroomClipCount == 0 ? "待命" : "曾削波";
+				_headroomProtectStatusTb.Text = _headroomClipCount == 0 ? Loc.T("待命") : Loc.T("曾削波");
 				_headroomProtectStatusTb.Foreground = new SolidColorBrush(_headroomClipCount == 0
 					? Windows.UI.Color.FromArgb(255, 34, 197, 94)
 					: Windows.UI.Color.FromArgb(255, 239, 68, 68));
@@ -2813,13 +2815,13 @@ public sealed partial class DspPage : Page, IComponentConnector
 			return row;
 		}
 
-		budgetStack.Children.Add(CreateLedMeterRow("输入峰值", out _headroomInMeterFill, out _headroomInMeterValTb));
-		budgetStack.Children.Add(CreateLedMeterRow("输出估算", out _headroomOutMeterFill, out _headroomOutMeterValTb));
+		budgetStack.Children.Add(CreateLedMeterRow(Loc.T("输入峰值"), out _headroomInMeterFill, out _headroomInMeterValTb));
+		budgetStack.Children.Add(CreateLedMeterRow(Loc.T("输出估算"), out _headroomOutMeterFill, out _headroomOutMeterValTb));
 		budgetStack.Children.Add(CreateLedMeterRow("True Peak", out _headroomTpMeterFill, out _headroomTpMeterValTb));
 
 		var statusFoldBtn = new Button
 		{
-			Content = "▼ 实时状态",
+			Content = Loc.T("▼ 实时状态"),
 			Background = new SolidColorBrush(Colors.Transparent),
 			BorderThickness = new Thickness(0),
 			Padding = new Thickness(0, 6, 0, 2),
@@ -2843,11 +2845,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			valOutTb = valBlock;
 			return sp;
 		}
-		var st1 = MakeStatusStat("保护状态", "待命", out _headroomProtectStatusTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
-		var st2 = MakeStatusStat("削波次数", "0 次", out _headroomClipCountTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
-		var st3 = MakeStatusStat("最近削波", "无记录", out _headroomLastClipTb);
+		var st1 = MakeStatusStat(Loc.T("保护状态"), Loc.T("待命"), out _headroomProtectStatusTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
+		var st2 = MakeStatusStat(Loc.T("削波次数"), Loc.F("{0} 次", 0), out _headroomClipCountTb, Windows.UI.Color.FromArgb(255, 34, 197, 94));
+		var st3 = MakeStatusStat(Loc.T("最近削波"), Loc.T("无记录"), out _headroomLastClipTb);
 		var st4 = MakeStatusStat("True Peak", "--", out _headroomTruePeakTb);
-		var st5 = MakeStatusStat("实时余量", "--", out _headroomMarginTb);
+		var st5 = MakeStatusStat(Loc.T("实时余量"), "--", out _headroomMarginTb);
 		Grid.SetColumn(st1, 0); statusFoldContent.Children.Add(st1);
 		Grid.SetColumn(st2, 1); statusFoldContent.Children.Add(st2);
 		Grid.SetColumn(st3, 2); statusFoldContent.Children.Add(st3);
@@ -2859,12 +2861,12 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (statusFoldContent.Visibility == Visibility.Visible)
 			{
 				statusFoldContent.Visibility = Visibility.Collapsed;
-				statusFoldBtn.Content = "▶ 实时状态";
+				statusFoldBtn.Content = Loc.T("▶ 实时状态");
 			}
 			else
 			{
 				statusFoldContent.Visibility = Visibility.Visible;
-				statusFoldBtn.Content = "▼ 实时状态";
+				statusFoldBtn.Content = Loc.T("▼ 实时状态");
 			}
 		};
 		budgetStack.Children.Add(statusFoldBtn);
@@ -2882,8 +2884,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (_headroomAmpRatioTb != null) _headroomAmpRatioTb.Text = $"×{amp:F3}  {amp * 100.0:F1}% amplitude";
 			if (_headroomNavSubTb != null)
 			{
-				bool enabled = ViewModel?.EchoHeadroomEnabled ?? true;
-				_headroomNavSubTb.Text = !enabled ? "已旁路" : $"{db:+0.0;-0.0;0.0} dB";
+				bool enabled = ViewModel?.FurinaPlayerHeadroomEnabled ?? true;
+				_headroomNavSubTb.Text = !enabled ? Loc.T("已旁路") : $"{db:+0.0;-0.0;0.0} dB";
 			}
 			foreach (var btn in _headroomPresetButtons)
 			{
@@ -2912,7 +2914,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoHeadroomDb = e.NewValue;
+				ViewModel.FurinaPlayerHeadroomDb = e.NewValue;
 				ViewModel.ApplyHeadroomSettings();
 				UpdateHeadroomDisplay(e.NewValue);
 			}
@@ -2921,9 +2923,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.EchoHeadroomEnabled = _headroomPowerSwitch.IsOn;
+				ViewModel.FurinaPlayerHeadroomEnabled = _headroomPowerSwitch.IsOn;
 				ViewModel.ApplyHeadroomSettings();
-				UpdateHeadroomDisplay(ViewModel.EchoHeadroomDb);
+				UpdateHeadroomDisplay(ViewModel.FurinaPlayerHeadroomDb);
 			}
 		};
 		btnMinus.Click += (s, e) =>
@@ -2959,46 +2961,46 @@ public sealed partial class DspPage : Page, IComponentConnector
 
 		SyncParametricEqWorkbenchFromViewModel();
 
-		_eqWorkbenchControl.BandsChanged += (IReadOnlyList<EchoBiquadFilter> bands) =>
+		_eqWorkbenchControl.BandsChanged += (IReadOnlyList<FurinaPlayerBiquadFilter> bands) =>
 		{
 			if (ViewModel == null || _eqWorkbenchControl == null) return;
 			ViewModel.ApplyParametricEqState(bands, _eqWorkbenchControl.PreampDb, _eqWorkbenchControl.IsEqEnabled, save: true);
 			SyncLegacyFreeEqUiFromViewModel();
 		};
 
-		_eqWorkbenchControl.BandChanged += (int idx, EchoBiquadFilter band) =>
+		_eqWorkbenchControl.BandChanged += (int idx, FurinaPlayerBiquadFilter band) =>
 		{
 			if (ViewModel == null) return;
-			ViewModel.Engine?.SetEchoEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
-			ViewModel.SyncEchoEqBand(idx, band, save: true);
+			ViewModel.Engine?.SetFurinaPlayerEqBand(idx, band.FilterType, band.FrequencyHz, band.GainDb, band.Q, band.Enabled);
+			ViewModel.SyncFurinaPlayerEqBand(idx, band, save: true);
 			SyncLegacyFreeEqUiFromViewModel();
 		};
 
 		_eqWorkbenchControl.PreampChanged += (double db) =>
 		{
 			if (ViewModel == null) return;
-			ViewModel.EchoEqPreampDb = db;
-			ViewModel.Engine?.SetEchoEqPreamp(db);
-			ViewModel.SaveEchoSettings();
+			ViewModel.FurinaPlayerEqPreampDb = db;
+			ViewModel.Engine?.SetFurinaPlayerEqPreamp(db);
+			ViewModel.SaveFurinaPlayerSettings();
 		};
 
 		_eqWorkbenchControl.EnabledChanged += (bool en) =>
 		{
 			if (ViewModel == null) return;
-			ViewModel.EchoEqEnabled = en;
-			ViewModel.Engine?.SetEchoEqEnabled(en);
-			ViewModel.SaveEchoSettings();
+			ViewModel.FurinaPlayerEqEnabled = en;
+			ViewModel.Engine?.SetFurinaPlayerEqEnabled(en);
+			ViewModel.SaveFurinaPlayerSettings();
 		};
 
 		_eqWorkbenchControl.ImportAutoEqRequested += () => _ = ImportAutoEqFileAsync();
 		_eqWorkbenchControl.MixAssistantLearnRequested += OnMixAssistantLearnRequested;
 		_eqWorkbenchControl.MixAssistantAnalyzeAudioRequested += () => _ = OnMixAssistantAnalyzeAudioRequestedAsync();
-		_eqWorkbenchControl.SaveUserPresetRequested += (string name, IReadOnlyList<EchoBiquadFilter> bands, double preampDb) =>
+		_eqWorkbenchControl.SaveUserPresetRequested += (string name, IReadOnlyList<FurinaPlayerBiquadFilter> bands, double preampDb) =>
 		{
 			if (ViewModel == null || _eqWorkbenchControl == null) return;
 			ViewModel.ApplyParametricEqState(bands, preampDb, _eqWorkbenchControl.IsEqEnabled, save: true);
 			ViewModel.EqPresetName = name;
-			ViewModel.StatusText = $"已保存自定义 EQ 预设：{name}";
+			ViewModel.StatusText = Loc.F("已保存自定义 EQ 预设：{0}", name);
 		};
 
 		_parametricEqWorkbench = new Border
@@ -3011,8 +3013,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 	private void SyncParametricEqWorkbenchFromViewModel()
 	{
 		if (ViewModel == null || _eqWorkbenchControl == null) return;
-		ViewModel.InitializeEchoEqBands();
-		_eqWorkbenchControl.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+		ViewModel.InitializeFurinaPlayerEqBands();
+		_eqWorkbenchControl.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 	}
 
 	private void SyncLegacyFreeEqUiFromViewModel()
@@ -3122,7 +3124,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			_eqWorkbenchControl.SetMixAssistantProgress(
 				isLearning: true,
 				progress01: _eqWorkbenchControl.MixAssistant.LearningProgress01,
-				statusText: $"正在学习音频频谱平衡... ({_eqWorkbenchControl.MixAssistant.LearnedFrames} 帧)");
+				statusText: Loc.F("正在学习音频频谱平衡... ({0} 帧)", _eqWorkbenchControl.MixAssistant.LearnedFrames));
 		}
 	}
 
@@ -3149,20 +3151,20 @@ public sealed partial class DspPage : Page, IComponentConnector
 		string? filePath = ViewModel?.Engine?.CurrentTrack?.FilePath;
 		if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
 		{
-			_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, "请先加载或播放本地音轨后再进行分析");
+			_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, Loc.T("请先加载或播放本地音轨后再进行分析"));
 			return;
 		}
 
 		StopMixAssistantLearnTimer(finalizeIfLearning: false);
 		_isAnalyzingTrackForMixAssistant = true;
-		_eqWorkbenchControl.SetMixAssistantProgress(false, 0.12, "正在后台解码并分析当前音轨频谱...");
+		_eqWorkbenchControl.SetMixAssistantProgress(false, 0.12, Loc.T("正在后台解码并分析当前音轨频谱..."));
 
 		try
 		{
 			MixAssistantEngine assistant = _eqWorkbenchControl.MixAssistant;
 			MixAssistantProfile? profile = await Task.Run(() =>
 			{
-				using var reader = new SonicWave.Audio.Decoders.SafeAudioFileReader(filePath);
+				using var reader = new FurinaPlayer.Audio.Decoders.SafeAudioFileReader(filePath);
 				int sampleRate = Math.Max(8000, reader.WaveFormat.SampleRate);
 				int channels = Math.Max(1, reader.WaveFormat.Channels);
 				int maxFrames = Math.Min(sampleRate * 45, 2_000_000);
@@ -3194,12 +3196,12 @@ public sealed partial class DspPage : Page, IComponentConnector
 			}
 			else
 			{
-				_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, "未能从当前音轨读取有效的音频采样数据");
+				_eqWorkbenchControl.SetMixAssistantProgress(false, 0.0, Loc.T("未能从当前音轨读取有效的音频采样数据"));
 			}
 		}
 		catch (Exception ex)
 		{
-			_eqWorkbenchControl?.SetMixAssistantProgress(false, 0.0, $"音轨分析失败：{ex.Message}");
+			_eqWorkbenchControl?.SetMixAssistantProgress(false, 0.0, Loc.F("音轨分析失败：{0}", ex.Message));
 		}
 		finally
 		{
@@ -3227,13 +3229,13 @@ public sealed partial class DspPage : Page, IComponentConnector
 				bool ok = ViewModel.ImportAutoEqText(text);
 				if (ok)
 				{
-					_eqWorkbenchControl?.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+					_eqWorkbenchControl?.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 					SyncLegacyFreeEqUiFromViewModel();
 					await new ContentDialog
 					{
-						Title = "AutoEq 耳机校准曲线载入成功",
-						Content = $"已从 {file.Name} 成功导入并解析 {ViewModel.EchoEqBands.Count} 段 ParametricEQ 滤波器（前级增益 {ViewModel.EchoEqPreampDb:F1} dB）。",
-						CloseButtonText = "好",
+						Title = Loc.T("AutoEq 耳机校准曲线载入成功"),
+						Content = Loc.F("已从 {0} 成功导入并解析 {1} 段 ParametricEQ 滤波器（前级增益 {2:F1} dB）。", file.Name, ViewModel.FurinaPlayerEqBands.Count, ViewModel.FurinaPlayerEqPreampDb),
+						CloseButtonText = Loc.T("好"),
 						XamlRoot = XamlRoot
 					}.ShowAsync();
 				}
@@ -3241,9 +3243,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 				{
 					await new ContentDialog
 					{
-						Title = "导入未完全匹配",
-						Content = "文件未包含标准 AutoEq 参数，请确认是否为包含 Preamp / Filter 的 ParametricEQ 文本。",
-						CloseButtonText = "知道了",
+						Title = Loc.T("导入未完全匹配"),
+						Content = Loc.T("文件未包含标准 AutoEq 参数，请确认是否为包含 Preamp / Filter 的 ParametricEQ 文本。"),
+						CloseButtonText = Loc.T("知道了"),
 						XamlRoot = XamlRoot
 					}.ShowAsync();
 				}
@@ -3258,7 +3260,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 	private void ApplyEqBuiltinPreset(int presetIdx)
 	{
 		if (ViewModel == null) return;
-		ViewModel.InitializeEchoEqBands();
+		ViewModel.InitializeFurinaPlayerEqBands();
 
 		double[] gains = presetIdx switch
 		{
@@ -3273,11 +3275,11 @@ public sealed partial class DspPage : Page, IComponentConnector
 			_ => new double[10] // Flat
 		};
 
-		var updatedBands = new List<EchoBiquadFilter>(ViewModel.EchoEqBands.Count);
-		for (int i = 0; i < ViewModel.EchoEqBands.Count; i++)
+		var updatedBands = new List<FurinaPlayerBiquadFilter>(ViewModel.FurinaPlayerEqBands.Count);
+		for (int i = 0; i < ViewModel.FurinaPlayerEqBands.Count; i++)
 		{
-			EchoBiquadFilter src = ViewModel.EchoEqBands[i];
-			updatedBands.Add(new EchoBiquadFilter
+			FurinaPlayerBiquadFilter src = ViewModel.FurinaPlayerEqBands[i];
+			updatedBands.Add(new FurinaPlayerBiquadFilter
 			{
 				FilterType = src.FilterType,
 				FrequencyHz = src.FrequencyHz,
@@ -3287,8 +3289,8 @@ public sealed partial class DspPage : Page, IComponentConnector
 			});
 		}
 
-		ViewModel.ApplyParametricEqState(updatedBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled, save: true);
-		_eqWorkbenchControl?.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+		ViewModel.ApplyParametricEqState(updatedBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled, save: true);
+		_eqWorkbenchControl?.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 		SyncLegacyFreeEqUiFromViewModel();
 	}
 	public void SelectDspCategory(string category)
@@ -3547,7 +3549,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 	{
 		try
 		{
-			var session = SonicWave.Audio.AudioSession.Instance;
+			var session = FurinaPlayer.Audio.AudioSession.Instance;
 			var engine = ViewModel?.AudioEngine ?? ViewModel?.Engine;
 			var track = session?.CurrentTrack ?? engine?.CurrentTrack;
 
@@ -3568,13 +3570,13 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				if (_headroomStreamInfoTb != null)
 				{
-					_headroomStreamInfoTb.Text = "等待当前音乐流数据";
+					_headroomStreamInfoTb.Text = Loc.T("等待当前音乐流数据");
 				}
 			}
 
 			// 2. Playback state
-			bool isPlaying = (session?.State == SonicWave.Audio.PlaybackState.Playing) ||
-			                 (engine?.State == SonicWave.Audio.PlaybackState.Playing);
+			bool isPlaying = (session?.State == FurinaPlayer.Audio.PlaybackState.Playing) ||
+			                 (engine?.State == FurinaPlayer.Audio.PlaybackState.Playing);
 
 			if (!isPlaying)
 			{
@@ -3585,7 +3587,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 				if (_headroomMarginTb != null) _headroomMarginTb.Text = "--";
 				if (_headroomProtectStatusTb != null)
 				{
-					_headroomProtectStatusTb.Text = "待命";
+					_headroomProtectStatusTb.Text = Loc.T("待命");
 					_headroomProtectStatusTb.Foreground = DspTextMutedBrush;
 				}
 				return;
@@ -3618,12 +3620,12 @@ public sealed partial class DspPage : Page, IComponentConnector
 			if (margin < 0.0) margin = 0.0;
 			_headroomAvgMarginDb = _headroomAvgMarginDb <= 0.0 ? margin : (_headroomAvgMarginDb * 0.9 + margin * 0.1);
 
-			bool headroomEnabled = ViewModel?.EchoHeadroomEnabled ?? true;
+			bool headroomEnabled = ViewModel?.FurinaPlayerHeadroomEnabled ?? true;
 
 			// 6. Update Status Foldout Stats
 			if (_headroomClipCountTb != null)
 			{
-				_headroomClipCountTb.Text = $"{_headroomClipCount} 次";
+				_headroomClipCountTb.Text = Loc.F("{0} 次", _headroomClipCount);
 				_headroomClipCountTb.Foreground = _headroomClipCount > 0
 					? new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68))
 					: new SolidColorBrush(Windows.UI.Color.FromArgb(255, 22, 163, 74));
@@ -3633,7 +3635,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				_headroomLastClipTb.Text = _headroomLastClipTime.HasValue
 					? _headroomLastClipTime.Value.ToString("HH:mm:ss")
-					: "无记录";
+					: Loc.T("无记录");
 			}
 
 			if (_headroomTruePeakTb != null)
@@ -3656,17 +3658,17 @@ public sealed partial class DspPage : Page, IComponentConnector
 			{
 				if (!headroomEnabled)
 				{
-					_headroomProtectStatusTb.Text = "已旁路";
+					_headroomProtectStatusTb.Text = Loc.T("已旁路");
 					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 245, 158, 11));
 				}
 				else if (_headroomClipCount > 0)
 				{
-					_headroomProtectStatusTb.Text = "检测到过载";
+					_headroomProtectStatusTb.Text = Loc.T("检测到过载");
 					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68));
 				}
 				else
 				{
-					_headroomProtectStatusTb.Text = "运行正常";
+					_headroomProtectStatusTb.Text = Loc.T("运行正常");
 					_headroomProtectStatusTb.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94));
 				}
 			}
@@ -3737,7 +3739,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 				bool ok = ViewModel.LoadConvolutionIr(file.Path);
 				if (ok && _irInfoText != null)
 				{
-					_irInfoText.Text = $"已载入 IR: {file.Name}";
+					_irInfoText.Text = Loc.F("已载入 IR: {0}", file.Name);
 					_irInfoText.Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 229, 255));
 				}
 			}

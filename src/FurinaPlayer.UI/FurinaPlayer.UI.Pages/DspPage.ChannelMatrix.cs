@@ -11,8 +11,9 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using Windows.UI;
 
 namespace FurinaPlayer.UI.Pages;
@@ -206,7 +207,7 @@ public sealed partial class DspPage
 		var mainTitleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, VerticalAlignment = VerticalAlignment.Center };
 		mainTitleSp.Children.Add(new TextBlock
 		{
-			Text = "声道矩阵",
+			Text = Loc.T("声道矩阵"),
 			FontSize = 24,
 			FontWeight = FontWeights.ExtraBold,
 			Foreground = DspTextPrimaryBrush // Slate 900
@@ -215,7 +216,7 @@ public sealed partial class DspPage
 
 		var descTb = new TextBlock
 		{
-			Text = "自定义 2x2 声道混音与相位矩阵，支持左右互换、反相抵消、单声道相加及精细系数加权。",
+			Text = Loc.T("自定义 2x2 声道混音与相位矩阵，支持左右互换、反相抵消、单声道相加及精细系数加权。"),
 			FontSize = 12,
 			Foreground = DspTextMutedBrush, // Slate 500
 			Margin = new Thickness(0, 3, 0, 0)
@@ -250,7 +251,7 @@ public sealed partial class DspPage
 		};
 		_headerPeakGainSubTb = new TextBlock
 		{
-			Text = "安全线性增益",
+			Text = Loc.T("安全线性增益"),
 			FontSize = 10,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)), // Emerald 500
 			HorizontalAlignment = HorizontalAlignment.Right
@@ -290,7 +291,7 @@ public sealed partial class DspPage
 		};
 		var powerSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		_matrixPowerIcon = new FontIcon { Glyph = "\uE7E8", FontSize = 12 };
-		_matrixPowerText = new TextBlock { Text = "声道矩阵已开启", FontSize = 12, FontWeight = FontWeights.SemiBold };
+		_matrixPowerText = new TextBlock { Text = Loc.T("声道矩阵已开启"), FontSize = 12, FontWeight = FontWeights.SemiBold };
 		powerSp.Children.Add(_matrixPowerIcon);
 		powerSp.Children.Add(_matrixPowerText);
 		_matrixPowerBtn.Content = powerSp;
@@ -313,7 +314,7 @@ public sealed partial class DspPage
 		};
 		var resetSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		resetSp.Children.Add(new FontIcon { Glyph = "\uE7A7", FontSize = 12, Foreground = DspTextSubHeaderBrush });
-		resetSp.Children.Add(new TextBlock { Text = "恢复直通", FontSize = 12, Foreground = DspTextSecondaryBrush });
+		resetSp.Children.Add(new TextBlock { Text = Loc.T("恢复直通"), FontSize = 12, Foreground = DspTextSecondaryBrush });
 		_matrixResetBtn.Content = resetSp;
 		_matrixResetBtn.Click += (s, e) => ResetMatrixToIdentity();
 		actionsSp.Children.Add(_matrixResetBtn);
@@ -330,7 +331,7 @@ public sealed partial class DspPage
 		applySp.Children.Add(new FontIcon { Glyph = "\uE74E", FontSize = 12, Foreground = new SolidColorBrush(Colors.White) });
 		_matrixApplyBtnText = new TextBlock
 		{
-			Text = "应用参数",
+			Text = Loc.T("应用参数"),
 			FontSize = 12,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = new SolidColorBrush(Colors.White)
@@ -342,9 +343,9 @@ public sealed partial class DspPage
 			ApplyChannelMatrixToAudioEngine(true);
 			if (_matrixApplyBtnText != null)
 			{
-				_matrixApplyBtnText.Text = "已应用";
+				_matrixApplyBtnText.Text = Loc.T("已应用");
 				await Task.Delay(1200);
-				_matrixApplyBtnText.Text = "应用参数";
+				_matrixApplyBtnText.Text = Loc.T("应用参数");
 			}
 		};
 		actionsSp.Children.Add(_matrixApplyBtn);
@@ -378,14 +379,14 @@ public sealed partial class DspPage
 		var titleSp = new StackPanel { Spacing = 2 };
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "信号流矩阵",
+			Text = Loc.T("信号流矩阵"),
 			FontSize = 14,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextPrimaryBrush
 		});
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "线宽对应系数绝对值，虚线表示反相；数值为当前草稿系数。",
+			Text = Loc.T("线宽对应系数绝对值，虚线表示反相；数值为当前草稿系数。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		});
@@ -423,8 +424,8 @@ public sealed partial class DspPage
 		};
 
 		// Headers above nodes
-		AddCanvasHeader(_matrixCanvas, "输入", 50, 10);
-		AddCanvasHeader(_matrixCanvas, "输出", 380, 10);
+		AddCanvasHeader(_matrixCanvas, Loc.T("输入"), 50, 10);
+		AddCanvasHeader(_matrixCanvas, Loc.T("输出"), 380, 10);
 
 		// 4 Connection Lines
 		_lineL2L = CreateCanvasLine(83, 55, 377, 55);
@@ -510,13 +511,13 @@ public sealed partial class DspPage
 		};
 
 		// 1. Left Output Peak Gain
-		statsSp.Children.Add(CreateStatItem("左输出峰值增益", out _leftPeakGainTb, "1.00× · +0.0 dB"));
+		statsSp.Children.Add(CreateStatItem(Loc.T("左输出峰值增益"), out _leftPeakGainTb, "1.00× · +0.0 dB"));
 
 		// 2. Right Output Peak Gain
-		statsSp.Children.Add(CreateStatItem("右输出峰值增益", out _rightPeakGainTb, "1.00× · +0.0 dB"));
+		statsSp.Children.Add(CreateStatItem(Loc.T("右输出峰值增益"), out _rightPeakGainTb, "1.00× · +0.0 dB"));
 
 		// 3. Phase State
-		statsSp.Children.Add(CreateStatItem("相位状态", out _phaseStateTb, "同相"));
+		statsSp.Children.Add(CreateStatItem(Loc.T("相位状态"), out _phaseStateTb, Loc.T("同相")));
 
 		// 4. Safety Indicator
 		var safetyBox = new Border
@@ -530,7 +531,7 @@ public sealed partial class DspPage
 		};
 		_safetyStatusTb = new TextBlock
 		{
-			Text = "安全线性增益",
+			Text = Loc.T("安全线性增益"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 5, 150, 105)) // Emerald 600
@@ -575,7 +576,7 @@ public sealed partial class DspPage
 
 		section.Children.Add(new TextBlock
 		{
-			Text = "快速预设",
+			Text = Loc.T("快速预设"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextSecondaryBrush
@@ -598,13 +599,13 @@ public sealed partial class DspPage
 		_matrixPresetButtons.Clear();
 
 		// 7 Standard Presets
-		AddPresetPill(presetsStack, "标准直通", 1.0, 0.0, 0.0, 1.0, "L→L 1.00 · R→L 0.00 · L→R 0.00 · R→R 1.00 (标准双声道直通)");
-		AddPresetPill(presetsStack, "立体声互换", 0.0, 1.0, 1.0, 0.0, "L→L 0.00 · R→L 1.00 · L→R 1.00 · R→R 0.00 (左右声道完全调换)");
-		AddPresetPill(presetsStack, "单声道混音", 0.5, 0.5, 0.5, 0.5, "L→L 0.50 · R→L 0.50 · L→R 0.50 · R→R 0.50 (等增益合成立体声单声道)");
-		AddPresetPill(presetsStack, "仅保留左", 1.0, 0.0, 1.0, 0.0, "L→L 1.00 · R→L 0.00 · L→R 1.00 · R→R 0.00 (左声道复制到左右两侧)");
-		AddPresetPill(presetsStack, "仅保留右", 0.0, 1.0, 0.0, 1.0, "L→L 0.00 · R→L 1.00 · L→R 0.00 · R→R 1.00 (右声道复制到左右两侧)");
-		AddPresetPill(presetsStack, "中置抵消 (侧声道提取)", 1.0, -1.0, -1.0, 1.0, "L→L 1.00 · R→L -1.00 · L→R -1.00 · R→R 1.00 (相消居中人声，提取纯侧向声场)");
-		AddPresetPill(presetsStack, "右声道反相", 1.0, 0.0, 0.0, -1.0, "L→L 1.00 · R→L 0.00 · L→R 0.00 · R→R -1.00 (反转右声道相位，消除特定声学相位抵消)");
+		AddPresetPill(presetsStack, Loc.T("标准直通"), 1.0, 0.0, 0.0, 1.0, Loc.T("L→L 1.00 · R→L 0.00 · L→R 0.00 · R→R 1.00 (标准双声道直通)"));
+		AddPresetPill(presetsStack, Loc.T("立体声互换"), 0.0, 1.0, 1.0, 0.0, Loc.T("L→L 0.00 · R→L 1.00 · L→R 1.00 · R→R 0.00 (左右声道完全调换)"));
+		AddPresetPill(presetsStack, Loc.T("单声道混音"), 0.5, 0.5, 0.5, 0.5, Loc.T("L→L 0.50 · R→L 0.50 · L→R 0.50 · R→R 0.50 (等增益合成立体声单声道)"));
+		AddPresetPill(presetsStack, Loc.T("仅保留左"), 1.0, 0.0, 1.0, 0.0, Loc.T("L→L 1.00 · R→L 0.00 · L→R 1.00 · R→R 0.00 (左声道复制到左右两侧)"));
+		AddPresetPill(presetsStack, Loc.T("仅保留右"), 0.0, 1.0, 0.0, 1.0, Loc.T("L→L 0.00 · R→L 1.00 · L→R 0.00 · R→R 1.00 (右声道复制到左右两侧)"));
+		AddPresetPill(presetsStack, Loc.T("中置抵消 (侧声道提取)"), 1.0, -1.0, -1.0, 1.0, Loc.T("L→L 1.00 · R→L -1.00 · L→R -1.00 · R→R 1.00 (相消居中人声，提取纯侧向声场)"));
+		AddPresetPill(presetsStack, Loc.T("右声道反相"), 1.0, 0.0, 0.0, -1.0, Loc.T("L→L 1.00 · R→L 0.00 · L→R 0.00 · R→R -1.00 (反转右声道相位，消除特定声学相位抵消)"));
 
 		presetsSv.Content = presetsStack;
 		section.Children.Add(presetsSv);
@@ -651,7 +652,7 @@ public sealed partial class DspPage
 
 		stack.Children.Add(new TextBlock
 		{
-			Text = "参数控制",
+			Text = Loc.T("参数控制"),
 			FontSize = 13,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextSecondaryBrush
@@ -665,7 +666,7 @@ public sealed partial class DspPage
 
 		// Col 0: L -> L
 		var col0 = CreateSliderControlGroup(
-			"输入 L → 输出 L",
+			Loc.T("输入 L → 输出 L"),
 			1.00,
 			out _sliderL2L,
 			out _valL2LTb,
@@ -677,7 +678,7 @@ public sealed partial class DspPage
 
 		// Col 1: R -> L
 		var col1 = CreateSliderControlGroup(
-			"输入 R → 输出 L",
+			Loc.T("输入 R → 输出 L"),
 			0.00,
 			out _sliderR2L,
 			out _valR2LTb,
@@ -689,7 +690,7 @@ public sealed partial class DspPage
 
 		// Col 2: L -> R
 		var col2 = CreateSliderControlGroup(
-			"输入 L → 输出 R",
+			Loc.T("输入 L → 输出 R"),
 			0.00,
 			out _sliderL2R,
 			out _valL2RTb,
@@ -701,7 +702,7 @@ public sealed partial class DspPage
 
 		// Col 3: R -> R
 		var col3 = CreateSliderControlGroup(
-			"输入 R → 输出 R",
+			Loc.T("输入 R → 输出 R"),
 			1.00,
 			out _sliderR2R,
 			out _valR2RTb,
@@ -785,7 +786,7 @@ public sealed partial class DspPage
 			BorderBrush = CreateLiquidGlassRimBrush(),
 			Foreground = DspTextSubHeaderBrush
 		};
-		ToolTipService.SetToolTip(invertBtn, "反相 (±)");
+		ToolTipService.SetToolTip(invertBtn, Loc.T("反相 (±)"));
 		invertBtn.Click += (s, e) => onInvertClicked();
 		rightSp.Children.Add(invertBtn);
 
@@ -827,7 +828,7 @@ public sealed partial class DspPage
 		// Hint text
 		var hintTb = new TextBlock
 		{
-			Text = "双击滑杆重置默认",
+			Text = Loc.T("双击滑杆重置默认"),
 			FontSize = 9.5,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
@@ -849,14 +850,14 @@ public sealed partial class DspPage
 
 		noteSp.Children.Add(new TextBlock
 		{
-			Text = "编辑先进入草稿；点击应用后由原生主机平滑接管。图形由参数推导，处理事实在 Audio Core。",
+			Text = Loc.T("编辑先进入草稿；点击应用后由原生主机平滑接管。图形由参数推导，处理事实在 Audio Core。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush
 		});
 
 		noteSp.Children.Add(new TextBlock
 		{
-			Text = "矩阵系数绝对值之和大于 1.0 时可能存在电平放大风险，建议配合机架限幅器或前级增益使用。",
+			Text = Loc.T("矩阵系数绝对值之和大于 1.0 时可能存在电平放大风险，建议配合机架限幅器或前级增益使用。"),
 			FontSize = 11,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 88, 12)) // Amber/Orange 600
@@ -883,7 +884,7 @@ public sealed partial class DspPage
 		};
 		var resetSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		resetSp.Children.Add(new FontIcon { Glyph = "\uE7A7", FontSize = 12, Foreground = DspTextSubHeaderBrush });
-		resetSp.Children.Add(new TextBlock { Text = "恢复直通", FontSize = 12, Foreground = DspTextSecondaryBrush });
+		resetSp.Children.Add(new TextBlock { Text = Loc.T("恢复直通"), FontSize = 12, Foreground = DspTextSecondaryBrush });
 		resetBtn.Content = resetSp;
 		resetBtn.Click += (s, e) => ResetMatrixToIdentity();
 		rightSp.Children.Add(resetBtn);
@@ -897,15 +898,15 @@ public sealed partial class DspPage
 		};
 		var applySp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
 		applySp.Children.Add(new FontIcon { Glyph = "\uE74E", FontSize = 12, Foreground = new SolidColorBrush(Colors.White) });
-		var applyBtnText = new TextBlock { Text = "应用参数", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
+		var applyBtnText = new TextBlock { Text = Loc.T("应用参数"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Colors.White) };
 		applySp.Children.Add(applyBtnText);
 		applyBtn.Content = applySp;
 		applyBtn.Click += async (s, e) =>
 		{
 			ApplyChannelMatrixToAudioEngine(true);
-			applyBtnText.Text = "已应用";
+			applyBtnText.Text = Loc.T("已应用");
 			await Task.Delay(1200);
-			applyBtnText.Text = "应用参数";
+			applyBtnText.Text = Loc.T("应用参数");
 		};
 		rightSp.Children.Add(applyBtn);
 
@@ -1102,12 +1103,12 @@ public sealed partial class DspPage
 		{
 			if (hasInversion)
 			{
-				_phaseStateTb.Text = "含反相";
+				_phaseStateTb.Text = Loc.T("含反相");
 				_phaseStateTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)); // Red 500
 			}
 			else
 			{
-				_phaseStateTb.Text = "同相";
+				_phaseStateTb.Text = Loc.T("同相");
 				_phaseStateTb.Foreground = DspTextPrimaryBrush; // Slate 800
 			}
 		}
@@ -1119,12 +1120,12 @@ public sealed partial class DspPage
 		{
 			if (isClippingRisk)
 			{
-				_safetyStatusTb.Text = "电平放大风险 (满刻度可能削波)";
+				_safetyStatusTb.Text = Loc.T("电平放大风险 (满刻度可能削波)");
 				_safetyStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 88, 12)); // Orange 600
 			}
 			else
 			{
-				_safetyStatusTb.Text = "安全线性增益";
+				_safetyStatusTb.Text = Loc.T("安全线性增益");
 				_safetyStatusTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 5, 150, 105)); // Emerald 600
 			}
 		}
@@ -1138,12 +1139,12 @@ public sealed partial class DspPage
 		{
 			if (isClippingRisk)
 			{
-				_headerPeakGainSubTb.Text = "电平放大风险";
+				_headerPeakGainSubTb.Text = Loc.T("电平放大风险");
 				_headerPeakGainSubTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 234, 88, 12));
 			}
 			else
 			{
-				_headerPeakGainSubTb.Text = "安全线性增益";
+				_headerPeakGainSubTb.Text = Loc.T("安全线性增益");
 				_headerPeakGainSubTb.Foreground = new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));
 			}
 		}
@@ -1190,7 +1191,7 @@ public sealed partial class DspPage
 
 		if (_channelMatrixEnabled)
 		{
-			_matrixPowerText.Text = "声道矩阵已开启";
+			_matrixPowerText.Text = Loc.T("声道矩阵已开启");
 			_matrixPowerBtn.Background = DspAccentSoftBgBrush;
 			_matrixPowerBtn.BorderBrush = DspAccentSoftBorderBrush;
 			_matrixPowerText.Foreground = DspAccentSoftTextBrush;
@@ -1198,7 +1199,7 @@ public sealed partial class DspPage
 		}
 		else
 		{
-			_matrixPowerText.Text = "声道矩阵已旁路";
+			_matrixPowerText.Text = Loc.T("声道矩阵已旁路");
 			_matrixPowerBtn.Background = DspSoftSurfaceBrush;
 			_matrixPowerBtn.BorderBrush = CreateLiquidGlassRimBrush();
 			_matrixPowerText.Foreground = DspTextMutedBrush;
@@ -1277,7 +1278,7 @@ public sealed partial class DspPage
 
 			if (saveSettings)
 			{
-				ViewModel?.SaveEchoSettings();
+				ViewModel?.SaveFurinaPlayerSettings();
 			}
 		}
 		catch (Exception ex)

@@ -20,9 +20,9 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Shapes;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 using WinRT.Interop;
 using Windows.Storage;
@@ -237,6 +237,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		{
 			UpgradeEditorChromeIcons();
 			ApplyEditorLiquidGlass();
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 		};
 		ActualThemeChanged += (s, e) => ApplyEditorLiquidGlass();
 		Unloaded += (object _, RoutedEventArgs _) =>
@@ -256,6 +257,7 @@ public sealed class EditorPage : Page, IComponentConnector
 	protected override async void OnNavigatedTo(NavigationEventArgs e)
 	{
 		base.OnNavigatedTo(e);
+		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
 		if (e.Parameter is EditorViewModel editorViewModel)
 		{
 			ViewModel = editorViewModel;
@@ -263,9 +265,9 @@ public sealed class EditorPage : Page, IComponentConnector
 		}
 		if (ViewModel != null)
 		{
-			if (ViewModel.EchoEqBands.Count == 0)
+			if (ViewModel.FurinaPlayerEqBands.Count == 0)
 			{
-				ViewModel.InitializeEchoEqBands();
+				ViewModel.InitializeFurinaPlayerEqBands();
 			}
 			EditorEq.Gains = ViewModel.Equalizer.Gains;
 			if (_editorParamEqControl != null)
@@ -273,7 +275,7 @@ public sealed class EditorPage : Page, IComponentConnector
 				_suppressParamEqEvents = true;
 				try
 				{
-					_editorParamEqControl.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+					_editorParamEqControl.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 				}
 				finally
 				{
@@ -299,7 +301,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			if (!string.IsNullOrEmpty(ViewModel.FilePath))
 			{
 				RefreshVisuals();
-				SampleInfoText.Text = "采样率 " + ViewModel.SampleRateText + " · 声道: " + ViewModel.ChannelsText;
+				SampleInfoText.Text = Loc.F("采样率 {0} · 声道: {1}", ViewModel.SampleRateText, ViewModel.ChannelsText);
 			}
 		}
 	}
@@ -405,11 +407,11 @@ public sealed class EditorPage : Page, IComponentConnector
 		await ViewModel.TryAutoLoadCurrentTrackAsync();
 		if (string.IsNullOrEmpty(ViewModel.FilePath))
 		{
-			ViewModel.StatusText = "当前没有正在播放的曲目";
+			ViewModel.StatusText = Loc.T("当前没有正在播放的曲目");
 			return;
 		}
 		RefreshVisuals();
-		SampleInfoText.Text = "采样率 " + ViewModel.SampleRateText + " · 声道: " + ViewModel.ChannelsText;
+		SampleInfoText.Text = Loc.F("采样率 {0} · 声道: {1}", ViewModel.SampleRateText, ViewModel.ChannelsText);
 	}
 
 	private async void OnOpenClick(object sender, RoutedEventArgs e)
@@ -433,7 +435,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.StatusText = "打开文件失败：" + ex.Message;
+				ViewModel.StatusText = Loc.F("打开文件失败：{0}", ex.Message);
 			}
 		}
 	}
@@ -442,7 +444,7 @@ public sealed class EditorPage : Page, IComponentConnector
 	{
 		await ViewModel.LoadFileAsync(path);
 		RefreshVisuals();
-		SampleInfoText.Text = "采样率 " + ViewModel.SampleRateText + " · 声道: " + ViewModel.ChannelsText;
+		SampleInfoText.Text = Loc.F("采样率 {0} · 声道: {1}", ViewModel.SampleRateText, ViewModel.ChannelsText);
 	}
 
 	private void UpdateInsightUi()
@@ -550,7 +552,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			ViewModel.ApplyPreviewParametricEq(
 				_editorParamEqControl.Bands,
 				_editorParamEqControl.PreampDb,
-				ViewModel.EchoEqEnabled);
+				ViewModel.FurinaPlayerEqEnabled);
 		}
 		await ViewModel.ApplyDspCommand.ExecuteAsync(null);
 		if (_editorParamEqControl != null)
@@ -559,8 +561,8 @@ public sealed class EditorPage : Page, IComponentConnector
 		}
 		else
 		{
-			ViewModel.InitializeEchoEqBands();
-			ViewModel.ApplyPreviewParametricEq(ViewModel.EchoEqBands, 0.0, ViewModel.EchoEqEnabled);
+			ViewModel.InitializeFurinaPlayerEqBands();
+			ViewModel.ApplyPreviewParametricEq(ViewModel.FurinaPlayerEqBands, 0.0, ViewModel.FurinaPlayerEqEnabled);
 		}
 		RefreshVisuals();
 	}
@@ -574,7 +576,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				FileTypeChoices = { 
 				{
-					"WAV 音频",
+					Loc.T("WAV 音频"),
 					(IList<string>)new List<string> { ".wav" }
 				} },
 				SuggestedFileName = "edited.wav"
@@ -591,7 +593,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		{
 			if (ViewModel != null)
 			{
-				ViewModel.StatusText = "导出失败：" + ex.Message;
+				ViewModel.StatusText = Loc.F("导出失败：{0}", ex.Message);
 			}
 		}
 	}
@@ -814,7 +816,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			}
 
 			bool invert = LiquidGlassEngine.InvertModeEnabled;
-			string mode = settings?.EchoThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
+			string mode = settings?.FurinaPlayerThemeMode ?? LiquidGlassEngine.ActiveThemeMode;
 
 			if (string.Equals(mode, "dark", StringComparison.OrdinalIgnoreCase))
 			{
@@ -955,8 +957,8 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				if (row0Toolbar.Children[i] is Button btn)
 				{
-					bool isResetBtn = (ToolTipService.GetToolTip(btn) is string tip && tip.Contains("恢复默认位置"))
-						|| (btn.Content is Panel p && p.Children.OfType<TextBlock>().Any(tb => tb.Text == "重置布局"));
+					bool isResetBtn = (ToolTipService.GetToolTip(btn) is string tip && (tip.Contains("恢复默认位置") || tip.Contains(Loc.T("恢复默认位置"))))
+						|| (btn.Content is Panel p && p.Children.OfType<TextBlock>().Any(tb => tb.Text == "重置布局" || tb.Text == Loc.T("重置布局")));
 					if (isResetBtn)
 					{
 						btn.Visibility = Visibility.Collapsed;
@@ -1004,7 +1006,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				if (child is TextBlock tb && Grid.GetColumn(tb) == 1)
 				{
-					tb.Text = "独立预览（不干扰主播放）";
+					tb.Text = Loc.T("独立预览（不干扰主播放）");
 					tb.TextTrimming = TextTrimming.CharacterEllipsis;
 				}
 			}
@@ -1235,7 +1237,7 @@ public sealed class EditorPage : Page, IComponentConnector
 
 		_editorSidebarTitleTb = new TextBlock
 		{
-			Text = "音频工作台",
+			Text = Loc.T("音频工作台"),
 			FontSize = 15.5,
 			FontWeight = Microsoft.UI.Text.FontWeights.ExtraBold
 		};
@@ -1243,7 +1245,7 @@ public sealed class EditorPage : Page, IComponentConnector
 
 		_editorSidebarSubtitleTb = new TextBlock
 		{
-			Text = "分析 · 调音 · 插件",
+			Text = Loc.T("分析 · 调音 · 插件"),
 			FontSize = 10.5
 		};
 		headerStack.Children.Add(_editorSidebarSubtitleTb);
@@ -1364,19 +1366,19 @@ public sealed class EditorPage : Page, IComponentConnector
 			return btn;
 		}
 
-		AddNavSectionHeader("编辑与信息", isFirst: true);
-		itemsStack.Children.Add(CreateNavButton("waveform", "\uE8C9", "波形与选区", "采样信息 & 区间剪辑"));
+		AddNavSectionHeader(Loc.T("编辑与信息"), isFirst: true);
+		itemsStack.Children.Add(CreateNavButton("waveform", "\uE8C9", Loc.T("波形与选区"), Loc.T("采样信息 & 区间剪辑")));
 
-		AddNavSectionHeader("监测与分析");
-		itemsStack.Children.Add(CreateNavButton("insight", "\uE9D2", "Insight Pro 监测分析", "响度 / 电平 / 声场 / 频谱 / 语图"));
+		AddNavSectionHeader(Loc.T("监测与分析"));
+		itemsStack.Children.Add(CreateNavButton("insight", "\uE9D2", Loc.T("Insight Pro 监测分析"), Loc.T("响度 / 电平 / 声场 / 频谱 / 语图")));
 
-		AddNavSectionHeader("调音与处理");
-		itemsStack.Children.Add(CreateNavButton("eq", "\uE995", "参数均衡 & Mix Assistant", "10段参数EQ · 智能混音 · AutoEq"));
-		itemsStack.Children.Add(CreateNavButton("effects", "\uE768", "空间与变速", "混响、立体声宽与变速"));
-		itemsStack.Children.Add(CreateNavButton("fade", "\uE9D5", "淡入淡出 / 标准化", "响度目标与包络曲线"));
+		AddNavSectionHeader(Loc.T("调音与处理"));
+		itemsStack.Children.Add(CreateNavButton("eq", "\uE995", Loc.T("参数均衡 & Mix Assistant"), Loc.T("10段参数EQ · 智能混音 · AutoEq")));
+		itemsStack.Children.Add(CreateNavButton("effects", "\uE768", Loc.T("空间与变速"), Loc.T("混响、立体声宽与变速")));
+		itemsStack.Children.Add(CreateNavButton("fade", "\uE9D5", Loc.T("淡入淡出 / 标准化"), Loc.T("响度目标与包络曲线")));
 
-		AddNavSectionHeader("效果插件");
-		itemsStack.Children.Add(CreateNavButton("vst", "\uE950", "VST3 效果架", "Audition 式插件链"));
+		AddNavSectionHeader(Loc.T("效果插件"));
+		itemsStack.Children.Add(CreateNavButton("vst", "\uE950", Loc.T("VST3 效果架"), Loc.T("Audition 式插件链")));
 
 		sv.Content = itemsStack;
 		Grid.SetRow(sv, 1);
@@ -1407,7 +1409,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				return;
 			}
-			ViewModel.ApplyPreviewParametricEq(bands, control.PreampDb, ViewModel.EchoEqEnabled);
+			ViewModel.ApplyPreviewParametricEq(bands, control.PreampDb, ViewModel.FurinaPlayerEqEnabled);
 		};
 		control.PreampChanged += preampDb =>
 		{
@@ -1415,7 +1417,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				return;
 			}
-			ViewModel.ApplyPreviewParametricEq(control.Bands, preampDb, ViewModel.EchoEqEnabled);
+			ViewModel.ApplyPreviewParametricEq(control.Bands, preampDb, ViewModel.FurinaPlayerEqEnabled);
 		};
 		control.EnabledChanged += enabled =>
 		{
@@ -1454,18 +1456,18 @@ public sealed class EditorPage : Page, IComponentConnector
 					_suppressParamEqEvents = true;
 					try
 					{
-						control.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+						control.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 					}
 					finally
 					{
 						_suppressParamEqEvents = false;
 					}
-					ViewModel.ApplyPreviewParametricEq(control.Bands, control.PreampDb, ViewModel.EchoEqEnabled);
+					ViewModel.ApplyPreviewParametricEq(control.Bands, control.PreampDb, ViewModel.FurinaPlayerEqEnabled);
 				}
 			}
 			catch (Exception ex)
 			{
-				ViewModel.StatusText = "导入 AutoEq 失败：" + ex.Message;
+				ViewModel.StatusText = Loc.F("导入 AutoEq 失败：{0}", ex.Message);
 			}
 		};
 		control.MixAssistantAnalyzeAudioRequested += async () =>
@@ -1474,7 +1476,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				return;
 			}
-			control.SetMixAssistantProgress(isLearning: false, progress01: 0.15, statusText: "正在分析音轨全曲频响平衡...");
+			control.SetMixAssistantProgress(isLearning: false, progress01: 0.15, statusText: Loc.T("正在分析音轨全曲频响平衡..."));
 			MixAssistantProfile profile = await ViewModel.AnalyzeMixAssistantOnLoadedSamples();
 			if (profile.AnalyzedFrames > 0)
 			{
@@ -1482,7 +1484,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			}
 			else
 			{
-				control.SetMixAssistantProgress(isLearning: false, progress01: 0.0, statusText: "请先打开或加载音频文件后再分析音轨");
+				control.SetMixAssistantProgress(isLearning: false, progress01: 0.0, statusText: Loc.T("请先打开或加载音频文件后再分析音轨"));
 			}
 		};
 		control.MixAssistantLearnRequested += isLearning =>
@@ -1504,7 +1506,7 @@ public sealed class EditorPage : Page, IComponentConnector
 				}
 				else
 				{
-					control.SetMixAssistantProgress(isLearning: false, progress01: 0.0, statusText: "请先加载音频文件后再开启学习监听");
+					control.SetMixAssistantProgress(isLearning: false, progress01: 0.0, statusText: Loc.T("请先加载音频文件后再开启学习监听"));
 				}
 			}
 		};
@@ -1559,13 +1561,13 @@ public sealed class EditorPage : Page, IComponentConnector
 			{
 				if (_editorParamEqControl == null)
 				{
-					ViewModel?.InitializeEchoEqBands();
+					ViewModel?.InitializeFurinaPlayerEqBands();
 					_editorParamEqControl = new ParametricEqWorkbenchControl
 					{
 						HorizontalAlignment = HorizontalAlignment.Stretch,
 						VerticalAlignment = VerticalAlignment.Stretch,
 						ShowApplyOfflineDspButton = true,
-						ApplyOfflineDspButtonText = "✨ 应用均衡器与DSP到音轨",
+						ApplyOfflineDspButtonText = Loc.T("✨ 应用均衡器与DSP到音轨"),
 						ShowAnalyzeTrackButton = true
 					};
 					WireEditorParametricEqControl(_editorParamEqControl);
@@ -1576,7 +1578,7 @@ public sealed class EditorPage : Page, IComponentConnector
 					_suppressParamEqEvents = true;
 					try
 					{
-						_editorParamEqControl.SetBands(ViewModel.EchoEqBands, ViewModel.EchoEqPreampDb, ViewModel.EchoEqEnabled);
+						_editorParamEqControl.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
 					}
 					finally
 					{
@@ -1659,6 +1661,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		}
 
 		_editorCategoryViews[key] = view;
+		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(view);
 		return view;
 	}
 
@@ -1682,6 +1685,7 @@ public sealed class EditorPage : Page, IComponentConnector
 
 		FrameworkElement view = GetOrCreateEditorCategoryView(normalized);
 		_editorWorkbenchHost.Content = view;
+		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(view);
 		_editorWorkbenchHost.ChangeView(null, 0.0, null, disableAnimation: true);
 
 		ApplyEditorLiquidGlassOnPanels(isDark);
@@ -2306,11 +2310,11 @@ public sealed class EditorPage : Page, IComponentConnector
 			if (child is Button btn)
 			{
 				string text = btn.Content as string ?? "";
-				bool isUiBtn = text.Contains("界面");
+				bool isUiBtn = text.Contains("界面") || text.Contains(Loc.T("界面"));
 				bool alreadyUpgraded = false;
 				if (btn.Content is StackPanel spCheck)
 				{
-					isUiBtn = spCheck.Children.Any(c => c is TextBlock tb && tb.Text.Contains("界面"));
+					isUiBtn = spCheck.Children.Any(c => c is TextBlock tb && (tb.Text.Contains("界面") || tb.Text.Contains(Loc.T("界面"))));
 					alreadyUpgraded = isUiBtn
 						&& spCheck.Children.Count >= 2
 						&& spCheck.Children[0] is not FontIcon
@@ -2327,7 +2331,7 @@ public sealed class EditorPage : Page, IComponentConnector
 						var icon = FluentIconFactory.Create(FluentIconKind.VstPlugin, 14);
 						var panel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5, VerticalAlignment = VerticalAlignment.Center };
 						panel.Children.Add(icon);
-						panel.Children.Add(new TextBlock { Text = "界面", FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center });
+						panel.Children.Add(new TextBlock { Text = Loc.T("界面"), FontSize = 11, FontWeight = Microsoft.UI.Text.FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center });
 						btn.Content = panel;
 					}
 				}
@@ -2499,7 +2503,7 @@ public sealed class EditorPage : Page, IComponentConnector
 			Vst3EditorWindow? opened = Vst3EditorWindow.Open(tag.Path, sampleRate, 2, out string error);
 			if (opened == null)
 			{
-				ViewModel.Vst3StatusText = "打开插件界面失败：" + error;
+				ViewModel.Vst3StatusText = Loc.F("打开插件界面失败：{0}", error);
 				return;
 			}
 			_editorVstWindow = opened;
@@ -2512,11 +2516,11 @@ public sealed class EditorPage : Page, IComponentConnector
 				SyncVstListItemControls(tag);
 				ApplyVst3ToEditorPreview();
 			}
-			ViewModel.Vst3StatusText = "已打开插件原生界面：" + tag.Name + "（效果组，参数实时生效）";
+			ViewModel.Vst3StatusText = Loc.F("已打开插件原生界面：{0}（效果组，参数实时生效）", tag.Name);
 		}
 		catch (Exception ex)
 		{
-			ViewModel.Vst3StatusText = "打开插件界面异常：" + ex.Message;
+			ViewModel.Vst3StatusText = Loc.F("打开插件界面异常：{0}", ex.Message);
 		}
 	}
 
@@ -2536,8 +2540,8 @@ public sealed class EditorPage : Page, IComponentConnector
 			if (vst3PluginState != null)
 			{
 				ViewModel.Vst3StatusText = vst3PluginState.IsActive
-					? "已关闭《" + vst3PluginState.Name + "》插件界面（插件保持启用，预览与导出继续生效）"
-					: "已关闭《" + vst3PluginState.Name + "》插件界面";
+					? Loc.F("已关闭《{0}》插件界面（插件保持启用，预览与导出继续生效）", vst3PluginState.Name)
+					: Loc.F("已关闭《{0}》插件界面", vst3PluginState.Name);
 			}
 		}
 	}

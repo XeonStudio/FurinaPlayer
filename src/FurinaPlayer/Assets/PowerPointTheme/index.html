@@ -1833,7 +1833,7 @@
       <div class="ribbon-panel" id="panel-design">
         <!-- 幻灯片版式与歌词页样式选择区 -->
         <div class="ribbon-group" id="grp-slide-layouts">
-          <div class="group-content">
+          <div class="group-content layout-gallery-bar">
             <div class="layout-cards-strip">
               <!-- Style 1: 经典黑胶唱机 -->
               <button class="ribbon-layout-card active" id="btn-layout-ppt-vinyl" data-layout="ppt-vinyl" title="切换至 PowerPoint 经典黑胶唱机排版">
@@ -1871,6 +1871,10 @@
                 </div>
               </button>
             </div>
+            <button class="ribbon-gallery-more-btn" id="btn-style-gallery-more" type="button" title="展开更多 FurinaPlayer 歌词样式与背景预设">
+              <span class="gallery-more-badge" id="lbl-active-furinaplayer-preset">FurinaPlayer</span>
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4z"/></svg>
+            </button>
           </div>
           <span class="group-label" data-i18n="grpSlideLayoutStyle">幻灯片版式样式</span>
         </div>
@@ -1944,6 +1948,8 @@
           <div class="slide-bg-overlay" id="slide-bg-overlay"></div>
           <!-- Apple Music Style Fluid Gradient Mesh Backdrop -->
           <div class="am-fluid-mesh-bg" id="am-fluid-mesh-bg"></div>
+          <!-- FurinaPlayer Procedural / Particle / Pixel Background Canvas -->
+          <canvas class="furinaplayer-bg-canvas" id="furinaplayer-bg-canvas" hidden></canvas>
 
           <!-- ============================================================== -->
           <!-- Layout 1: PowerPoint 经典黑胶唱机样式 (Classic Vinyl Turntable) -->
@@ -2162,6 +2168,10 @@
               </div>
             </div>
           </div>
+
+          <!-- Slideshow Annotation Canvas & Laser Pointer -->
+          <canvas class="slideshow-ink-canvas" id="slideshow-ink-canvas"></canvas>
+          <div class="slideshow-laser-dot" id="slideshow-laser-dot" hidden></div>
         </div>
       </div>
     </main>
@@ -2736,24 +2746,103 @@
     </div>
   </div>
 
+  <!-- Slideshow Black/White Screen Curtain -->
+  <div class="slideshow-screen-curtain" id="slideshow-screen-curtain" hidden>
+    <div class="curtain-hint">按 B / W / Esc 恢复放映</div>
+  </div>
+
+  <!-- Slideshow All-Slides Grid View (G) -->
+  <div class="slideshow-grid-overlay" id="slideshow-grid-overlay" hidden>
+    <div class="slideshow-grid-header">
+      <span>所有幻灯片 (点击切换曲目)</span>
+      <button class="slideshow-hud-btn" id="btn-grid-close" title="关闭网格 (Esc)">✕ 关闭</button>
+    </div>
+    <div class="slideshow-grid-cards" id="slideshow-grid-cards"></div>
+  </div>
+
+  <!-- Slideshow Shortcut Cheatsheet Popover (F1) -->
+  <div class="slideshow-help-popover" id="slideshow-help-popover" hidden>
+    <div class="help-popover-title">PowerPoint 放映快捷键</div>
+    <div class="help-shortcut-list">
+      <div><kbd>F5</kbd> 开始 / 切换放映</div>
+      <div><kbd>Esc</kbd> 结束放映</div>
+      <div><kbd>→</kbd> <kbd>↓</kbd> <kbd>PgDn</kbd> <kbd>N</kbd> 下一首幻灯片</div>
+      <div><kbd>←</kbd> <kbd>↑</kbd> <kbd>PgUp</kbd> <kbd>P</kbd> 上一首幻灯片</div>
+      <div><kbd>Space</kbd> 播放 / 暂停</div>
+      <div><kbd>Shift</kbd>+<kbd>←/→</kbd> 快退 / 快进 5s</div>
+      <div><kbd>Ctrl</kbd>+<kbd>L</kbd> 激光笔</div>
+      <div><kbd>Ctrl</kbd>+<kbd>P</kbd> 钢笔标注</div>
+      <div><kbd>Ctrl</kbd>+<kbd>H</kbd> 荧光笔</div>
+      <div><kbd>Ctrl</kbd>+<kbd>A</kbd> 正常指针</div>
+      <div><kbd>E</kbd> 清除全部墨迹</div>
+      <div><kbd>B</kbd> / <kbd>W</kbd> 黑屏 / 白屏</div>
+      <div><kbd>G</kbd> 所有幻灯片网格</div>
+      <div><kbd>F1</kbd> / <kbd>?</kbd> 显示此帮助</div>
+    </div>
+  </div>
+
+  <!-- Pen & Laser Tool Submenu -->
+  <div class="slideshow-pen-menu" id="slideshow-pen-menu" hidden>
+    <button class="pen-menu-item active" data-tool="cursor"><span>🖱️</span> <span>正常指针</span> <kbd>Ctrl+A</kbd></button>
+    <button class="pen-menu-item" data-tool="laser"><span>🔴</span> <span>激光笔</span> <kbd>Ctrl+L</kbd></button>
+    <button class="pen-menu-item" data-tool="pen"><span>✏️</span> <span>钢笔</span> <kbd>Ctrl+P</kbd></button>
+    <button class="pen-menu-item" data-tool="highlighter"><span>🖍️</span> <span>荧光笔</span> <kbd>Ctrl+H</kbd></button>
+    <div class="pen-menu-divider"></div>
+    <div class="pen-color-row">
+      <button class="pen-color-swatch active" data-color="#ef4444" style="background:#ef4444" title="红色"></button>
+      <button class="pen-color-swatch" data-color="#facc15" style="background:#facc15" title="黄色"></button>
+      <button class="pen-color-swatch" data-color="#38bdf8" style="background:#38bdf8" title="天蓝"></button>
+      <button class="pen-color-swatch" data-color="#ffffff" style="background:#ffffff" title="纯白"></button>
+    </div>
+    <button class="pen-menu-item" id="btn-hud-clear-ink"><span>🧹</span> <span>清除全部墨迹</span> <kbd>E</kbd></button>
+  </div>
+
   <!-- Floating PowerPoint Slideshow HUD -->
   <div class="slideshow-hud" id="slideshow-hud">
-    <button class="slideshow-hud-btn" id="btn-hud-prev" title="上一张幻灯片">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-      <span>上一首</span>
+    <button class="slideshow-hud-btn" id="btn-hud-prev" title="上一张幻灯片 (← / PageUp)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"></polyline></svg>
     </button>
-    <button class="slideshow-hud-btn" id="btn-hud-play" title="播放 / 暂停">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+    <button class="slideshow-hud-btn" id="btn-hud-play" title="播放 / 暂停 (Space)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
       <span>播放</span>
     </button>
-    <button class="slideshow-hud-btn" id="btn-hud-next" title="下一张幻灯片">
-      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      <span>下一首</span>
+    <button class="slideshow-hud-btn" id="btn-hud-next" title="下一张幻灯片 (→ / PageDown)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="9 18 15 12 9 6"></polyline></svg>
     </button>
-    <button class="slideshow-hud-btn" id="btn-hud-exit" title="结束放映 (Esc)">
+    <span class="slideshow-hud-sep"></span>
+    <button class="slideshow-hud-btn" id="btn-hud-pen" title="激光笔与墨迹工具 (Ctrl+L / Ctrl+P / Ctrl+H)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path></svg>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-grid" title="查看所有幻灯片 (G)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-black" title="黑屏 / 白屏切换 (B / W)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="15" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line></svg>
+    </button>
+    <button class="slideshow-hud-btn" id="btn-hud-more" title="放映快捷键帮助 (F1)">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    </button>
+    <span class="slideshow-hud-sep"></span>
+    <button class="slideshow-hud-btn hud-exit" id="btn-hud-exit" title="结束放映 (Esc)">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       <span>结束放映</span>
     </button>
+  </div>
+
+  <!-- PowerPoint-style Multi-Column Preset Gallery Popover (outside ribbon overflow) -->
+  <div class="ppt-style-gallery-popover" id="ppt-style-gallery-popover" hidden>
+    <div class="gallery-section">
+      <div class="gallery-section-header" data-i18n="galleryThisPresentation">此演示文稿</div>
+      <div class="gallery-current-row" id="gallery-current-combo"></div>
+    </div>
+    <div class="gallery-section">
+      <div class="gallery-section-header" data-i18n="galleryPageStyles">歌词界面样式 (FurinaPlayer)</div>
+      <div class="gallery-thumb-grid" id="gallery-page-styles-grid"></div>
+    </div>
+    <div class="gallery-section">
+      <div class="gallery-section-header" data-i18n="galleryBgModes">歌词背景模式 (FurinaPlayer 背景引擎)</div>
+      <div class="gallery-thumb-grid" id="gallery-bg-modes-grid"></div>
+    </div>
   </div>
 
   <!-- Toast Notification Pill -->

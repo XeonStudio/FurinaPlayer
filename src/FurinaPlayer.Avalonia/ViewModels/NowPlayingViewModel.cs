@@ -3,10 +3,10 @@ using System.Collections.ObjectModel;
 using System.IO;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using SonicWave.Audio;
-using SonicWave.Audio.Dsp;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 
 namespace FurinaPlayer.Avalonia.ViewModels;
 

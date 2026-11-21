@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -11,11 +11,11 @@ using CommunityToolkit.Mvvm.ComponentModel.__Internals;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
-using SonicWave.Audio;
-using SonicWave.Audio.Dsp;
-using SonicWave.Audio.Output;
-using SonicWave.Core.Models;
-using SonicWave.Core.Services;
+using FurinaPlayer.Audio;
+using FurinaPlayer.Audio.Dsp;
+using FurinaPlayer.Audio.Output;
+using FurinaPlayer.Core.Models;
+using FurinaPlayer.Core.Services;
 using WinRT;
 
 namespace FurinaPlayer.UI.ViewModels;
@@ -39,6 +39,8 @@ public class NowPlayingViewModel : ObservableObject
 	private DispatcherQueue? _uiDispatcher;
 
 	private bool _positionSliderDragging;
+
+	private long _seekGuardUntilMs;
 
 	private long _lastRecordedTrackId = -1L;
 
@@ -75,7 +77,7 @@ public class NowPlayingViewModel : ObservableObject
 	private bool isPlaying;
 
 	[ObservableProperty]
-	private string modeText = "顺序播放";
+	private string modeText = Loc.T("顺序播放");
 
 	[ObservableProperty]
 	private double speed = 1.0;
@@ -88,6 +90,13 @@ public class NowPlayingViewModel : ObservableObject
 
 	[ObservableProperty]
 	private string lyricSource = string.Empty;
+
+	private bool _isWordByWordLyrics;
+	public bool IsWordByWordLyrics
+	{
+		get => _isWordByWordLyrics;
+		private set => SetProperty(ref _isWordByWordLyrics, value);
+	}
 
 	[ObservableProperty]
 	private ObservableCollection<Track> recentTracks = new ObservableCollection<Track>();
@@ -699,9 +708,9 @@ public class NowPlayingViewModel : ObservableObject
 		{
 			if (rendering)
 			{
-				StatusMessage = "正在预渲染效果…完成后自动播放";
+				StatusMessage = Loc.T("正在预渲染效果…完成后自动播放");
 			}
-			else if (StatusMessage.StartsWith("正在预渲染"))
+			else if (StatusMessage.StartsWith(Loc.T("正在预渲染"), StringComparison.Ordinal))
 			{
 				StatusMessage = string.Empty;
 			}
@@ -714,11 +723,11 @@ public class NowPlayingViewModel : ObservableObject
 		{
 			if (p.Fraction < 1.0)
 			{
-				StatusMessage = $"正在预渲染效果… {p.Fraction:P0}，预计剩余 {Math.Max(0, (int)p.Remaining.TotalSeconds)} 秒";
+				StatusMessage = Loc.F("正在预渲染效果… {0:P0}，预计剩余 {1} 秒", p.Fraction, Math.Max(0, (int)p.Remaining.TotalSeconds));
 			}
 			else
 			{
-				StatusMessage = "预渲染完成，开始播放";
+				StatusMessage = Loc.T("预渲染完成，开始播放");
 			}
 		});
 	}
@@ -767,7 +776,7 @@ public class NowPlayingViewModel : ObservableObject
 		}
 		if (_deviceCheckTask.IsCompleted && !_deviceCheckTask.Result)
 		{
-			StatusMessage = "未检测到音频输出设备：播放可能无声，请检查系统声音设置后重试。";
+			StatusMessage = Loc.T("未检测到音频输出设备：播放可能无声，请检查系统声音设置后重试。");
 		}
 	}
 
@@ -787,11 +796,11 @@ public class NowPlayingViewModel : ObservableObject
 		IsPlaying = _engine.State == PlaybackState.Playing;
 		ModeText = _engine.Mode switch
 		{
-			PlaybackMode.Sequential => "顺序播放", 
-			PlaybackMode.RepeatOne => "单曲循环", 
-			PlaybackMode.RepeatAll => "列表循环", 
-			PlaybackMode.Shuffle => "随机播放", 
-			_ => "顺序播放", 
+			PlaybackMode.Sequential => Loc.T("顺序播放"),
+			PlaybackMode.RepeatOne => Loc.T("单曲循环"),
+			PlaybackMode.RepeatAll => Loc.T("列表循环"),
+			PlaybackMode.Shuffle => Loc.T("随机播放"),
+			_ => Loc.T("顺序播放"),
 		};
 
 		Track? engineTrack = _engine.CurrentTrack;
@@ -882,7 +891,7 @@ public class NowPlayingViewModel : ObservableObject
 				PositionPercent = 0.0;
 				LyricLines = new ObservableCollection<LyricLine>();
 				CurrentLyricIndex = -1;
-				LyricSource = track != null ? "正在加载歌词…" : string.Empty;
+				LyricSource = track != null ? Loc.T("正在加载歌词…") : string.Empty;
 			}
 			Task.Run((Func<Task?>)LoadLyricsAsync);
 
@@ -1095,7 +1104,7 @@ public class NowPlayingViewModel : ObservableObject
 					}
 				}
 			}
-			if (!_positionSliderDragging)
+			if (!_positionSliderDragging && Environment.TickCount64 >= _seekGuardUntilMs)
 			{
 				Position = pos;
 				PositionPercent = ((Duration.TotalSeconds > 0.0) ? (pos.TotalSeconds / Duration.TotalSeconds * 100.0) : 0.0);
@@ -1109,7 +1118,7 @@ public class NowPlayingViewModel : ObservableObject
 	{
 		if (_engine.CurrentTrack == null && _engine.Queue.Count == 0)
 		{
-			StatusMessage = "请先在“首页”选择一首歌曲开始播放";
+			StatusMessage = Loc.T("请先在“首页”选择一首歌曲开始播放");
 		}
 		else
 		{
@@ -1128,7 +1137,7 @@ public class NowPlayingViewModel : ObservableObject
 	{
 		if (_engine.CurrentTrack == null && _engine.Queue.Count == 0)
 		{
-			StatusMessage = "请先在“首页”选择一首歌曲开始播放";
+			StatusMessage = Loc.T("请先在“首页”选择一首歌曲开始播放");
 		}
 		else
 		{
@@ -1160,11 +1169,11 @@ public class NowPlayingViewModel : ObservableObject
 		_engine.Mode = (PlaybackMode)((int)(_engine.Mode + 1) % 4);
 		ModeText = _engine.Mode switch
 		{
-			PlaybackMode.Sequential => "顺序播放", 
-			PlaybackMode.RepeatOne => "单曲循环", 
-			PlaybackMode.RepeatAll => "列表循环", 
-			PlaybackMode.Shuffle => "随机播放", 
-			_ => "顺序播放", 
+			PlaybackMode.Sequential => Loc.T("顺序播放"),
+			PlaybackMode.RepeatOne => Loc.T("单曲循环"),
+			PlaybackMode.RepeatAll => Loc.T("列表循环"),
+			PlaybackMode.Shuffle => Loc.T("随机播放"),
+			_ => Loc.T("顺序播放"),
 		};
 	}
 
@@ -1178,7 +1187,12 @@ public class NowPlayingViewModel : ObservableObject
 		_positionSliderDragging = false;
 		if (!(Duration.TotalSeconds <= 0.0))
 		{
-			_engine.Seek(TimeSpan.FromSeconds(Duration.TotalSeconds * percent / 100.0));
+			double clamped = Math.Clamp(percent, 0.0, 100.0);
+			TimeSpan target = TimeSpan.FromSeconds(Duration.TotalSeconds * clamped / 100.0);
+			_seekGuardUntilMs = Environment.TickCount64 + 250;
+			Position = target;
+			PositionPercent = clamped;
+			_engine.Seek(target);
 		}
 	}
 
@@ -1287,7 +1301,7 @@ public class NowPlayingViewModel : ObservableObject
 	{
 		if (lrcPaths.Length == 0)
 		{
-			return "未选择歌词文件";
+			return Loc.T("未选择歌词文件");
 		}
 		List<Track> tracks = await _library.GetAllTracksAsync();
 		int matched = 0;
@@ -1321,7 +1335,15 @@ public class NowPlayingViewModel : ObservableObject
 		{
 			await LoadLyricsAsync();
 		}
-		return (matched > 0) ? ($"批量导入完成：成功 {matched} 首" + ((failed.Count > 0) ? $"，未匹配 {failed.Count} 个文件" : "")) : ("未匹配到对应歌曲的歌词文件" + ((failed.Count > 0) ? $"（{failed.Count} 个文件）" : ""));
+		if (matched > 0)
+		{
+			return failed.Count > 0
+				? Loc.F("批量导入完成：成功 {0} 首，未匹配 {1} 个文件", matched, failed.Count)
+				: Loc.F("批量导入完成：成功 {0} 首", matched);
+		}
+		return failed.Count > 0
+			? Loc.F("未匹配到对应歌曲的歌词文件（{0} 个文件）", failed.Count)
+			: Loc.T("未匹配到对应歌曲的歌词文件");
 	}
 
 	public async Task LoadLyricsAsync()
@@ -1348,22 +1370,16 @@ public class NowPlayingViewModel : ObservableObject
 			doc = await _lyricService.GetNeteaseLyricByIdAsync(absId);
 		}
 
-		// 2. 本地歌曲或内嵌歌词
+		// 2. 优先读取歌曲内嵌歌词或文件夹随附 .lrc 文件
 		if (doc == null && !string.IsNullOrEmpty(track.FilePath) && !track.FilePath.StartsWith("http", StringComparison.OrdinalIgnoreCase))
 		{
-			doc = _lyricService.LoadLocalLyrics(track.FilePath, track.EmbeddedLyrics);
+			doc = _lyricService.LoadLocalLyrics(track.FilePath, track.EmbeddedLyrics, track.Title, track.Artist);
 		}
 
-		// 3. 在线检索 LRCLIB
+		// 3. 本地无歌词时优先接入网易云音乐歌词接口，最后使用 lrclib 兜底
 		if (doc == null && !string.IsNullOrWhiteSpace(track.DisplayTitle))
 		{
-			doc = await _lyricService.SearchOnlineAsync(track.DisplayTitle, track.Artist);
-		}
-
-		// 4. 网易云云端检索
-		if (doc == null && !string.IsNullOrWhiteSpace(track.DisplayTitle))
-		{
-			doc = await _lyricService.SearchNeteaseAsync(track.DisplayTitle, track.Artist);
+			doc = await _lyricService.SearchOnlineWithFallbackAsync(track.DisplayTitle, track.Artist);
 		}
 
 		// 竞态校验：若已切歌，丢弃旧结果
@@ -1378,22 +1394,25 @@ public class NowPlayingViewModel : ObservableObject
 
 			if (doc != null && doc.Lines.Count > 0)
 			{
+				IsWordByWordLyrics = doc.IsWordByWord;
 				LyricLines = new ObservableCollection<LyricLine>(doc.Lines);
-				LyricSource = doc.Source switch
+				string baseSrc = doc.Source switch
 				{
-					"local" => "本地歌词",
-					"embedded" => "内嵌歌词",
-					"lrclib" => "LRCLIB 在线",
-					"netease" => "网易云在线",
-					_ => "在线歌词"
+					"local" => Loc.T("本地歌词"),
+					"embedded" => Loc.T("内嵌歌词"),
+					"lrclib" => Loc.T("LRCLIB 在线"),
+					"netease" => Loc.T("网易云在线"),
+					_ => Loc.T("在线歌词")
 				};
+				LyricSource = IsWordByWordLyrics ? $"{baseSrc} · 逐字" : $"{baseSrc} · 逐行";
 				UpdateLyricHighlight(Position);
 			}
 			else
 			{
+				IsWordByWordLyrics = false;
 				LyricLines = new ObservableCollection<LyricLine>();
 				CurrentLyricIndex = -1;
-				LyricSource = "未找到歌词";
+				LyricSource = Loc.T("未找到歌词");
 			}
 		});
 	}
