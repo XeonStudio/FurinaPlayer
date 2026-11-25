@@ -4,7 +4,7 @@
 
 # FurinaPlayer
 
-**基于 WinUI 3 与 .NET 8 的全格式无损音乐播放器 · 专业级实时 DSP · 音频编辑与工具箱 · 芙宁娜桌面看板娘**
+基于 WinUI 3 与 .NET 8 的 Windows 桌面无损音乐播放器，内置音频播放、实时 DSP 处理、音频编辑工具以及芙宁娜桌面看板娘。
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D4?style=flat-square&logo=windows)](https://github.com/XeonStudio/FurinaPlayer)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20%7C%20WinUI%203-512BD4?style=flat-square&logo=dotnet)](https://github.com/XeonStudio/FurinaPlayer)
@@ -13,94 +13,82 @@
 
 </div>
 
----
+## 界面预览
 
-## ✨ 近期更新亮点（v1.32.00.0004.1125 · 2026-11-25）
-
-- **🔧 播放状态恢复、歌词同步与交互体验修复（v1.32.00.0004.1125）**
-  - **启动进度同步定位**：修复重启后点击播放时时间戳保留上次退出进度但歌曲实际从头播放的问题。
-  - **歌词页刷新防进度归零**：修复 `AuditionDaw` 与 `PowerPointTheme` 两种歌词页主题在刷新歌词时进度条与时间指示器短暂归零（`00:00`）后恢复的并发读数与状态同步问题。
-  - **专辑与歌曲搜索连续输入**：重构「专辑」「歌曲」搜索框筛选逻辑，仅原地刷新内容区，解决每输入一个字符即失焦的问题。
-  - **听力检测滑块防页面平移**：锁定「工具箱 → 听力检测与黄金听感」视口宽度并拦截 `BringIntoViewRequested` / 横向偏移，修复拖动听阈滑块至 60–85 dB HL 时二级页面随滑块横向平移的问题。
-
-- **🧩 音频编辑器 VST3 效果架路由修复 & LOH 内存优化**
-  - 修复点击「VST3 效果架」侧栏页签时错误回落到波形编辑页面的问题。
-  - 重构 `AudioEditService.LoadWav/ExportWav` 为 64 KB SOH 分块读写，消除高解析音频解码时 `List<float>` 倍增扩容导致的 3 倍大对象堆（LOH）峰值放大，并在 `EditorViewModel` 切换音轨、限制撤回栈上限（256 MB）及离开编辑器未修改时及时释放 PCM 缓存与压缩 LOH。
-
-- **🎧 OPRA 600 耳机知识库 & Mix Assistant V2**
-  - 按佩戴方式、发音单元、调音风格各收录 200 款热门与旗舰耳机参数；重构 Mix Assistant 智能混音平衡，增强曲风自动识别、耳机风格匹配与防削波保护。
-- **🏠 ECHO 风格主页重构 & 独立曲库视图**
-  - 首页拆分为独立「首页 / 专辑 / 歌曲 / 音乐收藏」一级菜单：首页支持实时同步正在播放封面/曲目/格式与双语歌词、听歌热力图与艺人排行；歌曲页支持“喜欢”收藏，“音乐收藏”支持鼠标拖拽自定义排序。
-- **🎛️ 音频编辑器 & 实时 DSP 全面升级**
-  - **WSOLA 无失真变速变调**：替换原有倍速实现，显著降低音乐倍速播放与编辑器变调失真；底部播控栏“更多”菜单新增倍速、变调滑块、睡眠定时器及独立音量滑块。
-  - **空间声场工作台 & 32 种实时音效**：重构「效果器与 DSP 设置 → 虚拟声场」及编辑器「空间与变速」，实时预览即时生效；新增 32 种实时音效。
-  - **Insight Pro Spectrum 重构 & 波形合并**：升级至 `8192` 点 Blackman-Harris FFT，支持 Pink `+3 dB/oct` / `Flat 0 dB/oct` 斜率切换与音高音名指示；合并淡入淡出与标准化至「波形编辑与响度」。
-- **🧰 工具箱工作台 & 听力检测与黄金听感**
-  - 原“格式转换”升级为「工具箱」，采用与 DSP 设置一致的亮暗自适应分组侧栏，集成「格式转换」「批量标签工作台」与纯音测听「听力检测与黄金听感」（自动生成听力图并联动 EQ 补偿曲线）。
-- **🛠️ 检查与修复助手、设置与性能深度优化**
-  - 新增「检查与修复」助手（播放状态检查、兼容性审计、排障向导、重置音频设置）；修复设置页打开卡顿、内存占用过高、LibVLC 延迟初始化、PowerPoint 歌词全屏铺满、桌宠全系统/自定义字体与动态壁纸（测试版）等功能。
-
----
-
-## 🖼️ 看板娘与歌词气泡预览
+<div align="center">
+  <img src="docs/media/screen_home.png" width="92%" alt="FurinaPlayer 首页仪表盘" />
+  <p><sub>首页：正在播放卡片、曲库统计、近期播放记录、近 50 天听歌热力图与艺人排行</sub></p>
+</div>
 
 <div align="center">
 
-| 音乐暂停 / 待机 (`Idle`) | 音乐播放律动 (`Groove`) | 桌宠点击互动 (`Click`) |
+| Audition DAW 播放页主题 | PowerPoint 演示文稿播放页主题 |
+| :---: | :---: |
+| <img src="docs/media/screen_nowplaying_daw.png" width="100%" alt="Audition DAW 播放主题" /> | <img src="docs/media/screen_nowplaying_ppt.png" width="100%" alt="PowerPoint 播放主题" /> |
+| 10 段参量均衡器与 DSP 机架 | Insight Pro 监测分析（8192 点频谱 / 响度 / 声场） |
+| <img src="docs/media/screen_dsp.png" width="100%" alt="效果器与 DSP 设置" /> | <img src="docs/media/screen_editor.png" width="100%" alt="音频编辑器 Insight Pro" /> |
+
+</div>
+
+<div align="center">
+  <img src="docs/media/screen_toolbox_hearing.png" width="92%" alt="工具箱：听力检测与黄金听感" />
+  <p><sub>工具箱中的纯音听力检测（Audiogram），可根据左右耳测听结果生成 EQ 补偿曲线</sub></p>
+</div>
+
+## 桌面看板娘与歌词气泡
+
+<div align="center">
+
+| 待机状态 (`Idle`) | 播放律动 (`Groove`) | 点击互动 (`Click`) |
 | :---: | :---: | :---: |
 | <img src="docs/media/furina_pet_idle.gif" width="160" alt="Idle" /> | <img src="docs/media/furina_pet_groove.gif" width="160" alt="Groove" /> | <img src="docs/media/furina_pet_click.gif" width="160" alt="Click" /> |
 
 <br/>
 
-**三行自适应歌词对话气泡效果**
-
-<img src="docs/media/pet_bubble_preview.png" width="440" alt="Lyric Bubble Preview" />
+<img src="docs/media/pet_bubble_preview.png" width="440" alt="三行自适应歌词气泡预览" />
 
 </div>
 
----
+## 这个播放器能做什么
 
-## 🚀 核心功能特性
+播放引擎结合了 LibVLC 与 NAudio，支持 WASAPI 共享/独占与 ASIO 输出，可以播放 FLAC、APE、WAV、DSD、ALAC、AAC、MP3 和 OGG 等常见无损与有损格式，并记录退出前的播放进度、队列和顺序模式。
 
-| 模块 | 核心能力 |
-| :--- | :--- |
-| **高保真播放引擎** | 基于 LibVLC + NAudio（WASAPI 共享/独占 / ASIO），畅播 FLAC、APE、WAV、DSD、ALAC、AAC、MP3、OGG 等全格式，支持记忆进度、无缝播放与播放顺序记忆 |
-| **专业级 DSP 机架** | 10 段参量均衡器 + Mix Assistant V2、OPRA 耳机校准（700+ 厂商 / 6,000+ 型号）、空间声场工作台、32 种实时音效、压限器、多阶重采样与 PCM→DSD 调制 |
-| **音频编辑与分析** | 实时波形编辑与响度（裁剪/淡入淡出/标准化）、8192 点 Insight Pro 频谱与相位分析、WSOLA 实时变速变调试听 |
-| **工具箱与听力检测** | NCM / MGG / KGM 等加密音频解密与批量无损转码、批量标签与文件整理工作台、医院级多频点纯音听力检测与 EQ 补偿联动 |
-| **曲库、流媒体与看板娘** | SQLite / EF Core 本地曲库、拖拽排序音乐收藏、多线程完整性补齐、动态壁纸、PowerPoint 全屏歌词主题、全系统/自定义字体芙宁娜桌面宠物 |
+DSP 机架包含 10 段参量均衡器、图形均衡与 Mix Assistant V2、OPRA 耳机校准（内置 700 多个厂商、6,000 多款型号数据）、空间声场调节、32 种预设音效、压限器、多阶重采样与 PCM 转 DSD 调制。所有 DSP 均为独立实现，不依赖第三方闭源音频插件。
 
----
+音频编辑器用来处理单曲裁剪、淡入淡出和响度标准化，并提供 8192 点 Blackman-Harris FFT 频谱、LUFS 响度、相位声场和语图监测，还支持用 WSOLA 算法实时试听变速与变调效果。
 
-## 📦 下载与运行
+工具箱整合了加密音频解密转码（支持 `.ncm`、`.mgg`、`.kgm` 等格式转为 MP3 或 FLAC）、批量标签清洗整理，以及分耳纯音听力检测。
 
-1. 前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载最新的 `FurinaPlayer-v1.32.00.0004.1125-win-x64.zip`。
-2. 解压后直接双击运行 `FurinaPlayer.exe`（已包含自包含运行时，无需额外安装）。
-3. **系统要求**：Windows 10 1809（Build 17763）或 Windows 11，64 位（x64）系统。
+曲库基于 SQLite 与 EF Core 管理，支持专辑与歌曲即时检索、鼠标拖拽排序收藏歌单、多线程完整性检查补齐、PowerPoint 与 Audition 风格双歌词主题、动态壁纸测试版以及支持自定义系统字体的芙宁娜桌面宠物。
 
-### 从源码构建
+## 最近更新（v1.32.00.0004.1125）
+
+v1.32.00.0004.1125（2026-11-25）主要解决了四个使用体验问题：
+
+- 重启后点击播放时，音频会真实定位到上次退出时保存的时间点，而不是保留进度条时间却从头播放。
+- 在 Audition DAW 与 PowerPoint 两种歌词主题下刷新歌词时，进度条和时间显示不再短暂跳回 `00:00`。
+- 在「专辑」和「歌曲」页面搜索框输入文字时只刷新列表区域，不会每输入一个字母就失去输入焦点。
+- 在「工具箱 → 听力检测与黄金听感」拖动听阈滑块到 60 至 85 dB HL 时，二级页面不再跟着滑块横向平移。
+
+再早一版 v1.31.01.0002.1125 修复了音频编辑器点击「VST3 效果架」错位显示波形页面的问题，并将 `AudioEditService.LoadWav/ExportWav` 改为 64 KB 分块读写以消除高解析音频加载时的大对象堆内存峰值。
+
+## 下载与构建
+
+前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载 `FurinaPlayer-v1.32.00.0004.1125-win-x64.zip`，解压后直接运行 `FurinaPlayer.exe` 即可（Windows 10 1809 或 Windows 11 64 位系统，包内已包含所需运行时）。
+
+如果想从源码自行编译或跑一遍测试：
 
 ```powershell
 # 编译 Release x64 主程序
 dotnet build src\FurinaPlayer\FurinaPlayer.csproj -c Release -p:Platform=x64
 
-# 运行全部单元测试（250 项）
+# 运行单元测试（250 项）
 dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Release -p:Platform=x64
 ```
 
----
+仓库中的源码分为五个工程：`src/FurinaPlayer` 负责 WinUI 3 主窗口、托盘与桌面宠物；`src/FurinaPlayer.UI` 存放各页面与 ViewModel；`src/FurinaPlayer.Core` 管理曲库、封面歌词服务、多语言词典与设置；`src/FurinaPlayer.Audio` 实现播放后端与全部 DSP 算法；`src/FurinaPlayerDspTests` 为自动化测试套件（当前 250 / 250 通过）。
 
-## 🗂️ 工程结构
-
-- `src/FurinaPlayer`：WinUI 3 主程序入口、窗口管理、系统托盘与芙宁娜桌面宠物（`FurinaPetWindow`）
-- `src/FurinaPlayer.UI`：页面（首页/专辑/歌曲/音乐收藏、正在播放、音频编辑、DSP 机架、工具箱、设置）与 ViewModel
-- `src/FurinaPlayer.Core`：曲库管理、元数据/封面/歌词服务、多语言本地化与设置持久化
-- `src/FurinaPlayer.Audio`：NAudio / LibVLC 音频引擎与全套纯自研 DSP 处理器（含 WSOLA、Mix Assistant V2、空间声场、8192 点频谱）
-- `src/FurinaPlayerDspTests`：DSP 与核心功能自动化测试套件（250 / 250 通过）
-
----
-
-## 🧩 开源组件与接口致谢
+## 开源组件与接口致谢
 
 | 组件 / 接口 | 用途 | 仓库 / 主页 |
 | :--- | :--- | :--- |
@@ -115,8 +103,6 @@ dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Rel
 | FFmpeg | 批量音频格式转换与动态壁纸解码 | [ffmpeg.org](https://ffmpeg.org/) |
 | LRCLIB / 网易云 / QQ 音乐 / Apple Music | 在线歌词、元数据与高清封面检索 | [lrclib.net](https://lrclib.net/) |
 
----
-
-## 📄 许可证
+## 许可证
 
 本项目基于 [Apache License 2.0](LICENSE) 开源。
