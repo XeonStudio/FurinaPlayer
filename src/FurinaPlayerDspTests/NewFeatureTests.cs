@@ -2879,6 +2879,96 @@ public static class NewFeatureTests
 		}
 	}
 
+	public static void TestPrimedSeekBeforePlayback(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Primed Seek Before Playback (Restore Session Seek Fix) ---");
+		string tmpWav = Path.Combine(Path.GetTempPath(), $"furina_seek_test_{Guid.NewGuid():N}.wav");
+		try
+		{
+			// First 2 seconds silent, 2..4 seconds 440 Hz tone
+			const int sr = 44100;
+			const int ch = 2;
+			const int totalSeconds = 4;
+			var samples = new float[sr * ch * totalSeconds];
+			for (int f = sr * 2; f < sr * 4; f++)
+			{
+				float s = 0.4f * MathF.Sin(2f * MathF.PI * 440f * f / sr);
+				samples[f * ch] = s;
+				samples[f * ch + 1] = s;
+			}
+			AudioEditService.ExportWav(tmpWav, samples, sr, ch);
+
+			using var decoder = new FurinaPlayer.Audio.Decoders.NAudioDecoder();
+			bool opened = decoder.Open(tmpWav, null, null, 200);
+			if (opened)
+			{
+				bool sought = decoder.Seek(TimeSpan.FromSeconds(2.5));
+				check(sought && decoder.Position >= TimeSpan.FromSeconds(2.3),
+					$"NAudioDecoder primed Seek before Play positioned at {decoder.Position.TotalSeconds:F2}s");
+			}
+			else
+			{
+				// Even if no audio output device exists in headless CI, test SafeAudioFileReader priming + seek directly
+				using var reader = new FurinaPlayer.Audio.Decoders.SafeAudioFileReader(tmpWav);
+				float[] prime = new float[256];
+				reader.Read(prime, 0, prime.Length);
+				reader.CurrentTime = TimeSpan.FromSeconds(2.5);
+				float[] after = new float[1024];
+				int read = reader.Read(after, 0, after.Length);
+				float peak = 0f;
+				for (int i = 0; i < read; i++) peak = MathF.Max(peak, MathF.Abs(after[i]));
+				check(peak > 0.2f && reader.CurrentTime >= TimeSpan.FromSeconds(2.4),
+					$"SafeAudioFileReader primed seek reads non-silent audio at {reader.CurrentTime.TotalSeconds:F2}s (peak={peak:F2})");
+			}
+		}
+		finally
+		{
+			try { if (File.Exists(tmpWav)) File.Delete(tmpWav); } catch { }
+		}
+	}
+
+	public static void TestConcurrentAudioSessionPositionRead(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Concurrent AudioSession.Position Reads ---");
+		string tmpWav = Path.Combine(Path.GetTempPath(), $"fp_pos_race_{Guid.NewGuid():N}.wav");
+		try
+		{
+			WriteSyntheticStereoWav(tmpWav, 44100, 6.0, 440.0, 440.0, 0.25);
+			using var engine = new AudioEngine();
+			AudioSession session = engine.Session;
+			session.Volume = 0;
+
+			var track = new Track
+			{
+				Id = 9991,
+				FilePath = tmpWav,
+				Title = "ConcurrentPosTest",
+				DurationMilliseconds = 6000
+			};
+			session.SetQueue(new[] { track }, 0);
+			bool prepared = session.PrepareRestore(TimeSpan.FromSeconds(2.5));
+			check(prepared && session.Position >= TimeSpan.FromSeconds(2.4),
+				$"AudioSession.PrepareRestore preserves position ({session.Position.TotalSeconds:F2}s)");
+
+			session.Play();
+			Thread.Sleep(100);
+			session.Seek(TimeSpan.FromSeconds(3.2));
+			bool sawZero = false;
+			System.Threading.Tasks.Parallel.For(0, 1000, _ =>
+			{
+				if (session.Position < TimeSpan.FromSeconds(1.0))
+				{
+					sawZero = true;
+				}
+			});
+			check(!sawZero, "Concurrent AudioSession.Position reads never return 00:00");
+		}
+		finally
+		{
+			try { if (File.Exists(tmpWav)) File.Delete(tmpWav); } catch { }
+		}
+	}
+
 	private sealed class SineSampleProvider : NAudio.Wave.ISampleProvider
 	{
 		private readonly float _freqHz;

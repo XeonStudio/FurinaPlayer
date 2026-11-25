@@ -652,13 +652,6 @@ public sealed class LibraryBrowsePage : Page
 	private void RenderAlbumsView()
 	{
 		var vm = _homeVm!;
-		var albums = vm.Albums?.ToList() ?? new List<Album>();
-		if (!string.IsNullOrWhiteSpace(_searchQuery))
-		{
-			albums = albums.Where(a =>
-				a.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-				a.Artist.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
-		}
 
 		// Header + Search
 		var hdr = new Grid { ColumnSpacing = 12 };
@@ -667,7 +660,8 @@ public sealed class LibraryBrowsePage : Page
 
 		var titleSp = new StackPanel { Spacing = 2 };
 		titleSp.Children.Add(new TextBlock { Text = Loc.T("专辑"), FontSize = 24, FontWeight = FontWeights.Bold });
-		titleSp.Children.Add(new TextBlock { Text = Loc.F("共 {0} 张专辑", albums.Count), FontSize = 13, Opacity = 0.72 });
+		var countTb = new TextBlock { FontSize = 13, Opacity = 0.72 };
+		titleSp.Children.Add(countTb);
 		hdr.Children.Add(titleSp);
 
 		var searchBox = new TextBox
@@ -677,93 +671,115 @@ public sealed class LibraryBrowsePage : Page
 			Text = _searchQuery,
 			CornerRadius = new CornerRadius(10)
 		};
-		searchBox.TextChanged += (_, _) => { _searchQuery = searchBox.Text; Render(); };
 		Grid.SetColumn(searchBox, 1);
 		hdr.Children.Add(searchBox);
 		_rootStack.Children.Add(hdr);
 
-		// If an album is selected, show album detail header + tracklist
-		if (_selectedAlbum != null)
+		var contentHost = new StackPanel();
+		_rootStack.Children.Add(contentHost);
+
+		void PopulateAlbumsContent()
 		{
-			var detailCard = CreateGlassCard(new Thickness(18, 16, 18, 16));
-			var dStack = new StackPanel { Spacing = 12 };
-			var backBtn = CreatePillButton(Loc.T("← 返回全部专辑"));
-			backBtn.Click += (_, _) => { _selectedAlbum = null; Render(); };
-			dStack.Children.Add(backBtn);
-
-			dStack.Children.Add(new TextBlock { Text = _selectedAlbum.Name, FontSize = 20, FontWeight = FontWeights.Bold });
-			dStack.Children.Add(new TextBlock { Text = $"{_selectedAlbum.Artist} · {_selectedAlbum.Tracks.Count} {Loc.T("首")}", FontSize = 13, Opacity = 0.75 });
-
-			var playAllBtn = CreatePillButton(Loc.T("▶ 播放整张专辑"), isAccent: true);
-			playAllBtn.Click += (_, _) =>
+			contentHost.Children.Clear();
+			var albums = vm.Albums?.ToList() ?? new List<Album>();
+			if (!string.IsNullOrWhiteSpace(_searchQuery))
 			{
-				if (_selectedAlbum.Tracks.Count > 0)
-				{
-					AudioEngine.Instance?.SetQueue(_selectedAlbum.Tracks, 0);
-					vm.PlayTrackCommand.Execute(_selectedAlbum.Tracks[0]);
-				}
-			};
-			dStack.Children.Add(playAllBtn);
-
-			foreach (var t in _selectedAlbum.Tracks)
-			{
-				dStack.Children.Add(CreateSongRow(t, vm, showAlbumCol: false));
+				albums = albums.Where(a =>
+					a.Name.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+					a.Artist.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
 			}
-			detailCard.Child = dStack;
-			_rootStack.Children.Add(detailCard);
-			return;
-		}
+			countTb.Text = Loc.F("共 {0} 张专辑", albums.Count);
 
-		// Responsive 4-column Album Grid
-		var grid = new Grid { ColumnSpacing = 14, RowSpacing = 14 };
-		const int cols = 4;
-		for (int c = 0; c < cols; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		int rows = (int)Math.Ceiling(albums.Count / (double)cols);
-		for (int r = 0; r < rows; r++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+			// If an album is selected, show album detail header + tracklist
+			if (_selectedAlbum != null)
+			{
+				var detailCard = CreateGlassCard(new Thickness(18, 16, 18, 16));
+				var dStack = new StackPanel { Spacing = 12 };
+				var backBtn = CreatePillButton(Loc.T("← 返回全部专辑"));
+				backBtn.Click += (_, _) => { _selectedAlbum = null; PopulateAlbumsContent(); };
+				dStack.Children.Add(backBtn);
 
-		for (int i = 0; i < albums.Count; i++)
-		{
-			var alb = albums[i];
-			var card = CreateGlassCard(new Thickness(12));
-			var st = new StackPanel { Spacing = 8 };
-			var imgBox = new Border
-			{
-				Height = 175,
-				CornerRadius = new CornerRadius(10),
-				Background = new SolidColorBrush(IsDark ? Color.FromArgb(30, 255, 255, 255) : Color.FromArgb(30, 148, 163, 184))
-			};
-			if (!string.IsNullOrEmpty(alb.CoverPath) && System.IO.File.Exists(alb.CoverPath))
-			{
-				imgBox.Child = new Image
+				dStack.Children.Add(new TextBlock { Text = _selectedAlbum.Name, FontSize = 20, FontWeight = FontWeights.Bold });
+				dStack.Children.Add(new TextBlock { Text = $"{_selectedAlbum.Artist} · {_selectedAlbum.Tracks.Count} {Loc.T("首")}", FontSize = 13, Opacity = 0.75 });
+
+				var playAllBtn = CreatePillButton(Loc.T("▶ 播放整张专辑"), isAccent: true);
+				playAllBtn.Click += (_, _) =>
 				{
-					Stretch = Stretch.UniformToFill,
-					Source = new BitmapImage { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = 300, UriSource = new Uri(alb.CoverPath) }
+					if (_selectedAlbum.Tracks.Count > 0)
+					{
+						AudioEngine.Instance?.SetQueue(_selectedAlbum.Tracks, 0);
+						vm.PlayTrackCommand.Execute(_selectedAlbum.Tracks[0]);
+					}
 				};
-			}
-			else
-			{
-				imgBox.Child = FluentIconFactory.Create(FluentIconKind.AlbumGrid, 42);
-			}
-			st.Children.Add(imgBox);
-			st.Children.Add(new TextBlock { Text = alb.Name, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
-			st.Children.Add(new TextBlock { Text = $"{alb.Artist} · {alb.Tracks.Count} {Loc.T("首")}", FontSize = 11.5, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis });
+				dStack.Children.Add(playAllBtn);
 
-			var btn = new Button
+				foreach (var t in _selectedAlbum.Tracks)
+				{
+					dStack.Children.Add(CreateSongRow(t, vm, showAlbumCol: false));
+				}
+				detailCard.Child = dStack;
+				contentHost.Children.Add(detailCard);
+				return;
+			}
+
+			// Responsive 4-column Album Grid
+			var grid = new Grid { ColumnSpacing = 14, RowSpacing = 14 };
+			const int cols = 4;
+			for (int c = 0; c < cols; c++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+			int rows = (int)Math.Ceiling(albums.Count / (double)cols);
+			for (int r = 0; r < rows; r++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+			for (int i = 0; i < albums.Count; i++)
 			{
-				Content = st,
-				HorizontalAlignment = HorizontalAlignment.Stretch,
-				HorizontalContentAlignment = HorizontalAlignment.Stretch,
-				Padding = new Thickness(0),
-				Background = new SolidColorBrush(Colors.Transparent),
-				BorderThickness = new Thickness(0)
-			};
-			btn.Click += (_, _) => { _selectedAlbum = alb; Render(); };
-			card.Child = btn;
-			Grid.SetRow(card, i / cols);
-			Grid.SetColumn(card, i % cols);
-			grid.Children.Add(card);
+				var alb = albums[i];
+				var card = CreateGlassCard(new Thickness(12));
+				var st = new StackPanel { Spacing = 8 };
+				var imgBox = new Border
+				{
+					Height = 175,
+					CornerRadius = new CornerRadius(10),
+					Background = new SolidColorBrush(IsDark ? Color.FromArgb(30, 255, 255, 255) : Color.FromArgb(30, 148, 163, 184))
+				};
+				if (!string.IsNullOrEmpty(alb.CoverPath) && System.IO.File.Exists(alb.CoverPath))
+				{
+					imgBox.Child = new Image
+					{
+						Stretch = Stretch.UniformToFill,
+						Source = new BitmapImage { DecodePixelType = DecodePixelType.Logical, DecodePixelWidth = 300, UriSource = new Uri(alb.CoverPath) }
+					};
+				}
+				else
+				{
+					imgBox.Child = FluentIconFactory.Create(FluentIconKind.AlbumGrid, 42);
+				}
+				st.Children.Add(imgBox);
+				st.Children.Add(new TextBlock { Text = alb.Name, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+				st.Children.Add(new TextBlock { Text = $"{alb.Artist} · {alb.Tracks.Count} {Loc.T("首")}", FontSize = 11.5, Opacity = 0.72, TextTrimming = TextTrimming.CharacterEllipsis });
+
+				var btn = new Button
+				{
+					Content = st,
+					HorizontalAlignment = HorizontalAlignment.Stretch,
+					HorizontalContentAlignment = HorizontalAlignment.Stretch,
+					Padding = new Thickness(0),
+					Background = new SolidColorBrush(Colors.Transparent),
+					BorderThickness = new Thickness(0)
+				};
+				btn.Click += (_, _) => { _selectedAlbum = alb; PopulateAlbumsContent(); };
+				card.Child = btn;
+				Grid.SetRow(card, i / cols);
+				Grid.SetColumn(card, i % cols);
+				grid.Children.Add(card);
+			}
+			contentHost.Children.Add(grid);
 		}
-		_rootStack.Children.Add(grid);
+
+		searchBox.TextChanged += (_, _) =>
+		{
+			_searchQuery = searchBox.Text;
+			PopulateAlbumsContent();
+		};
+		PopulateAlbumsContent();
 	}
 
 	// ════════════════════════════════════════════════════════════════════════
@@ -772,14 +788,7 @@ public sealed class LibraryBrowsePage : Page
 	private void RenderSongsView()
 	{
 		var vm = _homeVm!;
-		var tracks = vm.Tracks?.ToList() ?? new List<Track>();
-		if (!string.IsNullOrWhiteSpace(_searchQuery))
-		{
-			tracks = tracks.Where(t =>
-				t.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-				t.Artist.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
-				t.Album.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
-		}
+		var currentFilteredTracks = new List<Track>();
 
 		var hdr = new Grid { ColumnSpacing = 12 };
 		hdr.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -788,16 +797,17 @@ public sealed class LibraryBrowsePage : Page
 
 		var titleSp = new StackPanel { Spacing = 2 };
 		titleSp.Children.Add(new TextBlock { Text = Loc.T("全部歌曲"), FontSize = 24, FontWeight = FontWeights.Bold });
-		titleSp.Children.Add(new TextBlock { Text = Loc.F("共 {0} 首歌曲 · {1} 张专辑", tracks.Count, vm.Albums?.Count ?? 0), FontSize = 13, Opacity = 0.72 });
+		var countTb = new TextBlock { FontSize = 13, Opacity = 0.72 };
+		titleSp.Children.Add(countTb);
 		hdr.Children.Add(titleSp);
 
 		var playAllBtn = CreatePillButton(Loc.T("▶ 播放全部"), isAccent: true);
 		playAllBtn.Click += (_, _) =>
 		{
-			if (tracks.Count > 0)
+			if (currentFilteredTracks.Count > 0)
 			{
-				AudioEngine.Instance?.SetQueue(tracks, 0);
-				vm.PlayTrackCommand.Execute(tracks[0]);
+				AudioEngine.Instance?.SetQueue(currentFilteredTracks, 0);
+				vm.PlayTrackCommand.Execute(currentFilteredTracks[0]);
 			}
 		};
 		Grid.SetColumn(playAllBtn, 1);
@@ -810,20 +820,42 @@ public sealed class LibraryBrowsePage : Page
 			Text = _searchQuery,
 			CornerRadius = new CornerRadius(10)
 		};
-		searchBox.TextChanged += (_, _) => { _searchQuery = searchBox.Text; Render(); };
 		Grid.SetColumn(searchBox, 2);
 		hdr.Children.Add(searchBox);
 		_rootStack.Children.Add(hdr);
 
 		var tableCard = CreateGlassCard(new Thickness(12, 10, 12, 12));
 		var listStack = new StackPanel { Spacing = 6 };
-		listStack.Children.Add(CreateSongHeaderRow());
-		foreach (var t in tracks)
-		{
-			listStack.Children.Add(CreateSongRow(t, vm, showAlbumCol: true));
-		}
 		tableCard.Child = listStack;
 		_rootStack.Children.Add(tableCard);
+
+		void PopulateSongsList()
+		{
+			var tracks = vm.Tracks?.ToList() ?? new List<Track>();
+			if (!string.IsNullOrWhiteSpace(_searchQuery))
+			{
+				tracks = tracks.Where(t =>
+					t.Title.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+					t.Artist.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase) ||
+					t.Album.Contains(_searchQuery, StringComparison.OrdinalIgnoreCase)).ToList();
+			}
+			currentFilteredTracks = tracks;
+			countTb.Text = Loc.F("共 {0} 首歌曲 · {1} 张专辑", tracks.Count, vm.Albums?.Count ?? 0);
+
+			listStack.Children.Clear();
+			listStack.Children.Add(CreateSongHeaderRow());
+			foreach (var t in tracks)
+			{
+				listStack.Children.Add(CreateSongRow(t, vm, showAlbumCol: true));
+			}
+		}
+
+		searchBox.TextChanged += (_, _) =>
+		{
+			_searchQuery = searchBox.Text;
+			PopulateSongsList();
+		};
+		PopulateSongsList();
 	}
 
 	// ════════════════════════════════════════════════════════════════════════

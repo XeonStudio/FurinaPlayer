@@ -401,11 +401,7 @@ public class App : Application, IXamlMetadataProvider
 			}
 			_audioEngine.SetQueue(list, num);
 			TimeSpan position = TimeSpan.FromMilliseconds(Math.Max(0L, settings.LastPlayedPositionMs));
-			_audioEngine.PrepareRestore(position);
-			if (settings.AutoPlayOnStartup)
-			{
-				_audioEngine.Play();
-			}
+			_audioEngine.PrepareRestore(position, settings.AutoPlayOnStartup);
 			Log("session restored: " + last.FilePath + " @" + position);
 		}
 		catch (Exception ex)

@@ -26,6 +26,8 @@ public sealed class NAudioDecoder : IDisposable
 
 	private readonly object _lock = new object();
 
+	private bool _primedForSeek;
+
 	public int Generation { get; set; }
 
 	public bool IsPlaying { get; private set; }
@@ -113,6 +115,7 @@ public sealed class NAudioDecoder : IDisposable
 			{
 				LastInitError = null;
 				LastPlaybackExceptionMessage = null;
+				_primedForSeek = false;
 				_srcConfig = srcConfig ?? new FurinaSrcRuntimeConfig();
 				_reader = new SafeAudioFileReader(filePath);
 				int sourceRate = _reader.WaveFormat.SampleRate;
@@ -347,6 +350,7 @@ public sealed class NAudioDecoder : IDisposable
 			{
 				_player.Play();
 				IsPlaying = true;
+				_primedForSeek = true;
 			}
 		}
 	}
@@ -379,8 +383,24 @@ public sealed class NAudioDecoder : IDisposable
 			}
 			try
 			{
+				if (!_primedForSeek && position > TimeSpan.Zero)
+				{
+					int primeCount = Math.Max(256, Math.Max(1, _reader.WaveFormat.Channels) * 64);
+					float[] primeBuf = new float[primeCount];
+					_reader.Read(primeBuf, 0, primeBuf.Length);
+					_primedForSeek = true;
+				}
+				if (position < TimeSpan.Zero)
+				{
+					position = TimeSpan.Zero;
+				}
+				else if (_reader.TotalTime > TimeSpan.Zero && position > _reader.TotalTime)
+				{
+					position = _reader.TotalTime;
+				}
 				_reader.CurrentTime = position;
 				_srcProvider?.RequestReset();
+				_primedForSeek = true;
 				return true;
 			}
 			catch
@@ -443,6 +463,7 @@ public sealed class NAudioDecoder : IDisposable
 			_dsp = null;
 			_srcProvider = null;
 			IsPlaying = false;
+			_primedForSeek = false;
 		}
 	}
 

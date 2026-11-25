@@ -1028,31 +1028,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 			var meters = ViewModel.GetLiveAudioMeters();
 
-			double posSec = SanitizeFinite(engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds, 0.0);
-			double rawDurSec = ViewModel.Duration.TotalSeconds > 0
-				? ViewModel.Duration.TotalSeconds
-				: (activeTrack != null && activeTrack.DurationMilliseconds > 0
-					? activeTrack.DurationMilliseconds / 1000.0
-					: (engine?.Duration.TotalSeconds ?? 0.0));
-			double durSec = SanitizeFinite(rawDurSec, 0.0);
-			double playbackRate = SanitizeFinite(ViewModel.Speed > 0 ? ViewModel.Speed : 1.0, 1.0);
-
-			PostDawMessage(new
-			{
-				protocolVersion = 1,
-				type = "furinaplayer:workshop-ui:clock",
-				positionSeconds = posSec,
-				durationSeconds = durSec,
-				clock = new
-				{
-					state = isPlaying ? "playing" : "paused",
-					positionSeconds = posSec,
-					durationSeconds = durSec,
-					sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-					playbackRate,
-					currentTrackId = trackIdStr
-				}
-			});
+			SendDawClockSnapshot();
 
 			double peakDb = isPlaying ? SanitizeFinite(meters.PeakDb, -90.0) : -90.0;
 			double rmsDb = isPlaying ? SanitizeFinite(meters.RmsDb, -90.0) : -90.0;
@@ -1622,6 +1598,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			trackId = trackIdStr
 		});
 
+		double positionSeconds = SanitizeFinite(ViewModel.Engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds, 0.0);
 		PostDawMessage(new
 		{
 			protocolVersion = 1,
@@ -1631,6 +1608,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			{
 				state = isPlaying ? "playing" : "paused",
 				currentTrackId = trackIdStr,
+				positionSeconds,
 				volume = volume01,
 				repeatMode,
 				shuffle = isShuffle
@@ -1650,6 +1628,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		SendDawLyrics();
 		SendDawQueue();
 		SendDawEnvelope();
+		SendDawClockSnapshot();
 	}
 
 	private void ScheduleEnvelopeRetryIfNeeded(string envKey, int generation)
@@ -2064,6 +2043,44 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 				album = track.Album ?? "",
 				durationSeconds,
 				lines = linesList
+			}
+		});
+		SendDawClockSnapshot();
+	}
+
+	private void SendDawClockSnapshot()
+	{
+		if (ViewModel == null || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null)
+		{
+			return;
+		}
+		var engine = ViewModel.Engine;
+		var activeTrack = GetAuthoritativeTrack();
+		bool isPlaying = ViewModel.IsPlaying || (engine?.State == FurinaPlayer.Audio.PlaybackState.Playing);
+		string trackIdStr = FormatDawTrackId(activeTrack);
+		double posSec = SanitizeFinite(engine?.Position.TotalSeconds ?? ViewModel.Position.TotalSeconds, 0.0);
+		double rawDurSec = ViewModel.Duration.TotalSeconds > 0
+			? ViewModel.Duration.TotalSeconds
+			: (activeTrack != null && activeTrack.DurationMilliseconds > 0
+				? activeTrack.DurationMilliseconds / 1000.0
+				: (engine?.Duration.TotalSeconds ?? 0.0));
+		double durSec = SanitizeFinite(rawDurSec, 0.0);
+		double playbackRate = SanitizeFinite(ViewModel.Speed > 0 ? ViewModel.Speed : 1.0, 1.0);
+
+		PostDawMessage(new
+		{
+			protocolVersion = 1,
+			type = "furinaplayer:workshop-ui:clock",
+			positionSeconds = posSec,
+			durationSeconds = durSec,
+			clock = new
+			{
+				state = isPlaying ? "playing" : "paused",
+				positionSeconds = posSec,
+				durationSeconds = durSec,
+				sampledAtMs = (double)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+				playbackRate,
+				currentTrackId = trackIdStr
 			}
 		});
 	}

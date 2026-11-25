@@ -50,10 +50,49 @@ public sealed partial class ConverterPage
 		{
 			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
 			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-			Padding = new Thickness(24, 18, 24, 28)
+			HorizontalScrollMode = ScrollMode.Disabled,
+			IsHorizontalRailEnabled = false,
+			IsHorizontalScrollChainingEnabled = false,
+			BringIntoViewOnFocusChange = false,
+			HorizontalContentAlignment = HorizontalAlignment.Center,
+			ZoomMode = ZoomMode.Disabled
 		};
 
-		var rootStack = new StackPanel { Spacing = 16, MaxWidth = 1280, HorizontalAlignment = HorizontalAlignment.Stretch };
+		var rootStack = new StackPanel
+		{
+			Spacing = 16,
+			MaxWidth = 1280,
+			Margin = new Thickness(24, 18, 24, 28),
+			HorizontalAlignment = HorizontalAlignment.Stretch
+		};
+
+		scroll.SizeChanged += (_, e) =>
+		{
+			double targetWidth = Math.Min(1280.0, Math.Max(320.0, e.NewSize.Width - 48.0));
+			if (Math.Abs(rootStack.Width - targetWidth) > 0.5)
+			{
+				rootStack.Width = targetWidth;
+			}
+			if (scroll.HorizontalOffset != 0)
+			{
+				scroll.ChangeView(0, null, null, disableAnimation: true);
+			}
+		};
+		scroll.BringIntoViewRequested += (_, args) => { args.Handled = true; };
+		scroll.ViewChanging += (_, args) =>
+		{
+			if (args.NextView.HorizontalOffset != 0)
+			{
+				scroll.ChangeView(0, args.NextView.VerticalOffset, null, disableAnimation: true);
+			}
+		};
+		scroll.ViewChanged += (_, _) =>
+		{
+			if (scroll.HorizontalOffset != 0)
+			{
+				scroll.ChangeView(0, null, null, disableAnimation: true);
+			}
+		};
 
 		// 1. Header Card
 		var headerCard = CreateCardBorder(new Thickness(20, 16, 20, 16));
@@ -173,12 +212,21 @@ public sealed partial class ConverterPage
 		dbHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 		dbHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		dbHeader.Children.Add(new TextBlock { Text = Loc.T("当前测试强度 (越小越灵敏)"), FontSize = 12, Opacity = 0.72, VerticalAlignment = VerticalAlignment.Center });
-		_htDbLabel = new TextBlock { Text = "20 dB HL", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235)) };
+		_htDbLabel = new TextBlock { Text = "20 dB HL", FontSize = 14, FontWeight = FontWeights.Bold, MinWidth = 76, TextAlignment = TextAlignment.Right, Foreground = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235)) };
 		Grid.SetColumn(_htDbLabel, 1);
 		dbHeader.Children.Add(_htDbLabel);
 		cStack.Children.Add(dbHeader);
 
-		_htDbSlider = new Slider { Minimum = 0, Maximum = 85, StepFrequency = 5, Value = _htCurrentDbHl };
+		_htDbSlider = new Slider
+		{
+			Minimum = 0,
+			Maximum = 85,
+			StepFrequency = 5,
+			Value = _htCurrentDbHl,
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			IsThumbToolTipEnabled = false
+		};
+		_htDbSlider.BringIntoViewRequested += (_, args) => { args.Handled = true; };
 		_htDbSlider.ValueChanged += (_, e) =>
 		{
 			if (_suppressHtSlider) return;
@@ -305,7 +353,7 @@ public sealed partial class ConverterPage
 		resTop.Children.Add(_htScoreTb);
 
 		var gradeStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Spacing = 2 };
-		_htGradeTb = new TextBlock { Text = Loc.T("黄金听感"), FontSize = 16, FontWeight = FontWeights.Bold };
+		_htGradeTb = new TextBlock { Text = Loc.T("黄金听感"), FontSize = 16, FontWeight = FontWeights.Bold, TextWrapping = TextWrapping.Wrap };
 		_htSummaryTb = new TextBlock { Text = string.Empty, FontSize = 12, Opacity = 0.78, TextWrapping = TextWrapping.Wrap };
 		gradeStack.Children.Add(_htGradeTb);
 		gradeStack.Children.Add(_htSummaryTb);

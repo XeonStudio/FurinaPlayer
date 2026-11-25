@@ -62,6 +62,7 @@ class Program
 		NewFeatureTests.TestSession2Features(Assert);
 		NewFeatureTests.TestSession3Features(Assert);
 		NewFeatureTests.TestEditorChunkedWavAndMemoryCleanup(Assert);
+		NewFeatureTests.TestPrimedSeekBeforePlayback(Assert);
 		NewFeatureTests.TestStreamingNonBlockingAndCancellation(Assert);
 		NewFeatureTests.TestNeteaseQrCookieMergeAndFallback(Assert);
 		NewFeatureTests.TestFormatConverterAndDecoders(Assert);
@@ -72,6 +73,7 @@ class Program
 		NewFeatureTests.TestOpraHeadphoneKnowledgeBaseAndMixAssistantV2(Assert);
 		NewFeatureTests.TestPlaybackArrayCopyCrashFixAndCheckRepairAssistants(Assert);
 		NewFeatureTests.TestLazyLibVlcAndAsyncDiagnostics(Assert);
+		NewFeatureTests.TestConcurrentAudioSessionPositionRead(Assert);
 		OpraDeepVerification.Run();
 
 		Console.WriteLine("=================================================");

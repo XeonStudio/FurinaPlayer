@@ -67,6 +67,8 @@ public sealed class AudioSession : IDisposable
 
 	private bool _restorePending;
 
+	public bool IsRestorePending => _restorePending;
+
 	private bool _restoreNeedsReopen;
 
 	private long _activeTrackId = -1L;
@@ -141,7 +143,7 @@ public sealed class AudioSession : IDisposable
 
 	private long _lastEndedTrackId = -1L;
 
-	private bool _inPositionGetter;
+	private int _inPositionGetter;
 
 	private long _cachedVlcPositionTicks;
 
@@ -183,15 +185,15 @@ public sealed class AudioSession : IDisposable
 			{
 				return _restorePosition;
 			}
-			if (_inPositionGetter)
+			if (Interlocked.CompareExchange(ref _inPositionGetter, 1, 0) != 0)
 			{
 				return TimeSpan.FromTicks(Interlocked.Read(ref _cachedVlcPositionTicks));
 			}
 			if (_useVlc && Volatile.Read(ref _isSwitchingBackend) > 0)
 			{
+				Volatile.Write(ref _inPositionGetter, 0);
 				return TimeSpan.FromTicks(Interlocked.Read(ref _cachedVlcPositionTicks));
 			}
-			_inPositionGetter = true;
 			try
 			{
 				TimeSpan rawPos = CurrentBackend.Position;
@@ -204,19 +206,22 @@ public sealed class AudioSession : IDisposable
 				if (inSeekGrace && _useVlc && Math.Abs((rawPos - seekTarget).TotalSeconds) > 1.5)
 				{
 					_clock.Rebase(seekTarget);
+					Interlocked.Exchange(ref _cachedVlcPositionTicks, seekTarget.Ticks);
 					return seekTarget;
 				}
 				TimeSpan timeSpan = _clock.Guard(rawPos, seekPending: inSeekGrace);
 				if (State != PlaybackState.Stopped && _abEnd > TimeSpan.Zero && timeSpan >= _abEnd)
 				{
 					Seek(_abStart);
+					Interlocked.Exchange(ref _cachedVlcPositionTicks, _abStart.Ticks);
 					return _abStart;
 				}
+				Interlocked.Exchange(ref _cachedVlcPositionTicks, timeSpan.Ticks);
 				return timeSpan;
 			}
 			finally
 			{
-				_inPositionGetter = false;
+				Volatile.Write(ref _inPositionGetter, 0);
 			}
 		}
 	}
@@ -953,6 +958,7 @@ public sealed class AudioSession : IDisposable
 			SetState(PlaybackState.Stopped);
 			_clock.Reset(position);
 			_watchdog.Reset(position);
+			Interlocked.Exchange(ref _cachedVlcPositionTicks, position.Ticks);
 			SafeRaise(() =>
 			{
 				TrackChanged?.Invoke(track);
@@ -1329,6 +1335,7 @@ public sealed class AudioSession : IDisposable
 		}
 		_clock.Rebase(position);
 		_watchdog.Reset(position);
+		Interlocked.Exchange(ref _cachedVlcPositionTicks, position.Ticks);
 		bool sought = _useVlc ? _vlcBackend.Seek(position) : _naudioBackend.Seek(position);
 		if (!sought && State == PlaybackState.Stopped && CurrentTrack != null)
 		{

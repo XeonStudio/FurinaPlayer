@@ -8,14 +8,20 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D4?style=flat-square&logo=windows)](https://github.com/XeonStudio/FurinaPlayer)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20%7C%20WinUI%203-512BD4?style=flat-square&logo=dotnet)](https://github.com/XeonStudio/FurinaPlayer)
-[![Version](https://img.shields.io/badge/Release-v1.31.01.0002.1125-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
+[![Version](https://img.shields.io/badge/Release-v1.32.00.0004.1125-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-22C55E?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
-## ✨ 近期更新亮点（v1.31.01.0002.1125 · 2026-11-25）
+## ✨ 近期更新亮点（v1.32.00.0004.1125 · 2026-11-25）
+
+- **🔧 播放状态恢复、歌词同步与交互体验修复（v1.32.00.0004.1125）**
+  - **启动进度同步定位**：修复重启后点击播放时时间戳保留上次退出进度但歌曲实际从头播放的问题。
+  - **歌词页刷新防进度归零**：修复 `AuditionDaw` 与 `PowerPointTheme` 两种歌词页主题在刷新歌词时进度条与时间指示器短暂归零（`00:00`）后恢复的并发读数与状态同步问题。
+  - **专辑与歌曲搜索连续输入**：重构「专辑」「歌曲」搜索框筛选逻辑，仅原地刷新内容区，解决每输入一个字符即失焦的问题。
+  - **听力检测滑块防页面平移**：锁定「工具箱 → 听力检测与黄金听感」视口宽度并拦截 `BringIntoViewRequested` / 横向偏移，修复拖动听阈滑块至 60–85 dB HL 时二级页面随滑块横向平移的问题。
 
 - **🧩 音频编辑器 VST3 效果架路由修复 & LOH 内存优化**
   - 修复点击「VST3 效果架」侧栏页签时错误回落到波形编辑页面的问题。
@@ -68,7 +74,7 @@
 
 ## 📦 下载与运行
 
-1. 前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载最新的 `FurinaPlayer-v1.31.01.0002.1125-win-x64.zip`。
+1. 前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载最新的 `FurinaPlayer-v1.32.00.0004.1125-win-x64.zip`。
 2. 解压后直接双击运行 `FurinaPlayer.exe`（已包含自包含运行时，无需额外安装）。
 3. **系统要求**：Windows 10 1809（Build 17763）或 Windows 11，64 位（x64）系统。
 
@@ -78,7 +84,7 @@
 # 编译 Release x64 主程序
 dotnet build src\FurinaPlayer\FurinaPlayer.csproj -c Release -p:Platform=x64
 
-# 运行全部单元测试（247 项）
+# 运行全部单元测试（250 项）
 dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Release -p:Platform=x64
 ```
 
@@ -90,7 +96,7 @@ dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Rel
 - `src/FurinaPlayer.UI`：页面（首页/专辑/歌曲/音乐收藏、正在播放、音频编辑、DSP 机架、工具箱、设置）与 ViewModel
 - `src/FurinaPlayer.Core`：曲库管理、元数据/封面/歌词服务、多语言本地化与设置持久化
 - `src/FurinaPlayer.Audio`：NAudio / LibVLC 音频引擎与全套纯自研 DSP 处理器（含 WSOLA、Mix Assistant V2、空间声场、8192 点频谱）
-- `src/FurinaPlayerDspTests`：DSP 与核心功能自动化测试套件（247 / 247 通过）
+- `src/FurinaPlayerDspTests`：DSP 与核心功能自动化测试套件（250 / 250 通过）
 
 ---
 

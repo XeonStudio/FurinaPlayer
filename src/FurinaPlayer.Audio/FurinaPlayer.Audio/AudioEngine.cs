@@ -274,7 +274,9 @@ public sealed class AudioEngine : IDisposable
 		});
 	}
 
-	public bool PrepareRestore(TimeSpan position)
+	public bool PrepareRestore(TimeSpan position) => PrepareRestore(position, autoPlay: false);
+
+	public bool PrepareRestore(TimeSpan position, bool autoPlay)
 	{
 		long myGen;
 		CancellationToken ct;
@@ -304,6 +306,10 @@ public sealed class AudioEngine : IDisposable
 				return;
 			}
 			_session.PrepareRestore(position, ct);
+			if (autoPlay && !_disposed && !ct.IsCancellationRequested && myGen == Volatile.Read(ref _playbackGeneration))
+			{
+				_session.Play(ct);
+			}
 		});
 		return true;
 	}
@@ -318,7 +324,7 @@ public sealed class AudioEngine : IDisposable
 			{
 				return;
 			}
-			if (_session.State != PlaybackState.Paused || Volatile.Read(ref _preparingTrack) != 0)
+			if ((_session.State != PlaybackState.Paused && !_session.IsRestorePending) || Volatile.Read(ref _preparingTrack) != 0)
 			{
 				BeginSwitchGenerationLocked(CancellationToken.None, out myGen, out ct);
 			}
@@ -398,7 +404,7 @@ public sealed class AudioEngine : IDisposable
 			{
 				BeginSwitchGenerationLocked(CancellationToken.None, out myGen, out ct);
 			}
-			else if (_session.State != PlaybackState.Playing && _session.State != PlaybackState.Paused)
+			else if (_session.State != PlaybackState.Playing && _session.State != PlaybackState.Paused && !_session.IsRestorePending)
 			{
 				BeginSwitchGenerationLocked(CancellationToken.None, out myGen, out ct);
 			}
