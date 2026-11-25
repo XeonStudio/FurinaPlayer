@@ -28,7 +28,7 @@ namespace FurinaPlayer.UI.Pages;
 /// 音频格式转换页面：支持 .ncm / .mgg / .kgm / .kwm 解密转码为 MP3/FLAC，
 /// 自动检查并补齐音乐元数据、内嵌歌词与专辑封面，支持自定义保存路径与文件夹导出。
 /// </summary>
-public sealed class ConverterPage : Page
+public sealed partial class ConverterPage : Page
 {
 	public ConverterViewModel ViewModel { get; set; }
 
@@ -306,7 +306,7 @@ public sealed class ConverterPage : Page
 		Grid.SetRow(_listCard, 3);
 		_rootGrid.Children.Add(_listCard);
 
-		Content = _rootGrid;
+		Content = BuildToolboxShell(_rootGrid);
 
 		ViewModel.Items.CollectionChanged += OnItemsCollectionChanged;
 		ViewModel.PropertyChanged += OnViewModelPropertyChanged;
@@ -554,7 +554,7 @@ public sealed class ConverterPage : Page
 
 	public void ApplyThemeBrushes()
 	{
-		bool dark = IsDark;
+		bool dark = LiquidGlassEngine.IsElementDarkTheme(this);
 		var bg = new SolidColorBrush(dark ? Color.FromArgb(38, 255, 255, 255) : Color.FromArgb(165, 255, 255, 255));
 		var border = new SolidColorBrush(dark ? Color.FromArgb(42, 255, 255, 255) : Color.FromArgb(42, 15, 23, 42));
 
@@ -564,6 +564,7 @@ public sealed class ConverterPage : Page
 			card.BorderBrush = border;
 		}
 		_emptyStatePanel.BorderBrush = new SolidColorBrush(dark ? Color.FromArgb(55, 255, 255, 255) : Color.FromArgb(55, 15, 23, 42));
+		UpdateToolboxNavStyles();
 	}
 
 	private async Task PickFilesAsync()

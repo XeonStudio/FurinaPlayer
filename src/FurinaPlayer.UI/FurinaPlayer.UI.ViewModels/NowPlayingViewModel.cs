@@ -1167,6 +1167,7 @@ public class NowPlayingViewModel : ObservableObject
 	private void CycleMode()
 	{
 		_engine.Mode = (PlaybackMode)((int)(_engine.Mode + 1) % 4);
+		_settingsService?.Update(s => s.PlaybackMode = _engine.Mode);
 		ModeText = _engine.Mode switch
 		{
 			PlaybackMode.Sequential => Loc.T("顺序播放"),

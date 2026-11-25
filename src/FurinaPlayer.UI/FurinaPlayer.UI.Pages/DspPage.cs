@@ -1587,7 +1587,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			Header = Loc.T("启用实时多相高阶升频重采样 (Resampler)"),
 			IsOn = ViewModel?.FurinaPlayerResamplerEnabled ?? false
 		};
-		toggleResample.Toggled += (s, e) => { if (ViewModel != null) ViewModel.FurinaPlayerResamplerEnabled = toggleResample.IsOn; };
+		toggleResample.Toggled += (s, e) => { if (ViewModel != null) { ViewModel.FurinaPlayerResamplerEnabled = toggleResample.IsOn; if (toggleResample.IsOn && string.Equals(ViewModel.FurinaSrcMode, "off", StringComparison.OrdinalIgnoreCase)) { ViewModel.FurinaSrcMode = ViewModel.FurinaPlayerResamplerTargetRate > 0 ? "custom" : "family4x"; } else if (!toggleResample.IsOn) { ViewModel.FurinaSrcMode = "off"; } ViewModel.SaveFurinaPlayerSettings(); ViewModel.ApplySrcSettings(reopenIfRateChanged: true); } };
 		sp.Children.Add(toggleResample);
 
 		var comboRate = new ComboBox { Header = Loc.T("目标采样率 Target SampleRate"), MinWidth = 200 };
@@ -1610,6 +1610,9 @@ public sealed partial class DspPage : Page, IComponentConnector
 					4 => 384000,
 					_ => 0
 				};
+				if (ViewModel.FurinaPlayerResamplerEnabled) { ViewModel.FurinaSrcMode = ViewModel.FurinaPlayerResamplerTargetRate > 0 ? "custom" : "off"; }
+				ViewModel.SaveFurinaPlayerSettings();
+				ViewModel.ApplySrcSettings(reopenIfRateChanged: true);
 			}
 		};
 		sp.Children.Add(comboRate);
@@ -2030,6 +2033,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		AddNavSectionHeader(Loc.T("音色"));
 		itemsStack.Children.Add(CreateNavButton("param_eq", "\uE995", Loc.T("参数 EQ"), Loc.T("已启用 · 10频段"), hasCheck: true));
 		itemsStack.Children.Add(CreateNavButton("headphone", "\uE7F5", Loc.T("耳机校正"), Loc.T("已旁路")));
+		itemsStack.Children.Add(CreateNavButton("sound_effects", "\uE8D6", Loc.T("音效"), Loc.T("32种实时音效")));
 		AddNavSectionHeader(Loc.T("插件宿主"));
 		itemsStack.Children.Add(CreateNavButton("vst3", "\uE8B8", Loc.T("VST3 机架"), Loc.T("原生插件宿主")));
 		AddNavSectionHeader(Loc.T("空间与输出"));
@@ -2960,6 +2964,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 		_eqWorkbenchControl.UpdateTheme(IsDspDark);
 
 		SyncParametricEqWorkbenchFromViewModel();
+		SyncMixAssistantHeadphoneContext();
 
 		_eqWorkbenchControl.BandsChanged += (IReadOnlyList<FurinaPlayerBiquadFilter> bands) =>
 		{
@@ -3015,6 +3020,79 @@ public sealed partial class DspPage : Page, IComponentConnector
 		if (ViewModel == null || _eqWorkbenchControl == null) return;
 		ViewModel.InitializeFurinaPlayerEqBands();
 		_eqWorkbenchControl.SetBands(ViewModel.FurinaPlayerEqBands, ViewModel.FurinaPlayerEqPreampDb, ViewModel.FurinaPlayerEqEnabled);
+	}
+
+	private void SyncMixAssistantHeadphoneContext()
+	{
+		if (_eqWorkbenchControl == null) return;
+
+		try
+		{
+			if (_headphoneCorrectionWorkbench == null && string.IsNullOrEmpty(_appliedPresetId))
+			{
+				LoadHeadphoneState();
+			}
+
+			OpraHeadphonePreset? activePreset = null;
+			if (!string.IsNullOrEmpty(_appliedPresetId))
+			{
+				OpraDatabaseService.EnsureFullDatabaseLoaded();
+				activePreset = OpraDatabaseService.GetPresetById(_appliedPresetId);
+			}
+			else if (_currentPreset != null && _isCalibrationEnabled)
+			{
+				activePreset = _currentPreset;
+			}
+
+			var eqProc = ViewModel?.AudioEngine?.DspChain?.Eq;
+			bool calEnabled = eqProc?.CalibrationEnabled ?? _isCalibrationEnabled;
+			double calPreamp = eqProc?.CalibrationPreampDb ?? (activePreset?.PreampDb ?? 0.0);
+
+			double calPeakBoostDb = 0.0;
+			if (calEnabled)
+			{
+				if (eqProc != null && eqProc.CalibrationBands.Count > 0)
+				{
+					foreach (double freq in MixAssistantEngine.Curve64Frequencies)
+					{
+						double sum = 0.0;
+						for (int i = 0; i < eqProc.CalibrationBands.Count; i++)
+						{
+							sum += eqProc.CalibrationBands[i].CalculateResponseDb(freq, 48000.0);
+						}
+						if (sum > calPeakBoostDb) calPeakBoostDb = sum;
+					}
+				}
+				else if (activePreset != null && activePreset.Filters.Count > 0)
+				{
+					foreach (double freq in MixAssistantEngine.Curve64Frequencies)
+					{
+						double sum = 0.0;
+						for (int i = 0; i < activePreset.Filters.Count; i++)
+						{
+							var f = activePreset.Filters[i];
+							var bq = new FurinaPlayerBiquadFilter
+							{
+								FilterType = f.Type,
+								FrequencyHz = f.FrequencyHz,
+								GainDb = f.GainDb,
+								Q = f.Q,
+								Enabled = true
+							};
+							bq.UpdateCoefficients(48000.0);
+							sum += bq.CalculateResponseDb(freq, 48000.0);
+						}
+						if (sum > calPeakBoostDb) calPeakBoostDb = sum;
+					}
+				}
+			}
+
+			_eqWorkbenchControl.SetActiveHeadphoneCalibration(activePreset, calEnabled, calPreamp, calPeakBoostDb);
+		}
+		catch
+		{
+			// Never block DSP workbench setup on optional headphone telemetry lookup
+		}
 	}
 
 	private void SyncLegacyFreeEqUiFromViewModel()
@@ -3307,6 +3385,7 @@ public sealed partial class DspPage : Page, IComponentConnector
 			"listening_plan" or "listeningPlan" => _listeningPlanWorkbench ?? CreateListeningPlanWorkbench(),
 			"param_eq" => _parametricEqWorkbench ?? CreateParametricEqWorkbench(),
 			"headphone" => _headphoneCorrectionWorkbench ?? CreateHeadphoneCorrectionWorkbench(),
+			"sound_effects" => _soundEffectsWorkbench ?? CreateSoundEffectsWorkbench(),
 			"level_gain" => _volumeEqualizationWorkbench ?? CreateVolumeEqualizationWorkbench(),
 			"headroom" => _headroomWorkbench ?? CreateHeadroomWorkbench(),
 			"channel" => _channelToolWorkbench ?? CreateChannelToolWorkbench(),

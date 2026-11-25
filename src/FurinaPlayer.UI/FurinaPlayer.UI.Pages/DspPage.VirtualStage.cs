@@ -91,12 +91,10 @@ public sealed partial class DspPage
 	private const double VsStageRadius = 150.0;
 
 	/// <summary>
-	/// 创建虚拟声场二级功能工作台界面。
+	/// 创建虚拟声场二级功能工作台界面（基于 Neoverb Pro 混响/空间引擎重构）。
 	/// </summary>
 	public FrameworkElement CreateVirtualStageWorkbench()
 	{
-		InitVirtualStageState();
-
 		var rootBorder = new Border
 		{
 			Background = CreateWhiteAcrylicBrush(0.72, 195),
@@ -112,30 +110,54 @@ public sealed partial class DspPage
 
 		var mainStack = new StackPanel
 		{
-			Spacing = 16,
+			Spacing = 14,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			MaxWidth = 1380
 		};
 
-		// 1. 顶部标题栏 (标题、模块 Pill、就绪状态、刷新按钮)
-		mainStack.Children.Add(CreateVsTopHeaderBar());
+		var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+		titleRow.Children.Add(new TextBlock
+		{
+			Text = Loc.T("虚拟声场"),
+			FontSize = 24,
+			FontWeight = FontWeights.Bold,
+			Foreground = new SolidColorBrush(Color.FromArgb(255, 22, 26, 36)),
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		titleRow.Children.Add(new Border
+		{
+			Background = new SolidColorBrush(Color.FromArgb(24, 124, 58, 237)),
+			CornerRadius = new CornerRadius(6),
+			Padding = new Thickness(8, 3, 8, 3),
+			VerticalAlignment = VerticalAlignment.Center,
+			Child = new TextBlock
+			{
+				Text = Loc.T("Neoverb Pro 空间引擎"),
+				FontSize = 11,
+				FontWeight = FontWeights.SemiBold,
+				Foreground = new SolidColorBrush(Color.FromArgb(255, 124, 58, 237))
+			}
+		});
+		mainStack.Children.Add(titleRow);
+		mainStack.Children.Add(new TextBlock
+		{
+			Text = Loc.T("三引擎融合声场（早期反射 Reflections / 板式 Plate / 厅堂 Hall-Room-Chamber），配合三角融合面板、Pre-Delay、Modulation、Smooth 与 Pre/Reverb 双段均衡器及 Auto Cut 智能修剪。"),
+			FontSize = 13,
+			Foreground = new SolidColorBrush(Color.FromArgb(255, 92, 98, 114)),
+			TextWrapping = TextWrapping.Wrap
+		});
 
-		// 2. 顶部操作工具栏 (电源旁路切换、恢复默认、右侧角度读数)
-		mainStack.Children.Add(CreateVsActionToolbar());
-
-		// 3. 描述说明文本
-		mainStack.Children.Add(CreateVsDescriptionSection());
-
-		// 4. 主双列工作区 (左侧：声场雷达图与底部三联读数；右侧：HRTF、预设、滑块控制台)
-		mainStack.Children.Add(CreateVsMainStage());
+		var neoverbControl = new NeoverbWorkbenchControl();
+		var neoverbProc = (ViewModel?.AudioEngine ?? ViewModel?.Engine)?.DspChain?.Neoverb;
+		if (neoverbProc != null)
+		{
+			neoverbControl.BindProcessor(neoverbProc);
+		}
+		mainStack.Children.Add(neoverbControl);
 
 		sv.Content = mainStack;
 		rootBorder.Child = sv;
 		_virtualStageWorkbench = rootBorder;
-
-		// 同步并渲染初始状态
-		UpdateVsAllVisuals();
-
 		return _virtualStageWorkbench;
 	}
 

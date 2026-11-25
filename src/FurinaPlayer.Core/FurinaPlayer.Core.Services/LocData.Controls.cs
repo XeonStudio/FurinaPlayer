@@ -175,5 +175,68 @@ public static partial class Loc
 		Add("未加载音频文件，无法显示波形", "未載入音訊檔案，無法顯示波形", "No audio file loaded", "Aucun fichier audio chargé", "Аудиофайл не загружен", "No hay archivo de audio cargado", "音声ファイルが読み込まれていません", "오디오 파일이 로드되지 않음");
 		Add("PK 峰值包络 · 线性振幅 (0 ~ -60 dB FS)", "PK 峰值包絡 · 線性振幅 (0 ~ -60 dB FS)", "PK Peak Envelope · Linear (0 ~ -60 dB FS)", "Enveloppe crête PK · Linéaire (0 ~ -60 dB FS)", "Пиковая огибающая PK · Линейная (0 ~ -60 dB FS)", "Envolvente de pico PK · Lineal (0 ~ -60 dB FS)", "PK ピークエンベロープ · リニア振幅 (0 ~ -60 dB FS)", "PK 피크 엔벨로프 · 선형 진폭 (0 ~ -60 dB FS)");
 		Add("RMS 有效值包络 · 线性振幅 (0 ~ -60 dB FS)", "RMS 有效值包絡 · 線性振幅 (0 ~ -60 dB FS)", "RMS Envelope · Linear (0 ~ -60 dB FS)", "Enveloppe RMS · Linéaire (0 ~ -60 dB FS)", "Огибающая RMS · Линейная (0 ~ -60 dB FS)", "Envolvente RMS · Lineal (0 ~ -60 dB FS)", "RMS 実効値エンベロープ · リニア振幅 (0 ~ -60 dB FS)", "RMS 실효값 엔벨로프 · 선형 진폭 (0 ~ -60 dB FS)");
+
+		// MixAssistantEngine Upgraded — Genre, Headphone Matching & Anti-Distortion
+		Add("🧠 智能识别曲风 (Auto Match)", "🧠 智慧辨識曲風 (Auto Match)", "🧠 Auto Genre Match", "🧠 Auto-Détection du Genre", "🧠 Авто-подбор жанра", "🧠 Auto-Detección de Género", "🧠 ジャンル自動認識 (Auto Match)", "🧠 장르 자동 인식 (Auto Match)");
+		Add("根据实时频谱、动态余量与斜率自动匹配最优曲风与母带目标曲线", "根據即時頻譜、動態餘量與斜率自動匹配最優曲風與母帶目標曲線", "Automatically detects genre, dynamics, and tilt to select the optimal target curve.", "Détecte le genre et la dynamique pour choisir la cible optimale.", "Автоматически определяет жанр и динамику для выбора оптимальной целевой кривой.", "Detecta género y dinámica para seleccionar la curva objetivo óptima.", "スペクトル・ダイナミクス・傾きから最適なターゲットカーブを自動選択します", "스펙트럼, 다이내믹, 기울기를 분석해 최적의 타겟 커브를 자동 선택합니다");
+		Add("摇滚现场 (Rock & Metal)", "搖滾現場 (Rock & Metal)", "Rock & Metal", "Rock & Métal", "Рок и металл", "Rock & Metal", "ロック & メタル (Rock & Metal)", "록 & 메탈 (Rock & Metal)");
+		Add("压制 250-400Hz 吉他厚闷感并柔化 4kHz 噪刺，突出拳拳到肉的底鼓能量", "壓制 250-400Hz 吉他厚悶感並柔化 4kHz 噪刺，突出拳拳到肉的底鼓能量", "Cuts 250-400 Hz guitar mud and smooths 4 kHz bite for tight punchy drums.", "Atténue la boue 250-400 Hz et adoucit les 4 kHz pour plus d'impact.", "Снижает мутность 250-400 Гц и смягчает 4 кГц для плотного удара.", "Reduce turbidez en 250-400 Hz y suaviza 4 kHz manteniendo pegada.", "250-400Hz のこもりを抑え 4kHz の刺さりを和らげ、タイトなドラムを引き立てます", "250-400Hz 탁함을 줄이고 4kHz 거친 대역을 다듬어 단단한 펀치를 살립니다");
+		Add("古典原声 (Classical Reference)", "古典原聲 (Classical Reference)", "Classical Reference", "Référence Classique", "Классический референс", "Referencia Clásica", "クラシック・リファレンス", "클래식 레퍼런스");
+		Add("保留大动态交响呼吸感与厅堂空气延伸，轻柔平滑中高频染色", "保留大動態交響呼吸感與廳堂空氣延伸，輕柔平滑中高頻染色", "Preserves orchestral dynamic breathing room and hall air with gentle treble polish.", "Préserve la dynamique orchestrale et l'air de salle sans coloration.", "Сохраняет оркестровую динамику и воздух зала с мягкой коррекцией.", "Preserva la dinámica orquestal y el aire de sala suavizando los medios-agudos.", "オーケストラの大ダイナミクスとホールの空気感を保ちながら滑らかに整えます", "오케스트라의 넓은 다이내믹과 홀의 공기감을 유지하며 부드럽게 다듬습니다");
+
+		Add("现代流行 / 商业混音 (Modern Pop)", "現代流行 / 商業混音 (Modern Pop)", "Modern Pop", "Pop Moderne", "Современный поп", "Pop Moderno", "モダンポップ", "모던 팝");
+		Add("ACG 二次元 / 日系电音 (ACG Vibrant)", "ACG 二次元 / 日系電音 (ACG Vibrant)", "ACG / J-Electronic", "ACG / Électro Japonaise", "ACG / J-Электроника", "ACG / J-Electrónica", "ACG / アニソン", "ACG / J-Pop");
+		Add("抒情华语 / 原声人声 (Vocal Ballad)", "抒情華語 / 原聲人聲 (Vocal Ballad)", "Vocal Ballad", "Ballade Vocale", "Вокальная баллада", "Balada Vocal", "ボーカルバラード", "보컬 발라드");
+		Add("电音 / 说唱重低音 (EDM & Hip-Hop)", "電音 / 說唱重低音 (EDM & Hip-Hop)", "EDM & Hip-Hop", "EDM & Hip-Hop", "EDM и Хип-хоп", "EDM y Hip-Hop", "EDM / ヒップホップ", "EDM & 힙합");
+		Add("摇滚 / 金属现场 (Rock & Metal)", "搖滾 / 金屬現場 (Rock & Metal)", "Rock & Metal", "Rock & Métal", "Рок и металл", "Rock & Metal", "ロック & メタル", "록 & 메탈");
+		Add("古典 / 交响大动态 (Classical)", "古典 / 交響大動態 (Classical)", "Classical / Orchestral", "Classique / Orchestre", "Классика / Оркестр", "Clásica / Orquesta", "クラシック / 交響曲", "클래식 / 오케스트라");
+		Add("爵士 / 发烧器乐 (Jazz & Acoustic)", "爵士 / 發燒器樂 (Jazz & Acoustic)", "Jazz & Acoustic", "Jazz & Acoustique", "Джаз и акустика", "Jazz y Acústica", "ジャズ / アコースティック", "재즈 / 어쿠스틱");
+		Add("Lo-Fi / 氛围温暖 (Lo-Fi Ambient)", "Lo-Fi / 氛圍溫暖 (Lo-Fi Ambient)", "Lo-Fi / Ambient", "Lo-Fi / Ambiant", "Lo-Fi / Эмбиент", "Lo-Fi / Ambient", "Lo-Fi / アンビエント", "Lo-Fi / 앰비언트");
+		Add("综合均衡曲风 (Balanced)", "綜合均衡曲風 (Balanced)", "Balanced Genre", "Genre Équilibré", "Сбалансированный жанр", "Género Equilibrado", "バランスジャンル", "밸런스 장르");
+
+		Add("🛡️ 柔和防失真 (Gentle)", "🛡️ 柔和防失真 (Gentle)", "🛡️ Gentle Safe", "🛡️ Doux Anti-Écrêtage", "🛡️ Мягкий без клиппинга", "🛡️ Suave Anticlip", "🛡️ ジェントル安全 (Gentle)", "🛡️ 저왜곡 젠틀 (Gentle)");
+		Add("⚖️ 标准母带 (Balanced)", "⚖️ 標準母帶 (Balanced)", "⚖️ Balanced Studio", "⚖️ Studio Équilibré", "⚖️ Сбалансированный", "⚖️ Estudio Equilibrado", "⚖️ バランスド (Balanced)", "⚖️ 밸런스 스튜디오 (Balanced)");
+		Add("✨ 鲜明饱满 (Vivid)", "✨ 鮮明飽滿 (Vivid)", "✨ Vivid Dynamic", "✨ Vif & Dynamique", "✨ Яркий и насыщенный", "✨ Vívido y Dinámico", "✨ ビビッド (Vivid)", "✨ 비비드 (Vivid)");
+
+		Add("按佩戴方式 (200款)", "按佩戴方式 (200款)", "By Wearing (Top 200)", "Par Port (200)", "По посадке (200)", "Por Uso (200)", "装着方式別 (200種)", "착용 방식별 (200종)");
+		Add("按发音单元 (200款)", "按發音單元 (200款)", "By Driver (Top 200)", "Par Transducteur (200)", "По драйверу (200)", "Por Driver (200)", "ドライバー別 (200種)", "드라이버별 (200종)");
+		Add("按调音风格 (200款)", "按調音風格 (200款)", "By Tuning (Top 200)", "Par Signature (200)", "По тюнингу (200)", "Por Firma (200)", "チューニング別 (200種)", "튜닝 성향별 (200종)");
+		Add("🔗 跟随耳机校正 / 自动匹配", "🔗 跟隨耳機校正 / 自動匹配", "🔗 Follow Calibration / Auto", "🔗 Suivre Calibration / Auto", "🔗 Авто / Калибровка", "🔗 Seguir Calibración / Auto", "🔗 ヘッドホン補正に連動 / 自動", "🔗 헤드폰 보정 연동 / 자동");
+
+		Add("包耳式 (Over-Ear)", "包耳式 (Over-Ear)", "Over-Ear", "Circum-auriculaire", "Полноразмерные", "Circumaural", "オーバーイヤー", "오버이어");
+		Add("压耳式 (On-Ear)", "壓耳式 (On-Ear)", "On-Ear", "Supra-auriculaire", "Накладные", "Supraaural", "オンイヤー", "온이어");
+		Add("入耳监听 (IEM)", "入耳監聽 (IEM)", "In-Ear IEM", "Intra-auriculaire (IEM)", "Внутриканальные (IEM)", "In-Ear IEM", "インイヤー (IEM)", "인이어 모니터 (IEM)");
+		Add("真无线 (TWS)", "真無線 (TWS)", "True Wireless (TWS)", "True Wireless (TWS)", "TWS", "True Wireless (TWS)", "完全ワイヤレス (TWS)", "완전 무선 (TWS)");
+		Add("平头塞 (Earbud)", "平頭塞 (Earbud)", "Flat Earbud", "Écouteurs plats", "Вкладыши", "Botón (Earbud)", "インナーイヤー型", "오픈형 이어버드");
+		Add("自动佩戴识别", "自動佩戴識別", "Auto Wearing", "Port Auto", "Авто посадка", "Uso Auto", "装着自動判定", "착용 자동 감지");
+
+		Add("动圈单元 (DD)", "動圈單元 (DD)", "Dynamic Driver (DD)", "Dynamique (DD)", "Динамический (DD)", "Dinámico (DD)", "ダイナミック (DD)", "다이내믹 (DD)");
+		Add("平板振膜 (Planar)", "平板振膜 (Planar)", "Planar Magnetic", "Planaire Magnétique", "Планарный", "Planar Magnético", "平面駆動 (Planar)", "평판형 (Planar)");
+		Add("动铁单元 (BA)", "動鐵單元 (BA)", "Balanced Armature (BA)", "Armature Équilibrée", "Арматурный (BA)", "Armadura Balanceada", "バランスド・アーマチュア (BA)", "밸런스드 아마추어 (BA)");
+		Add("圈铁/多单元混合 (Hybrid)", "圈鐵/多單元混合 (Hybrid)", "Hybrid / Tribrid", "Hybride / Tribride", "Гибридный", "Híbrido / Tríbrido", "ハイブリッド / トライブリッド", "하이브리드 / 트라이브리드");
+		Add("静电单元 (EST)", "靜電單元 (EST)", "Electrostatic (EST)", "Électrostatique (EST)", "Электростатический", "Electrostático (EST)", "静電型 (EST)", "정전형 (EST)");
+		Add("自动单元识别", "自動單元識別", "Auto Driver", "Transducteur Auto", "Авто драйвер", "Driver Auto", "ドライバー自動判定", "드라이버 자동 감지");
+
+		Add("哈曼中性参考 (Harman Neutral)", "哈曼中性參考 (Harman Neutral)", "Harman Neutral", "Neutre Harman", "Нейтральный Harman", "Neutral Harman", "ハーマン・ニュートラル", "하만 뉴트럴");
+		Add("暖声润泽 (Warm & Lush)", "暖聲潤澤 (Warm & Lush)", "Warm & Lush", "Chaleureux", "Тёплый и мягкий", "Cálido y rico", "ウォーム＆リッチ", "따뜻하고 풍부한 톤");
+		Add("高解析偏亮 (Bright Analytical)", "高解析偏亮 (Bright Analytical)", "Bright Analytical", "Clair & Analytique", "Яркий аналитический", "Brillante Analítico", "ブライト・分析的", "밝고 고해상도 성향");
+		Add("V型流行/刺激 (V-Shaped)", "V型流行/刺激 (V-Shaped)", "V-Shaped", "En V", "V-образный", "En V", "ドンシャリ (V字)", "V자형 사운드");
+		Add("低频澎湃 (Bass-Heavy)", "低頻澎湃 (Bass-Heavy)", "Bass-Heavy", "Basses Renforcées", "Усиленный бас", "Graves Potentes", "重低音寄り", "저음 강조 성향");
+		Add("中频人声见长 (Mid-Centric)", "中頻人聲見長 (Mid-Centric)", "Mid-Centric Vocal", "Centré Médiums", "Серединоцентричный", "Centrado en Medios", "中域・ボーカル重視", "중역·보컬 중심 성향");
+		Add("自动调音识别", "自動調音識別", "Auto Tuning", "Signature Auto", "Авто тюнинг", "Firma Auto", "チューニング自動判定", "튜닝 자동 감지");
+
+		Add("🎧 OPRA 耳机硬件与调音匹配 (600 款旗舰/热门已学习):", "🎧 OPRA 耳機硬體與調音匹配 (600 款旗艦/熱門已學習):", "🎧 OPRA Headphone Match (600 Flagships Learned):", "🎧 Adaptation Casque OPRA (600 modèles):", "🎧 Адаптация под наушники OPRA (600 моделей):", "🎧 Ajuste Auriculares OPRA (600 modelos):", "🎧 OPRA ヘッドホン最適化 (600 機種学習済):", "🎧 OPRA 헤드폰 매칭 (600종 플래그십 학습):");
+		Add("拟合力度:", "擬合力度:", "Match:", "Force :", "Сила:", "Ajuste:", "適用度:", "적용도:");
+		Add("防失真档位:", "防失真檔位:", "Safety:", "Sécurité :", "Защита:", "Seguridad:", "安全モード:", "왜곡 방지:");
+		Add("识别曲风: 等待分析...", "辨識曲風: 等待分析...", "Genre: Waiting for analysis...", "Genre : en attente...", "Жанр: ожидание...", "Género: esperando...", "ジャンル: 解析待ち...", "장르: 분석 대기 중...");
+		Add("🎵 识别曲风: {0} ({1:0}%)", "🎵 辨識曲風: {0} ({1:0}%)", "🎵 Genre: {0} ({1:0}%)", "🎵 Genre : {0} ({1:0}%)", "🎵 Жанр: {0} ({1:0}%)", "🎵 Género: {0} ({1:0}%)", "🎵 曲風: {0} ({1:0}%)", "🎵 장르: {0} ({1:0}%)");
+		Add("峰值 +{0:0.0} dB · 前级保护 {1:+0.0;-0.0;0.0} dB · 无失真余量 +{2:0.0} dB", "峰值 +{0:0.0} dB · 前級保護 {1:+0.0;-0.0;0.0} dB · 無失真餘量 +{2:0.0} dB", "Peak +{0:0.0} dB · Preamp {1:+0.0;-0.0;0.0} dB · Margin +{2:0.0} dB", "Pic +{0:0.0} dB · Préampli {1:+0.0;-0.0;0.0} dB · Marge +{2:0.0} dB", "Пик +{0:0.0} дБ · Преамп {1:+0.0;-0.0;0.0} дБ · Запас +{2:0.0} дБ", "Pico +{0:0.0} dB · Preamp {1:+0.0;-0.0;0.0} dB · Margen +{2:0.0} dB", "ピーク +{0:0.0} dB · プリアンプ保護 {1:+0.0;-0.0;0.0} dB · 余白 +{2:0.0} dB", "피크 +{0:0.0} dB · 프리앰프 보호 {1:+0.0;-0.0;0.0} dB · 여유 +{2:0.0} dB");
+		Add("🎧 校正联动: {0} (防重复叠加以保护失真)", "🎧 校正連動: {0} (防重複疊加以保護失真)", "🎧 Calibrated: {0} (Double-EQ Guard Active)", "🎧 Calibration active : {0}", "🎧 Калибровка: {0} (защита от двойного EQ)", "🎧 Calibrado: {0} (sin doble EQ)", "🎧 補正連動: {0} (二重EQ防止)", "🎧 보정 연동: {0} (이중 EQ 방지)");
+		Add("🎧 匹配耳机: {0} (未开校正 · 已启用硬件补偿)", "🎧 匹配耳機: {0} (未開校正 · 已啟用硬體補償)", "🎧 Hardware Match: {0} (Calibration Off)", "🎧 Casque : {0} (compensation matérielle)", "🎧 Наушники: {0} (аппаратная коррекция)", "🎧 Auricular: {0} (ajuste físico)", "🎧 マッチ: {0} (校正オフ・ハード補正)", "🎧 매칭: {0} (보정 꺼짐·하드웨어 보상)");
+		Add("🎧 未指定型号 · 按下方佩戴/单元/调音属性智能适配", "🎧 未指定型號 · 按下方佩戴/單元/調音屬性智慧適配", "🎧 Generic Mode · Adapts to Wearing / Driver / Tuning below", "🎧 Mode générique · S'adapte aux options ci-dessous", "🎧 Общий режим · Адаптация по выбранным параметрам", "🎧 Modo genérico · Se adapta a los atributos de abajo", "🎧 汎用モード · 下の装着/ドライバー/傾向に最適化", "🎧 일반 모드 · 아래 착용/드라이버/튜닝 속성에 맞춤");
+		Add("已协同耳机校正 ({0})", "已協同耳機校正 ({0})", "Synced with Calibration ({0})", "Synchronisé ({0})", "Синхр. с калибровкой ({0})", "Sincronizado ({0})", "ヘッドホン補正と協調 ({0})", "헤드폰 보정과 연동 ({0})");
+		Add("已适配耳机特性 ({0})", "已適配耳機特性 ({0})", "Matched to {0}", "Adapté à {0}", "Подогнано под {0}", "Ajustado a {0}", "イヤホン特性に最適化 ({0})", "이어폰 특성 맞춤 ({0})");
+		Add("已开启耳机校正 · {0} · 防重复叠加以保护失真", "已開啟耳機校正 · {0} · 防重複疊加以保護失真", "Calibration ON · {0} · Anti-clipping & no double-EQ", "Calibration active · {0} · Protection anti-clipping", "Калибровка ВКЛ · {0} · Защита от искажений", "Calibración ACTIVA · {0} · Sin doble EQ ni distorsión", "補正ON · {0} · 重複EQ防止&歪み保護", "보정 켜짐 · {0} · 이중 EQ 및 왜곡 방지");
+		Add("超低 {0:+0.0;-0.0;0.0} / 临场 {1:+0.0;-0.0;0.0} / 空气 {2:+0.0;-0.0;0.0} dB · 动态 {3:F1} dB", "超低 {0:+0.0;-0.0;0.0} / 臨場 {1:+0.0;-0.0;0.0} / 空氣 {2:+0.0;-0.0;0.0} dB · 動態 {3:F1} dB", "Sub {0:+0.0;-0.0;0.0} / Pres {1:+0.0;-0.0;0.0} / Air {2:+0.0;-0.0;0.0} dB · Crest {3:F1} dB", "Infra {0:+0.0;-0.0;0.0} / Prés {1:+0.0;-0.0;0.0} / Air {2:+0.0;-0.0;0.0} dB · Crête {3:F1} dB", "Суб {0:+0.0;-0.0;0.0} / През {1:+0.0;-0.0;0.0} / Воздух {2:+0.0;-0.0;0.0} дБ · Динам. {3:F1} дБ", "Sub {0:+0.0;-0.0;0.0} / Pres {1:+0.0;-0.0;0.0} / Aire {2:+0.0;-0.0;0.0} dB · Crest {3:F1} dB", "超低 {0:+0.0;-0.0;0.0} / プレゼンス {1:+0.0;-0.0;0.0} / エアー {2:+0.0;-0.0;0.0} dB · Crest {3:F1} dB", "서브 {0:+0.0;-0.0;0.0} / 프레즌스 {1:+0.0;-0.0;0.0} / 에어 {2:+0.0;-0.0;0.0} dB · 다이나믹 {3:F1} dB");
 	}
 }

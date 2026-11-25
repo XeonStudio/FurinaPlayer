@@ -29,6 +29,13 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 	private double _playhead;
 	private string _accentHex = "#00e5ff";
 
+	private enum WaveformDragMode { None, Playhead, Selection }
+	private WaveformDragMode _dragMode = WaveformDragMode.None;
+	private double _selAnchorFrac;
+
+	public event Action<double>? PlayheadScrubbed;
+	public event Action<double, double>? SelectionScrubbed;
+
 	private const string EmptyHint = "未加载音频文件，无法显示波形";
 	internal static readonly SKTypeface CjkTypeface = ResolveCjkTypeface();
 
@@ -390,8 +397,76 @@ public sealed class WaveformControl : UserControl, IComponentConnector
 		{
 			Canvas = target.As<SKXamlCanvas>();
 			Canvas.PaintSurface += OnPaintSurface;
+			Canvas.PointerPressed += OnCanvasPointerPressed;
+			Canvas.PointerMoved += OnCanvasPointerMoved;
+			Canvas.PointerReleased += OnCanvasPointerReleased;
+			Canvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
 		}
 		_contentLoaded = true;
+	}
+
+	private void OnCanvasPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+	{
+		if (Canvas == null || Canvas.ActualWidth <= 1.0) return;
+		var pt = e.GetCurrentPoint(Canvas);
+		double x = pt.Position.X;
+		double w = Canvas.ActualWidth;
+		double frac = Math.Clamp(x / w, 0.0, 1.0);
+
+		bool shiftHeld = (Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift) & Windows.UI.Core.CoreVirtualKeyStates.Down) != 0;
+		bool nearPlayhead = Math.Abs(x - (_playhead * w)) <= 16.0 || !shiftHeld;
+
+		_dragMode = (shiftHeld && !nearPlayhead) ? WaveformDragMode.Selection : WaveformDragMode.Playhead;
+		if (_dragMode == WaveformDragMode.Selection)
+		{
+			_selAnchorFrac = frac;
+			_selectionStart = frac;
+			_selectionEnd = frac;
+			SelectionScrubbed?.Invoke(_selectionStart, _selectionEnd);
+		}
+		else
+		{
+			_playhead = frac;
+			PlayheadScrubbed?.Invoke(frac);
+		}
+
+		Canvas.CapturePointer(e.Pointer);
+		Canvas.Invalidate();
+		e.Handled = true;
+	}
+
+	private void OnCanvasPointerMoved(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+	{
+		if (_dragMode == WaveformDragMode.None || Canvas == null || Canvas.ActualWidth <= 1.0) return;
+		double frac = Math.Clamp(e.GetCurrentPoint(Canvas).Position.X / Canvas.ActualWidth, 0.0, 1.0);
+		if (_dragMode == WaveformDragMode.Playhead)
+		{
+			_playhead = frac;
+			PlayheadScrubbed?.Invoke(frac);
+		}
+		else if (_dragMode == WaveformDragMode.Selection)
+		{
+			_selectionStart = Math.Min(_selAnchorFrac, frac);
+			_selectionEnd = Math.Max(_selAnchorFrac, frac);
+			SelectionScrubbed?.Invoke(_selectionStart, _selectionEnd);
+		}
+		Canvas.Invalidate();
+		e.Handled = true;
+	}
+
+	private void OnCanvasPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+	{
+		if (_dragMode != WaveformDragMode.None)
+		{
+			_dragMode = WaveformDragMode.None;
+			try { Canvas?.ReleasePointerCapture(e.Pointer); } catch { }
+			e.Handled = true;
+		}
+	}
+
+	private void OnCanvasPointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+	{
+		_dragMode = WaveformDragMode.None;
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]

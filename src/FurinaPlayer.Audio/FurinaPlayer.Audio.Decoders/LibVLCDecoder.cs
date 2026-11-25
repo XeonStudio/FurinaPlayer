@@ -23,11 +23,7 @@ public sealed class LibVLCDecoder : IDisposable
 		get
 		{
 			if (_player != null) return true;
-			if (ResolveLibVlcDirectory() != null)
-			{
-				return Initialize();
-			}
-			return false;
+			return ResolveLibVlcDirectory() != null;
 		}
 	}
 
@@ -163,6 +159,10 @@ public sealed class LibVLCDecoder : IDisposable
 
 	public bool Open(string filePath, bool startPaused = false)
 	{
+		if ((_libVlc == null || _player == null) && !Initialize())
+		{
+			return false;
+		}
 		if (_libVlc == null || _player == null)
 		{
 			return false;

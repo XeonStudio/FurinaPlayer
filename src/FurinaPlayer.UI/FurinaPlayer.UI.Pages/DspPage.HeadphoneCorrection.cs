@@ -2058,6 +2058,7 @@ public sealed partial class DspPage
 		{
 			// Ignore save failure
 		}
+		SyncMixAssistantHeadphoneContext();
 	}
 }
 

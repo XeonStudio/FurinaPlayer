@@ -94,6 +94,8 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 
 	private int _bufferMs = 200;
 
+	private OutputMode _outputMode = OutputMode.WasapiShared;
+
 	private int _gen;
 
 	private int _stoppedSinceOpen = 1;
@@ -122,6 +124,8 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 
 	private IReadOnlyList<Vst3PluginState> _vst3 = Array.Empty<Vst3PluginState>();
 
+	private FurinaSrcRuntimeConfig _srcConfig = new FurinaSrcRuntimeConfig();
+
 	public string Name => "naudio";
 
 	public bool IsAvailable => true;
@@ -129,6 +133,8 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 	public NAudioDecoder Decoder => _naudio;
 
 	public int SampleRate => _naudio.SampleRate;
+
+	public int OutputSampleRate => _naudio.OutputSampleRate;
 
 	public TimeSpan Position => _naudio.Position;
 
@@ -165,8 +171,14 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 
 	public void Configure(string? deviceId, string? asioDriver, int bufferMs)
 	{
-		_deviceId = deviceId;
-		_asioDriver = asioDriver;
+		Configure(deviceId, asioDriver, bufferMs, _outputMode);
+	}
+
+	public void Configure(string? deviceId, string? asioDriver, int bufferMs, OutputMode outputMode)
+	{
+		_outputMode = outputMode;
+		_deviceId = (outputMode == OutputMode.Asio || string.IsNullOrWhiteSpace(deviceId)) ? null : deviceId;
+		_asioDriver = (outputMode == OutputMode.Asio && !string.IsNullOrWhiteSpace(asioDriver)) ? asioDriver : null;
 		_bufferMs = ((bufferMs > 0) ? bufferMs : 200);
 	}
 
@@ -188,6 +200,14 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 		_vst3 = vst3 ?? Array.Empty<Vst3PluginState>();
 	}
 
+	public void SetSrcConfig(FurinaSrcRuntimeConfig config)
+	{
+		_srcConfig = config ?? new FurinaSrcRuntimeConfig();
+		_naudio.SetSrcConfig(_applyDsp ? _srcConfig : new FurinaSrcRuntimeConfig { Mode = "off" });
+	}
+
+	public FurinaSrcRuntimeTelemetry? GetSrcTelemetry() => _naudio.SrcProvider?.GetTelemetry();
+
 	public bool Open(string filePath, bool startPaused)
 	{
 		if (Volatile.Read(ref _disposed) != 0)
@@ -205,7 +225,8 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 			int gen = Interlocked.Increment(ref _gen);
 			Interlocked.Exchange(ref _stoppedSinceOpen, 1);
 			_naudio.Generation = gen;
-			if (!_naudio.Open(filePath, _deviceId, _asioDriver, _bufferMs))
+			var effectiveSrc = _applyDsp ? _srcConfig : new FurinaSrcRuntimeConfig { Mode = "off" };
+			if (!_naudio.Open(filePath, _deviceId, _asioDriver, _bufferMs, effectiveSrc, _outputMode))
 			{
 				opened = false;
 			}
@@ -322,12 +343,14 @@ internal sealed class NaudioAudioBackend : IAudioBackend, ISwitchStoppableBacken
 			_naudio.SetSpatialAudio(_reverbEnabled, _reverbMix, _reverbPreset, _spatialWidth, _spatialModulation, _spatialPredelayMs);
 			_naudio.SetTimbre(_timbre);
 			_naudio.SetVst3(_vst3);
+			_naudio.SetSrcConfig(_srcConfig);
 		}
 		else
 		{
 			_naudio.SetEqGains(new double[10]);
 			_naudio.SetSpatialAudio(enabled: false, 0.0, "大厅", 0.6, 0.25, 25.0);
 			_naudio.SetTimbre(new TimbreSettings());
+			_naudio.SetSrcConfig(new FurinaSrcRuntimeConfig { Mode = "off" });
 		}
 	}
 

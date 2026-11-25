@@ -91,6 +91,7 @@ public static partial class Loc
 			RegisterDspModulesA();
 			RegisterDspModulesB();
 			RegisterSettings();
+			RegisterCheckRepair();
 			RegisterControls();
 			RegisterXbfStatic();
 			_initialized = true;
@@ -132,6 +133,7 @@ public static partial class Loc
 	static partial void RegisterDspModulesA();
 	static partial void RegisterDspModulesB();
 	static partial void RegisterSettings();
+	static partial void RegisterCheckRepair();
 	static partial void RegisterControls();
 	static partial void RegisterXbfStatic();
 }

@@ -93,6 +93,27 @@ public class App : Application, IXamlMetadataProvider
 		Log("App ctor done");
 	}
 
+	private static void ClearGlobalGlassHighlightBrush(ResourceDictionary? dict)
+	{
+		if (dict == null) return;
+		try
+		{
+			var transparent = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent);
+			dict["GlassHighlightBrush"] = transparent;
+			foreach (var merged in dict.MergedDictionaries)
+			{
+				ClearGlobalGlassHighlightBrush(merged);
+			}
+			foreach (var themeDict in dict.ThemeDictionaries.Values.OfType<ResourceDictionary>())
+			{
+				ClearGlobalGlassHighlightBrush(themeDict);
+			}
+		}
+		catch
+		{
+		}
+	}
+
 	protected override void OnLaunched(LaunchActivatedEventArgs args)
 	{
 		LaunchCoreAsync();
@@ -103,6 +124,7 @@ public class App : Application, IXamlMetadataProvider
 		try
 		{
 			Log("OnLaunched start");
+			ClearGlobalGlassHighlightBrush(Resources);
 			string text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer");
 			MigrateLegacyData(text);
 			if (!IsDirectoryWritable(text))
@@ -112,6 +134,7 @@ public class App : Application, IXamlMetadataProvider
 			}
 			_settingsService = new SettingsService(Path.Combine(text, "settings.json"));
 			AppSettings settings = _settingsService.Load();
+			_settingsService.RunAutoBackupIfDue();
 			Loc.SetLanguageSilently(settings.Language);
 			_settings = settings;
 			_wallpaperService = new WallpaperService(Path.Combine(text, "wallpapers"));
@@ -123,7 +146,7 @@ public class App : Application, IXamlMetadataProvider
 			_lyricService = new LyricService();
 			_audioEngine = new AudioEngine();
 			Log("audio engine created");
-			_audioEngine.ConfigureOutput(settings.OutputMode, settings.OutputDeviceId, settings.OutputDeviceId, settings.BufferMilliseconds);
+			_audioEngine.ConfigureOutput(settings.OutputMode, settings.OutputMode == OutputMode.Asio ? null : settings.OutputDeviceId, settings.OutputMode == OutputMode.Asio ? settings.OutputDeviceId : null, settings.BufferMilliseconds);
 			_audioEngine.Mode = settings.PlaybackMode;
 			_audioEngine.SetEqGains(settings.EqGains);
 			_audioEngine.SetFurinaPlayerHeadroom(settings.FurinaPlayerHeadroomDb);
@@ -136,6 +159,8 @@ public class App : Application, IXamlMetadataProvider
 			{
 				_audioEngine.LoadFurinaPlayerConvolution(settings.FurinaPlayerConvolutionFilePath, (float)settings.FurinaPlayerConvolutionTrimDb);
 			}
+			_audioEngine.AutoFallbackExclusiveToShared = settings.AutoFallbackExclusiveToShared;
+			_audioEngine.SetSoundEffect(settings.FurinaSoundEffectPreset, settings.FurinaSoundEffectIntensity);
 			_audioEngine.Volume = settings.Volume;
 			_audioEngine.VolumeChanged += (int v) =>
 			{
@@ -162,6 +187,13 @@ public class App : Application, IXamlMetadataProvider
 			{
 				_window?.ApplyTheme(t);
 			};
+			_settingsVm.AutoFallbackExclusiveToSharedChanged += (bool enabled) =>
+			{
+				if (_audioEngine != null)
+				{
+					_audioEngine.AutoFallbackExclusiveToShared = enabled;
+				}
+			};
 			_settingsVm.MaterialChanged += (BackgroundMaterial m) =>
 			{
 				_window?.ApplyMaterial(m);
@@ -178,6 +210,7 @@ public class App : Application, IXamlMetadataProvider
 				_nowPlayingVm?.RefreshCurrentCoverAsync();
 			};
 			_settingsVm.DefaultsRestored += ResetAllSettings;
+			_settingsVm.OutputSettingsChanged += (mode, devId, asio, buf) => _audioEngine?.ConfigureOutput(mode, devId, asio, buf);
 			HomeViewModel = homeViewModel;
 			_audioEngine.TrackChanged += (Track? _) =>
 			{
@@ -260,6 +293,16 @@ public class App : Application, IXamlMetadataProvider
 			{
 				return;
 			}
+			if (!_settingsService.Load().RememberPlaybackProgress)
+			{
+				_settingsService.Update((AppSettings s) =>
+				{
+					s.LastPlayedTrackPath = null;
+					s.LastPlayedPositionMs = 0L;
+					s.LastQueuePaths = new List<string>();
+				});
+				return;
+			}
 			Track track = _audioEngine.CurrentTrack;
 			if (track == null)
 			{
@@ -310,7 +353,7 @@ public class App : Application, IXamlMetadataProvider
 	{
 		try
 		{
-			if (string.IsNullOrWhiteSpace(settings.LastPlayedTrackPath) || _library == null || _audioEngine == null)
+			if (_library == null || _audioEngine == null)
 			{
 				return;
 			}
@@ -319,15 +362,29 @@ public class App : Application, IXamlMetadataProvider
 			{
 				return;
 			}
-			Track last = result.FirstOrDefault((Track t) => string.Equals(t.FilePath, settings.LastPlayedTrackPath, StringComparison.OrdinalIgnoreCase));
+			if (!settings.RememberPlaybackProgress || string.IsNullOrWhiteSpace(settings.LastPlayedTrackPath))
+			{
+				if (settings.AutoPlayOnStartup)
+				{
+					_audioEngine.SetQueue(result, 0);
+					_audioEngine.Play();
+				}
+				return;
+			}
+			Track? last = result.FirstOrDefault((Track t) => string.Equals(t.FilePath, settings.LastPlayedTrackPath, StringComparison.OrdinalIgnoreCase));
 			if (last == null)
 			{
+				if (settings.AutoPlayOnStartup)
+				{
+					_audioEngine.SetQueue(result, 0);
+					_audioEngine.Play();
+				}
 				return;
 			}
 			List<Track> list = new List<Track>();
 			foreach (string p in settings.LastQueuePaths)
 			{
-				Track track = result.FirstOrDefault((Track x) => string.Equals(x.FilePath, p, StringComparison.OrdinalIgnoreCase));
+				Track? track = result.FirstOrDefault((Track x) => string.Equals(x.FilePath, p, StringComparison.OrdinalIgnoreCase));
 				if (track != null && !list.Contains(track))
 				{
 					list.Add(track);
@@ -345,6 +402,10 @@ public class App : Application, IXamlMetadataProvider
 			_audioEngine.SetQueue(list, num);
 			TimeSpan position = TimeSpan.FromMilliseconds(Math.Max(0L, settings.LastPlayedPositionMs));
 			_audioEngine.PrepareRestore(position);
+			if (settings.AutoPlayOnStartup)
+			{
+				_audioEngine.Play();
+			}
 			Log("session restored: " + last.FilePath + " @" + position);
 		}
 		catch (Exception ex)

@@ -158,4 +158,43 @@ public class MetadataService
 		}
 		return string.Empty;
 	}
+
+	public static (string Title, string Artist, string Album, int TrackNumber, int Year, string Genre, bool HasArt) ReadBasicTags(string filePath)
+	{
+		try
+		{
+			ATL.Track atl = new ATL.Track(filePath);
+			return (
+				string.IsNullOrWhiteSpace(atl.Title) ? Path.GetFileNameWithoutExtension(filePath) : atl.Title,
+				atl.Artist ?? string.Empty,
+				atl.Album ?? string.Empty,
+				atl.TrackNumber ?? 0,
+				atl.Year ?? 0,
+				atl.Genre ?? string.Empty,
+				atl.EmbeddedPictures?.Count > 0);
+		}
+		catch
+		{
+			return (Path.GetFileNameWithoutExtension(filePath), string.Empty, string.Empty, 0, 0, string.Empty, false);
+		}
+	}
+
+	public static bool WriteBasicTags(string filePath, string? title, string? artist, string? album, int? trackNumber, int? year, string? genre)
+	{
+		try
+		{
+			ATL.Track atl = new ATL.Track(filePath);
+			if (title != null) atl.Title = title;
+			if (artist != null) atl.Artist = artist;
+			if (album != null) atl.Album = album;
+			if (trackNumber.HasValue) atl.TrackNumber = trackNumber.Value;
+			if (year.HasValue) atl.Year = year.Value;
+			if (genre != null) atl.Genre = genre;
+			return atl.Save();
+		}
+		catch
+		{
+			return false;
+		}
+	}
 }

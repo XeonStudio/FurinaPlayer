@@ -20,6 +20,7 @@ public sealed class DspSampleProvider : ISampleProvider
 	private readonly SpatialAudioEffect _spatial;
 
 	private readonly FurinaPlayerDspChain _dspChain;
+	private readonly FurinaRadiusTimePitchProcessor _radiusTimePitch = new();
 
 	private TimbreSettings _timbre = new TimbreSettings();
 
@@ -34,6 +35,7 @@ public sealed class DspSampleProvider : ISampleProvider
 	public SpatialAudioEffect Spatial => _spatial;
 
 	public FurinaPlayerDspChain DspChain => _dspChain;
+	public FurinaRadiusTimePitchProcessor RadiusTimePitch => _radiusTimePitch;
 
 	public float OutputVolume { get; set; } = 1.0f;
 
@@ -67,6 +69,7 @@ public sealed class DspSampleProvider : ISampleProvider
 		_widener = new StereoWidener();
 		_spatial = new SpatialAudioEffect(sampleRate);
 		_dspChain = new FurinaPlayerDspChain(sampleRate);
+		_radiusTimePitch.Prepare(sampleRate, channels);
 		for (int i = 0; i < FftSize; i++)
 		{
 			double a0 = 0.35875, a1 = 0.48829, a2 = 0.14128, a3 = 0.01168;
@@ -146,7 +149,9 @@ public sealed class DspSampleProvider : ISampleProvider
 
 	public int Read(float[] buffer, int offset, int count)
 	{
-		int num = _source.Read(buffer, offset, count);
+		int num = _radiusTimePitch.IsActive
+			? _radiusTimePitch.ProcessPull(_source, buffer, offset, count)
+			: _source.Read(buffer, offset, count);
 		if (num <= 0)
 		{
 			return num;

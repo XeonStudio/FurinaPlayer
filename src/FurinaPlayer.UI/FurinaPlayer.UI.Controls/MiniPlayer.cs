@@ -3,6 +3,7 @@ using System.CodeDom.Compiler;
 using System.Diagnostics;
 using FurinaPlayer.UI.Pages;
 using FurinaPlayer.UI.ViewModels;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -44,6 +45,18 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 	private bool _isPointerOver;
 	private bool _pointerEventsHooked;
 	private Button? _modeButton;
+	private bool _extraControlsAdded;
+	private Slider? _volumeSlider;
+	private TextBlock? _volumeText;
+	private Button? _muteBtn;
+	private bool _suppressVolumeSync;
+	private int _volumeBeforeMute = 80;
+	private Button? _moreMenuButton;
+	private Slider? _radiusSpeedSlider;
+	private Slider? _radiusPitchSlider;
+	private TextBlock? _sleepStatusText;
+	private Microsoft.UI.Dispatching.DispatcherQueueTimer? _sleepTimer;
+	private DateTime? _sleepDeadlineUtc;
 
 	public static event Action? OpenNowPlayingRequested;
 	public event Action? NavigateToPlayingRequested;
@@ -126,6 +139,7 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		Loc.LanguageChanged -= OnLanguageChanged;
 		Loc.LanguageChanged += OnLanguageChanged;
 		HookViewModel(ViewModel);
+		EnsureMiniPlayerExtraControls();
 		ApplyFloatingCapsuleLiquidGlass();
 		FluentIconFactory.UpgradeButtonsInVisualTree(this);
 		UpdateModeButtonFluentIcon();
@@ -496,6 +510,251 @@ public sealed class MiniPlayer : UserControl, IComponentConnector
 		{
 			ViewModel?.PlayRecentCommand?.Execute(parameter);
 		}
+	}
+
+	private void EnsureMiniPlayerExtraControls()
+	{
+		if (_extraControlsAdded || RecentButton == null) return;
+		if (RecentButton.Parent is not Panel rightPanel) return;
+
+		_extraControlsAdded = true;
+		var engine = FurinaPlayer.Audio.AudioEngine.Instance;
+		int initVol = engine?.Volume ?? 80;
+
+		// 1. Volume Control (Mute Button + Compact Slider + Percentage)
+		var volStack = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 6,
+			VerticalAlignment = VerticalAlignment.Center,
+			Margin = new Thickness(4, 0, 4, 0)
+		};
+
+		_muteBtn = new Button
+		{
+			Padding = new Thickness(6),
+			CornerRadius = new CornerRadius(8),
+			Background = new SolidColorBrush(Colors.Transparent),
+			BorderThickness = new Thickness(0),
+			Content = new FontIcon { Glyph = "\uE767", FontSize = 14 }
+		};
+		ToolTipService.SetToolTip(_muteBtn, Loc.T("静音 / 取消静音"));
+		_muteBtn.Click += (_, _) =>
+		{
+			var eng = FurinaPlayer.Audio.AudioEngine.Instance;
+			if (eng == null || _volumeSlider == null) return;
+			if (eng.Volume > 0)
+			{
+				_volumeBeforeMute = eng.Volume;
+				_volumeSlider.Value = 0;
+			}
+			else
+			{
+				_volumeSlider.Value = Math.Max(10, _volumeBeforeMute);
+			}
+		};
+		volStack.Children.Add(_muteBtn);
+
+		_volumeSlider = new Slider
+		{
+			Width = 88,
+			Minimum = 0,
+			Maximum = 100,
+			StepFrequency = 1,
+			Value = initVol,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_volumeText = new TextBlock
+		{
+			Text = $"{initVol}%",
+			FontSize = 11.5,
+			Width = 34,
+			Opacity = 0.8,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		_volumeSlider.ValueChanged += (_, e) =>
+		{
+			int v = (int)Math.Round(e.NewValue);
+			if (_volumeText != null) _volumeText.Text = $"{v}%";
+			if (_muteBtn?.Content is FontIcon fi)
+			{
+				fi.Glyph = v <= 0 ? "\uE74F" : (v < 45 ? "\uE993" : "\uE767");
+			}
+			if (!_suppressVolumeSync && FurinaPlayer.Audio.AudioEngine.Instance != null)
+			{
+				FurinaPlayer.Audio.AudioEngine.Instance.Volume = v;
+			}
+		};
+		if (engine != null)
+		{
+			engine.VolumeChanged += v =>
+			{
+				DispatcherQueue?.TryEnqueue(() =>
+				{
+					if (_volumeSlider != null && (int)Math.Round(_volumeSlider.Value) != v)
+					{
+						_suppressVolumeSync = true;
+						_volumeSlider.Value = v;
+						_suppressVolumeSync = false;
+					}
+				});
+			};
+		}
+		volStack.Children.Add(_volumeSlider);
+		volStack.Children.Add(_volumeText);
+
+		int recentIdx = rightPanel.Children.IndexOf(RecentButton);
+		rightPanel.Children.Insert(Math.Max(0, recentIdx), volStack);
+
+		// 2. "更多" Ellipsis Button + Secondary Flyout Menu (Radius Speed, Radius Pitch, Sleep Timer)
+		_moreMenuButton = new Button
+		{
+			Padding = new Thickness(7, 6, 7, 6),
+			CornerRadius = new CornerRadius(9),
+			Background = new SolidColorBrush(Colors.Transparent),
+			BorderThickness = new Thickness(0),
+			Content = new FontIcon { Glyph = "\uE712", FontSize = 15 }
+		};
+		ToolTipService.SetToolTip(_moreMenuButton, Loc.T("更多"));
+
+		var flyout = new Flyout { Placement = Microsoft.UI.Xaml.Controls.Primitives.FlyoutPlacementMode.TopEdgeAlignedRight };
+		var flyStack = new StackPanel { Spacing = 12, Width = 300, Padding = new Thickness(4) };
+
+		flyStack.Children.Add(new TextBlock
+		{
+			Text = Loc.T("更多播放控制 · iZotope Radius 引擎"),
+			FontSize = 13.5,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		});
+
+		// Radius Speed Slider
+		var speedValTb = new TextBlock { Text = "1.00x", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+		var speedHdr = new Grid();
+		speedHdr.Children.Add(new TextBlock { Text = Loc.T("播放倍速 (Radius 保调变速)"), FontSize = 12.5 });
+		speedValTb.HorizontalAlignment = HorizontalAlignment.Right;
+		speedHdr.Children.Add(speedValTb);
+		flyStack.Children.Add(speedHdr);
+
+		_radiusSpeedSlider = new Slider { Minimum = 0.50, Maximum = 2.00, StepFrequency = 0.05, Value = 1.00 };
+		_radiusSpeedSlider.ValueChanged += (_, e) =>
+		{
+			speedValTb.Text = $"{e.NewValue:F2}x";
+			FurinaPlayer.Audio.AudioEngine.Instance?.SetPlaybackSpeed(e.NewValue);
+		};
+		flyStack.Children.Add(_radiusSpeedSlider);
+
+		var speedChips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		foreach (double spd in new[] { 0.75, 1.00, 1.25, 1.50 })
+		{
+			double captured = spd;
+			var cb = new Button { Content = $"{spd:0.##}x", FontSize = 11.5, Padding = new Thickness(8, 3, 8, 3), CornerRadius = new CornerRadius(6) };
+			cb.Click += (_, _) => { if (_radiusSpeedSlider != null) _radiusSpeedSlider.Value = captured; };
+			speedChips.Children.Add(cb);
+		}
+		flyStack.Children.Add(speedChips);
+
+		// Radius Pitch Slider
+		var pitchValTb = new TextBlock { Text = "0.0 st", FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+		var pitchHdr = new Grid();
+		pitchHdr.Children.Add(new TextBlock { Text = Loc.T("变调移调 (Radius 保速半音)"), FontSize = 12.5 });
+		pitchValTb.HorizontalAlignment = HorizontalAlignment.Right;
+		pitchHdr.Children.Add(pitchValTb);
+		flyStack.Children.Add(pitchHdr);
+
+		_radiusPitchSlider = new Slider { Minimum = -12.0, Maximum = 12.0, StepFrequency = 0.5, Value = 0.0 };
+		_radiusPitchSlider.ValueChanged += (_, e) =>
+		{
+			pitchValTb.Text = $"{e.NewValue:+0.0;-0.0;0.0} st";
+			FurinaPlayer.Audio.AudioEngine.Instance?.SetPitchShiftSemitones(e.NewValue);
+		};
+		flyStack.Children.Add(_radiusPitchSlider);
+
+		var pitchChips = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		foreach (double st in new[] { -2.0, 0.0, 2.0, 4.0 })
+		{
+			double captured = st;
+			var cb = new Button { Content = st == 0 ? Loc.T("原调") : $"{st:+0;-0} st", FontSize = 11.5, Padding = new Thickness(8, 3, 8, 3), CornerRadius = new CornerRadius(6) };
+			cb.Click += (_, _) => { if (_radiusPitchSlider != null) _radiusPitchSlider.Value = captured; };
+			pitchChips.Children.Add(cb);
+		}
+		flyStack.Children.Add(pitchChips);
+
+		// Sleep Timer
+		flyStack.Children.Add(new MenuFlyoutSeparator());
+		var sleepHdr = new Grid();
+		sleepHdr.Children.Add(new TextBlock { Text = Loc.T("自定义播放定时器 (睡眠模式)"), FontSize = 12.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+		_sleepStatusText = new TextBlock { Text = Loc.T("未开启"), FontSize = 11.5, Opacity = 0.75, HorizontalAlignment = HorizontalAlignment.Right };
+		sleepHdr.Children.Add(_sleepStatusText);
+		flyStack.Children.Add(sleepHdr);
+
+		var timerRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		foreach (int mins in new[] { 0, 15, 30, 60 })
+		{
+			int m = mins;
+			var tb = new Button
+			{
+				Content = m == 0 ? Loc.T("关闭") : Loc.F("{0}分", m),
+				FontSize = 11.5,
+				Padding = new Thickness(8, 4, 8, 4),
+				CornerRadius = new CornerRadius(6)
+			};
+			tb.Click += (_, _) => StartSleepTimerMinutes(m);
+			timerRow.Children.Add(tb);
+		}
+		flyStack.Children.Add(timerRow);
+
+		var customTimerRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		var customMinsBox = new NumberBox { Minimum = 1, Maximum = 360, Value = 20, Width = 110, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+		var applyCustomBtn = new Button { Content = Loc.T("启动定时"), CornerRadius = new CornerRadius(7), Padding = new Thickness(10, 5, 10, 5) };
+		applyCustomBtn.Click += (_, _) => StartSleepTimerMinutes((int)Math.Clamp(customMinsBox.Value, 1, 360));
+		customTimerRow.Children.Add(customMinsBox);
+		customTimerRow.Children.Add(applyCustomBtn);
+		flyStack.Children.Add(customTimerRow);
+
+		flyout.Content = flyStack;
+		_moreMenuButton.Flyout = flyout;
+		rightPanel.Children.Add(_moreMenuButton);
+	}
+
+	private void StartSleepTimerMinutes(int minutes)
+	{
+		if (minutes <= 0)
+		{
+			_sleepDeadlineUtc = null;
+			_sleepTimer?.Stop();
+			if (_sleepStatusText != null) _sleepStatusText.Text = Loc.T("未开启");
+			return;
+		}
+
+		_sleepDeadlineUtc = DateTime.UtcNow.AddMinutes(minutes);
+		if (_sleepTimer == null && DispatcherQueue != null)
+		{
+			_sleepTimer = DispatcherQueue.CreateTimer();
+			_sleepTimer.Interval = TimeSpan.FromSeconds(1);
+			_sleepTimer.Tick += (_, _) =>
+			{
+				if (_sleepDeadlineUtc == null)
+				{
+					_sleepTimer.Stop();
+					return;
+				}
+				var rem = _sleepDeadlineUtc.Value - DateTime.UtcNow;
+				if (rem <= TimeSpan.Zero)
+				{
+					_sleepDeadlineUtc = null;
+					_sleepTimer.Stop();
+					if (_sleepStatusText != null) _sleepStatusText.Text = Loc.T("已到时暂停");
+					FurinaPlayer.Audio.AudioEngine.Instance?.Pause();
+					return;
+				}
+				if (_sleepStatusText != null)
+				{
+					_sleepStatusText.Text = $"{(int)rem.TotalMinutes:D2}:{rem.Seconds:D2}";
+				}
+			};
+		}
+		if (_sleepStatusText != null) _sleepStatusText.Text = $"{minutes:D2}:00";
+		_sleepTimer?.Start();
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]

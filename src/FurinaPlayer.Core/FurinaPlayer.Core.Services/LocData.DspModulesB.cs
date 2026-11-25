@@ -4,6 +4,15 @@ public static partial class Loc
 {
 	static partial void RegisterDspModulesB()
 	{
+		// Desktop Pet Bubble Styles
+		Add("歌词气泡样式", "歌詞氣泡樣式", "Lyric Bubble Style", "Style des bulles de paroles", "Стиль пузырей текста", "Estilo de burbujas", "歌詞バブルスタイル", "가사 말풍선 스타일");
+		Add("切换气泡样式", "切換氣泡樣式", "Switch Bubble Style", "Changer le style de bulle", "Сменить стиль пузыря", "Cambiar estilo de burbuja", "バブルスタイル切替", "말풍선 스타일 전환");
+		Add("经典芙宁娜（深蓝细框）", "經典芙寧娜（深藍細框）", "Classic Furina (Navy Frame)", "Furina Classique (Cadre bleu)", "Классическая Фурина", "Furina Clásica", "クラシック・フリーナ", "클래식 푸리나");
+		Add("皇冠小鱼寝（柔蓝圆框）", "皇冠小魚寢（柔藍圓框）", "Crown & Sleeping Kitty (Soft Blue)", "Couronne & Chaton (Bleu doux)", "Корона и спящий котёнок", "Corona y Gatito Durmiente", "王冠とおやすみ子猫", "왕관과 잠자는 아기고양이");
+		Add("冰雪晶语（漫威晶冰）", "冰雪晶語（漫威晶冰）", "Frost Crystal Comic (Ice Dialogue)", "Cristal de Givre (BD)", "Ледяной кристалл", "Cristal de Hielo", "氷雪クリスタル", "얼음 결정 대화풍선");
+		Add("阳伞水母礼帽（圆润蓝边）", "陽傘水母禮帽（圓潤藍邊）", "Parasol & Jellyfish Hat", "Ombrelle & Méduse", "Зонтик и медуза", "Parasol y Medusa", "日傘とクラゲのシルクハット", "양산과 해파리 모자");
+		Add("天使小猫互动（双层蓝框）", "天使小貓互動（雙層藍框）", "Angel Kitty & Social Icons", "Chaton Ange & Icônes", "Ангел-котёнок", "Gatito Ángel", "エンジェル子猫チャット", "천사 아기고양이 채팅");
+
 		// Multiband Compressor
 		Add("三频段压缩", "三頻段壓縮", "Multiband Compressor", "Compresseur multibande", "Многополосный компрессор", "Compresor multibanda", "マルチバンドコンプレッサー", "멀티밴드 컴프레서");
 		Add("多段压缩旁路", "多段壓縮旁路", "Multiband Bypassed", "Multibande contourné", "Байпас многополосного", "Multibanda en bypass", "マルチバンドバイパス", "멀티밴드 바이패스");
@@ -334,18 +343,20 @@ public static partial class Loc
 			"고정밀 5차 Δ-Σ 실시간 오버샘플링 및 변조 엔진을 활성화해 PCM을 DSD 비트스트림으로 변환합니다.");
 
 		// SRC / Upsampling
-		Add("只处理 PCM，共享输出、DSD 输出或 HQPlayer 协议时不会叠加热转。",
-			"只處理 PCM，共用輸出、DSD 輸出或 HQPlayer 協定時不會疊加熱轉。",
-			"Processes PCM only; bypassed automatically for shared output, DSD output, or HQPlayer protocol.",
-			"Traite uniquement le PCM ; contourné automatiquement pour les sorties partagées, DSD ou HQPlayer.",
-			"Обрабатывает только PCM; отключается при общем выводе, DSD или протоколе HQPlayer.",
-			"Solo procesa PCM; no se aplica en salida compartida, DSD o protocolo HQPlayer.",
-			"PCM のみ処理します。共有出力・DSD 出力・HQPlayer プロトコル時は二重変換しません。",
-			"PCM만 처리하며 공유 출력, DSD 출력 또는 HQPlayer 프로토콜 사용 시 중복 변환하지 않습니다.");
+		Add("基于 FurinaPlayer 原生 AVX2 / SIMD 多级联多相 FIR 引擎，全面兼容 WASAPI 共享、ASIO 独占与 WaveOut，支持硬件采样率自动协商与无断音切换。",
+			"基於 FurinaPlayer 原生 AVX2 / SIMD 多級聯多相 FIR 引擎，全面相容 WASAPI 共用、ASIO 獨占與 WaveOut，支援硬體取樣率自動協商與無斷音切換。",
+			"Powered by FurinaPlayer's native AVX2/SIMD multi-stage polyphase FIR engine across WASAPI Shared, ASIO, and WaveOut with automatic DAC rate negotiation.",
+			"Propulsé par le moteur FIR polyphase multi-étages AVX2/SIMD natif de FurinaPlayer sur WASAPI partagé, ASIO et WaveOut avec négociation automatique du DAC.",
+			"Работает на нативном многокаскадном полифазном FIR-движке FurinaPlayer AVX2/SIMD для WASAPI Shared, ASIO и WaveOut с автосогласованием частоты ЦАП.",
+			"Impulsado por el motor FIR polifásico multietapa AVX2/SIMD nativo de FurinaPlayer en WASAPI compartido, ASIO y WaveOut con negociación automática de DAC.",
+			"FurinaPlayer ネイティブ AVX2/SIMD マルチステージ・ポリフェーズ FIR エンジンにより、WASAPI 共有・ASIO・WaveOut で自動レートネゴシエーション動作します。",
+			"FurinaPlayer 네이티브 AVX2/SIMD 다단 다상 FIR 엔진으로 WASAPI 공유, ASIO 및 WaveOut에서 자동 DAC 샘플레이트 협상을 지원합니다.");
 		Add("FurinaPlayer SRC / 升频", "FurinaPlayer SRC / 升頻", "FurinaPlayer SRC / Upsampling", "FurinaPlayer SRC / Suréchantillonnage", "FurinaPlayer SRC / Апсемплинг", "FurinaPlayer SRC / Sobremuestreo", "FurinaPlayer SRC / アップサンプリング", "FurinaPlayer SRC / 업샘플링");
 		Add("原生直通", "原生直通", "Native Direct", "Direct natif", "Нативный прямой", "Directo nativo", "ネイティブダイレクト", "네이티브 다이렉트");
 		Add("升频激活", "升頻啟用", "Upsampling Active", "Suréchantillonnage actif", "Апсемплинг активен", "Sobremuestreo activo", "アップサンプリング有効", "업샘플링 활성");
-		Add("A/B SOXR 基准", "A/B SOXR 基準", "A/B SOXR Benchmark", "Comparatif A/B SOXR", "Эталон A/B SOXR", "Referencia A/B SOXR", "A/B SOXR ベンチマーク", "A/B SOXR 벤치마크");
+		Add("A/B 实时盲听对比", "A/B 即時盲聽對比", "A/B Live Blind Compare", "Comparatif A/B en direct", "Сравнение A/B в реальном времени", "Comparativa A/B en vivo", "A/B リアルタイム比較", "A/B 실시간 블라인드 비교");
+		Add("幅频响应 (dB)", "幅頻響應 (dB)", "Magnitude (dB)", "Réponse (dB)", "АЧХ (дБ)", "Magnitud (dB)", "振幅特性 (dB)", "진폭 응답 (dB)");
+		Add("脉冲响应 (Impulse)", "脈衝響應 (Impulse)", "Impulse Response", "Réponse impulsionnelle", "Импульсная характеристика", "Respuesta al impulso", "インパルス応答", "임펄스 응답");
 		Add("路径", "路徑", "Route", "Chemin", "Маршрут", "Ruta", "ルート", "경로");
 		Add("源采样率", "源取樣率", "Source Rate", "Fréquence source", "Исходная частота", "Frecuencia origen", "ソースレート", "원본 샘플레이트");
 		Add("目标采样率", "目標取樣率", "Target Rate", "Fréquence cible", "Целевая частота", "Frecuencia destino", "ターゲットレート", "목표 샘플레이트");
@@ -367,14 +378,14 @@ public static partial class Loc
 			"ソースサンプルレートを維持し、Bit-perfect 再生に影響しません。",
 			"원본 샘플레이트를 유지하며 Bit-perfect 재생에 영향을 주지 않습니다.");
 		Add("质量策略", "品質策略", "Quality Profile", "Profil de qualité", "Профиль качества", "Perfil de calidad", "品質プロファイル", "품질 정책");
-		Add("最高精度 SOXR，优先透明度和截断失真。",
-			"最高精度 SOXR，優先透明度與截斷失真。",
-			"Highest precision SOXR, prioritizing transparency and minimal truncation distortion.",
-			"SOXR haute précision, privilégiant la transparence et une distorsion minimale.",
-			"Максимальная точность SOXR с приоритетом прозрачности и минимума искажений.",
-			"Máxima precisión SOXR, priorizando transparencia y mínima distorsión.",
-			"最高精度 SOXR。透明感と打ち切り歪みの低減を優先します。",
-			"최고 정밀도 SOXR로 투명도와 절단 왜곡 최소화를 우선합니다.");
+		Add("全精度多相级联参考档，优先极低通带波纹、零染色与极限阻带抑制。",
+			"最高精度 Furina FIR，優先透明度與截斷失真。",
+			"Highest precision Furina FIR, prioritizing transparency and minimal truncation distortion.",
+			"Furina FIR haute précision, privilégiant la transparence et une distorsion minimale.",
+			"Максимальная точность Furina FIR с приоритетом прозрачности и минимума искажений.",
+			"Máxima precisión Furina FIR, priorizando transparencia y mínima distorsión.",
+			"最高精度 Furina FIR。透明感と打ち切り歪みの低減を優先します。",
+			"최고 정밀도 Furina FIR로 투명도와 절단 왜곡 최소화를 우선합니다.");
 		Add("过滤器 1x", "濾波器 1x", "Filter 1x", "Filtre 1x", "Фильтр 1x", "Filtro 1x", "フィルター 1x", "필터 1x");
 		Add("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。",
 			"高階數 sinc 濾波，聽感更柔和，兼顧瞬態。",
@@ -435,7 +446,7 @@ public static partial class Loc
 		Add("44.1k 家族升到 88.2k，48k 家族升到 96k。", "44.1k 家族升到 88.2k，48k 家族升到 96k。", "44.1k family -> 88.2k, 48k family -> 96k.", "Famille 44,1k -> 88,2k, famille 48k -> 96k.", "Семейство 44.1k -> 88.2k, 48k -> 96k.", "Familia 44.1k -> 88.2k, 48k -> 96k.", "44.1k 系を 88.2k へ、48k 系を 96k へアップサンプリング。", "44.1k 계열은 88.2k로, 48k 계열은 96k로 업샘플링합니다.");
 		Add("44.1k 家族升到 176.4k，48k 家族升到 192k。", "44.1k 家族升到 176.4k，48k 家族升到 192k。", "44.1k family -> 176.4k, 48k family -> 192k.", "Famille 44,1k -> 176,4k, famille 48k -> 192k.", "Семейство 44.1k -> 176.4k, 48k -> 192k.", "Familia 44.1k -> 176.4k, 48k -> 192k.", "44.1k 系を 176.4k へ、48k 系を 192k へアップサンプリング。", "44.1k 계열은 176.4k로, 48k 계열은 192k로 업샘플링합니다.");
 		Add("实验档：44.1k 家族升到 352.8k，48k 家族升到 384k。", "實驗檔：44.1k 家族升到 352.8k，48k 家族升到 384k。", "Experimental: 44.1k family -> 352.8k, 48k family -> 384k.", "Expérimental : 44,1k -> 352,8k, 48k -> 384k.", "Экспериментально: 44.1k -> 352.8k, 48k -> 384k.", "Experimental: 44.1k -> 352.8k, 48k -> 384k.", "実験的：44.1k 系を 352.8k へ、48k 系を 384k へ。", "실험적: 44.1k 계열은 352.8k로, 48k 계열은 384k로 업샘플링합니다.");
-		Add("保持原有 SOXR 档位，兼顾稳定和开销。", "保持原有 SOXR 檔位，兼顧穩定與開銷。", "Balanced SOXR tier for stability and efficiency.", "Palier SOXR équilibré entre stabilité et charge.", "Сбалансированный профиль SOXR для стабильности.", "Nivel SOXR equilibrado entre estabilidad y consumo.", "安定性と負荷のバランスを取った SOXR 設定。", "안정성과 부하의 균형을 맞춘 SOXR 단계입니다.");
+		Add("均衡级多相 FIR 档位，兼顾低延迟、温和 CPU 负载与高阻带抑制。", "保持原有 Furina FIR 檔位，兼顧穩定與開銷。", "Balanced Furina FIR tier for stability and efficiency.", "Palier Furina FIR équilibré entre stabilité et charge.", "Сбалансированный профиль Furina FIR для стабильности.", "Nivel Furina FIR equilibrado entre estabilidad y consumo.", "安定性と負荷のバランスを取った Furina FIR 設定。", "안정성과 부하의 균형을 맞춘 Furina FIR 단계입니다.");
 		Add("降低 SRC 开销，适合低延迟输出。", "降低 SRC 開銷，適合低延遲輸出。", "Lower SRC overhead for low-latency output.", "Charge SRC réduite pour faible latence.", "Сниженная нагрузка SRC для малой задержки.", "Menor carga SRC para baja latencia.", "SRC 負荷を抑え、低遅延出力に適しています。", "SRC 부하를 줄여 저지연 출력에 적합합니다.");
 		Add("CPU 多线程实时路径。", "CPU 多執行緒即時路徑。", "Multi-threaded CPU real-time path.", "Chemin CPU multithread temps réel.", "Многопоточный путь CPU реального времени.", "Ruta CPU multihilo en tiempo real.", "CPU マルチスレッドリアルタイムパス。", "CPU 멀티스레드 실시간 경로입니다.");
 		Add("CUDA FIR 准备中，自动兼顾回落。", "CUDA FIR 準備中，自動兼顧回落。", "CUDA FIR preparing with automatic CPU fallback.", "CUDA FIR en préparation, repli CPU automatique.", "Подготовка CUDA FIR с автооткатом на CPU.", "CUDA FIR preparándose con respaldo automático.", "CUDA FIR 準備中（自動フォールバック対応）。", "CUDA FIR 준비 중(자동 폴백 지원).");

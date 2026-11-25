@@ -167,6 +167,31 @@ public sealed class AudioEngine : IDisposable
 
 	public (string Codec, int SampleRate, int BitDepth, int Channels, string OutputDevice, string OutputEngine, string OutputMode) GetAudioFormatDetails() => _session.GetAudioFormatDetails();
 
+	public FurinaPlayer.Audio.Output.AudioSessionRuntimeDiagnostics GetRuntimeDiagnosticsSnapshot() => _session.GetRuntimeDiagnosticsSnapshot();
+
+	public Task<bool> SoftResetAudioEngineAsync(bool preserveCurrentTrackAndSeek = true)
+	{
+		var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+		_ = EnqueueSerial(() =>
+		{
+			if (_disposed)
+			{
+				tcs.TrySetResult(false);
+				return;
+			}
+			try
+			{
+				bool res = _session.SoftResetAudioEngine(preserveCurrentTrackAndSeek);
+				tcs.TrySetResult(res);
+			}
+			catch (Exception ex)
+			{
+				tcs.TrySetException(ex);
+			}
+		});
+		return tcs.Task;
+	}
+
 	public void SetQueue(IEnumerable<Track> tracks, int startIndex = 0)
 	{
 		if (tracks == null)
@@ -654,6 +679,19 @@ public sealed class AudioEngine : IDisposable
 
 	public FurinaPlayerDspChain? DspChain => _session.DspChain;
 
+	public void SetFurinaSrcConfig(FurinaSrcRuntimeConfig config, bool reopenIfRateChanged = true)
+	{
+		_ = EnqueueSerial(() =>
+		{
+			if (!_disposed)
+			{
+				_session.SetFurinaSrcConfig(config, reopenIfRateChanged);
+			}
+		});
+	}
+
+	public FurinaSrcRuntimeTelemetry? GetFurinaSrcTelemetry() => _session.GetFurinaSrcTelemetry();
+
 	public void SetFurinaPlayerHeadroom(double headroomDb) => _session.SetFurinaPlayerHeadroom(headroomDb);
 	public void SetFurinaPlayerHeadroom(bool enabled, double headroomDb) => _session.SetFurinaPlayerHeadroom(enabled, headroomDb);
 
@@ -689,6 +727,27 @@ public sealed class AudioEngine : IDisposable
 
 	public void SetFurinaVirtualStage(bool enabled, float strength, float azimuth, float reflection, bool hrtf, string hrtfPreset)
 		=> _session.SetFurinaVirtualStage(enabled, strength, azimuth, reflection, hrtf, hrtfPreset);
+
+	public bool AutoFallbackExclusiveToShared
+	{
+		get => _session.AutoFallbackExclusiveToShared;
+		set => _session.AutoFallbackExclusiveToShared = value;
+	}
+
+	public event Action<OutputMode, string>? OutputModeAutoFallback
+	{
+		add => _session.OutputModeAutoFallback += value;
+		remove => _session.OutputModeAutoFallback -= value;
+	}
+
+	public void SetSoundEffect(string? presetId, double intensity = 1.0)
+		=> _session.SetSoundEffect(presetId, intensity);
+
+	public void SetPlaybackSpeed(double speed)
+		=> _session.SetPlaybackSpeedRadius(speed);
+
+	public void SetPitchShiftSemitones(double semitones)
+		=> _session.SetPitchShiftSemitonesRadius(semitones);
 
 	public void SetFurinaDeEsser(bool enabled, float freqHz, float q, float threshDb, float ratio, float kneeDb, float maxRedDb, float attackMs, float releaseMs, float mix, bool auditionBand)
 		=> _session.SetFurinaDeEsser(enabled, freqHz, q, threshDb, ratio, kneeDb, maxRedDb, attackMs, releaseMs, mix, auditionBand);

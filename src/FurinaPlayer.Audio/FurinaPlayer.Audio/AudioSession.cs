@@ -11,6 +11,8 @@ using FurinaPlayer.Audio.Dsp;
 using FurinaPlayer.Audio.Output;
 using FurinaPlayer.Audio.Vst3;
 using FurinaPlayer.Core.Models;
+using NAudio.CoreAudioApi;
+using NAudio.CoreAudioApi.Interfaces;
 
 namespace FurinaPlayer.Audio;
 
@@ -35,6 +37,20 @@ public sealed class AudioSession : IDisposable
 
 	private string? _asioDriver;
 
+	private int _bufferMs = 200;
+
+	private readonly object _chainRestartLock = new object();
+
+	private readonly Timer _deviceHotSwitchTimer;
+
+	private MMDeviceEnumerator? _deviceEnumerator;
+
+	private SystemAudioEndpointMonitor? _deviceNotifyClient;
+
+	private volatile bool _pendingDeviceHotSwitchActive;
+
+	private int _naudioFailureRecoveryCount;
+
 	private bool _useVlc;
 
 	private bool _vlcFallbackActive;
@@ -51,7 +67,19 @@ public sealed class AudioSession : IDisposable
 
 	private bool _restorePending;
 
+	private bool _restoreNeedsReopen;
+
 	private long _activeTrackId = -1L;
+
+	private string? _lastPlaybackErrorMessage;
+
+	private DateTime? _lastPlaybackErrorAtUtc;
+
+	private int _totalRecoveryEvents;
+
+	private readonly Queue<string> _recentTraceRing = new Queue<string>(32);
+
+	private readonly object _traceRingLock = new object();
 
 	private TimeSpan _restorePosition;
 
@@ -88,6 +116,8 @@ public sealed class AudioSession : IDisposable
 	private double _speed = 1.0;
 
 	private IReadOnlyList<Vst3PluginState> _vst3 = Array.Empty<Vst3PluginState>();
+
+	private FurinaSrcRuntimeConfig _srcConfig = new FurinaSrcRuntimeConfig();
 
 	private CancellationTokenSource? _renderCts;
 
@@ -344,21 +374,35 @@ public sealed class AudioSession : IDisposable
 		{
 			RestartRenderedPlaybackIfNeeded();
 		}, null, -1, -1);
+		_deviceHotSwitchTimer = new Timer((object? _) =>
+		{
+			HandleSystemDeviceHotSwitch();
+		}, null, -1, -1);
+		TryRegisterDeviceNotification();
 		Trace("session created");
 	}
 
-	private static void Trace(string message)
+	private void Trace(string message)
 	{
 		try
 		{
-			File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "sw_engine.log"), DateTime.Now.ToString("HH:mm:ss.fff") + " " + message + Environment.NewLine);
+			string line = DateTime.Now.ToString("HH:mm:ss.fff") + " " + message;
+			lock (_traceRingLock)
+			{
+				if (_recentTraceRing.Count >= 32)
+				{
+					_recentTraceRing.Dequeue();
+				}
+				_recentTraceRing.Enqueue(line);
+			}
+			File.AppendAllText(Path.Combine(AppContext.BaseDirectory, "sw_engine.log"), line + Environment.NewLine);
 		}
 		catch
 		{
 		}
 	}
 
-	private static void SafeRaise(Action? handler, string name)
+	private void SafeRaise(Action? handler, string name)
 	{
 		try
 		{
@@ -372,12 +416,120 @@ public sealed class AudioSession : IDisposable
 
 	public void ConfigureOutput(OutputMode mode, string? deviceId = null, string? asioDriver = null, int bufferMs = 200)
 	{
-		_outputMode = mode;
-		_deviceId = deviceId;
-		_asioDriver = asioDriver;
-		_naudioBackend.Configure(deviceId, asioDriver, bufferMs);
-		_useVlc = mode == OutputMode.SoftwareDecode && !RequiresNaudioPath;
-		_vlcFallbackActive = false;
+		int safeBuffer = bufferMs > 0 ? bufferMs : 200;
+		string? effectiveDeviceId = (mode == OutputMode.Asio || string.IsNullOrWhiteSpace(deviceId)) ? null : deviceId;
+		string? effectiveAsio = (mode == OutputMode.Asio && !string.IsNullOrWhiteSpace(asioDriver)) ? asioDriver : null;
+
+		lock (_chainRestartLock)
+		{
+			bool changed = _outputMode != mode
+				|| !string.Equals(_deviceId, effectiveDeviceId, StringComparison.Ordinal)
+				|| !string.Equals(_asioDriver, effectiveAsio, StringComparison.Ordinal)
+				|| _bufferMs != safeBuffer;
+
+			_outputMode = mode;
+			_deviceId = effectiveDeviceId;
+			_asioDriver = effectiveAsio;
+			_bufferMs = safeBuffer;
+
+			if (_naudioBackend is NaudioAudioBackend nb)
+			{
+				nb.Configure(effectiveDeviceId, effectiveAsio, safeBuffer, mode);
+			}
+			else
+			{
+				_naudioBackend.Configure(effectiveDeviceId, effectiveAsio, safeBuffer);
+			}
+
+			_useVlc = mode == OutputMode.SoftwareDecode && !RequiresNaudioPath;
+			_vlcFallbackActive = false;
+
+			if (changed && CurrentTrack != null && (State == PlaybackState.Playing || State == PlaybackState.Paused))
+			{
+				Trace($"hot configure output: mode={mode} dev={effectiveDeviceId ?? "default"} asio={effectiveAsio ?? "none"} buf={safeBuffer}");
+				RestartCleanNaudioChain("output-configured");
+			}
+			else if (changed && _restorePending)
+			{
+				_restoreNeedsReopen = true;
+				Trace($"configure output while restore pending: mode={mode} dev={effectiveDeviceId ?? "default"} -> marked reopen");
+			}
+		}
+	}
+
+	private sealed class SystemAudioEndpointMonitor : IMMNotificationClient
+	{
+		private readonly AudioSession _session;
+		public SystemAudioEndpointMonitor(AudioSession session) => _session = session;
+		public void OnDeviceStateChanged(string deviceId, DeviceState newState) => _session.NotifySystemAudioDeviceChanged(deviceId, newState == DeviceState.Active);
+		public void OnDeviceAdded(string pwstrDeviceId) { }
+		public void OnDeviceRemoved(string deviceId) => _session.NotifySystemAudioDeviceChanged(deviceId, isActive: false);
+		public void OnDefaultDeviceChanged(DataFlow flow, Role role, string defaultDeviceId)
+		{
+			if (flow == DataFlow.Render && (role == Role.Multimedia || role == Role.Console))
+			{
+				_session.NotifySystemAudioDeviceChanged(defaultDeviceId, isActive: true, isDefaultChange: true);
+			}
+		}
+		public void OnPropertyValueChanged(string pwstrDeviceId, PropertyKey key) { }
+	}
+
+	private void TryRegisterDeviceNotification()
+	{
+		try
+		{
+			_deviceEnumerator = new MMDeviceEnumerator();
+			_deviceNotifyClient = new SystemAudioEndpointMonitor(this);
+			_deviceEnumerator.RegisterEndpointNotificationCallback(_deviceNotifyClient);
+		}
+		catch
+		{
+			_deviceNotifyClient = null;
+		}
+	}
+
+	internal void NotifySystemAudioDeviceChanged(string? deviceId, bool isActive, bool isDefaultChange = false)
+	{
+		if (_restorePending && State == PlaybackState.Stopped && _outputMode != OutputMode.Asio)
+		{
+			_restoreNeedsReopen = true;
+		}
+		if (_outputMode == OutputMode.Asio || CurrentTrack == null || (State != PlaybackState.Playing && State != PlaybackState.Paused))
+		{
+			return;
+		}
+		bool affectsCurrent = isDefaultChange
+			? string.IsNullOrEmpty(_deviceId)
+			: (!isActive && !string.IsNullOrEmpty(_deviceId) && string.Equals(_deviceId, deviceId, StringComparison.OrdinalIgnoreCase));
+		if (!affectsCurrent)
+		{
+			return;
+		}
+		_pendingDeviceHotSwitchActive = true;
+		try
+		{
+			_deviceHotSwitchTimer.Change(260, -1);
+		}
+		catch
+		{
+		}
+	}
+
+	private void HandleSystemDeviceHotSwitch()
+	{
+		if (!_pendingDeviceHotSwitchActive)
+		{
+			return;
+		}
+		_pendingDeviceHotSwitchActive = false;
+		lock (_chainRestartLock)
+		{
+			if (CurrentTrack != null && (State == PlaybackState.Playing || State == PlaybackState.Paused) && _outputMode != OutputMode.Asio)
+			{
+				Trace("system audio endpoint hot-switch detected -> reconnecting output");
+				RestartCleanNaudioChain("system-device-hot-switch");
+			}
+		}
 	}
 
 	public (double PeakDb, double RmsDb, float[] Bands, float StereoBalance, float PhaseCorrelation, float[] VectorPoints) GetLiveAudioMeters()
@@ -512,6 +664,117 @@ public sealed class AudioSession : IDisposable
 		string mode = _outputMode.ToString();
 
 		return (codec, sr, bits, ch, device, engine, mode);
+	}
+
+	public AudioSessionRuntimeDiagnostics GetRuntimeDiagnosticsSnapshot()
+	{
+		var nb = _naudioBackend as NaudioAudioBackend;
+		var dec = nb?.Decoder;
+		var srcTel = GetFurinaSrcTelemetry();
+		var dsp = dec?.Dsp?.DspChain ?? DspChain;
+
+		string[] traceCopy;
+		lock (_traceRingLock)
+		{
+			traceCopy = _recentTraceRing.ToArray();
+		}
+
+		int sourceRate = dec != null && dec.SampleRate > 0 ? dec.SampleRate : (CurrentTrack?.SampleRate ?? 0);
+		int outRate = dec != null && dec.OutputSampleRate > 0 ? dec.OutputSampleRate : sourceRate;
+		if (srcTel != null && srcTel.TargetSampleRate > 0)
+		{
+			outRate = srcTel.TargetSampleRate;
+		}
+
+		bool resampling = (srcTel?.Active ?? false) || (sourceRate > 0 && outRate > 0 && sourceRate != outRate);
+		bool eqEnabled = dsp?.Eq?.Enabled ?? false;
+		bool calEnabled = dsp?.Eq?.CalibrationEnabled ?? false;
+		bool vstEnabled = Vst3Active;
+		bool spatialEnabled = _reverbEnabled || (dsp?.Spatial?.CrossfeedEnabled ?? false) || (dsp?.Spatial?.StereoFieldEnabled ?? false);
+		bool dynEnabled = (dsp?.Compressor?.Enabled ?? false) || (dsp?.Multiband?.Enabled ?? false) || (dsp?.DeEsser?.Enabled ?? false) || (dsp?.Limiter?.Enabled ?? false);
+
+		string? decErr = dec?.LastPlaybackExceptionMessage ?? dec?.LastInitError;
+		string? errMsg = !string.IsNullOrWhiteSpace(_lastPlaybackErrorMessage) ? _lastPlaybackErrorMessage : decErr;
+
+		return new AudioSessionRuntimeDiagnostics(
+			State: State,
+			CurrentTrackTitle: CurrentTrack?.DisplayTitle ?? string.Empty,
+			CurrentFilePath: CurrentTrack?.FilePath ?? string.Empty,
+			PositionSeconds: Position.TotalSeconds,
+			DurationSeconds: Duration.TotalSeconds,
+			OutputMode: _outputMode,
+			ConfiguredDeviceId: _deviceId ?? string.Empty,
+			ConfiguredAsioDriver: _asioDriver ?? string.Empty,
+			BufferMs: _bufferMs,
+			ActiveBackend: _useVlc ? "LibVLC" : "NAudio",
+			ActiveOutputKind: _useVlc ? "LibVLC Direct" : (dec?.ActiveOutputKind ?? "WASAPI Shared"),
+			SourceSampleRate: sourceRate,
+			OutputSampleRate: outRate,
+			BitsPerSample: dec?.BitsPerSample ?? (CurrentTrack?.BitDepth ?? 16),
+			Channels: dec?.Channels ?? 2,
+			ResamplerMode: _srcConfig.Mode ?? "off",
+			ResamplerProfile: _srcConfig.Quality ?? "transparent",
+			IsResampling: resampling,
+			DspActive: eqEnabled || calEnabled || vstEnabled || spatialEnabled || dynEnabled,
+			EqEnabled: eqEnabled,
+			HeadphoneCalibrationEnabled: calEnabled,
+			Vst3Active: vstEnabled,
+			SpatialEnabled: spatialEnabled,
+			DynamicsEnabled: dynEnabled,
+			HeadroomDb: dsp?.Headroom?.HeadroomDb ?? 0.0,
+			EqPreampDb: dsp?.Eq?.PreampDb ?? 0.0,
+			LastErrorMessage: errMsg,
+			LastErrorAtUtc: _lastPlaybackErrorAtUtc,
+			RecoveryCount: _totalRecoveryEvents,
+			IsRestorePending: _restorePending,
+			IsDecoderPlaying: IsDecoderActuallyPlaying(),
+			VlcAvailable: IsVlcAvailable,
+			RecentTraceLines: traceCopy);
+	}
+
+	public bool SoftResetAudioEngine(bool preserveCurrentTrackAndSeek = true)
+	{
+		Track? track = CurrentTrack;
+		bool shouldResume = preserveCurrentTrackAndSeek && track != null && State == PlaybackState.Playing;
+		TimeSpan resumePos = Position;
+
+		Trace("SoftResetAudioEngine started");
+		_lastPlaybackErrorMessage = null;
+		_lastPlaybackErrorAtUtc = null;
+		_naudioFailureRecoveryCount = 0;
+
+		Stop();
+		try { (_naudioBackend as NaudioAudioBackend)?.ForceStopAndClose(); } catch { }
+		try { (_vlcBackend as VlcAudioBackend)?.ForceStopAndClose(); } catch { }
+		DspChain?.Reset();
+
+		if (track == null || !preserveCurrentTrackAndSeek)
+		{
+			Trace("SoftResetAudioEngine completed (idle)");
+			return true;
+		}
+
+		bool prepared = OpenCurrent();
+		if (prepared)
+		{
+			if (resumePos > TimeSpan.Zero)
+			{
+				if (_useVlc) _vlcBackend.Seek(resumePos);
+				else _naudioBackend.Seek(resumePos);
+			}
+			if (shouldResume)
+			{
+				Play();
+			}
+			else
+			{
+				_restorePosition = resumePos;
+				_restorePending = true;
+				SetState(PlaybackState.Stopped);
+			}
+		}
+		Trace($"SoftResetAudioEngine finished: prepared={prepared} shouldResume={shouldResume}");
+		return prepared;
 	}
 
 	public void SetQueue(IEnumerable<Track> tracks, int startIndex = 0)
@@ -747,7 +1010,25 @@ public sealed class AudioSession : IDisposable
 		{
 			if (flag)
 			{
+				TimeSpan pausedPos = Position;
 				CurrentBackend.Play();
+				if (!IsDecoderActuallyPlaying() && !_useVlc)
+				{
+					Trace("Play: paused backend failed to resume -> reopening current track on active device");
+					if (OpenCurrent(cancellationToken))
+					{
+						if (pausedPos > TimeSpan.Zero)
+						{
+							_naudioBackend.Seek(pausedPos);
+						}
+						_naudioBackend.Play();
+					}
+					else
+					{
+						SetState(PlaybackState.Stopped);
+						return;
+					}
+				}
 				SetState(PlaybackState.Playing);
 				_positionTimer.Change(0, 50);
 				_watchdog.Reset(Position);
@@ -767,6 +1048,8 @@ public sealed class AudioSession : IDisposable
 		if (_restorePending)
 		{
 			_restorePending = false;
+			bool needsReopen = _restoreNeedsReopen;
+			_restoreNeedsReopen = false;
 			TimeSpan targetPos = _restorePosition > TimeSpan.Zero ? _restorePosition : Position;
 			if (!_useVlc && RequiresPrerender)
 			{
@@ -776,6 +1059,11 @@ public sealed class AudioSession : IDisposable
 			_clock.Rebase(targetPos);
 			if (_useVlc)
 			{
+				if (needsReopen && !OpenCurrent(cancellationToken))
+				{
+					SetState(PlaybackState.Stopped);
+					return;
+				}
 				_vlcBackend.Play();
 				_vlcBackend.Speed = _speed;
 				if (targetPos > TimeSpan.Zero)
@@ -793,7 +1081,19 @@ public sealed class AudioSession : IDisposable
 			}
 			else
 			{
-				if (targetPos > TimeSpan.Zero && !_naudioBackend.Seek(targetPos))
+				if (needsReopen)
+				{
+					if (!OpenCurrent(cancellationToken))
+					{
+						SetState(PlaybackState.Stopped);
+						return;
+					}
+					if (targetPos > TimeSpan.Zero)
+					{
+						_naudioBackend.Seek(targetPos);
+					}
+				}
+				else if (targetPos > TimeSpan.Zero && !_naudioBackend.Seek(targetPos))
 				{
 					if (OpenCurrent(cancellationToken) && !_useVlc)
 					{
@@ -801,6 +1101,20 @@ public sealed class AudioSession : IDisposable
 					}
 				}
 				_naudioBackend.Play();
+				if (!IsDecoderActuallyPlaying() && !_useVlc)
+				{
+					Trace("Play: restored naudio backend inactive after Play() -> reopening cleanly");
+					if (OpenCurrent(cancellationToken))
+					{
+						if (targetPos > TimeSpan.Zero) _naudioBackend.Seek(targetPos);
+						_naudioBackend.Play();
+					}
+					else
+					{
+						SetState(PlaybackState.Stopped);
+						return;
+					}
+				}
 			}
 			_activeTrackId = CurrentTrack.Id;
 			SetState(PlaybackState.Playing);
@@ -1205,6 +1519,51 @@ public sealed class AudioSession : IDisposable
 		SetFurinaPlayerCrossfeed(enabled, amount, cutoffHz);
 	}
 
+	private string _soundEffectPreset = "off";
+	private double _soundEffectIntensity = 1.0;
+	private double _radiusPitchSemitones;
+	private bool _autoFallbackExclusiveToShared = true;
+
+	public bool AutoFallbackExclusiveToShared
+	{
+		get => _autoFallbackExclusiveToShared;
+		set => _autoFallbackExclusiveToShared = value;
+	}
+
+	public event Action<OutputMode, string>? OutputModeAutoFallback;
+
+	public void SetSoundEffect(string? presetId, double intensity = 1.0)
+	{
+		_soundEffectPreset = string.IsNullOrWhiteSpace(presetId) ? "off" : presetId.Trim().ToLowerInvariant();
+		_soundEffectIntensity = Math.Clamp(intensity, 0.0, 1.5);
+		var chain = DspChain;
+		if (chain != null)
+		{
+			chain.SoundEffects.PresetId = _soundEffectPreset;
+			chain.SoundEffects.Intensity = _soundEffectIntensity;
+		}
+	}
+
+	public void SetPlaybackSpeedRadius(double speed)
+	{
+		Speed = speed;
+		var dsp = (_naudioBackend as NaudioAudioBackend)?.Decoder.Dsp;
+		if (dsp != null)
+		{
+			dsp.RadiusTimePitch.Speed = Math.Clamp(speed, 0.50, 2.00);
+		}
+	}
+
+	public void SetPitchShiftSemitonesRadius(double semitones)
+	{
+		_radiusPitchSemitones = Math.Clamp(semitones, -12.0, 12.0);
+		var dsp = (_naudioBackend as NaudioAudioBackend)?.Decoder.Dsp;
+		if (dsp != null)
+		{
+			dsp.RadiusTimePitch.PitchSemitones = _radiusPitchSemitones;
+		}
+	}
+
 	public void SetFurinaPlayerCrossfeed(bool enabled, float amount, float cutoffHz)
 	{
 		var chain = DspChain;
@@ -1383,6 +1742,32 @@ public sealed class AudioSession : IDisposable
 		}
 	}
 
+	public void SetFurinaSrcConfig(FurinaSrcRuntimeConfig config, bool reopenIfRateChanged = true)
+	{
+		var cfg = config ?? new FurinaSrcRuntimeConfig();
+		_srcConfig = cfg;
+		if (_naudioBackend is NaudioAudioBackend nb)
+		{
+			nb.SetSrcConfig(cfg);
+			int srcRate = nb.Decoder.SampleRate > 0 ? nb.Decoder.SampleRate : (CurrentTrack?.SampleRate > 0 ? CurrentTrack.SampleRate : 44100);
+			int desiredRate = FurinaSrcCatalog.ResolveTargetSampleRate(srcRate, cfg.Mode, cfg.CustomTargetRate);
+			if (reopenIfRateChanged && !_useVlc && CurrentTrack != null && nb.Decoder.OutputSampleRate > 0 && nb.Decoder.OutputSampleRate != desiredRate)
+			{
+				CancelRender();
+				RestartCleanNaudioChain("furina-src-rate");
+			}
+		}
+	}
+
+	public FurinaSrcRuntimeTelemetry? GetFurinaSrcTelemetry()
+	{
+		if (!_useVlc && _naudioBackend is NaudioAudioBackend nb)
+		{
+			return nb.GetSrcTelemetry() ?? DspChain?.Resampler.GetTelemetry();
+		}
+		return DspChain?.Resampler.GetTelemetry();
+	}
+
 	public void SetVst3(IReadOnlyList<Vst3PluginState> plugins)
 	{
 		bool vst3Active = Vst3Active;
@@ -1416,6 +1801,14 @@ public sealed class AudioSession : IDisposable
 
 	private void RestartCleanNaudioChain(string reason)
 	{
+		lock (_chainRestartLock)
+		{
+			RestartCleanNaudioChainLocked(reason);
+		}
+	}
+
+	private void RestartCleanNaudioChainLocked(string reason)
+	{
 		Track currentTrack = CurrentTrack;
 		if (currentTrack == null)
 		{
@@ -1425,6 +1818,9 @@ public sealed class AudioSession : IDisposable
 		bool wasPaused = State == PlaybackState.Paused;
 		bool restorePending = _restorePending;
 		TimeSpan pos = restorePending && _restorePosition > TimeSpan.Zero ? _restorePosition : Position;
+		TimeSpan dur = Duration;
+		if (pos < TimeSpan.Zero) pos = TimeSpan.Zero;
+		if (dur > TimeSpan.FromSeconds(1.0) && pos >= dur - TimeSpan.FromMilliseconds(150)) pos = dur - TimeSpan.FromMilliseconds(200);
 		Trace("restart clean naudio chain: " + reason + " @" + pos.ToString() + " " + currentTrack.FilePath);
 		_runToken++;
 		try
@@ -2032,7 +2428,9 @@ public sealed class AudioSession : IDisposable
 		if (!flag)
 		{
 			var (kind, message) = BuildOpenError(track);
-			Trace("OpenCurrent FAILED: " + track.FilePath);
+			_lastPlaybackErrorMessage = message;
+			_lastPlaybackErrorAtUtc = DateTime.UtcNow;
+			Trace("OpenCurrent FAILED: " + track.FilePath + " -> " + message);
 			SafeRaise(() =>
 			{
 				PlaybackError?.Invoke(track, kind, message);
@@ -2069,12 +2467,37 @@ public sealed class AudioSession : IDisposable
 			}
 			_naudioBackend.SetApplyDspOnOpen(applyDsp);
 			_naudioBackend.SetDspState(_eqGains, _reverbEnabled, _reverbMix, _reverbPreset, _spatialWidth, _spatialModulation, _spatialPredelayMs, _timbre, _vst3);
+			if (_naudioBackend is NaudioAudioBackend srcNb) srcNb.SetSrcConfig(_srcConfig);
 			bool flag = _naudioBackend.Open(filePath, startPaused: false);
 			if (flag)
 			{
 				_useVlc = false;
 				_vlcFallbackActive = false;
 				ApplyVolume();
+				if ((_naudioBackend as NaudioAudioBackend)?.Decoder.Dsp is { } openedDsp)
+				{
+					openedDsp.RadiusTimePitch.Speed = Math.Clamp(_speed, 0.50, 2.00);
+					openedDsp.RadiusTimePitch.PitchSemitones = _radiusPitchSemitones;
+					openedDsp.DspChain.SoundEffects.PresetId = _soundEffectPreset;
+					openedDsp.DspChain.SoundEffects.Intensity = _soundEffectIntensity;
+				}
+			}
+			else if (_autoFallbackExclusiveToShared && _outputMode == OutputMode.WasapiExclusive)
+			{
+				Trace("OpenWithNaudio: WasapiExclusive failed, auto-falling back to WasapiShared");
+				_outputMode = OutputMode.WasapiShared;
+				if (_naudioBackend is NaudioAudioBackend fallbackNb)
+				{
+					fallbackNb.Configure(_deviceId, null, _bufferMs, OutputMode.WasapiShared);
+				}
+				flag = _naudioBackend.Open(filePath, startPaused: false);
+				if (flag)
+				{
+					_useVlc = false;
+					_vlcFallbackActive = false;
+					ApplyVolume();
+					SafeRaise(() => OutputModeAutoFallback?.Invoke(OutputMode.WasapiShared, FurinaPlayer.Core.Services.Loc.T("独占输出不稳定，已自动切换为 WASAPI 共享模式")), "OutputModeAutoFallback");
+				}
 			}
 			return flag;
 		}
@@ -2154,6 +2577,43 @@ public sealed class AudioSession : IDisposable
 	{
 		long failedSeq = Interlocked.Read(ref _sessionSwitchSeq);
 		Track track = CurrentTrack;
+		if (track != null && State == PlaybackState.Playing && _naudioFailureRecoveryCount < 2)
+		{
+			_naudioFailureRecoveryCount++;
+			_totalRecoveryEvents++;
+			string? errDetail = (_naudioBackend as NaudioAudioBackend)?.Decoder.LastPlaybackExceptionMessage;
+			if (!string.IsNullOrWhiteSpace(errDetail))
+			{
+				_lastPlaybackErrorMessage = errDetail;
+				_lastPlaybackErrorAtUtc = DateTime.UtcNow;
+			}
+			Trace($"OnNaudioFailed attempt #{_naudioFailureRecoveryCount} ({errDetail ?? "unknown"}) -> scheduling hot recovery");
+			Task.Run(() =>
+			{
+				Thread.Sleep(220);
+				lock (_chainRestartLock)
+				{
+					if (failedSeq != Interlocked.Read(ref _sessionSwitchSeq) || CurrentTrack?.Id != track.Id)
+					{
+						return;
+					}
+					RestartCleanNaudioChainLocked("naudio-error-recovery");
+					if (State == PlaybackState.Playing)
+					{
+						return;
+					}
+				}
+				if (track != null)
+				{
+					SafeRaise(() =>
+					{
+						PlaybackError?.Invoke(track, PlaybackErrorKind.System, "播放中途出错：音频输出可能被系统中断，请检查设备后重试。");
+					}, "PlaybackError");
+				}
+				OnTrackEnded(failedSeq);
+			});
+			return;
+		}
 		if (track != null)
 		{
 			SafeRaise(() =>
@@ -2334,9 +2794,10 @@ public sealed class AudioSession : IDisposable
 						Trace("watchdog stall detected @" + position2);
 						RecoverFromStall(position2);
 					}
-					else if (_recoveryCount > 0)
+					else
 					{
 						_recoveryCount = 0;
+						_naudioFailureRecoveryCount = 0;
 					}
 				}
 				else
@@ -2482,6 +2943,9 @@ public sealed class AudioSession : IDisposable
 		_positionTimer.Dispose();
 		_eqApplyTimer.Dispose();
 		_renderRestartTimer.Dispose();
+		_deviceHotSwitchTimer.Dispose();
+		try { if (_deviceNotifyClient != null) _deviceEnumerator?.UnregisterEndpointNotificationCallback(_deviceNotifyClient); } catch { }
+		_deviceEnumerator?.Dispose();
 		_naudioBackend.Dispose();
 		_vlcBackend.Dispose();
 	}

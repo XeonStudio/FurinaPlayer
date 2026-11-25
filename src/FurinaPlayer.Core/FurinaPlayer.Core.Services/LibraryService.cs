@@ -41,8 +41,16 @@ public class LibraryService : IDisposable
 		{
 		}
 		await _db.Database.EnsureCreatedAsync();
-		await DeduplicateExistingTracksAsync();
-		await RepairCoverPathsAsync();
+		try
+		{
+			await _db.Database.ExecuteSqlRawAsync(
+				"PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON; PRAGMA cache_size=-8192; PRAGMA temp_store=MEMORY;");
+			await _db.Database.ExecuteSqlRawAsync(
+				"CREATE INDEX IF NOT EXISTS IX_Tracks_Album_Disc_Track ON Tracks(Album, DiscNumber, TrackNumber);");
+		}
+		catch
+		{
+		}
 	}
 
 	private async Task RepairCoverPathsAsync()
@@ -193,6 +201,7 @@ public class LibraryService : IDisposable
 		int failed = 0;
 
 		var existingTracks = await _db.Tracks
+			.AsNoTracking()
 			.Select(t => new { t.FilePath, t.FileSize, t.Title, t.Artist, t.DurationMilliseconds })
 			.ToListAsync(ct);
 
@@ -205,10 +214,40 @@ public class LibraryService : IDisposable
 			if (sig != null) existingContentSigs.Add(sig);
 		}
 
-		SemaphoreSlim semaphore = new SemaphoreSlim(4);
+		var pendingBatch = new List<Track>(256);
+		int parallelism = Math.Clamp(Environment.ProcessorCount, 4, 8);
+		SemaphoreSlim semaphore = new SemaphoreSlim(parallelism);
+
+		async Task FlushBatchAsync()
+		{
+			List<Track> toInsert;
+			lock (existingPaths)
+			{
+				if (pendingBatch.Count == 0) return;
+				toInsert = new List<Track>(pendingBatch);
+				pendingBatch.Clear();
+			}
+
+			await _dbGate.WaitAsync(ct);
+			bool prevDetect = _db.ChangeTracker.AutoDetectChangesEnabled;
+			try
+			{
+				_db.ChangeTracker.AutoDetectChangesEnabled = false;
+				await _db.Tracks.AddRangeAsync(toInsert, ct);
+				await _db.SaveChangesAsync(ct);
+				_db.ChangeTracker.Clear();
+			}
+			finally
+			{
+				_db.ChangeTracker.AutoDetectChangesEnabled = prevDetect;
+				_dbGate.Release();
+			}
+		}
+
 		await Task.WhenAll(files.Select(async (string rawFile) =>
 		{
 			await semaphore.WaitAsync(ct);
+			bool shouldFlush = false;
 			try
 			{
 				string file = NormalizePath(rawFile);
@@ -243,8 +282,16 @@ public class LibraryService : IDisposable
 				track.CoverPath = _metadata.ExtractCoverToFile(file, _coverDir);
 				lock (existingPaths)
 				{
-					_db.Tracks.Add(track);
+					pendingBatch.Add(track);
 					Interlocked.Increment(ref added);
+					if (pendingBatch.Count >= 250)
+					{
+						shouldFlush = true;
+					}
+				}
+				if (shouldFlush)
+				{
+					await FlushBatchAsync();
 				}
 			}
 			catch
@@ -258,24 +305,13 @@ public class LibraryService : IDisposable
 			progress?.Report((rawFile, files.Count));
 		}));
 
-		if (added > 0)
-		{
-			await _dbGate.WaitAsync(ct);
-			try
-			{
-				await _db.SaveChangesAsync(ct);
-			}
-			finally
-			{
-				_dbGate.Release();
-			}
-		}
+		await FlushBatchAsync();
 		return (Added: added, Skipped: skipped, Failed: failed);
 	}
 
 	public async Task<List<Track>> GetAllTracksAsync()
 	{
-		return await (from t in _db.Tracks
+		return await (from t in _db.Tracks.AsNoTracking()
 			orderby t.Album, t.DiscNumber, t.TrackNumber
 			select t).ToListAsync();
 	}
@@ -307,7 +343,7 @@ public class LibraryService : IDisposable
 
 	public async Task<List<Track>> GetTracksAsync(string? search = null)
 	{
-		List<Track> all = await (from t in _db.Tracks
+		List<Track> all = await (from t in _db.Tracks.AsNoTracking()
 			orderby t.Album, t.DiscNumber, t.TrackNumber
 			select t).ToListAsync();
 
@@ -589,6 +625,68 @@ public class LibraryService : IDisposable
 		{
 			_dbGate.Release();
 		}
+	}
+
+	public async Task<(int RemovedMissingTracks, int ClearedCoverFiles, long FreedBytes)> ClearLibraryCacheAsync()
+	{
+		int removedMissing = 0;
+		int clearedCovers = 0;
+		long freedBytes = 0;
+
+		if (Directory.Exists(_coverDir))
+		{
+			foreach (string file in Directory.EnumerateFiles(_coverDir))
+			{
+				try
+				{
+					long len = new FileInfo(file).Length;
+					File.Delete(file);
+					clearedCovers++;
+					freedBytes += len;
+				}
+				catch
+				{
+				}
+			}
+		}
+
+		await _dbGate.WaitAsync();
+		try
+		{
+			var allTracks = await _db.Tracks.ToListAsync();
+			var missing = new List<Track>();
+			foreach (var t in allTracks)
+			{
+				if (string.IsNullOrWhiteSpace(t.FilePath) || !File.Exists(t.FilePath))
+				{
+					missing.Add(t);
+				}
+				else if (!string.IsNullOrEmpty(t.CoverPath) && !File.Exists(t.CoverPath))
+				{
+					t.CoverPath = null;
+				}
+			}
+			if (missing.Count > 0)
+			{
+				_db.Tracks.RemoveRange(missing);
+				removedMissing = missing.Count;
+			}
+			await _db.SaveChangesAsync();
+			_db.ChangeTracker.Clear();
+			try
+			{
+				await _db.Database.ExecuteSqlRawAsync("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;");
+			}
+			catch
+			{
+			}
+		}
+		finally
+		{
+			_dbGate.Release();
+		}
+
+		return (removedMissing, clearedCovers, freedBytes);
 	}
 
 	public void Dispose()

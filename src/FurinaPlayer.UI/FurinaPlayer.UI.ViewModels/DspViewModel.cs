@@ -724,6 +724,7 @@ public class DspViewModel : ObservableObject
 		ApplyChannelToolSettings(false);
 
 		InitializeFurinaPlayerEqBands();
+		ApplySrcSettings(reopenIfRateChanged: false);
 	}
 
 	public void SavePanelLayouts(Dictionary<string, double[]> layouts)
@@ -1492,8 +1493,37 @@ public class DspViewModel : ObservableObject
 		{
 			_engine.LoadFurinaPlayerConvolution(FurinaPlayerConvolutionFilePath, (float)FurinaPlayerConvolutionTrimDb);
 		}
+		ApplySrcSettings(reopenIfRateChanged: false);
 		SaveFurinaPlayerSettings();
 	}
+
+	public void ApplySrcSettings(bool reopenIfRateChanged = true)
+	{
+		try
+		{
+			string effectiveMode = FurinaPlayerResamplerEnabled
+				? (string.IsNullOrWhiteSpace(FurinaSrcMode) || string.Equals(FurinaSrcMode, "off", StringComparison.OrdinalIgnoreCase) ? "custom" : FurinaSrcMode)
+				: "off";
+			var cfg = new FurinaSrcRuntimeConfig
+			{
+				Mode = effectiveMode,
+				CustomTargetRate = FurinaPlayerResamplerTargetRate,
+				Quality = FurinaSrcQuality ?? "transparent",
+				Filter1x = FurinaSrcCatalog.NormalizeProfileId(FurinaSrcFilter1x, "furina-gauss-long"),
+				FilterNx = FurinaSrcCatalog.NormalizeProfileId(FurinaSrcFilterNx, "furina-hb"),
+				Compute = FurinaSrcCompute ?? "simd",
+				Dither = FurinaSrcDither ?? "off",
+				AbCompareBypass = FurinaSrcAbBenchmark
+			};
+			_engine.SetFurinaSrcConfig(cfg, reopenIfRateChanged);
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine("ApplySrcSettings error: " + ex.Message);
+		}
+	}
+
+	public FurinaSrcRuntimeTelemetry? GetSrcTelemetry() => _engine.GetFurinaSrcTelemetry();
 
 	public void SaveFurinaPlayerSettings()
 	{

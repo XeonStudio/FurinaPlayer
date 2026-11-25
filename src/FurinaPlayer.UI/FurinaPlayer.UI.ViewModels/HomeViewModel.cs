@@ -474,6 +474,27 @@ public class HomeViewModel : ObservableObject
 	{
 		await _library.InitializeAsync();
 		await RefreshAsync();
+
+		if (Tracks.Count == 0 && _settingsService != null)
+		{
+			var folders = _settingsService.Load().MusicFolders;
+			if (folders != null && folders.Count > 0)
+			{
+				bool scannedAny = false;
+				foreach (var folder in folders)
+				{
+					if (!string.IsNullOrWhiteSpace(folder) && System.IO.Directory.Exists(folder))
+					{
+						await _library.ScanFolderAsync(folder);
+						scannedAny = true;
+					}
+				}
+				if (scannedAny)
+				{
+					await RefreshAsync();
+				}
+			}
+		}
 	}
 
 	private List<Track> _allTracksCache = new();

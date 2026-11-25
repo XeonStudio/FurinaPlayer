@@ -70,6 +70,7 @@ public sealed class InsightProWorkbenchControl : UserControl
     private bool _showSoundField = true;
     private bool _showHistory = true;
     private bool _showSpectrum = true;
+    private bool _spectrumPinkTilt = true;
     private bool _showSpectrogram = true;
 
     private SoundFieldMode _soundFieldMode = SoundFieldMode.PolarSample;
@@ -213,6 +214,7 @@ public sealed class InsightProWorkbenchControl : UserControl
         _spectrumCanvas.PaintSurface += OnPaintSpectrum;
         _spectrumCanvas.PointerMoved += OnSpectrumPointerMoved;
         _spectrumCanvas.PointerExited += OnSpectrumPointerExited;
+        _spectrumCanvas.PointerPressed += (_, _) => { _spectrumPinkTilt = !_spectrumPinkTilt; _spectrumCanvas.Invalidate(); };
         _spectrumCard = BuildSimpleModuleCard("Spectrum", _spectrumCanvas);
 
         _spectrogramCanvas = new SKXamlCanvas();
@@ -1360,13 +1362,16 @@ public sealed class InsightProWorkbenchControl : UserControl
         if (snap != null && snap.SpectrumDb.Length > 1 && snap.SpectrumFrequenciesHz.Length == snap.SpectrumDb.Length)
         {
             int n = snap.SpectrumDb.Length;
+            float TiltAt(double hz) => _spectrumPinkTilt ? (float)(3.0 * Math.Log2(Math.Max(20.0, hz) / 1000.0)) : 0f;
             SKPoint[] pts = new SKPoint[n];
             SKPoint[] holdPts = new SKPoint[n];
             for (int i = 0; i < n; i++)
             {
-                float x = FreqToX(snap.SpectrumFrequenciesHz[i]);
-                pts[i] = new SKPoint(x, DbToY(snap.SpectrumDb[i]));
-                holdPts[i] = new SKPoint(x, DbToY(snap.SpectrumPeakHoldDb[i]));
+                double fHz = snap.SpectrumFrequenciesHz[i];
+                float tilt = TiltAt(fHz);
+                float x = FreqToX(fHz);
+                pts[i] = new SKPoint(x, DbToY(snap.SpectrumDb[i] + tilt));
+                holdPts[i] = new SKPoint(x, DbToY(snap.SpectrumPeakHoldDb[i] + tilt));
             }
 
             using var linePath = BuildSmoothPath(pts);
@@ -1418,8 +1423,9 @@ public sealed class InsightProWorkbenchControl : UserControl
                 float normX = Math.Clamp((hx - padLeft) / plotW, 0f, 1f);
                 double hoverFreq = Math.Pow(10.0, logMin + normX * (logMax - logMin));
                 int bandIdx = Math.Clamp((int)Math.Round(normX * (n - 1)), 0, n - 1);
-                float hoverDb = snap.SpectrumDb[bandIdx];
-                float holdDb = snap.SpectrumPeakHoldDb[bandIdx];
+                float tilt = TiltAt(hoverFreq);
+                float hoverDb = snap.SpectrumDb[bandIdx] + tilt;
+                float holdDb = snap.SpectrumPeakHoldDb[bandIdx] + tilt;
                 float hy = DbToY(hoverDb);
 
                 using var crossPaint = new SKPaint
@@ -1435,7 +1441,8 @@ public sealed class InsightProWorkbenchControl : UserControl
                 canvas.DrawCircle(hx, hy, 3.5f, dotPaint);
 
                 string freqStr = hoverFreq >= 1000.0 ? $"{hoverFreq / 1000.0:0.00} kHz" : $"{hoverFreq:0} Hz";
-                string tip = $"{freqStr}  ·  {hoverDb:0.0} dBFS  (Peak {holdDb:0.0})";
+                string noteStr = FreqToNoteName(hoverFreq);
+                string tip = $"{freqStr} ({noteStr})  ·  {hoverDb:0.0} dB  (Peak {holdDb:0.0})";
 
                 using var tipTextPaint = new SKPaint
                 {
@@ -1456,7 +1463,23 @@ public sealed class InsightProWorkbenchControl : UserControl
                 canvas.DrawRoundRect(boxX, boxY, boxW, boxH, 4f, 4f, tipBorder);
                 canvas.DrawText(tip, boxX + 7f, boxY + 13.5f, tipTextPaint);
             }
+
+            // Top-left Slope / FFT Precision Pill
+            using var slopePaint = new SKPaint { Color = AxisTextSk, TextSize = 9.5f, IsAntialias = true };
+            string slopeLabel = _spectrumPinkTilt ? "FFT 8192 · Blackman-Harris · Pink +3dB/oct (点击切换)" : "FFT 8192 · Blackman-Harris · Flat 0dB/oct (点击切换)";
+            canvas.DrawText(slopeLabel, padLeft + 4f, padTop + 11f, slopePaint);
         }
+    }
+
+    private static string FreqToNoteName(double hz)
+    {
+        if (hz < 20.0 || hz > 20000.0) return "-";
+        double midi = 69.0 + 12.0 * Math.Log2(hz / 440.0);
+        int m = (int)Math.Round(midi);
+        string[] names = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+        int note = ((m % 12) + 12) % 12;
+        int oct = (m / 12) - 1;
+        return $"{names[note]}{oct}";
     }
 
     private static SKPath BuildSmoothPath(SKPoint[] pts)

@@ -156,6 +156,48 @@ public class SettingsViewModel : ObservableObject
 		}
 	}
 
+	private bool rememberPlaybackProgress = true;
+	public bool RememberPlaybackProgress
+	{
+		get => rememberPlaybackProgress;
+		set
+		{
+			if (rememberPlaybackProgress != value)
+			{
+				rememberPlaybackProgress = value;
+				OnPropertyChanged(nameof(RememberPlaybackProgress));
+			}
+		}
+	}
+
+	private bool autoFallbackExclusiveToShared = true;
+	public bool AutoFallbackExclusiveToShared
+	{
+		get => autoFallbackExclusiveToShared;
+		set
+		{
+			if (autoFallbackExclusiveToShared != value)
+			{
+				autoFallbackExclusiveToShared = value;
+				OnPropertyChanged(nameof(AutoFallbackExclusiveToShared));
+			}
+		}
+	}
+
+	private bool autoPlayOnStartup;
+	public bool AutoPlayOnStartup
+	{
+		get => autoPlayOnStartup;
+		set
+		{
+			if (autoPlayOnStartup != value)
+			{
+				autoPlayOnStartup = value;
+				OnPropertyChanged(nameof(AutoPlayOnStartup));
+			}
+		}
+	}
+
 	[GeneratedCode("CommunityToolkit.Mvvm.SourceGenerators.RelayCommandGenerator", "8.2.0.0")]
 	private RelayCommand? refreshDevicesCommand;
 
@@ -481,6 +523,7 @@ public class SettingsViewModel : ObservableObject
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.SelectedWasapiDeviceId);
 				selectedWasapiDeviceId = value;
 				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.SelectedWasapiDeviceId);
+				ApplyAndNotifyOutputSettings();
 			}
 		}
 	}
@@ -501,6 +544,7 @@ public class SettingsViewModel : ObservableObject
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.SelectedAsioDriver);
 				selectedAsioDriver = value;
 				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.SelectedAsioDriver);
+				ApplyAndNotifyOutputSettings();
 			}
 		}
 	}
@@ -520,6 +564,7 @@ public class SettingsViewModel : ObservableObject
 				OnPropertyChanging(__KnownINotifyPropertyChangingArgs.BufferMs);
 				bufferMs = value;
 				OnPropertyChanged(__KnownINotifyPropertyChangedArgs.BufferMs);
+				ApplyAndNotifyOutputSettings();
 			}
 		}
 	}
@@ -642,6 +687,7 @@ public class SettingsViewModel : ObservableObject
 	public event Action<double>? UiScaleChanged;
 	public event Action<bool>? CloseToTrayChanged;
 	public event Action<bool>? PreventSystemSleepChanged;
+	public event Action<bool>? AutoFallbackExclusiveToSharedChanged;
 	public event Action? AppearanceChanged;
 
 	public event Action<bool>? PetVisibilityChanged;
@@ -651,6 +697,29 @@ public class SettingsViewModel : ObservableObject
 	public event Action<bool>? PetLyricsChanged;
 	public event Action<int>? PetGifSpeedChanged;
 	public event Action<int>? PetBubbleScaleChanged;
+	public event Action<string>? PetBubbleStyleChanged;
+	public event Action? DynamicWallpaperChanged;
+	public event Action? PetLyricStyleChanged;
+	public event Action<OutputMode, string?, string?, int>? OutputSettingsChanged;
+	private bool _suppressOutputChanged;
+
+	public SettingsService SettingsServiceInstance => _settingsService;
+	public AppSettings CurrentAppSettings => _settings;
+
+	public void SyncFromAudioRepair()
+	{
+		bool prev = _suppressOutputChanged;
+		_suppressOutputChanged = true;
+		try
+		{
+			Load();
+			RefreshDevices();
+		}
+		finally
+		{
+			_suppressOutputChanged = prev;
+		}
+	}
 
 	public string FurinaPlayerThemeMode => _settings.FurinaPlayerThemeMode ?? "liquid-glass";
 	public bool AcrylicKeepTranslucentWhenUnfocused => _settings.AcrylicKeepTranslucentWhenUnfocused;
@@ -868,6 +937,19 @@ public class SettingsViewModel : ObservableObject
 
 	public void Load()
 	{
+		_suppressOutputChanged = true;
+		try
+		{
+			LoadCore();
+		}
+		finally
+		{
+			_suppressOutputChanged = false;
+		}
+	}
+
+	private void LoadCore()
+	{
 		_settings = _settingsService.Load();
 		BufferMs = _settings.BufferMilliseconds;
 		VolumeNormalization = _settings.VolumeNormalization;
@@ -919,12 +1001,35 @@ public class SettingsViewModel : ObservableObject
 		CloseToTray = _settings.CloseToTray;
 		RememberWindowState = _settings.RememberWindowState;
 		PreventSystemSleep = _settings.PreventSystemSleep;
+		RememberPlaybackProgress = _settings.RememberPlaybackProgress;
+		AutoFallbackExclusiveToShared = _settings.AutoFallbackExclusiveToShared;
+		AutoPlayOnStartup = _settings.AutoPlayOnStartup;
+		OnPropertyChanged(nameof(DynamicWallpaperEnabled));
+		OnPropertyChanged(nameof(DynamicWallpaperPath));
+		OnPropertyChanged(nameof(DynamicWallpaperFps));
+		OnPropertyChanged(nameof(DynamicWallpaperResolution));
+		OnPropertyChanged(nameof(PetLyricFontFamily));
+		OnPropertyChanged(nameof(PetLyricFontFilePath));
+		OnPropertyChanged(nameof(PetLyricOpacityPercent));
+		OnPropertyChanged(nameof(PetLyricColorHex));
+		OnPropertyChanged(nameof(PetLyricGradientEnabled));
+		OnPropertyChanged(nameof(PetLyricGradientEndColorHex));
+		OnPropertyChanged(nameof(PetLyricHighlightCurrent));
+		OnPropertyChanged(nameof(PetLyricHighlightColorHex));
+		OnPropertyChanged(nameof(AutoBackupEnabled));
+		OnPropertyChanged(nameof(AutoBackupMode));
+		OnPropertyChanged(nameof(AutoBackupPeriodDays));
+		OnPropertyChanged(nameof(AutoBackupLaunchInterval));
 		SyncLiquidGlassEngineFromSettings();
 	}
 
 	[RelayCommand]
 	private void RefreshDevices()
 	{
+		bool prevSuppress = _suppressOutputChanged;
+		_suppressOutputChanged = true;
+		try
+		{
 		WasapiDevices = new ObservableCollection<AudioDeviceInfo>(_deviceManager.EnumerateWasapiDevices());
 		AsioDevices = new ObservableCollection<AudioDeviceInfo>(_deviceManager.EnumerateAsioDevices());
 		if (string.IsNullOrEmpty(SelectedWasapiDeviceId) && WasapiDevices.Count > 0)
@@ -935,12 +1040,70 @@ public class SettingsViewModel : ObservableObject
 		{
 			SelectedAsioDriver = AsioDevices[0].Id;
 		}
+		}
+		finally
+		{
+			_suppressOutputChanged = prevSuppress;
+		}
+	}
+
+	public async System.Threading.Tasks.Task RefreshDevicesAsync()
+	{
+		var (wasapiList, asioList) = await System.Threading.Tasks.Task.Run(() =>
+		{
+			var w = _deviceManager.EnumerateWasapiDevices();
+			var a = _deviceManager.EnumerateAsioDevices();
+			return (w, a);
+		});
+
+		bool prevSuppress = _suppressOutputChanged;
+		_suppressOutputChanged = true;
+		try
+		{
+			WasapiDevices = new ObservableCollection<AudioDeviceInfo>(wasapiList);
+			AsioDevices = new ObservableCollection<AudioDeviceInfo>(asioList);
+			if (string.IsNullOrEmpty(SelectedWasapiDeviceId) && WasapiDevices.Count > 0)
+			{
+				SelectedWasapiDeviceId = WasapiDevices.FirstOrDefault((AudioDeviceInfo d) => d.IsDefault)?.Id ?? WasapiDevices[0].Id;
+			}
+			if (string.IsNullOrEmpty(SelectedAsioDriver) && AsioDevices.Count > 0)
+			{
+				SelectedAsioDriver = AsioDevices[0].Id;
+			}
+		}
+		finally
+		{
+			_suppressOutputChanged = prevSuppress;
+		}
+	}
+
+	private void ApplyAndNotifyOutputSettings(bool saveSettings = true)
+	{
+		if (_suppressOutputChanged) return;
+		var mode = _settings.OutputMode;
+		string? devId = mode == OutputMode.Asio || string.IsNullOrWhiteSpace(SelectedWasapiDeviceId) ? null : SelectedWasapiDeviceId;
+		string? asio = mode == OutputMode.Asio && !string.IsNullOrWhiteSpace(SelectedAsioDriver) ? SelectedAsioDriver : null;
+		_settings.OutputDeviceId = mode == OutputMode.Asio ? (asio ?? string.Empty) : (devId ?? string.Empty);
+		_settings.BufferMilliseconds = BufferMs;
+		if (saveSettings)
+		{
+			_settingsService.Save(_settings);
+		}
+		OutputSettingsChanged?.Invoke(mode, devId, asio, BufferMs);
 	}
 
 	public void SetOutputMode(OutputMode mode)
 	{
 		_settings.OutputMode = mode;
+		OutputModeText = mode switch
+		{
+			OutputMode.WasapiShared => Loc.T("WASAPI 共享"),
+			OutputMode.WasapiExclusive => Loc.T("WASAPI 独占"),
+			OutputMode.Asio => "ASIO",
+			_ => Loc.T("软件解码"),
+		};
 		_settingsService.Save(_settings);
+		ApplyAndNotifyOutputSettings(saveSettings: false);
 	}
 
 	public void SetTheme(ThemeMode theme)
@@ -1043,6 +1206,8 @@ public class SettingsViewModel : ObservableObject
 		appSettings.MusicFolders = _settings.MusicFolders ?? new List<string>();
 		_settingsService.Save(appSettings);
 		Load();
+		DynamicWallpaperChanged?.Invoke();
+		PetLyricStyleChanged?.Invoke();
 		DefaultsRestored?.Invoke();
 	}
 
@@ -1054,7 +1219,7 @@ public class SettingsViewModel : ObservableObject
 		_settings.GaplessPlayback = GaplessPlayback;
 		_settings.CrossfadeEnabled = CrossfadeEnabled;
 		_settings.CrossfadeSeconds = CrossfadeSeconds;
-		_settings.OutputDeviceId = SelectedWasapiDeviceId;
+		_settings.OutputDeviceId = _settings.OutputMode == OutputMode.Asio ? SelectedAsioDriver : SelectedWasapiDeviceId;
 		_settingsService.Save(_settings);
 	}
 
@@ -1115,6 +1280,278 @@ public class SettingsViewModel : ObservableObject
 		_settings.PreventSystemSleep = enabled;
 		_settingsService.Save(_settings);
 		PreventSystemSleepChanged?.Invoke(enabled);
+	}
+
+	public void SetRememberPlaybackProgress(bool enabled)
+	{
+		RememberPlaybackProgress = enabled;
+		_settings.RememberPlaybackProgress = enabled;
+		_settingsService.Save(_settings);
+	}
+
+	public void SetAutoFallbackExclusiveToShared(bool enabled)
+	{
+		AutoFallbackExclusiveToShared = enabled;
+		_settings.AutoFallbackExclusiveToShared = enabled;
+		_settingsService.Save(_settings);
+		AutoFallbackExclusiveToSharedChanged?.Invoke(enabled);
+	}
+
+	public void SetAutoPlayOnStartup(bool enabled)
+	{
+		AutoPlayOnStartup = enabled;
+		_settings.AutoPlayOnStartup = enabled;
+		_settingsService.Save(_settings);
+	}
+
+	public void SetCrossfadeEnabled(bool enabled)
+	{
+		CrossfadeEnabled = enabled;
+		_settings.CrossfadeEnabled = enabled;
+		_settingsService.Save(_settings);
+	}
+
+	// ── Dynamic Wallpaper (Experimental) ──
+	public bool DynamicWallpaperEnabled
+	{
+		get => _settings.DynamicWallpaperEnabled;
+		set
+		{
+			if (_settings.DynamicWallpaperEnabled == value) return;
+			_settings.DynamicWallpaperEnabled = value;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(DynamicWallpaperEnabled));
+			DynamicWallpaperChanged?.Invoke();
+		}
+	}
+
+	public string DynamicWallpaperPath
+	{
+		get => _settings.DynamicWallpaperPath;
+		set
+		{
+			string norm = value ?? string.Empty;
+			if (string.Equals(_settings.DynamicWallpaperPath, norm, StringComparison.Ordinal)) return;
+			_settings.DynamicWallpaperPath = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(DynamicWallpaperPath));
+			DynamicWallpaperChanged?.Invoke();
+		}
+	}
+
+	public int DynamicWallpaperFps
+	{
+		get => _settings.DynamicWallpaperFps;
+		set
+		{
+			int clamped = Math.Clamp(value, 10, 60);
+			if (_settings.DynamicWallpaperFps == clamped) return;
+			_settings.DynamicWallpaperFps = clamped;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(DynamicWallpaperFps));
+			DynamicWallpaperChanged?.Invoke();
+		}
+	}
+
+	public string DynamicWallpaperResolution
+	{
+		get => _settings.DynamicWallpaperResolution;
+		set
+		{
+			string norm = string.IsNullOrWhiteSpace(value) ? "1080p" : value;
+			if (string.Equals(_settings.DynamicWallpaperResolution, norm, StringComparison.OrdinalIgnoreCase)) return;
+			_settings.DynamicWallpaperResolution = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(DynamicWallpaperResolution));
+			DynamicWallpaperChanged?.Invoke();
+		}
+	}
+
+	// ── Desktop Pet Lyric Appearance ──
+	public string PetLyricFontFamily
+	{
+		get => _settings.PetLyricFontFamily;
+		set
+		{
+			string norm = string.IsNullOrWhiteSpace(value) ? "Microsoft YaHei UI" : value.Trim();
+			if (string.Equals(_settings.PetLyricFontFamily, norm, StringComparison.Ordinal)) return;
+			_settings.PetLyricFontFamily = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricFontFamily));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public string PetLyricFontFilePath
+	{
+		get => _settings.PetLyricFontFilePath;
+		set
+		{
+			string norm = value ?? string.Empty;
+			if (string.Equals(_settings.PetLyricFontFilePath, norm, StringComparison.Ordinal)) return;
+			_settings.PetLyricFontFilePath = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricFontFilePath));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public int PetLyricOpacityPercent
+	{
+		get => _settings.PetLyricOpacityPercent;
+		set
+		{
+			int clamped = Math.Clamp(value, 20, 100);
+			if (_settings.PetLyricOpacityPercent == clamped) return;
+			_settings.PetLyricOpacityPercent = clamped;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricOpacityPercent));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public string PetLyricColorHex
+	{
+		get => _settings.PetLyricColorHex;
+		set
+		{
+			string norm = string.IsNullOrWhiteSpace(value) ? "#232B5C" : value.Trim();
+			if (string.Equals(_settings.PetLyricColorHex, norm, StringComparison.OrdinalIgnoreCase)) return;
+			_settings.PetLyricColorHex = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricColorHex));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public bool PetLyricGradientEnabled
+	{
+		get => _settings.PetLyricGradientEnabled;
+		set
+		{
+			if (_settings.PetLyricGradientEnabled == value) return;
+			_settings.PetLyricGradientEnabled = value;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricGradientEnabled));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public string PetLyricGradientEndColorHex
+	{
+		get => _settings.PetLyricGradientEndColorHex;
+		set
+		{
+			string norm = string.IsNullOrWhiteSpace(value) ? "#6366F1" : value.Trim();
+			if (string.Equals(_settings.PetLyricGradientEndColorHex, norm, StringComparison.OrdinalIgnoreCase)) return;
+			_settings.PetLyricGradientEndColorHex = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricGradientEndColorHex));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public bool PetLyricHighlightCurrent
+	{
+		get => _settings.PetLyricHighlightCurrent;
+		set
+		{
+			if (_settings.PetLyricHighlightCurrent == value) return;
+			_settings.PetLyricHighlightCurrent = value;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricHighlightCurrent));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	public string PetLyricHighlightColorHex
+	{
+		get => _settings.PetLyricHighlightColorHex;
+		set
+		{
+			string norm = string.IsNullOrWhiteSpace(value) ? "#2563EB" : value.Trim();
+			if (string.Equals(_settings.PetLyricHighlightColorHex, norm, StringComparison.OrdinalIgnoreCase)) return;
+			_settings.PetLyricHighlightColorHex = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(PetLyricHighlightColorHex));
+			PetLyricStyleChanged?.Invoke();
+		}
+	}
+
+	// ── Auto Backup & Library Cache ──
+	public bool AutoBackupEnabled
+	{
+		get => _settings.AutoBackupEnabled;
+		set
+		{
+			if (_settings.AutoBackupEnabled == value) return;
+			_settings.AutoBackupEnabled = value;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(AutoBackupEnabled));
+		}
+	}
+
+	public string AutoBackupMode
+	{
+		get => _settings.AutoBackupMode;
+		set
+		{
+			string norm = string.Equals(value, "launch_count", StringComparison.OrdinalIgnoreCase) ? "launch_count" : "periodic";
+			if (string.Equals(_settings.AutoBackupMode, norm, StringComparison.OrdinalIgnoreCase)) return;
+			_settings.AutoBackupMode = norm;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(AutoBackupMode));
+		}
+	}
+
+	public int AutoBackupPeriodDays
+	{
+		get => _settings.AutoBackupPeriodDays;
+		set
+		{
+			int clamped = Math.Clamp(value, 1, 90);
+			if (_settings.AutoBackupPeriodDays == clamped) return;
+			_settings.AutoBackupPeriodDays = clamped;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(AutoBackupPeriodDays));
+		}
+	}
+
+	public int AutoBackupLaunchInterval
+	{
+		get => _settings.AutoBackupLaunchInterval;
+		set
+		{
+			int clamped = Math.Clamp(value, 1, 100);
+			if (_settings.AutoBackupLaunchInterval == clamped) return;
+			_settings.AutoBackupLaunchInterval = clamped;
+			_settingsService.Save(_settings);
+			OnPropertyChanged(nameof(AutoBackupLaunchInterval));
+		}
+	}
+
+	public void ExportSettingsBackup(string destPath)
+	{
+		_settingsService.ExportBackupToFile(destPath);
+	}
+
+	public void ImportSettingsBackup(string sourcePath, bool sanitizeForNewDevice = true)
+	{
+		_settingsService.ImportBackupFromFile(sourcePath, sanitizeForNewDevice);
+		Load();
+		DynamicWallpaperChanged?.Invoke();
+		PetLyricStyleChanged?.Invoke();
+		DefaultsRestored?.Invoke();
+	}
+
+	public async Task<(int RemovedMissingTracks, int ClearedCoverFiles, long FreedBytes)> ClearLibraryCacheAsync()
+	{
+		string dbPath = System.IO.Path.Combine(
+			Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+			"FurinaPlayer",
+			"library.db");
+		using var svc = new LibraryService(dbPath);
+		return await svc.ClearLibraryCacheAsync();
 	}
 
 	public void SyncLiquidGlassEngineFromSettings()
@@ -1413,6 +1850,31 @@ public class SettingsViewModel : ObservableObject
 				PetBubbleScaleChanged?.Invoke(clamped);
 			}
 		}
+	}
+
+	public static readonly string[] PetBubbleStyleOrder = { "classic", "crown", "ice", "umbrella", "angel" };
+
+	public string PetBubbleStyle
+	{
+		get => string.IsNullOrWhiteSpace(_settings.PetBubbleStyle) ? "classic" : _settings.PetBubbleStyle;
+		set
+		{
+			string norm = Array.IndexOf(PetBubbleStyleOrder, value) >= 0 ? value : "classic";
+			if (!string.Equals(_settings.PetBubbleStyle, norm, StringComparison.Ordinal))
+			{
+				_settings.PetBubbleStyle = norm;
+				OnPropertyChanged(nameof(PetBubbleStyle));
+				_settingsService.Save(_settings);
+				PetBubbleStyleChanged?.Invoke(norm);
+			}
+		}
+	}
+
+	public void CyclePetBubbleStyle()
+	{
+		int idx = Array.IndexOf(PetBubbleStyleOrder, PetBubbleStyle);
+		int next = (idx + 1) % PetBubbleStyleOrder.Length;
+		PetBubbleStyle = PetBubbleStyleOrder[next];
 	}
 
 	public void ResetPetPosition()

@@ -1,5 +1,6 @@
 using System;
 using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -54,8 +55,11 @@ public sealed class MainWindow : Window, IComponentConnector
 	private readonly StreamingViewModel _streamingVm;
 
 	private StreamingPage? _streamingPage;
+	private LibraryBrowsePage? _libraryBrowsePage;
 	private readonly ConverterViewModel _converterVm = new();
 	private ConverterPage? _converterPage;
+	private WeakReference<SettingsPage>? _wiredSettingsPage;
+	private long _lastPointerRedrawTs;
 
 	private SystemTrayManager? _trayManager;
 	private FurinaPetWindow? _petWindow;
@@ -85,6 +89,15 @@ public sealed class MainWindow : Window, IComponentConnector
 	private string? _lastWallpaperPath;
 
 	private bool _lastWallpaperSolid = true;
+
+	private SKXamlCanvas? _dynGifCanvas;
+	private DispatcherTimer? _dynGifTimer;
+	private readonly List<SKBitmap> _dynGifFrames = new();
+	private int _dynGifFrameIndex;
+	private string? _dynGifLoadedKey;
+	private MediaPlayerElement? _dynVideoPlayer;
+	private Windows.Media.Playback.MediaPlayer? _dynMediaPlayer;
+	private string? _dynVideoLoadedPath;
 
 	private DispatcherTimer? _rainbowTimer;
 
@@ -239,6 +252,10 @@ public sealed class MainWindow : Window, IComponentConnector
 			}
 		};
 
+		if (ContentFrame?.Parent is FrameworkElement cfHost)
+		{
+			cfHost.SizeChanged += (_, _) => UpdateScaledRootSize(_settingsVm.Settings.UiScale);
+		}
 		AppWindow.Changed += (s, args) =>
 		{
 			if (args.DidSizeChange)
@@ -262,12 +279,27 @@ public sealed class MainWindow : Window, IComponentConnector
 		_settingsVm.PetScaleChanged += scale => DispatcherQueue.TryEnqueue(() => _petWindow?.SetScale(scale));
 		_settingsVm.PetGifSpeedChanged += speed => DispatcherQueue.TryEnqueue(() => _petWindow?.SetGifSpeed(speed));
 		_settingsVm.PetBubbleScaleChanged += scale => DispatcherQueue.TryEnqueue(() => _petWindow?.SetBubbleScale(scale));
+		_settingsVm.PetBubbleStyleChanged += style => DispatcherQueue.TryEnqueue(() => _petWindow?.SetBubbleStyle(style));
 		_settingsVm.PetPositionResetRequested += () => DispatcherQueue.TryEnqueue(() => _petWindow?.ResetPositionToDefault());
 		_settingsVm.PetCustomGifChanged += (kind, path) => DispatcherQueue.TryEnqueue(() => _petWindow?.UpdateCustomGif(kind, path));
 		_settingsVm.PetLyricsChanged += enabled => DispatcherQueue.TryEnqueue(() =>
 		{
 			_petWindow?.SetLyricsEnabled(enabled);
 			SyncDesktopPetLyrics();
+		});
+		_settingsVm.DynamicWallpaperChanged += () => DispatcherQueue.TryEnqueue(UpdateWallpaperVisuals);
+		_settingsVm.PetLyricStyleChanged += () => DispatcherQueue.TryEnqueue(() =>
+		{
+			var st = _settingsVm.Settings;
+			_petWindow?.SetLyricAppearance(
+				st.PetLyricFontFamily,
+				st.PetLyricOpacityPercent,
+				st.PetLyricColorHex,
+				st.PetLyricGradientEnabled,
+				st.PetLyricGradientEndColorHex,
+				st.PetLyricHighlightCurrent,
+				st.PetLyricHighlightColorHex,
+				st.PetLyricFontFilePath);
 		});
 		_nowPlayingVm.PropertyChanged += (_, e) =>
 		{
@@ -298,15 +330,30 @@ public sealed class MainWindow : Window, IComponentConnector
 
 		if (Nav != null && Nav.MenuItems != null)
 		{
+			Nav.MenuItems.Insert(1, new NavigationViewItem
+			{
+				Content = Loc.T("专辑"),
+				Tag = "albums"
+			});
+			Nav.MenuItems.Insert(2, new NavigationViewItem
+			{
+				Content = Loc.T("歌曲"),
+				Tag = "songs"
+			});
+			Nav.MenuItems.Insert(3, new NavigationViewItem
+			{
+				Content = Loc.T("音乐收藏"),
+				Tag = "favorites"
+			});
 			var streamingItem = new NavigationViewItem
 			{
 				Content = Loc.T("流媒体音乐"),
 				Tag = "streaming"
 			};
-			Nav.MenuItems.Insert(1, streamingItem);
+			Nav.MenuItems.Insert(4, streamingItem);
 			Nav.MenuItems.Add(new NavigationViewItem
 			{
-				Content = Loc.T("格式转换"),
+				Content = Loc.T("工具箱"),
 				Tag = "converter"
 			});
 		}
@@ -338,11 +385,14 @@ public sealed class MainWindow : Window, IComponentConnector
 						item.Content = tag switch
 						{
 							"home" => Loc.T("首页"),
+							"albums" => Loc.T("专辑"),
+							"songs" => Loc.T("歌曲"),
+							"favorites" => Loc.T("音乐收藏"),
 							"streaming" => Loc.T("流媒体音乐"),
 							"playing" => Loc.T("正在播放"),
 							"editor" => Loc.T("音频编辑器"),
 							"dsp" => Loc.T("效果器与DSP设置"),
-							"converter" => Loc.T("格式转换"),
+							"converter" => Loc.T("工具箱"),
 							_ => item.Content
 						};
 					}
@@ -355,7 +405,14 @@ public sealed class MainWindow : Window, IComponentConnector
 				if (reloadPage)
 				{
 					_streamingPage = null;
+					_libraryBrowsePage = null;
 					_converterPage = null;
+					_wiredSettingsPage = null;
+					if (ContentFrame != null)
+					{
+						ContentFrame.CacheSize = 0;
+						ContentFrame.CacheSize = 10;
+					}
 					string? activeTag = (Nav.SelectedItem as NavigationViewItem)?.Tag as string;
 					if (Nav.SelectedItem == Nav.SettingsItem)
 					{
@@ -448,21 +505,28 @@ public sealed class MainWindow : Window, IComponentConnector
 		string glyph = tag switch
 		{
 			"home" => "\uE80F",
-			"streaming" => "\uE8D6",
+			"albums" => "\uE93C",
+			"songs" => "\uE8D6",
+			"favorites" => "\uEB51",
+			"streaming" => "\uE774",
 			"playing" => "\uE768",
 			"editor" => "\uE9E9",
 			"dsp" => "\uE90F",
-			"converter" => "\uE8AB",
+			"converter" => "\uEC7A",
 			"settings" => "\uE713",
 			_ => "\uE8D6"
 		};
 		Windows.UI.Color accent = tag switch
 		{
 			"home" => Windows.UI.Color.FromArgb(255, 56, 189, 248),
+			"albums" => Windows.UI.Color.FromArgb(255, 99, 102, 241),
+			"songs" => Windows.UI.Color.FromArgb(255, 14, 165, 233),
+			"favorites" => Windows.UI.Color.FromArgb(255, 239, 68, 68),
 			"streaming" => Windows.UI.Color.FromArgb(255, 168, 85, 247),
 			"playing" => Windows.UI.Color.FromArgb(255, 59, 130, 246),
 			"editor" => Windows.UI.Color.FromArgb(255, 34, 197, 94),
 			"dsp" => Windows.UI.Color.FromArgb(255, 245, 158, 11),
+			"converter" => Windows.UI.Color.FromArgb(255, 20, 184, 166),
 			"settings" => Windows.UI.Color.FromArgb(255, 148, 163, 184),
 			_ => Windows.UI.Color.FromArgb(255, 56, 189, 248)
 		};
@@ -479,6 +543,9 @@ public sealed class MainWindow : Window, IComponentConnector
 		FluentIconKind kind = tag switch
 		{
 			"home" => FluentIconKind.Home,
+			"albums" => FluentIconKind.AlbumGrid,
+			"songs" => FluentIconKind.RecentList,
+			"favorites" => FluentIconKind.MusicHero,
 			"streaming" => FluentIconKind.MusicHero,
 			"playing" => FluentIconKind.NowPlaying,
 			"editor" => FluentIconKind.AudioEditor,
@@ -982,17 +1049,23 @@ public sealed class MainWindow : Window, IComponentConnector
 		{
 			return;
 		}
-		if (_currentNavTag == "playing")
+		if (_currentNavTag == "playing" || _currentNavTag == "settings")
+		{
+			return;
+		}
+		long nowTs = Stopwatch.GetTimestamp();
+		if ((nowTs - _lastPointerRedrawTs) * 1000.0 / Stopwatch.Frequency < 66.0)
 		{
 			return;
 		}
 		var pt = e.GetCurrentPoint(RootGrid).Position;
 		float nx = (float)Math.Clamp(pt.X / RootGrid.ActualWidth, 0.0, 1.0);
 		float ny = (float)Math.Clamp(pt.Y / RootGrid.ActualHeight, 0.0, 1.0);
-		if (Math.Abs(nx - _pointerNormX) > 0.008f || Math.Abs(ny - _pointerNormY) > 0.008f)
+		if (Math.Abs(nx - _pointerNormX) > 0.025f || Math.Abs(ny - _pointerNormY) > 0.025f)
 		{
 			_pointerNormX = nx;
 			_pointerNormY = ny;
+			_lastPointerRedrawTs = nowTs;
 			if (GlassSkiaCanvas != null && GlassSkiaCanvas.Visibility == Visibility.Visible)
 			{
 				GlassSkiaCanvas.Invalidate();
@@ -1107,8 +1180,9 @@ public sealed class MainWindow : Window, IComponentConnector
 			{
 				return;
 			}
-			if (_currentNavTag == "playing" || _lastWallpaperSolid || string.IsNullOrWhiteSpace(_lastWallpaperPath) || !File.Exists(_lastWallpaperPath))
+			if (_currentNavTag == "playing")
 			{
+				StopDynamicWallpaper();
 				_wallpaperBorder.Visibility = Visibility.Collapsed;
 				return;
 			}
@@ -1127,13 +1201,33 @@ public sealed class MainWindow : Window, IComponentConnector
 
 			if (targetOpacity <= 0.02)
 			{
+				StopDynamicWallpaper();
+				_wallpaperBorder.Visibility = Visibility.Collapsed;
+				return;
+			}
+
+			var st = _settingsVm?.Settings;
+			if (st != null && st.DynamicWallpaperEnabled && !string.IsNullOrWhiteSpace(st.DynamicWallpaperPath) && File.Exists(st.DynamicWallpaperPath))
+			{
+				ApplyDynamicWallpaper(st.DynamicWallpaperPath, st.DynamicWallpaperFps, st.DynamicWallpaperResolution, targetOpacity);
+				return;
+			}
+			StopDynamicWallpaper();
+
+			if (_lastWallpaperSolid || string.IsNullOrWhiteSpace(_lastWallpaperPath) || !File.Exists(_lastWallpaperPath))
+			{
 				_wallpaperBorder.Visibility = Visibility.Collapsed;
 				return;
 			}
 
 			if (!(_wallpaperBorder.Background is ImageBrush existingBrush) || (_wallpaperBorder.Tag as string) != _lastWallpaperPath)
 			{
-				BitmapImage imageSource = new BitmapImage(new Uri(_lastWallpaperPath));
+				BitmapImage imageSource = new BitmapImage
+				{
+					DecodePixelType = DecodePixelType.Logical,
+					DecodePixelWidth = 1920,
+					UriSource = new Uri(_lastWallpaperPath)
+				};
 				_wallpaperBorder.Background = new ImageBrush
 				{
 					ImageSource = imageSource,
@@ -1218,7 +1312,10 @@ public sealed class MainWindow : Window, IComponentConnector
 			switch (tag)
 			{
 			case "home":
-				ContentFrame.Navigate(typeof(HomePage), _homeVm, new SuppressNavigationTransitionInfo());
+			case "albums":
+			case "songs":
+			case "favorites":
+				ShowLibraryBrowsePage(tag);
 				break;
 			case "streaming":
 				try
@@ -1250,25 +1347,30 @@ public sealed class MainWindow : Window, IComponentConnector
 				break;
 			case "settings":
 				ContentFrame.Navigate(typeof(SettingsPage), _settingsVm, new SuppressNavigationTransitionInfo());
-				if (!(ContentFrame.Content is SettingsPage settingsPage))
+				if (ContentFrame.Content is SettingsPage settingsPage
+					&& (_wiredSettingsPage == null || !_wiredSettingsPage.TryGetTarget(out var prevSettings) || !ReferenceEquals(prevSettings, settingsPage)))
 				{
-					break;
+					_wiredSettingsPage = new WeakReference<SettingsPage>(settingsPage);
+					settingsPage.ScanRequested += (string[] folders) =>
+					{
+						foreach (string parameter in folders)
+						{
+							_homeVm.ScanFolderCommand.ExecuteAsync(parameter);
+						}
+					};
+					settingsPage.SettingsSaved += async () =>
+					{
+						if (WallpaperRefreshRequested != null)
+						{
+							await WallpaperRefreshRequested();
+						}
+					};
 				}
-				settingsPage.ScanRequested += (string[] folders) =>
-				{
-					foreach (string parameter in folders)
-					{
-						_homeVm.ScanFolderCommand.ExecuteAsync(parameter);
-					}
-				};
-				settingsPage.SettingsSaved += async () =>
-				{
-					if (WallpaperRefreshRequested != null)
-					{
-						await WallpaperRefreshRequested();
-					}
-				};
 				break;
+			}
+			if (ContentFrame.BackStack.Count > 0)
+			{
+				ContentFrame.BackStack.Clear();
 			}
 		}
 		catch (Exception ex)
@@ -1280,6 +1382,17 @@ public sealed class MainWindow : Window, IComponentConnector
 			}
 			Log("navigate failed:" + stringBuilder?.ToString() + Environment.NewLine + ex);
 		}
+	}
+
+	private void ShowLibraryBrowsePage(string mode)
+	{
+		if (_libraryBrowsePage == null)
+		{
+			_libraryBrowsePage = new LibraryBrowsePage();
+			_libraryBrowsePage.NavigateRequested += tag => NavigateTo(tag);
+		}
+		_libraryBrowsePage.BindAndRender(mode, _homeVm, _nowPlayingVm);
+		ContentFrame.Content = _libraryBrowsePage;
 	}
 
 	public void NavigateTo(string tag)
@@ -1333,12 +1446,20 @@ public sealed class MainWindow : Window, IComponentConnector
 						break;
 					}
 				}
+				if (tag == "settings" && Nav.SettingsItem != null)
+				{
+					Nav.SelectedItem = Nav.SettingsItem;
+					return;
+				}
 			}
 
 			switch (tag)
 			{
 			case "home":
-				ContentFrame.Navigate(typeof(HomePage), _homeVm, new SuppressNavigationTransitionInfo());
+			case "albums":
+			case "songs":
+			case "favorites":
+				ShowLibraryBrowsePage(tag);
 				break;
 			case "streaming":
 				try
@@ -1491,6 +1612,7 @@ public sealed class MainWindow : Window, IComponentConnector
 			_petWindow?.SetPlaybackState(_engine.State == PlaybackState.Playing);
 			_petWindow?.SetGifSpeed(_settingsVm.Settings.PetGifSpeedPercent);
 			_petWindow?.SetBubbleScale(_settingsVm.Settings.PetBubbleScalePercent);
+			_petWindow?.SetBubbleStyle(_settingsVm.Settings.PetBubbleStyle);
 			_petWindow?.SetLyricsEnabled(_settingsVm.Settings.PetLyricsEnabled);
 			SyncDesktopPetLyrics();
 			_petWindow?.Show();
@@ -1511,14 +1633,175 @@ public sealed class MainWindow : Window, IComponentConnector
 			s.PetTop,
 			s.PetCustomIdleGifPath,
 			s.PetCustomGrooveGifPath,
-			s.PetCustomClickGifPath);
+			s.PetCustomClickGifPath,
+			s.PetBubbleStyle);
 		_petWindow.PlayPauseRequested += () => EnqueueTrayTransportAction(() => _engine.TogglePlayPause());
 		_petWindow.NextRequested += () => EnqueueTrayTransportAction(() => _engine.Next());
 		_petWindow.PreviousRequested += () => EnqueueTrayTransportAction(() => _engine.Previous());
 		_petWindow.ResetPositionRequested += () => DispatcherQueue.TryEnqueue(() => _settingsVm.ResetPetPosition());
 		_petWindow.HideRequested += () => DispatcherQueue.TryEnqueue(() => _settingsVm.PetEnabled = false);
 		_petWindow.ToggleLyricsRequested += () => DispatcherQueue.TryEnqueue(() => _settingsVm.TogglePetLyrics());
+		_petWindow.CycleBubbleStyleRequested += () => DispatcherQueue.TryEnqueue(() => _settingsVm.CyclePetBubbleStyle());
 		_petWindow.PositionChanged += (left, top) => DispatcherQueue.TryEnqueue(() => _settingsVm.SavePetPosition(left, top));
+		_petWindow.SetLyricAppearance(
+			s.PetLyricFontFamily,
+			s.PetLyricOpacityPercent,
+			s.PetLyricColorHex,
+			s.PetLyricGradientEnabled,
+			s.PetLyricGradientEndColorHex,
+			s.PetLyricHighlightCurrent,
+			s.PetLyricHighlightColorHex,
+			s.PetLyricFontFilePath);
+	}
+
+	private void ApplyDynamicWallpaper(string path, int fps, string resolution, double targetOpacity)
+	{
+		if (_wallpaperBorder == null) return;
+		string ext = Path.GetExtension(path).ToLowerInvariant();
+		int clampedFps = Math.Clamp(fps, 10, 60);
+
+		if (ext == ".gif")
+		{
+			StopDynamicVideo();
+			string loadKey = $"{path}|{resolution}";
+			if (!string.Equals(_dynGifLoadedKey, loadKey, StringComparison.OrdinalIgnoreCase))
+			{
+				DisposeDynamicGifFrames();
+				_dynGifLoadedKey = loadKey;
+				int maxW = resolution switch { "720p" => 1280, "1080p" => 1920, _ => 0 };
+				using var stream = File.OpenRead(path);
+				using var codec = SKCodec.Create(stream);
+				if (codec != null)
+				{
+					int count = Math.Max(1, Math.Min(codec.FrameCount, 240));
+					var info = codec.Info;
+					float scale = (maxW > 0 && info.Width > maxW) ? (float)maxW / info.Width : 1f;
+					int dstW = Math.Max(1, (int)Math.Round(info.Width * scale));
+					int dstH = Math.Max(1, (int)Math.Round(info.Height * scale));
+					for (int i = 0; i < count; i++)
+					{
+						var bmp = new SKBitmap(dstW, dstH, SKColorType.Bgra8888, SKAlphaType.Premul);
+						var opts = new SKCodecOptions(i);
+						if (scale < 1f)
+						{
+							using var full = new SKBitmap(info.Width, info.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+							codec.GetPixels(full.Info, full.GetPixels(), opts);
+							full.ScalePixels(bmp, SKFilterQuality.Medium);
+						}
+						else
+						{
+							codec.GetPixels(bmp.Info, bmp.GetPixels(), opts);
+						}
+						_dynGifFrames.Add(bmp);
+					}
+				}
+				_dynGifFrameIndex = 0;
+			}
+
+			if (_dynGifCanvas == null)
+			{
+				_dynGifCanvas = new SKXamlCanvas { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
+				_dynGifCanvas.PaintSurface += (_, e) =>
+				{
+					var c = e.Surface.Canvas;
+					c.Clear(SKColors.Transparent);
+					if (_dynGifFrames.Count == 0) return;
+					var bmp = _dynGifFrames[_dynGifFrameIndex % _dynGifFrames.Count];
+					float cw = e.Info.Width, ch = e.Info.Height;
+					float scale = Math.Max(cw / bmp.Width, ch / bmp.Height);
+					float dw = bmp.Width * scale, dh = bmp.Height * scale;
+					float dx = (cw - dw) / 2f, dy = (ch - dh) / 2f;
+					using var p = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.Medium };
+					c.DrawBitmap(bmp, new SKRect(dx, dy, dx + dw, dy + dh), p);
+				};
+			}
+
+			_wallpaperBorder.Background = null;
+			_wallpaperBorder.Child = _dynGifCanvas;
+			_wallpaperBorder.Opacity = targetOpacity;
+			_wallpaperBorder.Visibility = Visibility.Visible;
+
+			_dynGifTimer ??= new DispatcherTimer();
+			_dynGifTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(16, 1000.0 / clampedFps));
+			_dynGifTimer.Tick -= OnDynGifTick;
+			_dynGifTimer.Tick += OnDynGifTick;
+			if (!_dynGifTimer.IsEnabled) _dynGifTimer.Start();
+		}
+		else
+		{
+			StopDynamicGif();
+			if (_dynVideoPlayer == null)
+			{
+				_dynMediaPlayer = new Windows.Media.Playback.MediaPlayer
+				{
+					IsMuted = true,
+					IsLoopingEnabled = true,
+					AutoPlay = true
+				};
+				_dynVideoPlayer = new MediaPlayerElement
+				{
+					AreTransportControlsEnabled = false,
+					Stretch = Stretch.UniformToFill,
+					IsHitTestVisible = false,
+					HorizontalAlignment = HorizontalAlignment.Stretch,
+					VerticalAlignment = VerticalAlignment.Stretch
+				};
+				_dynVideoPlayer.SetMediaPlayer(_dynMediaPlayer);
+			}
+			if (!string.Equals(_dynVideoLoadedPath, path, StringComparison.OrdinalIgnoreCase))
+			{
+				_dynVideoLoadedPath = path;
+				_dynMediaPlayer!.Source = Windows.Media.Core.MediaSource.CreateFromUri(new Uri(path));
+			}
+			_dynMediaPlayer?.Play();
+			_wallpaperBorder.Background = null;
+			_wallpaperBorder.Child = _dynVideoPlayer;
+			_wallpaperBorder.Opacity = targetOpacity;
+			_wallpaperBorder.Visibility = Visibility.Visible;
+		}
+	}
+
+	private void OnDynGifTick(object? sender, object e)
+	{
+		if (_dynGifFrames.Count == 0 || _dynGifCanvas == null) return;
+		_dynGifFrameIndex = (_dynGifFrameIndex + 1) % _dynGifFrames.Count;
+		_dynGifCanvas.Invalidate();
+	}
+
+	private void DisposeDynamicGifFrames()
+	{
+		foreach (var bmp in _dynGifFrames) bmp.Dispose();
+		_dynGifFrames.Clear();
+	}
+
+	private void StopDynamicGif()
+	{
+		if (_dynGifTimer != null)
+		{
+			_dynGifTimer.Stop();
+			_dynGifTimer.Tick -= OnDynGifTick;
+		}
+		if (_wallpaperBorder != null && ReferenceEquals(_wallpaperBorder.Child, _dynGifCanvas))
+		{
+			_wallpaperBorder.Child = null;
+		}
+		DisposeDynamicGifFrames();
+		_dynGifLoadedKey = null;
+	}
+
+	private void StopDynamicVideo()
+	{
+		try { _dynMediaPlayer?.Pause(); } catch { }
+		if (_wallpaperBorder != null && ReferenceEquals(_wallpaperBorder.Child, _dynVideoPlayer))
+		{
+			_wallpaperBorder.Child = null;
+		}
+	}
+
+	private void StopDynamicWallpaper()
+	{
+		StopDynamicGif();
+		StopDynamicVideo();
 	}
 
 	private void SyncDesktopPetLyrics()
@@ -1548,15 +1831,26 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		try
 		{
-			if (scale < 0.5 || scale > 3.0) scale = 1.0;
-			if (RootGrid == null) return;
+			if (scale < 0.5 || scale > 2.0) scale = 1.0;
+			FrameworkElement? target = (FrameworkElement?)Nav ?? (FrameworkElement?)ContentFrame ?? RootGrid;
+			if (target == null) return;
+
+			if (RootGrid != null && !ReferenceEquals(target, RootGrid))
+			{
+				RootGrid.RenderTransform = null;
+				RootGrid.ClearValue(FrameworkElement.WidthProperty);
+				RootGrid.ClearValue(FrameworkElement.HeightProperty);
+			}
 
 			if (_uiScaleTransform == null)
 			{
 				_uiScaleTransform = new ScaleTransform();
-				RootGrid.RenderTransform = _uiScaleTransform;
-				RootGrid.RenderTransformOrigin = new Windows.Foundation.Point(0, 0);
 			}
+			target.RenderTransform = _uiScaleTransform;
+			target.RenderTransformOrigin = new Windows.Foundation.Point(0, 0);
+			target.HorizontalAlignment = HorizontalAlignment.Left;
+			target.VerticalAlignment = VerticalAlignment.Top;
+
 			_uiScaleTransform.ScaleX = scale;
 			_uiScaleTransform.ScaleY = scale;
 			UpdateScaledRootSize(scale);
@@ -1571,23 +1865,44 @@ public sealed class MainWindow : Window, IComponentConnector
 	{
 		try
 		{
-			if (RootGrid == null) return;
+			FrameworkElement? target = (FrameworkElement?)Nav ?? (FrameworkElement?)ContentFrame ?? RootGrid;
+			if (target == null) return;
 			if (Math.Abs(scale - 1.0) < 0.01)
 			{
-				RootGrid.ClearValue(FrameworkElement.WidthProperty);
-				RootGrid.ClearValue(FrameworkElement.HeightProperty);
+				target.ClearValue(FrameworkElement.WidthProperty);
+				target.ClearValue(FrameworkElement.HeightProperty);
+				target.Clip = null;
+				target.HorizontalAlignment = HorizontalAlignment.Stretch;
+				target.VerticalAlignment = VerticalAlignment.Stretch;
 				return;
 			}
-			var appSize = AppWindow.Size;
-			if (appSize.Width > 0 && appSize.Height > 0)
+			double hostW = 0;
+			double hostH = 0;
+			if (target.Parent is FrameworkElement parentEl && parentEl.ActualWidth > 0 && parentEl.ActualHeight > 0)
 			{
-				RootGrid.Width = Math.Max(100, appSize.Width / scale);
-				RootGrid.Height = Math.Max(100, appSize.Height / scale);
+				hostW = parentEl.ActualWidth;
+				hostH = parentEl.ActualHeight;
+			}
+			else
+			{
+				double dpiScale = RootGrid?.XamlRoot?.RasterizationScale ?? 1.0;
+				if (dpiScale <= 0) dpiScale = 1.0;
+				hostW = AppWindow.Size.Width / dpiScale;
+				hostH = AppWindow.Size.Height / dpiScale;
+			}
+			if (hostW > 0 && hostH > 0)
+			{
+				double invW = Math.Max(100, hostW / scale);
+				double invH = Math.Max(100, hostH / scale);
+				target.Width = invW;
+				target.Height = invH;
+				target.Clip = new RectangleGeometry { Rect = new Windows.Foundation.Rect(0, 0, invW, invH) };
 			}
 		}
-		catch { }
+		catch
+		{
+		}
 	}
-
 	private void EnqueueTrayTransportAction(Action action)
 	{
 		if (_isWindowClosed)
@@ -1740,6 +2055,10 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	private bool _isSlideshowFullscreen;
 	private bool _wasMaximizedBeforeSlideshow;
+	private GridLength[]? _savedRowHeights;
+	private int _savedNavRow;
+	private int _savedNavRowSpan = 1;
+	private Thickness _savedNavMargin;
 
 	public void SetSlideshowFullscreen(bool fullscreen)
 	{
@@ -1756,7 +2075,26 @@ public sealed class MainWindow : Window, IComponentConnector
 					if (Nav != null) Nav.IsPaneVisible = false;
 					if (MiniPlayer != null) MiniPlayer.Visibility = Visibility.Collapsed;
 					if (TitleBar != null) TitleBar.Visibility = Visibility.Collapsed;
+					if (RootGrid != null && RootGrid.RowDefinitions.Count > 0)
+					{
+						_savedRowHeights = RootGrid.RowDefinitions.Select(r => r.Height).ToArray();
+						int navRow = Nav != null ? Grid.GetRow(Nav) : 0;
+						_savedNavRow = navRow;
+						_savedNavRowSpan = Nav != null ? Grid.GetRowSpan(Nav) : 1;
+						_savedNavMargin = Nav != null ? Nav.Margin : new Thickness(0);
+						for (int i = 0; i < RootGrid.RowDefinitions.Count; i++)
+						{
+							RootGrid.RowDefinitions[i].Height = i == 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+						}
+						if (Nav != null)
+						{
+							Grid.SetRow(Nav, 0);
+							Grid.SetRowSpan(Nav, Math.Max(1, RootGrid.RowDefinitions.Count));
+							Nav.Margin = new Thickness(0);
+						}
+					}
 					AppWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
+					UpdateScaledRootSize(_settingsVm.Settings.UiScale);
 				}
 				else
 				{
@@ -1765,9 +2103,23 @@ public sealed class MainWindow : Window, IComponentConnector
 					{
 						op.Maximize();
 					}
+					if (RootGrid != null && _savedRowHeights != null)
+					{
+						for (int i = 0; i < Math.Min(_savedRowHeights.Length, RootGrid.RowDefinitions.Count); i++)
+						{
+							RootGrid.RowDefinitions[i].Height = _savedRowHeights[i];
+						}
+						if (Nav != null)
+						{
+							Grid.SetRow(Nav, _savedNavRow);
+							Grid.SetRowSpan(Nav, Math.Max(1, _savedNavRowSpan));
+							Nav.Margin = _savedNavMargin;
+						}
+					}
 					if (Nav != null) Nav.IsPaneVisible = true;
 					if (MiniPlayer != null) MiniPlayer.Visibility = Visibility.Visible;
 					if (TitleBar != null) TitleBar.Visibility = Visibility.Visible;
+					UpdateScaledRootSize(_settingsVm.Settings.UiScale);
 				}
 			}
 			catch (Exception ex)

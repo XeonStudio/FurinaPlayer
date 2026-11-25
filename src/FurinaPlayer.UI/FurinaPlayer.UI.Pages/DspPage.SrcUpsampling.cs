@@ -1,14 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using FurinaPlayer.Audio.Dsp;
 using FurinaPlayer.Core.Services;
-using FurinaPlayer.UI.ViewModels;
 using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using FurinaPlayer.Audio.Dsp;
 using Windows.Foundation;
 
 namespace FurinaPlayer.UI.Pages;
@@ -19,10 +20,15 @@ public sealed partial class DspPage
 	private Canvas? _srcFilterCurveCanvas;
 	private TextBlock? _srcFilterNameText;
 	private TextBlock? _srcPhaseBadgeText;
+	private TextBlock? _srcTapsBadgeText;
+	private TextBlock? _srcAttenBadgeText;
+	private TextBlock? _srcDelayBadgeText;
 	private TextBlock? _srcFilterCaptionText;
+	private TextBlock? _srcFilterPlan1xStatus;
 	private TextBlock? _srcFilterPlan1xName;
 	private TextBlock? _srcFilterPlan1xDesc;
 	private TextBlock? _srcFilterPlan1xPhase;
+	private TextBlock? _srcFilterPlanNxStatus;
 	private TextBlock? _srcFilterPlanNxName;
 	private TextBlock? _srcFilterPlanNxDesc;
 	private TextBlock? _srcFilterPlanNxPhase;
@@ -38,6 +44,7 @@ public sealed partial class DspPage
 	private TextBlock? _srcPrecisionValue;
 	private TextBlock? _srcFilterSlotValue;
 	private TextBlock? _srcDitherSlotValue;
+	private TextBlock? _srcFallbackNoticeText;
 
 	// 4-Stage Step Bar
 	private TextBlock? _srcStep1Val;
@@ -56,6 +63,7 @@ public sealed partial class DspPage
 	// Interactive Controls
 	private readonly List<Button> _srcModeButtons = new();
 	private readonly List<Button> _srcQualityButtons = new();
+	private readonly List<Button> _srcChartModeButtons = new();
 	private ComboBox? _srcFilter1xCombo;
 	private ComboBox? _srcFilterNxCombo;
 	private ComboBox? _srcComputeCombo;
@@ -64,11 +72,21 @@ public sealed partial class DspPage
 	private FrameworkElement? _srcAdvancedPanel;
 	private FontIcon? _srcAdvancedChevron;
 
+	private bool _srcSyncingUi;
+	private bool _srcShowImpulseMode;
+	private DispatcherTimer? _srcTelemetryTimer;
+
+	private sealed record SrcChoiceItem(string Id, string Label)
+	{
+		public override string ToString() => Label;
+	}
+
 	public FrameworkElement CreateSrcUpsamplingWorkbench()
 	{
 		if (_srcUpsamplingWorkbench != null)
 		{
 			RefreshSrcUpsamplingState();
+			UpdateFilterDesignCurve();
 			return _srcUpsamplingWorkbench;
 		}
 
@@ -86,47 +104,69 @@ public sealed partial class DspPage
 		};
 
 		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 0: Top Header
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Hero Route & Precision Card
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 2: Control Deck Card (Modes, Quality, Combos)
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 3: Filter Design Preview Card
-		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 4: Bottom Disclaimer Note
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 1: Hero Route & Telemetry Card
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 2: Control Deck Card
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 3: True FFT & Impulse Preview Card
+		root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // 4: Engine Note
 
-		// --- Row 0: Top Header & Status Indicators ---
 		root.Children.Add(CreateSrcHeaderBar());
 
-		// --- Row 1: Hero Route & Precision Card ---
 		var heroCard = CreateSrcHeroCard();
 		Grid.SetRow(heroCard, 1);
 		root.Children.Add(heroCard);
 
-		// --- Row 2: Control Deck Card ---
 		var controlDeck = CreateSrcControlDeck();
 		Grid.SetRow(controlDeck, 2);
 		root.Children.Add(controlDeck);
 
-		// --- Row 3: Filter Design Preview Card ---
 		var filterPreview = CreateSrcFilterPreviewCard();
 		Grid.SetRow(filterPreview, 3);
 		root.Children.Add(filterPreview);
 
-		// --- Row 4: Bottom Disclaimer Note ---
 		var bottomNote = new TextBlock
 		{
-			Text = Loc.T("只处理 PCM，共享输出、DSD 输出或 HQPlayer 协议时不会叠加热转。"),
+			Text = Loc.T("基于 FurinaPlayer 原生 AVX2 / SIMD 多级联多相 FIR 引擎，全面兼容 WASAPI 共享、ASIO 独占与 WaveOut，支持硬件采样率自动协商与无断音切换。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
+			TextWrapping = TextWrapping.Wrap,
 			Margin = new Thickness(4, 4, 4, 12)
 		};
 		Grid.SetRow(bottomNote, 4);
 		root.Children.Add(bottomNote);
 
 		sv.Content = root;
+		sv.Loaded += (s, e) =>
+		{
+			StartSrcTelemetryTimer();
+			RefreshSrcUpsamplingState();
+			UpdateFilterDesignCurve();
+		};
+		sv.Unloaded += (s, e) => StopSrcTelemetryTimer();
+
 		_srcUpsamplingWorkbench = sv;
 
 		RefreshSrcUpsamplingState();
 		UpdateFilterDesignCurve();
 
 		return _srcUpsamplingWorkbench;
+	}
+
+	private void StartSrcTelemetryTimer()
+	{
+		if (_srcTelemetryTimer == null)
+		{
+			_srcTelemetryTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+			_srcTelemetryTimer.Tick += (s, e) => RefreshSrcUpsamplingState();
+		}
+		if (!_srcTelemetryTimer.IsEnabled)
+		{
+			_srcTelemetryTimer.Start();
+		}
+	}
+
+	private void StopSrcTelemetryTimer()
+	{
+		_srcTelemetryTimer?.Stop();
 	}
 
 	private FrameworkElement CreateSrcHeaderBar()
@@ -147,7 +187,7 @@ public sealed partial class DspPage
 			Background = DspAccentSoftBgBrush,
 			Child = new FontIcon
 			{
-				Glyph = "\uE774", // Audio / broadcast icon
+				Glyph = "\uE774",
 				FontSize = 16,
 				Foreground = DspAccentSoftTextBrush,
 				HorizontalAlignment = HorizontalAlignment.Center,
@@ -165,13 +205,12 @@ public sealed partial class DspPage
 		});
 		leftStack.Children.Add(titleRow);
 
-		// Native Pass-through / Active status dot
-		var statusRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(44, 0, 0, 0) };
+		var statusRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(44, 0, 0, 0) };
 		_srcStatusDot = new Ellipse
 		{
 			Width = 7,
 			Height = 7,
-			Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)), // Green
+			Fill = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
 		_srcStatusText = new TextBlock
@@ -182,48 +221,84 @@ public sealed partial class DspPage
 			Foreground = DspTextMutedBrush,
 			VerticalAlignment = VerticalAlignment.Center
 		};
+		_srcFallbackNoticeText = new TextBlock
+		{
+			Text = "",
+			FontSize = 11,
+			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 217, 119, 6)),
+			VerticalAlignment = VerticalAlignment.Center,
+			Visibility = Visibility.Collapsed
+		};
 		statusRow.Children.Add(_srcStatusDot);
 		statusRow.Children.Add(_srcStatusText);
+		statusRow.Children.Add(_srcFallbackNoticeText);
 		leftStack.Children.Add(statusRow);
 
 		Grid.SetColumn(leftStack, 0);
 		headerGrid.Children.Add(leftStack);
 
-		// Right Actions: A/B Benchmark CheckBox
-		var rightStack = new StackPanel { Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };
+		// Right Actions: A/B Blind Compare + Telemetry Refresh
+		var subActionRow = new StackPanel
+		{
+			Orientation = Orientation.Horizontal,
+			Spacing = 12,
+			HorizontalAlignment = HorizontalAlignment.Right,
+			VerticalAlignment = VerticalAlignment.Center
+		};
 
-		// Sub-row: A/B Benchmark CheckBox
-		var subActionRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, HorizontalAlignment = HorizontalAlignment.Right };
 		_srcAbBenchmarkCheck = new CheckBox
 		{
-			Content = Loc.T("A/B SOXR 基准"),
+			Content = Loc.T("A/B 实时盲听对比"),
 			FontSize = 12,
-			IsChecked = ViewModel?.FurinaSrcAbBenchmark ?? false
+			IsChecked = ViewModel?.FurinaSrcAbBenchmark ?? false,
+			VerticalAlignment = VerticalAlignment.Center
 		};
 		_srcAbBenchmarkCheck.Checked += (s, e) =>
 		{
-			if (ViewModel != null)
-			{
-				ViewModel.FurinaSrcAbBenchmark = true;
-				ViewModel.SaveFurinaPlayerSettings();
-				RefreshSrcUpsamplingState();
-			}
+			if (_srcSyncingUi || ViewModel == null) return;
+			ViewModel.FurinaSrcAbBenchmark = true;
+			ViewModel.SaveFurinaPlayerSettings();
+			ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+			RefreshSrcUpsamplingState();
 		};
 		_srcAbBenchmarkCheck.Unchecked += (s, e) =>
 		{
-			if (ViewModel != null)
+			if (_srcSyncingUi || ViewModel == null) return;
+			ViewModel.FurinaSrcAbBenchmark = false;
+			ViewModel.SaveFurinaPlayerSettings();
+			ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+			RefreshSrcUpsamplingState();
+		};
+		subActionRow.Children.Add(_srcAbBenchmarkCheck);
+
+		var btnRefresh = new Button
+		{
+			CornerRadius = new CornerRadius(8),
+			Padding = new Thickness(10, 5, 10, 5),
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
+			BorderThickness = new Thickness(1),
+			Content = new StackPanel
 			{
-				ViewModel.FurinaSrcAbBenchmark = false;
-				ViewModel.SaveFurinaPlayerSettings();
-				RefreshSrcUpsamplingState();
+				Orientation = Orientation.Horizontal,
+				Spacing = 5,
+				Children =
+				{
+					new FontIcon { Glyph = "\uE72C", FontSize = 12, Foreground = DspTextSubHeaderBrush },
+					new TextBlock { Text = Loc.T("刷新"), FontSize = 12, Foreground = DspTextSubHeaderBrush }
+				}
 			}
 		};
+		btnRefresh.Click += (s, e) =>
+		{
+			ViewModel?.ApplySrcSettings(reopenIfRateChanged: false);
+			RefreshSrcUpsamplingState();
+			UpdateFilterDesignCurve();
+		};
+		subActionRow.Children.Add(btnRefresh);
 
-		subActionRow.Children.Add(_srcAbBenchmarkCheck);
-		rightStack.Children.Add(subActionRow);
-
-		Grid.SetColumn(rightStack, 1);
-		headerGrid.Children.Add(rightStack);
+		Grid.SetColumn(subActionRow, 1);
+		headerGrid.Children.Add(subActionRow);
 
 		return headerGrid;
 	}
@@ -241,12 +316,11 @@ public sealed partial class DspPage
 
 		var mainGrid = new Grid();
 		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(340, GridUnitType.Pixel) });
+		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360, GridUnitType.Pixel) });
 
 		// --- Left Section: Route Path & 4-Stage Step Bar ---
 		var leftStack = new StackPanel { Spacing = 20, Margin = new Thickness(0, 0, 32, 0) };
 
-		// Route Title
 		var routeTitleSp = new StackPanel { Spacing = 8 };
 		routeTitleSp.Children.Add(new TextBlock
 		{
@@ -256,14 +330,12 @@ public sealed partial class DspPage
 			Foreground = DspTextMutedBrush
 		});
 
-		// Sample Rate Transform Display
 		var rateGrid = new Grid();
 		rateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		rateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56, GridUnitType.Pixel) });
 		rateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 		rateGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		// Source Rate
 		var srcSp = new StackPanel { Spacing = 2 };
 		srcSp.Children.Add(new TextBlock { Text = Loc.T("源采样率"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcSourceRateText = new TextBlock
@@ -277,21 +349,18 @@ public sealed partial class DspPage
 		Grid.SetColumn(srcSp, 0);
 		rateGrid.Children.Add(srcSp);
 
-		// Arrow
 		var arrowSp = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(8, 12, 8, 0) };
-		var arrowIcon = new TextBlock
+		arrowSp.Children.Add(new TextBlock
 		{
 			Text = "──▶",
 			FontSize = 16,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush,
 			HorizontalAlignment = HorizontalAlignment.Center
-		};
-		arrowSp.Children.Add(arrowIcon);
+		});
 		Grid.SetColumn(arrowSp, 1);
 		rateGrid.Children.Add(arrowSp);
 
-		// Target Rate
 		var dstSp = new StackPanel { Spacing = 2 };
 		dstSp.Children.Add(new TextBlock { Text = Loc.T("目标采样率"), FontSize = 11, Foreground = DspTextMutedBrush });
 		_srcTargetRateText = new TextBlock
@@ -305,7 +374,6 @@ public sealed partial class DspPage
 		Grid.SetColumn(dstSp, 2);
 		rateGrid.Children.Add(dstSp);
 
-		// Multiplier Badge
 		_srcRatioBadge = new TextBlock
 		{
 			Text = "",
@@ -329,20 +397,16 @@ public sealed partial class DspPage
 			stepBarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		}
 
-		// Step 01
 		stepBarGrid.Children.Add(CreateStepIndicator(0, Loc.T("01 FurinaPlayer SRC 控制模式"), Loc.T("关闭"), out _srcStep1Val, false));
-		// Step 02
 		stepBarGrid.Children.Add(CreateStepIndicator(1, Loc.T("02 质量策略"), "Transparent", out _srcStep2Val, false));
-		// Step 03
 		stepBarGrid.Children.Add(CreateStepIndicator(2, Loc.T("03 倍率"), "--", out _srcStep3Val, false));
-		// Step 04
-		stepBarGrid.Children.Add(CreateStepIndicator(3, "04 Compute", Loc.T("CPU 实时路径,未请求 CUDA。"), out _srcStep4Val, true));
+		stepBarGrid.Children.Add(CreateStepIndicator(3, "04 SIMD Compute", "AVX2 Vector<float>", out _srcStep4Val, true));
 
 		leftStack.Children.Add(stepBarGrid);
 		Grid.SetColumn(leftStack, 0);
 		mainGrid.Children.Add(leftStack);
 
-		// --- Right Section: Precision & Stats ---
+		// --- Right Section: Live Precision, FIR Stage & Telemetry ---
 		var rightBorder = new Border
 		{
 			BorderBrush = CreateLiquidGlassRimBrush(),
@@ -353,7 +417,7 @@ public sealed partial class DspPage
 
 		rightStack.Children.Add(new TextBlock
 		{
-			Text = Loc.T("精度"),
+			Text = Loc.T("精度与实时引擎遥测"),
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush
@@ -361,30 +425,28 @@ public sealed partial class DspPage
 
 		_srcPrecisionValue = new TextBlock
 		{
-			Text = "SOXR precision 28",
-			FontSize = 26,
+			Text = "Furina FIR · AVX2 SIMD",
+			FontSize = 21,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)),
 			FontFamily = new FontFamily("Consolas, Segoe UI")
 		};
 		rightStack.Children.Add(_srcPrecisionValue);
 
-		var statColsGrid = new Grid { ColumnSpacing = 20, Margin = new Thickness(0, 4, 0, 0) };
+		var statColsGrid = new Grid { ColumnSpacing = 18, Margin = new Thickness(0, 4, 0, 0) };
 		statColsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		statColsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		// Filter Slot
 		var slotSp = new StackPanel { Spacing = 2 };
 		slotSp.Children.Add(new TextBlock { Text = Loc.T("过滤器插槽"), FontSize = 11, Foreground = DspTextMutedBrush });
-		_srcFilterSlotValue = new TextBlock { Text = "Standby", FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_srcFilterSlotValue = new TextBlock { Text = "Standby", FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, TextTrimming = TextTrimming.CharacterEllipsis };
 		slotSp.Children.Add(_srcFilterSlotValue);
 		Grid.SetColumn(slotSp, 0);
 		statColsGrid.Children.Add(slotSp);
 
-		// PCM Dither
 		var ditherSp = new StackPanel { Spacing = 2 };
 		ditherSp.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 11, Foreground = DspTextMutedBrush });
-		_srcDitherSlotValue = new TextBlock { Text = Loc.T("关闭"), FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
+		_srcDitherSlotValue = new TextBlock { Text = Loc.T("关闭"), FontSize = 12.5, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush, TextTrimming = TextTrimming.CharacterEllipsis };
 		ditherSp.Children.Add(_srcDitherSlotValue);
 		Grid.SetColumn(ditherSp, 1);
 		statColsGrid.Children.Add(ditherSp);
@@ -402,15 +464,13 @@ public sealed partial class DspPage
 	private FrameworkElement CreateStepIndicator(int col, string label, string defaultValue, out TextBlock valBlock, bool isLast)
 	{
 		var sp = new StackPanel { Spacing = 4 };
-		// Top Accent Bar
-		var topBar = new Rectangle
+		sp.Children.Add(new Rectangle
 		{
 			Height = 2,
 			Fill = new SolidColorBrush(isLast ? Windows.UI.Color.FromArgb(255, 16, 185, 129) : Windows.UI.Color.FromArgb(255, 59, 130, 246)),
 			HorizontalAlignment = HorizontalAlignment.Stretch,
 			Margin = new Thickness(0, 0, 0, 4)
-		};
-		sp.Children.Add(topBar);
+		});
 
 		sp.Children.Add(new TextBlock
 		{
@@ -422,7 +482,7 @@ public sealed partial class DspPage
 		valBlock = new TextBlock
 		{
 			Text = defaultValue,
-			FontSize = 13,
+			FontSize = 12.5,
 			FontWeight = FontWeights.SemiBold,
 			Foreground = DspTextPrimaryBrush,
 			TextTrimming = TextTrimming.CharacterEllipsis
@@ -446,19 +506,16 @@ public sealed partial class DspPage
 
 		var stack = new StackPanel { Spacing = 16 };
 
-		// Header Right: Advanced Toggle Button
+		// Top row: Advanced Ladder Presets Toggle
 		var topHeaderRow = new Grid();
 		topHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		topHeaderRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-		var btnToggleAdvanced = new HyperlinkButton
-		{
-			Padding = new Thickness(6, 2, 6, 2)
-		};
+		var btnToggleAdvanced = new HyperlinkButton { Padding = new Thickness(6, 2, 6, 2) };
 		var advSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 5 };
-		var advText = new TextBlock { Text = Loc.T("高级"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
-		_srcAdvancedChevron = new FontIcon { Glyph = "\uE70D", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) }; // Chevron Down
-		advSp.Children.Add(advText);
+		advSp.Children.Add(new TextBlock { Text = Loc.T("快速预设阶梯"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) });
+		bool advOpen = ViewModel?.FurinaSrcAdvanced ?? false;
+		_srcAdvancedChevron = new FontIcon { Glyph = advOpen ? "\uE70E" : "\uE70D", FontSize = 11, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
 		advSp.Children.Add(_srcAdvancedChevron);
 		btnToggleAdvanced.Content = advSp;
 
@@ -468,7 +525,7 @@ public sealed partial class DspPage
 			{
 				bool isVisible = _srcAdvancedPanel.Visibility == Visibility.Visible;
 				_srcAdvancedPanel.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
-				_srcAdvancedChevron.Glyph = isVisible ? "\uE70D" : "\uE70E"; // Down vs Up
+				_srcAdvancedChevron.Glyph = isVisible ? "\uE70D" : "\uE70E";
 				if (ViewModel != null)
 				{
 					ViewModel.FurinaSrcAdvanced = !isVisible;
@@ -486,7 +543,6 @@ public sealed partial class DspPage
 		row1Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
 		row1Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 
-		// Mode Segmented Group
 		var modeStack = new StackPanel { Spacing = 8 };
 		modeStack.Children.Add(new TextBlock
 		{
@@ -496,6 +552,9 @@ public sealed partial class DspPage
 			Foreground = DspTextSubHeaderBrush
 		});
 
+		string activeModeKey = (ViewModel?.FurinaPlayerResamplerEnabled ?? false)
+			? (ViewModel?.FurinaSrcMode ?? "off")
+			: "off";
 		var modeOptions = new (string Key, string Label)[]
 		{
 			("off", Loc.T("关闭")),
@@ -504,21 +563,21 @@ public sealed partial class DspPage
 			("family4x", "4x PCM"),
 			("family8x", "8x Ultra")
 		};
-		var modeSegBar = CreateSegmentedBar(modeOptions, ViewModel?.FurinaSrcMode ?? "off", _srcModeButtons, OnModeSelected);
-		modeStack.Children.Add(modeSegBar);
+		_srcModeButtons.Clear();
+		modeStack.Children.Add(CreateSegmentedBar(modeOptions, activeModeKey, _srcModeButtons, OnModeSelected));
 
 		_srcModeHint = new TextBlock
 		{
 			Text = Loc.T("保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
-			Margin = new Thickness(2, 0, 0, 0)
+			Margin = new Thickness(2, 0, 0, 0),
+			TextWrapping = TextWrapping.Wrap
 		};
 		modeStack.Children.Add(_srcModeHint);
 		Grid.SetColumn(modeStack, 0);
 		row1Grid.Children.Add(modeStack);
 
-		// Quality Profile Segmented Group
 		var qualityStack = new StackPanel { Spacing = 8 };
 		qualityStack.Children.Add(new TextBlock
 		{
@@ -534,15 +593,16 @@ public sealed partial class DspPage
 			("balanced", "Balanced"),
 			("lowLatency", "Low latency")
 		};
-		var qualitySegBar = CreateSegmentedBar(qualityOptions, ViewModel?.FurinaSrcQuality ?? "transparent", _srcQualityButtons, OnQualitySelected);
-		qualityStack.Children.Add(qualitySegBar);
+		_srcQualityButtons.Clear();
+		qualityStack.Children.Add(CreateSegmentedBar(qualityOptions, ViewModel?.FurinaSrcQuality ?? "transparent", _srcQualityButtons, OnQualitySelected));
 
 		_srcQualityHint = new TextBlock
 		{
-			Text = Loc.T("最高精度 SOXR，优先透明度和截断失真。"),
+			Text = Loc.T("全精度多相级联参考档，优先极低通带波纹、零染色与极限阻带抑制。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
-			Margin = new Thickness(2, 0, 0, 0)
+			Margin = new Thickness(2, 0, 0, 0),
+			TextWrapping = TextWrapping.Wrap
 		};
 		qualityStack.Children.Add(_srcQualityHint);
 		Grid.SetColumn(qualityStack, 1);
@@ -557,147 +617,121 @@ public sealed partial class DspPage
 			row2Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		}
 
-		// Col 0: 过滤器 1x
+		// Col 0: Filter 1x (< 50kHz sources: 44.1 / 48kHz)
 		var col0 = new StackPanel { Spacing = 6 };
-		col0.Children.Add(new TextBlock { Text = Loc.T("过滤器 1x"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
-		_srcFilter1xCombo = new ComboBox
+		col0.Children.Add(new TextBlock { Text = Loc.T("过滤器 1x (CD/48k 主力级)"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		_srcFilter1xCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(8) };
+		foreach (var spec in FurinaSrcCatalog.Profiles)
 		{
-			HorizontalAlignment = HorizontalAlignment.Stretch,
-			CornerRadius = new CornerRadius(8)
-		};
-		_srcFilter1xCombo.Items.Add("FurinaPlayer Gauss Long");
-		_srcFilter1xCombo.Items.Add("FurinaPlayer Gauss Short");
-		_srcFilter1xCombo.Items.Add("Linear Phase");
-		_srcFilter1xCombo.Items.Add("Min Phase");
-		_srcFilter1xCombo.Items.Add("FurinaPlayer Steep Short");
-		_srcFilter1xCombo.Items.Add("FurinaPlayer Steep Long");
-		_srcFilter1xCombo.SelectedItem = SelectMatchingItem(_srcFilter1xCombo, ViewModel?.FurinaSrcFilter1x, "FurinaPlayer Gauss Long");
+			_srcFilter1xCombo.Items.Add(new SrcChoiceItem(spec.Id, $"{spec.DisplayName} · {(spec.Phase == FurinaSrcPhaseType.Minimum ? "MP" : "LP")}"));
+		}
+		string norm1x = FurinaSrcCatalog.NormalizeProfileId(ViewModel?.FurinaSrcFilter1x, "furina-gauss-long");
+		_srcFilter1xCombo.SelectedItem = FindChoiceById(_srcFilter1xCombo, norm1x);
 		_srcFilter1xCombo.SelectionChanged += (s, e) =>
 		{
-			if (_srcFilter1xCombo.SelectedItem is string sel && ViewModel != null)
+			if (_srcSyncingUi || ViewModel == null) return;
+			if (_srcFilter1xCombo.SelectedItem is SrcChoiceItem item)
 			{
-				ViewModel.FurinaSrcFilter1x = sel;
+				ViewModel.FurinaSrcFilter1x = item.Id;
 				ViewModel.SaveFurinaPlayerSettings();
-				UpdateFilter1xHint(sel);
+				ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+				UpdateFilter1xHint(item.Id);
+				RefreshSrcUpsamplingState();
 				UpdateFilterDesignCurve();
 			}
 		};
 		col0.Children.Add(_srcFilter1xCombo);
-		_srcFilter1xHint = new TextBlock
-		{
-			Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。"),
-			FontSize = 11,
-			Foreground = DspTextMutedBrush,
-			TextWrapping = TextWrapping.Wrap
-		};
+		_srcFilter1xHint = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		UpdateFilter1xHint(norm1x);
 		col0.Children.Add(_srcFilter1xHint);
 		Grid.SetColumn(col0, 0);
 		row2Grid.Children.Add(col0);
 
-		// Col 1: 过滤器 Nx
+		// Col 1: Filter Nx (>= 50kHz high-rate cascade stages)
 		var col1 = new StackPanel { Spacing = 6 };
-		col1.Children.Add(new TextBlock { Text = Loc.T("过滤器 Nx"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
-		_srcFilterNxCombo = new ComboBox
+		col1.Children.Add(new TextBlock { Text = Loc.T("过滤器 Nx (88.2k+ 级联载波级)"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		_srcFilterNxCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(8) };
+		foreach (var spec in FurinaSrcCatalog.Profiles)
 		{
-			HorizontalAlignment = HorizontalAlignment.Stretch,
-			CornerRadius = new CornerRadius(8)
-		};
-		_srcFilterNxCombo.Items.Add("FurinaPlayer Halfband");
-		_srcFilterNxCombo.Items.Add("Sinc Polyphase");
-		_srcFilterNxCombo.Items.Add("Steep");
-		_srcFilterNxCombo.Items.Add("FurinaPlayer Steep XL");
-		_srcFilterNxCombo.SelectedItem = SelectMatchingItem(_srcFilterNxCombo, ViewModel?.FurinaSrcFilterNx, "FurinaPlayer Halfband");
+			_srcFilterNxCombo.Items.Add(new SrcChoiceItem(spec.Id, $"{spec.DisplayName} · {(spec.Phase == FurinaSrcPhaseType.Minimum ? "MP" : "LP")}"));
+		}
+		string normNx = FurinaSrcCatalog.NormalizeProfileId(ViewModel?.FurinaSrcFilterNx, "furina-hb");
+		_srcFilterNxCombo.SelectedItem = FindChoiceById(_srcFilterNxCombo, normNx);
 		_srcFilterNxCombo.SelectionChanged += (s, e) =>
 		{
-			if (_srcFilterNxCombo.SelectedItem is string sel && ViewModel != null)
+			if (_srcSyncingUi || ViewModel == null) return;
+			if (_srcFilterNxCombo.SelectedItem is SrcChoiceItem item)
 			{
-				ViewModel.FurinaSrcFilterNx = sel;
+				ViewModel.FurinaSrcFilterNx = item.Id;
 				ViewModel.SaveFurinaPlayerSettings();
-				UpdateFilterNxHint(sel);
+				ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+				UpdateFilterNxHint(item.Id);
+				RefreshSrcUpsamplingState();
 				UpdateFilterDesignCurve();
 			}
 		};
 		col1.Children.Add(_srcFilterNxCombo);
-		_srcFilterNxHint = new TextBlock
-		{
-			Text = Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。"),
-			FontSize = 11,
-			Foreground = DspTextMutedBrush,
-			TextWrapping = TextWrapping.Wrap
-		};
+		_srcFilterNxHint = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		UpdateFilterNxHint(normNx);
 		col1.Children.Add(_srcFilterNxHint);
 		Grid.SetColumn(col1, 1);
 		row2Grid.Children.Add(col1);
 
-		// Col 2: Compute
+		// Col 2: Compute Backend
 		var col2 = new StackPanel { Spacing = 6 };
-		col2.Children.Add(new TextBlock { Text = "Compute", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
-		_srcComputeCombo = new ComboBox
-		{
-			HorizontalAlignment = HorizontalAlignment.Stretch,
-			CornerRadius = new CornerRadius(8)
-		};
-		_srcComputeCombo.Items.Add("CPU SIMD");
-		_srcComputeCombo.Items.Add(Loc.T("CPU 多线程"));
-		_srcComputeCombo.Items.Add(Loc.T("GPU 加速 (若支持)"));
-		_srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, ViewModel?.FurinaSrcCompute != null ? Loc.T(ViewModel.FurinaSrcCompute) : null, "CPU SIMD");
+		col2.Children.Add(new TextBlock { Text = Loc.T("SIMD 硬件计算后端"), FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
+		_srcComputeCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(8) };
+		_srcComputeCombo.Items.Add(new SrcChoiceItem("simd", "CPU AVX2 / SIMD 实时矢量"));
+		_srcComputeCombo.Items.Add(new SrcChoiceItem("simd-mt", "CPU SIMD 多核双声道并发"));
+		string normCompute = FurinaSrcCatalog.ParseComputeBackend(ViewModel?.FurinaSrcCompute) == FurinaComputeBackend.CpuMultiThread ? "simd-mt" : "simd";
+		_srcComputeCombo.SelectedItem = FindChoiceById(_srcComputeCombo, normCompute);
 		_srcComputeCombo.SelectionChanged += (s, e) =>
 		{
-			if (_srcComputeCombo.SelectedItem is string sel && ViewModel != null)
+			if (_srcSyncingUi || ViewModel == null) return;
+			if (_srcComputeCombo.SelectedItem is SrcChoiceItem item)
 			{
-				string canonical = sel == Loc.T("CPU 多线程") ? "CPU 多线程"
-					: sel == Loc.T("GPU 加速 (若支持)") ? "GPU 加速 (若支持)"
-					: sel;
-				ViewModel.FurinaSrcCompute = canonical;
+				ViewModel.FurinaSrcCompute = item.Id;
 				ViewModel.SaveFurinaPlayerSettings();
-				UpdateComputeHint(canonical);
+				ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+				UpdateComputeHint(item.Id);
+				RefreshSrcUpsamplingState();
 			}
 		};
 		col2.Children.Add(_srcComputeCombo);
-		_srcComputeHint = new TextBlock
-		{
-			Text = Loc.T("默认实时路径：极优，无降采样风险，并保证随机可用。"),
-			FontSize = 11,
-			Foreground = DspTextMutedBrush,
-			TextWrapping = TextWrapping.Wrap
-		};
+		_srcComputeHint = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		UpdateComputeHint(normCompute);
 		col2.Children.Add(_srcComputeHint);
 		Grid.SetColumn(col2, 2);
 		row2Grid.Children.Add(col2);
 
-		// Col 3: PCM Dither / Noise Shaping
+		// Col 3: Dither & Noise Shaping (6 modes matching & surpassing audiophile mastering chains)
 		var col3 = new StackPanel { Spacing = 6 };
 		col3.Children.Add(new TextBlock { Text = "PCM Dither / Noise Shaping", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = DspTextSubHeaderBrush });
-		_srcDitherCombo = new ComboBox
-		{
-			HorizontalAlignment = HorizontalAlignment.Stretch,
-			CornerRadius = new CornerRadius(8)
-		};
-		_srcDitherCombo.Items.Add("Off");
-		_srcDitherCombo.Items.Add("TPDF");
-		_srcDitherCombo.Items.Add("High-Pass Noise Shaping");
-		_srcDitherCombo.SelectedItem = SelectMatchingItem(_srcDitherCombo, ViewModel?.FurinaSrcDither, "Off");
+		_srcDitherCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(8) };
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("off", "Off (Float32 无损直出)"));
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("tpdf", "TPDF (标准 24-bit 三角抖动)"));
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("highpass-tpdf", "High-Pass TPDF (高通偏置)"));
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("ns-5", "NS-5 (5阶心理声学噪声整形)"));
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("ns-9", "NS-9 (9阶母带级深度整形)"));
+		_srcDitherCombo.Items.Add(new SrcChoiceItem("ultra-shaped", "Ultra-Shaped (超高频段终极整形)"));
+
+		string normDither = NormalizeDitherId(ViewModel?.FurinaSrcDither);
+		_srcDitherCombo.SelectedItem = FindChoiceById(_srcDitherCombo, normDither);
 		_srcDitherCombo.SelectionChanged += (s, e) =>
 		{
-			if (_srcDitherCombo.SelectedItem is string sel && ViewModel != null)
+			if (_srcSyncingUi || ViewModel == null) return;
+			if (_srcDitherCombo.SelectedItem is SrcChoiceItem item)
 			{
-				ViewModel.FurinaSrcDither = sel;
+				ViewModel.FurinaSrcDither = item.Id;
 				ViewModel.SaveFurinaPlayerSettings();
-				UpdateDitherHint(sel);
-				if (_srcDitherSlotValue != null)
-				{
-					_srcDitherSlotValue.Text = sel == "Off" ? Loc.T("关闭") : sel;
-				}
+				ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
+				UpdateDitherHint(item.Id);
+				RefreshSrcUpsamplingState();
 			}
 		};
 		col3.Children.Add(_srcDitherCombo);
-		_srcDitherHint = new TextBlock
-		{
-			Text = Loc.T("保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。"),
-			FontSize = 11,
-			Foreground = DspTextMutedBrush,
-			TextWrapping = TextWrapping.Wrap
-		};
+		_srcDitherHint = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		UpdateDitherHint(normDither);
 		col3.Children.Add(_srcDitherHint);
 		Grid.SetColumn(col3, 3);
 		row2Grid.Children.Add(col3);
@@ -706,7 +740,7 @@ public sealed partial class DspPage
 
 		// --- Advanced Ladder Collapsible Panel ---
 		_srcAdvancedPanel = CreateAdvancedLadderPanel();
-		_srcAdvancedPanel.Visibility = (ViewModel?.FurinaSrcAdvanced ?? false) ? Visibility.Visible : Visibility.Collapsed;
+		_srcAdvancedPanel.Visibility = advOpen ? Visibility.Visible : Visibility.Collapsed;
 		stack.Children.Add(_srcAdvancedPanel);
 
 		card.Child = stack;
@@ -730,41 +764,41 @@ public sealed partial class DspPage
 		titleRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
 		var titleSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		titleSp.Children.Add(new TextBlock { Text = Loc.T("高级"), FontSize = 12, FontWeight = FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
-		titleSp.Children.Add(new TextBlock { Text = Loc.T("快速套用进阶调谐梯度"), FontSize = 11, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
+		titleSp.Children.Add(new TextBlock { Text = Loc.T("进阶调谐阶梯"), FontSize = 12, FontWeight = FontWeights.Bold, Foreground = DspTextSubHeaderBrush });
+		titleSp.Children.Add(new TextBlock { Text = Loc.T("一键配置级联倍率、1x/Nx 滤波器组合与噪声整形策略"), FontSize = 11, Foreground = DspTextMutedBrush, VerticalAlignment = VerticalAlignment.Center });
 		Grid.SetColumn(titleSp, 0);
 		titleRow.Children.Add(titleSp);
 
-		var firPlannedText = new TextBlock { Text = "FIR planned", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
-		Grid.SetColumn(firPlannedText, 1);
-		titleRow.Children.Add(firPlannedText);
+		int simdBits = Vector.IsHardwareAccelerated ? Vector<float>.Count * 32 : 32;
+		var simdBadge = new TextBlock { Text = $"Furina FIR · {simdBits}-bit SIMD", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
+		Grid.SetColumn(simdBadge, 1);
+		titleRow.Children.Add(simdBadge);
 		stack.Children.Add(titleRow);
 
-		// 4 Ladder buttons
 		var ladderGrid = new Grid { ColumnSpacing = 12 };
 		for (int i = 0; i < 4; i++)
 		{
 			ladderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		}
 
-		ladderGrid.Children.Add(CreateLadderCard(0, "Realtime Safe", "4x / Halfband 1x+Nx / CPU", Loc.T("低延迟 / CPU"), () =>
+		ladderGrid.Children.Add(CreateLadderCard(0, "Realtime Safe", "2x · Gauss Short · Halfband · LowLatency", "< 0.4 ms · 低负载", () =>
 		{
-			ApplyLadderPreset("family4x", "lowLatency", "FurinaPlayer Halfband", "FurinaPlayer Halfband", "CPU SIMD");
+			ApplyLadderPreset("family2x", "lowLatency", "furina-gauss-short", "furina-hb", "simd", "off");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(1, "Hi-Fi Balanced", "4x / Gauss Long 1x / Halfband Nx / CPU", Loc.T("中等延迟 / CPU"), () =>
+		ladderGrid.Children.Add(CreateLadderCard(1, "Musical Reference", "4x · Gauss Long · Halfband · TPDF", "~0.9 ms · 均衡润泽", () =>
 		{
-			ApplyLadderPreset("family4x", "balanced", "FurinaPlayer Gauss Long", "FurinaPlayer Halfband", "CPU SIMD");
+			ApplyLadderPreset("family4x", "balanced", "furina-gauss-long", "furina-hb", "simd", "tpdf");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(2, "Reference", "8x / Gauss Long 1x / Steep Nx / CPU", Loc.T("高延迟 / CPU"), () =>
+		ladderGrid.Children.Add(CreateLadderCard(2, "Zero Pre-Ring Attack", "4x · Apodizing MinRing · XTR MP · NS-5", "0 前振铃 · 极致起音", () =>
 		{
-			ApplyLadderPreset("family8x", "transparent", "FurinaPlayer Gauss Long", "Steep", "CPU SIMD");
+			ApplyLadderPreset("family4x", "transparent", "furina-apod-minring", "furina-xtr-mp", "simd-mt", "ns-5");
 		}));
 
-		ladderGrid.Children.Add(CreateLadderCard(3, "Ultra Precision", "8x / Steep XL 1x / Sinc Polyphase Nx", Loc.T("超高延迟 / CPU"), () =>
+		ladderGrid.Children.Add(CreateLadderCard(3, "384kHz Studio Mastering", "8x · Steep3 Ultra · Steep XL · NS-9", ">175 dB · 旗舰级", () =>
 		{
-			ApplyLadderPreset("family8x", "transparent", "FurinaPlayer Steep Long", "FurinaPlayer Steep XL", "CPU SIMD");
+			ApplyLadderPreset("family8x", "transparent", "furina-steep3-long", "furina-steep-xl", "simd-mt", "ns-9");
 		}));
 
 		stack.Children.Add(ladderGrid);
@@ -797,13 +831,42 @@ public sealed partial class DspPage
 		return btn;
 	}
 
-	private void ApplyLadderPreset(string mode, string quality, string f1x, string fnx, string compute)
+	private void ApplyLadderPreset(string mode, string quality, string f1xId, string fnxId, string computeId, string ditherId)
 	{
-		OnModeSelected(mode);
-		OnQualitySelected(quality);
-		if (_srcFilter1xCombo != null) _srcFilter1xCombo.SelectedItem = SelectMatchingItem(_srcFilter1xCombo, f1x, f1x);
-		if (_srcFilterNxCombo != null) _srcFilterNxCombo.SelectedItem = SelectMatchingItem(_srcFilterNxCombo, fnx, fnx);
-		if (_srcComputeCombo != null) _srcComputeCombo.SelectedItem = SelectMatchingItem(_srcComputeCombo, Loc.T(compute), Loc.T(compute));
+		if (ViewModel == null) return;
+		_srcSyncingUi = true;
+		try
+		{
+			ViewModel.FurinaSrcMode = mode;
+			ViewModel.FurinaSrcQuality = quality;
+			ViewModel.FurinaSrcFilter1x = f1xId;
+			ViewModel.FurinaSrcFilterNx = fnxId;
+			ViewModel.FurinaSrcCompute = computeId;
+			ViewModel.FurinaSrcDither = ditherId;
+
+			int inputRate = ViewModel.EngineSampleRate > 0 ? ViewModel.EngineSampleRate : 44100;
+			ViewModel.FurinaPlayerResamplerEnabled = mode != "off";
+			ViewModel.FurinaPlayerResamplerTargetRate = FurinaSrcCatalog.ResolveTargetSampleRate(inputRate, mode, ViewModel.FurinaPlayerResamplerTargetRate);
+
+			UpdateSegmentedSelection(_srcModeButtons, mode);
+			UpdateSegmentedSelection(_srcQualityButtons, quality);
+			if (_srcFilter1xCombo != null) _srcFilter1xCombo.SelectedItem = FindChoiceById(_srcFilter1xCombo, f1xId);
+			if (_srcFilterNxCombo != null) _srcFilterNxCombo.SelectedItem = FindChoiceById(_srcFilterNxCombo, fnxId);
+			if (_srcComputeCombo != null) _srcComputeCombo.SelectedItem = FindChoiceById(_srcComputeCombo, computeId);
+			if (_srcDitherCombo != null) _srcDitherCombo.SelectedItem = FindChoiceById(_srcDitherCombo, ditherId);
+
+			UpdateFilter1xHint(f1xId);
+			UpdateFilterNxHint(fnxId);
+			UpdateComputeHint(computeId);
+			UpdateDitherHint(ditherId);
+		}
+		finally
+		{
+			_srcSyncingUi = false;
+		}
+
+		ViewModel.SaveFurinaPlayerSettings();
+		ViewModel.ApplySrcSettings(reopenIfRateChanged: true);
 		RefreshSrcUpsamplingState();
 		UpdateFilterDesignCurve();
 	}
@@ -821,12 +884,11 @@ public sealed partial class DspPage
 
 		var mainGrid = new Grid();
 		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
-		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280, GridUnitType.Pixel) });
+		mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290, GridUnitType.Pixel) });
 
-		// --- Left Section: Chart Area & Header ---
+		// --- Left Section: Real FFT & Impulse Canvas ---
 		var leftStack = new StackPanel { Spacing = 10, Margin = new Thickness(0, 0, 32, 0) };
 
-		// Preview Header
 		var headGrid = new Grid();
 		headGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
 		headGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -834,7 +896,7 @@ public sealed partial class DspPage
 		var titleSp = new StackPanel { Spacing = 2 };
 		titleSp.Children.Add(new TextBlock
 		{
-			Text = "FILTER : DESIGN PREVIEW",
+			Text = "FILTER : REAL-TIME FFT & IMPULSE ANALYSIS",
 			FontSize = 11,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush
@@ -850,48 +912,43 @@ public sealed partial class DspPage
 		Grid.SetColumn(titleSp, 0);
 		headGrid.Children.Add(titleSp);
 
-		// Phase Pill Badge
-		var phaseBadgeBorder = new Border
-		{
-			Background = DspSoftSurfaceBrush,
-			BorderBrush = CreateLiquidGlassRimBrush(),
-			BorderThickness = new Thickness(1),
-			CornerRadius = new CornerRadius(6),
-			Padding = new Thickness(8, 3, 8, 3),
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		_srcPhaseBadgeText = new TextBlock
-		{
-			Text = "Linear phase",
-			FontSize = 11,
-			FontFamily = new FontFamily("Consolas, Segoe UI"),
-			Foreground = DspTextSubHeaderBrush
-		};
-		phaseBadgeBorder.Child = _srcPhaseBadgeText;
-		Grid.SetColumn(phaseBadgeBorder, 1);
-		headGrid.Children.Add(phaseBadgeBorder);
+		var badgeRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
 
+		// Chart view switch (Magnitude dB vs Impulse Time-Domain)
+		_srcChartModeButtons.Clear();
+		var chartOptions = new (string Key, string Label)[]
+		{
+			("mag", Loc.T("幅频响应 (dB)")),
+			("imp", Loc.T("脉冲响应 (Impulse)"))
+		};
+		badgeRow.Children.Add(CreateSegmentedBar(chartOptions, "mag", _srcChartModeButtons, key =>
+		{
+			_srcShowImpulseMode = key == "imp";
+			UpdateFilterDesignCurve();
+		}));
+
+		_srcPhaseBadgeText = CreateStatPill("Linear phase", badgeRow);
+		_srcTapsBadgeText = CreateStatPill("191 Taps", badgeRow);
+		_srcAttenBadgeText = CreateStatPill("-145 dB", badgeRow);
+		_srcDelayBadgeText = CreateStatPill("1.0 ms", badgeRow);
+
+		Grid.SetColumn(badgeRow, 1);
+		headGrid.Children.Add(badgeRow);
 		leftStack.Children.Add(headGrid);
 
-		// Chart Canvas & Viewbox
 		var chartViewbox = new Viewbox
 		{
 			Stretch = Stretch.Uniform,
-			Height = 180,
+			Height = 195,
 			HorizontalAlignment = HorizontalAlignment.Stretch
 		};
-		_srcFilterCurveCanvas = new Canvas
-		{
-			Width = 720,
-			Height = 220
-		};
+		_srcFilterCurveCanvas = new Canvas { Width = 720, Height = 220 };
 		chartViewbox.Child = _srcFilterCurveCanvas;
 		leftStack.Children.Add(chartViewbox);
 
-		// Chart Footer Note
 		_srcFilterCaptionText = new TextBlock
 		{
-			Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。44.1/48 kHz 音源的差异主要集中在最高频段，相位与瞬态响应：透明 SRC 本身就不应产生明显染色。"),
+			Text = Loc.T("实测 FIR 卷积核 FFT 频域与时域冲击响应，直接反映所选质量策略与相位特性（Minimum Phase 零前振铃）。"),
 			FontSize = 11,
 			Foreground = DspTextMutedBrush,
 			TextWrapping = TextWrapping.Wrap,
@@ -902,7 +959,7 @@ public sealed partial class DspPage
 		Grid.SetColumn(leftStack, 0);
 		mainGrid.Children.Add(leftStack);
 
-		// --- Right Section: Filter Plan 1x / Nx Details ---
+		// --- Right Section: Active Filter Plan 1x / Nx ---
 		var rightBorder = new Border
 		{
 			BorderBrush = CreateLiquidGlassRimBrush(),
@@ -913,24 +970,24 @@ public sealed partial class DspPage
 
 		rightStack.Children.Add(new TextBlock
 		{
-			Text = "Filter 1x / Nx",
+			Text = "Filter Plan (1x / Nx Cascade)",
 			FontSize = 12,
 			FontWeight = FontWeights.Bold,
 			Foreground = DspTextMutedBrush
 		});
 
-		// 1x Details Box
 		_srcFilterPlan1xSlot = new Border { Padding = new Thickness(0, 0, 0, 10) };
 		var f1xSp = new StackPanel { Spacing = 4 };
 		var f1xHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
-		f1xHeader.Children.Add(new TextBlock { Text = "1X", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
-		f1xHeader.Children.Add(new TextBlock { Text = Loc.T("· 激活"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)) });
+		f1xHeader.Children.Add(new TextBlock { Text = "1X (< 50kHz)", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
+		_srcFilterPlan1xStatus = new TextBlock { Text = Loc.T("· 激活"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)) };
+		f1xHeader.Children.Add(_srcFilterPlan1xStatus);
 		f1xSp.Children.Add(f1xHeader);
 
 		_srcFilterPlan1xName = new TextBlock { Text = "FurinaPlayer Gauss Long", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)) };
 		f1xSp.Children.Add(_srcFilterPlan1xName);
 
-		_srcFilterPlan1xDesc = new TextBlock { Text = Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。"), FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlan1xDesc = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		f1xSp.Children.Add(_srcFilterPlan1xDesc);
 
 		_srcFilterPlan1xPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
@@ -938,18 +995,20 @@ public sealed partial class DspPage
 		_srcFilterPlan1xSlot.Child = f1xSp;
 		rightStack.Children.Add(_srcFilterPlan1xSlot);
 
-		// Divider
-		rightStack.Children.Add(new Rectangle { Height = 1, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 226, 232, 240)), HorizontalAlignment = HorizontalAlignment.Stretch });
+		rightStack.Children.Add(new Rectangle { Height = 1, Fill = CreateLiquidGlassRimBrush(), HorizontalAlignment = HorizontalAlignment.Stretch });
 
-		// Nx Details Box
 		_srcFilterPlanNxSlot = new Border { Padding = new Thickness(0, 10, 0, 0) };
 		var fnxSp = new StackPanel { Spacing = 4 };
-		fnxSp.Children.Add(new TextBlock { Text = "NX", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
+		var fnxHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+		fnxHeader.Children.Add(new TextBlock { Text = "NX (88.2k - 384k)", FontSize = 11, FontWeight = FontWeights.Bold, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush });
+		_srcFilterPlanNxStatus = new TextBlock { Text = Loc.T("· 级联待命"), FontSize = 10.5, FontWeight = FontWeights.SemiBold, Foreground = DspTextMutedBrush };
+		fnxHeader.Children.Add(_srcFilterPlanNxStatus);
+		fnxSp.Children.Add(fnxHeader);
 
 		_srcFilterPlanNxName = new TextBlock { Text = "FurinaPlayer Halfband", FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = DspTextPrimaryBrush };
 		fnxSp.Children.Add(_srcFilterPlanNxName);
 
-		_srcFilterPlanNxDesc = new TextBlock { Text = Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。"), FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
+		_srcFilterPlanNxDesc = new TextBlock { FontSize = 11, Foreground = DspTextMutedBrush, TextWrapping = TextWrapping.Wrap };
 		fnxSp.Children.Add(_srcFilterPlanNxDesc);
 
 		_srcFilterPlanNxPhase = new TextBlock { Text = "Linear phase", FontSize = 11, FontFamily = new FontFamily("Consolas, Segoe UI"), Foreground = DspTextMutedBrush };
@@ -963,6 +1022,29 @@ public sealed partial class DspPage
 
 		card.Child = mainGrid;
 		return card;
+	}
+
+	private TextBlock CreateStatPill(string initialText, StackPanel parent)
+	{
+		var border = new Border
+		{
+			Background = DspSoftSurfaceBrush,
+			BorderBrush = CreateLiquidGlassRimBrush(),
+			BorderThickness = new Thickness(1),
+			CornerRadius = new CornerRadius(6),
+			Padding = new Thickness(8, 3, 8, 3),
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		var tb = new TextBlock
+		{
+			Text = initialText,
+			FontSize = 11,
+			FontFamily = new FontFamily("Consolas, Segoe UI"),
+			Foreground = DspTextSubHeaderBrush
+		};
+		border.Child = tb;
+		parent.Children.Add(border);
+		return tb;
 	}
 
 	private Border CreateSegmentedBar((string Key, string Label)[] items, string currentKey, List<Button> buttonRegistry, Action<string> onSelect)
@@ -995,7 +1077,7 @@ public sealed partial class DspPage
 				VerticalAlignment = VerticalAlignment.Stretch,
 				CornerRadius = new CornerRadius(7),
 				Padding = new Thickness(8, 6, 8, 6),
-				FontSize = 13
+				FontSize = 12.5
 			};
 
 			ApplySegmentedButtonStyle(btn, isSelected);
@@ -1004,11 +1086,7 @@ public sealed partial class DspPage
 			{
 				string key = btn.Tag?.ToString() ?? "";
 				onSelect(key);
-				foreach (var otherBtn in buttonRegistry)
-				{
-					bool isCurrent = string.Equals(otherBtn.Tag?.ToString(), key, StringComparison.OrdinalIgnoreCase);
-					ApplySegmentedButtonStyle(otherBtn, isCurrent);
-				}
+				UpdateSegmentedSelection(buttonRegistry, key);
 			};
 
 			buttonRegistry.Add(btn);
@@ -1018,6 +1096,15 @@ public sealed partial class DspPage
 
 		container.Child = grid;
 		return container;
+	}
+
+	private void UpdateSegmentedSelection(List<Button> buttonRegistry, string activeKey)
+	{
+		foreach (var btn in buttonRegistry)
+		{
+			bool isCurrent = string.Equals(btn.Tag?.ToString(), activeKey, StringComparison.OrdinalIgnoreCase);
+			ApplySegmentedButtonStyle(btn, isCurrent);
+		}
 	}
 
 	private void ApplySegmentedButtonStyle(Button btn, bool isSelected)
@@ -1046,33 +1133,16 @@ public sealed partial class DspPage
 		ViewModel.FurinaSrcMode = mode;
 
 		int inputRate = ViewModel.EngineSampleRate > 0 ? ViewModel.EngineSampleRate : 44100;
-		if (inputRate <= 0) inputRate = 44100;
-
-		switch (mode)
+		ViewModel.FurinaPlayerResamplerEnabled = mode != "off";
+		if (mode != "off")
 		{
-			case "off":
-				ViewModel.FurinaPlayerResamplerEnabled = false;
-				break;
-			case "compatibility48":
-				ViewModel.FurinaPlayerResamplerEnabled = true;
-				ViewModel.FurinaPlayerResamplerTargetRate = 48000;
-				break;
-			case "family2x":
-				ViewModel.FurinaPlayerResamplerEnabled = true;
-				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 88200 : (inputRate == 48000 ? 96000 : inputRate * 2);
-				break;
-			case "family4x":
-				ViewModel.FurinaPlayerResamplerEnabled = true;
-				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 176400 : (inputRate == 48000 ? 192000 : inputRate * 4);
-				break;
-			case "family8x":
-				ViewModel.FurinaPlayerResamplerEnabled = true;
-				ViewModel.FurinaPlayerResamplerTargetRate = inputRate == 44100 ? 352800 : (inputRate == 48000 ? 384000 : inputRate * 8);
-				break;
+			ViewModel.FurinaPlayerResamplerTargetRate = FurinaSrcCatalog.ResolveTargetSampleRate(inputRate, mode, ViewModel.FurinaPlayerResamplerTargetRate);
 		}
 
 		ViewModel.SaveFurinaPlayerSettings();
+		ViewModel.ApplySrcSettings(reopenIfRateChanged: true);
 		RefreshSrcUpsamplingState();
+		UpdateFilterDesignCurve();
 	}
 
 	private void OnQualitySelected(string quality)
@@ -1080,40 +1150,61 @@ public sealed partial class DspPage
 		if (ViewModel == null) return;
 		ViewModel.FurinaSrcQuality = quality;
 		ViewModel.SaveFurinaPlayerSettings();
+		ViewModel.ApplySrcSettings(reopenIfRateChanged: false);
 		RefreshSrcUpsamplingState();
+		UpdateFilterDesignCurve();
 	}
 
 	private void RefreshSrcUpsamplingState()
 	{
 		string mode = ViewModel?.FurinaSrcMode ?? "off";
 		string quality = ViewModel?.FurinaSrcQuality ?? "transparent";
-		bool enabled = ViewModel?.FurinaPlayerResamplerEnabled ?? false;
+		bool enabled = (ViewModel?.FurinaPlayerResamplerEnabled ?? false) && mode != "off";
 
-		int inputRate = (ViewModel != null && ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100;
-		if (inputRate <= 0) inputRate = 44100;
+		var telemetry = ViewModel?.GetSrcTelemetry();
+		int inputRate = telemetry != null && telemetry.SourceSampleRate > 0
+			? telemetry.SourceSampleRate
+			: ((ViewModel != null && ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100);
 
-		int targetRate = ViewModel?.FurinaPlayerResamplerTargetRate ?? 192000;
+		int desiredRate = enabled
+			? FurinaSrcCatalog.ResolveTargetSampleRate(inputRate, mode, ViewModel?.FurinaPlayerResamplerTargetRate ?? 192000)
+			: inputRate;
+		int liveTargetRate = enabled && telemetry != null && telemetry.OutputDeviceSampleRate > 0
+			? telemetry.OutputDeviceSampleRate
+			: desiredRate;
 
-		// Status dot & text
-		if (mode == "off" || !enabled)
+		bool abBypass = ViewModel?.FurinaSrcAbBenchmark ?? false;
+
+		if (!enabled)
 		{
-			if (_srcStatusDot != null) _srcStatusDot.Fill = DspTextMutedBrush; // Gray
+			if (_srcStatusDot != null) _srcStatusDot.Fill = DspTextMutedBrush;
 			if (_srcStatusText != null) _srcStatusText.Text = Loc.T("原生直通");
-			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:F1} kHz";
+			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:0.#} kHz";
 			if (_srcTargetRateText != null) _srcTargetRateText.Text = "--";
 			if (_srcRatioBadge != null) _srcRatioBadge.Text = "";
 			if (_srcStep1Val != null) _srcStep1Val.Text = Loc.T("关闭");
 			if (_srcStep3Val != null) _srcStep3Val.Text = "--";
 			if (_srcFilterSlotValue != null) _srcFilterSlotValue.Text = "Standby";
+			if (_srcFallbackNoticeText != null) _srcFallbackNoticeText.Visibility = Visibility.Collapsed;
 		}
 		else
 		{
-			if (_srcStatusDot != null) _srcStatusDot.Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)); // Green
-			if (_srcStatusText != null) _srcStatusText.Text = Loc.T("升频激活");
-			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:F1} kHz";
-			if (_srcTargetRateText != null) _srcTargetRateText.Text = $"{targetRate / 1000.0:F1} kHz";
+			if (_srcStatusDot != null)
+			{
+				_srcStatusDot.Fill = new SolidColorBrush(abBypass
+					? Windows.UI.Color.FromArgb(255, 245, 158, 11)
+					: Windows.UI.Color.FromArgb(255, 16, 185, 129));
+			}
+			if (_srcStatusText != null)
+			{
+				_srcStatusText.Text = abBypass
+					? Loc.T("A/B 盲听对比 · 标准线性直通")
+					: Loc.T("升频激活") + (telemetry != null ? $" · {telemetry.StageSummary}" : "");
+			}
+			if (_srcSourceRateText != null) _srcSourceRateText.Text = $"{inputRate / 1000.0:0.#} kHz";
+			if (_srcTargetRateText != null) _srcTargetRateText.Text = $"{liveTargetRate / 1000.0:0.#} kHz";
 
-			double ratio = (double)targetRate / inputRate;
+			double ratio = (double)liveTargetRate / Math.Max(1, inputRate);
 			if (_srcRatioBadge != null) _srcRatioBadge.Text = $"×{ratio:0.##}";
 
 			string modeLabel = mode switch
@@ -1122,23 +1213,52 @@ public sealed partial class DspPage
 				"family2x" => "2x PCM",
 				"family4x" => "4x PCM",
 				"family8x" => "8x Ultra",
-				_ => Loc.T("关闭")
+				_ => $"{liveTargetRate / 1000.0:0.#}k Custom"
 			};
 			if (_srcStep1Val != null) _srcStep1Val.Text = modeLabel;
-			if (_srcStep3Val != null) _srcStep3Val.Text = $"{ratio:0.##}x";
+			if (_srcStep3Val != null) _srcStep3Val.Text = $"{ratio:0.##}x · {telemetry?.StageCount ?? 1} Stage";
 
-			string f1xName = ViewModel?.FurinaSrcFilter1x ?? "FurinaPlayer Gauss Long";
-			if (_srcFilterSlotValue != null) _srcFilterSlotValue.Text = $"1X · {f1xName.ToUpperInvariant()}";
+			string activeId = inputRate < 50000 ? (ViewModel?.FurinaSrcFilter1x ?? "furina-gauss-long") : (ViewModel?.FurinaSrcFilterNx ?? "furina-hb");
+			var spec = FurinaSrcCatalog.GetProfile(activeId);
+			string slotPrefix = inputRate < 50000 ? "1X" : "NX";
+			if (_srcFilterSlotValue != null) _srcFilterSlotValue.Text = $"{slotPrefix} · {spec.Id.ToUpperInvariant()}";
+
+			if (_srcFallbackNoticeText != null)
+			{
+				if (telemetry != null && telemetry.IsFallbackRate)
+				{
+					_srcFallbackNoticeText.Text = Loc.F("硬件上限协商至 {0:0.#} kHz", liveTargetRate / 1000.0);
+					_srcFallbackNoticeText.Visibility = Visibility.Visible;
+				}
+				else
+				{
+					_srcFallbackNoticeText.Visibility = Visibility.Collapsed;
+				}
+			}
 		}
 
-		// Quality precision
-		string precision = quality switch
+		// Quality & SIMD Precision Readout
+		int simdBits = telemetry?.SimdWidthBits > 0
+			? telemetry.SimdWidthBits
+			: (Vector.IsHardwareAccelerated ? Vector<float>.Count * 32 : 32);
+		var qualEnum = FurinaSrcCatalog.ParseQuality(quality);
+		int sampleTaps = telemetry != null && telemetry.TotalTaps > 0
+			? telemetry.TotalTaps
+			: FurinaSrcCatalog.ResolveRuntimeTapCount(FurinaSrcCatalog.GetProfile(ViewModel?.FurinaSrcFilter1x), qualEnum, 0);
+
+		string telemetryTail = telemetry != null && telemetry.Active
+			? $" · {telemetry.ProcessTimeMs:F2}ms ({Math.Max(0, 100.0 - telemetry.CpuLoadPercent):F0}% Headroom)"
+			: $" · {simdBits}-bit Vector<float>";
+		if (_srcPrecisionValue != null)
 		{
-			"balanced" => "SOXR precision 20",
-			"lowLatency" => "SOXR precision 16",
-			_ => "SOXR precision 28"
-		};
-		if (_srcPrecisionValue != null) _srcPrecisionValue.Text = precision;
+			_srcPrecisionValue.Text = qualEnum switch
+			{
+				FurinaSrcQualityProfile.Balanced => $"Furina FIR Balanced · {sampleTaps} Taps{telemetryTail}",
+				FurinaSrcQualityProfile.LowLatency => $"Furina FIR Realtime · {sampleTaps} Taps{telemetryTail}",
+				_ => $"Furina FIR Reference · {sampleTaps} Taps{telemetryTail}"
+			};
+		}
+
 		if (_srcStep2Val != null)
 		{
 			_srcStep2Val.Text = quality switch
@@ -1149,101 +1269,106 @@ public sealed partial class DspPage
 			};
 		}
 
-		// Mode Hint Text
 		if (_srcModeHint != null)
 		{
 			_srcModeHint.Text = mode switch
 			{
 				"compatibility48" => Loc.T("将 PCM 固定转换到 48 kHz，适合只接受 48 kHz 的独占耳机或声卡；默认关闭。"),
-				"family2x" => Loc.T("44.1k 家族升到 88.2k，48k 家族升到 96k。"),
-				"family4x" => Loc.T("44.1k 家族升到 176.4k，48k 家族升到 192k。"),
-				"family8x" => Loc.T("实验档：44.1k 家族升到 352.8k，48k 家族升到 384k。"),
+				"family2x" => Loc.T("44.1k 家族升到 88.2k，48k 家族升到 96k（多相 2x 级联）。"),
+				"family4x" => Loc.T("44.1k 家族升到 176.4k，48k 家族升到 192k（4x 两级联 FIR）。"),
+				"family8x" => Loc.T("实验档：44.1k 家族升到 352.8k，48k 家族升到 384k（8x 三级联；若 DAC 不支持则自动降阶协商）。"),
 				_ => Loc.T("保持源采样率，Bit-perfect 条件不受 FurinaPlayer SRC 影响。")
 			};
 		}
 
-		// Quality Hint Text
 		if (_srcQualityHint != null)
 		{
 			_srcQualityHint.Text = quality switch
 			{
-				"balanced" => Loc.T("保持原有 SOXR 档位，兼顾稳定和开销。"),
+				"balanced" => Loc.T("均衡级多相 FIR 档位，兼顾低延迟、温和 CPU 负载与高阻带抑制。"),
 				"lowLatency" => Loc.T("降低 SRC 开销，适合低延迟输出。"),
-				_ => Loc.T("最高精度 SOXR，优先透明度和截断失真。")
+				_ => Loc.T("全精度多相级联参考档，优先极低通带波纹、零染色与极限阻带抑制。")
 			};
 		}
 
-		// Compute step 4
-		string compute = ViewModel?.FurinaSrcCompute ?? "CPU SIMD";
+		string compute = ViewModel?.FurinaSrcCompute ?? "simd";
+		bool isMt = FurinaSrcCatalog.ParseComputeBackend(compute) == FurinaComputeBackend.CpuMultiThread;
 		if (_srcStep4Val != null)
 		{
-			_srcStep4Val.Text = compute switch
+			_srcStep4Val.Text = isMt
+				? $"{simdBits}-bit SIMD Multi-Thread"
+				: $"{simdBits}-bit SIMD Vector<float>";
+		}
+
+		string ditherId = NormalizeDitherId(ViewModel?.FurinaSrcDither);
+		if (_srcDitherSlotValue != null)
+		{
+			_srcDitherSlotValue.Text = ditherId switch
 			{
-				"CPU 多线程" => Loc.T("CPU 多线程实时路径。"),
-				"GPU 加速 (若支持)" => Loc.T("CUDA FIR 准备中，自动兼顾回落。"),
-				_ => Loc.T("CPU 实时路径,未请求 CUDA。")
+				"off" => Loc.T("关闭"),
+				"tpdf" => "TPDF 24-bit",
+				"highpass-tpdf" => "HP-TPDF",
+				"ns-5" => "NS-5 (5阶整形)",
+				"ns-9" => "NS-9 (9阶整形)",
+				"ultra-shaped" => "Ultra-Shaped",
+				_ => ditherId
 			};
 		}
 
-		// Dither slot
-		string dither = ViewModel?.FurinaSrcDither ?? "Off";
-		if (_srcDitherSlotValue != null) _srcDitherSlotValue.Text = dither == "Off" ? Loc.T("关闭") : dither;
+		bool is1xActive = inputRate < 50000;
+		if (_srcFilterPlan1xStatus != null)
+		{
+			_srcFilterPlan1xStatus.Text = is1xActive ? Loc.T("· 当前激活") : Loc.T("· 首级待命");
+			_srcFilterPlan1xStatus.Foreground = new SolidColorBrush(is1xActive
+				? Windows.UI.Color.FromArgb(255, 16, 185, 129)
+				: Windows.UI.Color.FromArgb(255, 148, 163, 184));
+		}
+		if (_srcFilterPlanNxStatus != null)
+		{
+			_srcFilterPlanNxStatus.Text = !is1xActive ? Loc.T("· 当前激活") : (enabled && liveTargetRate > inputRate * 2 ? Loc.T("· 多级联激活") : Loc.T("· 级联待命"));
+			_srcFilterPlanNxStatus.Foreground = new SolidColorBrush((!is1xActive || (enabled && liveTargetRate > inputRate * 2))
+				? Windows.UI.Color.FromArgb(255, 16, 185, 129)
+				: Windows.UI.Color.FromArgb(255, 148, 163, 184));
+		}
 	}
 
-	private void UpdateFilter1xHint(string sel)
+	private void UpdateFilter1xHint(string filterId)
 	{
 		if (_srcFilter1xHint == null) return;
-		_srcFilter1xHint.Text = sel switch
-		{
-			"FurinaPlayer Gauss Short" => Loc.T("低阶高斯窗 sinc 滤波，瞬态响应快，听感温暖。"),
-			"Linear Phase" => Loc.T("对称 sinc 滤波，群延迟恒定，零相位失真。"),
-			"Min Phase" => Loc.T("最小相位滤波，零前振铃，能量集中于瞬态起音。"),
-			"FurinaPlayer Steep Short" => Loc.T("短阶陡峭滤波，截止带陡峭，适合实时处理。"),
-			"FurinaPlayer Steep Long" => Loc.T("长阶陡峭滤波，>100dB 阻带衰减，母带级透明度。"),
-			_ => Loc.T("高阶量 sinc 滤波，听感更柔和，兼顾瞬态。")
-		};
+		var spec = FurinaSrcCatalog.GetProfile(filterId, "furina-gauss-long");
+		_srcFilter1xHint.Text = $"{spec.Description} ({spec.AttenuationDb:F0} dB · {(spec.Phase == FurinaSrcPhaseType.Minimum ? "Zero Pre-Ring MP" : "Linear Phase")})";
 	}
 
-	private void UpdateFilterNxHint(string sel)
+	private void UpdateFilterNxHint(string filterId)
 	{
 		if (_srcFilterNxHint == null) return;
-		_srcFilterNxHint.Text = sel switch
-		{
-			"Sinc Polyphase" => Loc.T("多相 sinc 滤波，频响平直，极低互调失真。"),
-			"Steep" => Loc.T("陡峭过渡带滤波，阻带深度抑制镜像混叠。"),
-			"FurinaPlayer Steep XL" => Loc.T("极限 3071 阶陡峭滤波，用于测量级对照。"),
-			_ => Loc.T("半带 sinc 滤波，适合 2x/4x 先倒频定实时性。")
-		};
+		var spec = FurinaSrcCatalog.GetProfile(filterId, "furina-hb");
+		_srcFilterNxHint.Text = $"{spec.Description} ({spec.AttenuationDb:F0} dB · {(spec.Phase == FurinaSrcPhaseType.Minimum ? "MP" : "LP")})";
 	}
 
-	private void UpdateComputeHint(string sel)
+	private void UpdateComputeHint(string computeId)
 	{
-		if (_srcComputeHint == null) return;
-		_srcComputeHint.Text = sel switch
+		bool isMt = FurinaSrcCatalog.ParseComputeBackend(computeId) == FurinaComputeBackend.CpuMultiThread;
+		int bits = Vector.IsHardwareAccelerated ? Vector<float>.Count * 32 : 32;
+		if (_srcComputeHint != null)
 		{
-			"CPU 多线程" => Loc.T("利用多核心并发执行块滤波，降低单核负载与发热。"),
-			"GPU 加速 (若支持)" => Loc.T("实验性 CUDA FIR 路径；需 NVIDIA 显卡驱动支持。"),
-			_ => Loc.T("默认实时路径：极优，无降采样风险，并保证随机可用。")
-		};
-		if (_srcStep4Val != null)
-		{
-			_srcStep4Val.Text = sel switch
-			{
-				"CPU 多线程" => Loc.T("CPU 多线程实时路径。"),
-				"GPU 加速 (若支持)" => Loc.T("CUDA FIR 准备中，自动兼顾回落。"),
-				_ => Loc.T("CPU 实时路径,未请求 CUDA。")
-			};
+			_srcComputeHint.Text = isMt
+				? $"启用 {bits}-bit SIMD 向量指令 + 左右声道并发执行，适合 352.8k/384k 高倍率级联。"
+				: $"启用硬件 {bits}-bit SIMD (Vector<float>) 零堆分配单周期点积，稳定低发热且无线程切换抖动。";
 		}
 	}
 
-	private void UpdateDitherHint(string sel)
+	private void UpdateDitherHint(string ditherId)
 	{
 		if (_srcDitherHint == null) return;
-		_srcDitherHint.Text = sel switch
+		_srcDitherHint.Text = NormalizeDitherId(ditherId) switch
 		{
-			"TPDF" => Loc.T("标准三角形概率密度抖动，消除 16/24-bit 量化相关失真。"),
-			"High-Pass Noise Shaping" => Loc.T("高通噪声整形：将量化噪声推向 18kHz 以上高频不敏感区。"),
-			_ => Loc.T("保持 Float32 PCM 链原图标：默认关闭，避免无意义加噪。")
+			"tpdf" => "24-bit 标准三角分布抖动，彻底打散极微弱信号下的量化谐波失真。",
+			"highpass-tpdf" => "1 阶高通噪声整形：将极微弱抖动能量推向 15 kHz 以上人耳不敏感区。",
+			"ns-5" => "5 阶 Wannamaker 心理声学噪声整形，在 1-5 kHz 敏感带压低本底噪至 <-150 dB。",
+			"ns-9" => "9 阶 Fletcher-Munson 曲线深度噪声整形，提供母带参照级超低听感噪底。",
+			"ultra-shaped" => "专为 88.2k-384k 高采样 DAC 调制器调校的超频段 9 阶复合噪声整形。",
+			_ => "保持 Float32 链无损直出：默认关闭，避免对 32-bit DAC 施加冗余加噪。"
 		};
 	}
 
@@ -1254,160 +1379,165 @@ public sealed partial class DspPage
 			if (_srcFilterCurveCanvas == null) return;
 			_srcFilterCurveCanvas.Children.Clear();
 
-		string f1x = ViewModel?.FurinaSrcFilter1x ?? "FurinaPlayer Gauss Long";
-		string fnx = ViewModel?.FurinaSrcFilterNx ?? "FurinaPlayer Halfband";
+			int inputRate = (ViewModel != null && ViewModel.EngineSampleRate > 0) ? ViewModel.EngineSampleRate : 44100;
+			var quality = FurinaSrcCatalog.ParseQuality(ViewModel?.FurinaSrcQuality);
 
-		// Update Labels on Right Plan
-		if (_srcFilterPlan1xName != null) _srcFilterPlan1xName.Text = f1x;
-		if (_srcFilterPlanNxName != null) _srcFilterPlanNxName.Text = fnx;
-		if (_srcFilterPlan1xDesc != null && _srcFilter1xHint != null) _srcFilterPlan1xDesc.Text = _srcFilter1xHint.Text;
-		if (_srcFilterPlanNxDesc != null && _srcFilterNxHint != null) _srcFilterPlanNxDesc.Text = _srcFilterNxHint.Text;
+			string f1xId = FurinaSrcCatalog.NormalizeProfileId(ViewModel?.FurinaSrcFilter1x, "furina-gauss-long");
+			string fnxId = FurinaSrcCatalog.NormalizeProfileId(ViewModel?.FurinaSrcFilterNx, "furina-hb");
 
-		string l1x = f1x.ToLowerInvariant();
-		bool isMinPhase = l1x.Contains("min") || l1x.Contains("min-phase") || l1x.Contains("minimum");
-		string phaseStr = isMinPhase ? "Minimum phase" : "Linear phase";
+			var spec1x = FurinaSrcCatalog.GetProfile(f1xId, "furina-gauss-long");
+			var specNx = FurinaSrcCatalog.GetProfile(fnxId, "furina-hb");
 
-		if (_srcPhaseBadgeText != null) _srcPhaseBadgeText.Text = phaseStr;
-		if (_srcFilterPlan1xPhase != null) _srcFilterPlan1xPhase.Text = phaseStr;
-		if (_srcFilterNameText != null)
-		{
-			_srcFilterNameText.Text = f1x.Replace("FurinaPlayer ", "furina-").Replace(" ", "-").ToLowerInvariant();
-		}
+			if (_srcFilterPlan1xName != null) _srcFilterPlan1xName.Text = spec1x.DisplayName;
+			if (_srcFilterPlanNxName != null) _srcFilterPlanNxName.Text = specNx.DisplayName;
+			if (_srcFilterPlan1xDesc != null) _srcFilterPlan1xDesc.Text = spec1x.Description;
+			if (_srcFilterPlanNxDesc != null) _srcFilterPlanNxDesc.Text = specNx.Description;
+			if (_srcFilterPlan1xPhase != null) _srcFilterPlan1xPhase.Text = $"{(spec1x.Phase == FurinaSrcPhaseType.Minimum ? "Minimum phase" : "Linear phase")} · {FurinaSrcCatalog.ResolveRuntimeTapCount(spec1x, quality, 0)} taps · {spec1x.AttenuationDb:F0} dB";
+			if (_srcFilterPlanNxPhase != null) _srcFilterPlanNxPhase.Text = $"{(specNx.Phase == FurinaSrcPhaseType.Minimum ? "Minimum phase" : "Linear phase")} · {FurinaSrcCatalog.ResolveRuntimeTapCount(specNx, quality, 1)} taps · {specNx.AttenuationDb:F0} dB";
 
-		// Calculate Curve Parameters
-		bool isSoft = l1x.Contains("soft") || l1x.Contains("gauss");
-		bool isSteep = l1x.Contains("brickwall") || l1x.Contains("extreme") || l1x.Contains("steep") || l1x.Contains("xl");
+			var activeSpec = inputRate < 50000 ? spec1x : specNx;
+			var analysis = FurinaSrcCatalog.AnalyzeFilter(activeSpec.Id, quality, inputRate);
 
-		double xKnee = isSoft ? 505 : (isSteep ? 570 : 545);
-		double tEnd = Math.Min(640, xKnee + (isSteep ? 28 : (isSoft ? 82 : 52)));
+			if (_srcFilterNameText != null) _srcFilterNameText.Text = $"{activeSpec.DisplayName} ({activeSpec.Id})";
+			if (_srcPhaseBadgeText != null) _srcPhaseBadgeText.Text = activeSpec.Phase == FurinaSrcPhaseType.Minimum ? "Minimum phase (Zero Pre-Ring)" : "Linear phase";
+			if (_srcTapsBadgeText != null) _srcTapsBadgeText.Text = $"{analysis.AnalyzedTaps} Taps";
+			if (_srcAttenBadgeText != null) _srcAttenBadgeText.Text = $"-{analysis.StopbandAttenuationDb:F0} dB";
+			if (_srcDelayBadgeText != null) _srcDelayBadgeText.Text = $"{analysis.GroupDelayMsAt44k:F2} ms";
 
-		// --- 1. Grid Lines ---
-		var gridBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(100, 226, 232, 240));
+			var gridBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(100, 226, 232, 240));
+			var monoFont = new FontFamily("Consolas, Segoe UI");
+			var labelBrush = DspTextMutedBrush;
 
-		// Vertical lines
-		double[] vLines = { 52, 156, 260, 364, 468, 572, 676 };
-		foreach (double vx in vLines)
-		{
-			_srcFilterCurveCanvas.Children.Add(new Line
+			const double xLeft = 52;
+			const double xRight = 684;
+			const double yTop = 24;
+			const double yBottom = 188;
+			double chartWidth = xRight - xLeft;
+			double chartHeight = yBottom - yTop;
+
+			for (int i = 0; i <= 6; i++)
 			{
-				X1 = vx,
-				Y1 = 28,
-				X2 = vx,
-				Y2 = 188,
-				Stroke = gridBrush,
-				StrokeThickness = 1
-			});
-		}
-
-		// Horizontal lines
-		double[] hLines = { 54, 88, 122, 156, 188 };
-		foreach (double hy in hLines)
-		{
-			_srcFilterCurveCanvas.Children.Add(new Line
+				double vx = xLeft + chartWidth * i / 6.0;
+				_srcFilterCurveCanvas.Children.Add(new Line { X1 = vx, Y1 = yTop, X2 = vx, Y2 = yBottom, Stroke = gridBrush, StrokeThickness = 1 });
+			}
+			for (int i = 0; i <= 4; i++)
 			{
-				X1 = 52,
-				Y1 = hy,
-				X2 = 676,
-				Y2 = hy,
-				Stroke = gridBrush,
-				StrokeThickness = 1
-			});
-		}
+				double hy = yTop + chartHeight * i / 4.0;
+				_srcFilterCurveCanvas.Children.Add(new Line { X1 = xLeft, Y1 = hy, X2 = xRight, Y2 = hy, Stroke = gridBrush, StrokeThickness = 1 });
+			}
 
-		// Reference dashed line (at y = 66, approx -8dB)
-		_srcFilterCurveCanvas.Children.Add(new Line
-		{
-			X1 = 52,
-			Y1 = 66,
-			X2 = 676,
-			Y2 = 66,
-			Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(120, 203, 213, 225)),
-			StrokeThickness = 1,
-			StrokeDashArray = new DoubleCollection { 4, 5 }
-		});
+			if (_srcShowImpulseMode)
+			{
+				// --- Impulse Time-Domain Response from actual FIR kernel ---
+				double[] imp = analysis.ImpulseResponse;
+				double zeroY = yTop + chartHeight * 0.72;
+				_srcFilterCurveCanvas.Children.Add(new Line
+				{
+					X1 = xLeft, Y1 = zeroY, X2 = xRight, Y2 = zeroY,
+					Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 148, 163, 184)),
+					StrokeThickness = 1,
+					StrokeDashArray = new DoubleCollection { 4, 4 }
+				});
 
-		// Knee dashed vertical line (at cutoff)
-		_srcFilterCurveCanvas.Children.Add(new Line
-		{
-			X1 = xKnee,
-			Y1 = 28,
-			X2 = xKnee,
-			Y2 = 188,
-			Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(160, 16, 185, 129)),
-			StrokeThickness = 1,
-			StrokeDashArray = new DoubleCollection { 3, 4 }
-		});
+				// Window around main impulse peak so both linear symmetry & min-phase causal decay are clear
+				int peakIdx = 0;
+				double peakVal = -1;
+				for (int i = 0; i < imp.Length; i++)
+				{
+					if (Math.Abs(imp[i]) > peakVal) { peakVal = Math.Abs(imp[i]); peakIdx = i; }
+				}
 
-		// --- 2. Build Bezier Path Geometry ---
-		var areaFig = new PathFigure { StartPoint = new Point(52, 54), IsClosed = true, IsFilled = true };
-		var curveFig = new PathFigure { StartPoint = new Point(52, 54), IsClosed = false, IsFilled = false };
+				int halfWin = Math.Min(imp.Length / 2, 48);
+				int startIdx = activeSpec.Phase == FurinaSrcPhaseType.Minimum ? 0 : Math.Max(0, peakIdx - halfWin);
+				int viewCount = Math.Min(imp.Length - startIdx, halfWin * 2 + 1);
 
-		// Bezier 1: Flat passband
-		var b1 = new BezierSegment { Point1 = new Point(180, 54), Point2 = new Point(360, 54), Point3 = new Point(xKnee - 42, 55) };
-		// Bezier 2: Knee roll-off start
-		var b2 = new BezierSegment { Point1 = new Point(xKnee - 8, 56), Point2 = new Point(xKnee, 60), Point3 = new Point(xKnee + 8, 78) };
-		// Bezier 3: Transition steep fall
-		var b3 = new BezierSegment { Point1 = new Point(xKnee + 18, 106), Point2 = new Point(tEnd - 22, 164), Point3 = new Point(tEnd, 177) };
-		// Bezier 4: Stopband landing at -96dB (y = 188)
-		var b4 = new BezierSegment { Point1 = new Point(tEnd + 20, 188), Point2 = new Point(650, 188), Point3 = new Point(676, 188) };
+				var polylinePoints = new PointCollection();
+				var fillFig = new PathFigure { StartPoint = new Point(xLeft, zeroY), IsClosed = true, IsFilled = true };
 
-		curveFig.Segments.Add(b1);
-		curveFig.Segments.Add(b2);
-		curveFig.Segments.Add(b3);
-		curveFig.Segments.Add(b4);
+				for (int i = 0; i < viewCount; i++)
+				{
+					double x = xLeft + chartWidth * i / Math.Max(1, viewCount - 1);
+					double val = imp[startIdx + i]; // -0.25 .. +1.0
+					double y = Math.Clamp(zeroY - val * (chartHeight * 0.65), yTop, yBottom);
+					var pt = new Point(x, y);
+					polylinePoints.Add(pt);
+					fillFig.Segments.Add(new LineSegment { Point = pt });
 
-		// Area figure requires distinct PathSegment instances to avoid COMException (0x800F1000)
-		var ab1 = new BezierSegment { Point1 = b1.Point1, Point2 = b1.Point2, Point3 = b1.Point3 };
-		var ab2 = new BezierSegment { Point1 = b2.Point1, Point2 = b2.Point2, Point3 = b2.Point3 };
-		var ab3 = new BezierSegment { Point1 = b3.Point1, Point2 = b3.Point2, Point3 = b3.Point3 };
-		var ab4 = new BezierSegment { Point1 = b4.Point1, Point2 = b4.Point2, Point3 = b4.Point3 };
+					if (i == viewCount - 1)
+					{
+						fillFig.Segments.Add(new LineSegment { Point = new Point(x, zeroY) });
+					}
+				}
 
-		areaFig.Segments.Add(ab1);
-		areaFig.Segments.Add(ab2);
-		areaFig.Segments.Add(ab3);
-		areaFig.Segments.Add(ab4);
-		areaFig.Segments.Add(new LineSegment { Point = new Point(676, 188) });
-		areaFig.Segments.Add(new LineSegment { Point = new Point(52, 188) });
+				var fillGeo = new PathGeometry();
+				fillGeo.Figures.Add(fillFig);
+				_srcFilterCurveCanvas.Children.Add(new Path { Data = fillGeo, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 16, 185, 129)) });
+				_srcFilterCurveCanvas.Children.Add(new Polyline
+				{
+					Points = polylinePoints,
+					Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)),
+					StrokeThickness = 2.2,
+					StrokeLineJoin = PenLineJoin.Round
+				});
 
-		// Add Area Fill Path
-		var areaGeo = new PathGeometry();
-		areaGeo.Figures.Add(areaFig);
-		_srcFilterCurveCanvas.Children.Add(new Path
-		{
-			Data = areaGeo,
-			Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(24, 37, 99, 235)) // Translucent Blue
-		});
+				AddSrcCanvasText(_srcFilterCurveCanvas, "+1.0", 20, yTop + 4, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "0.0", 24, zeroY - 7, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "-0.25", 16, yBottom - 10, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, activeSpec.Phase == FurinaSrcPhaseType.Minimum ? "t=0 ms (Zero Pre-Ringing)" : "-Delay (Symmetrical)", xLeft, 195, labelBrush, monoFont, 10.5);
+				AddSrcCanvasText(_srcFilterCurveCanvas, activeSpec.Phase == FurinaSrcPhaseType.Minimum ? "+Tail ms" : "+Delay", 620, 195, labelBrush, monoFont, 10.5);
+			}
+			else
+			{
+				// --- FFT Frequency Magnitude Response (0 dB down to -160 dB) ---
+				const double minDb = -160.0;
+				double[] magDb = analysis.MagnitudeDb;
+				var pts = new PointCollection();
+				var areaFig = new PathFigure { StartPoint = new Point(xLeft, yBottom), IsClosed = true, IsFilled = true };
 
-		// Add Curve Stroke Path
-		var curveGeo = new PathGeometry();
-		curveGeo.Figures.Add(curveFig);
-		_srcFilterCurveCanvas.Children.Add(new Path
-		{
-			Data = curveGeo,
-			Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)), // Vibrant Blue
-			StrokeThickness = 2.4,
-			StrokeStartLineCap = PenLineCap.Round,
-			StrokeEndLineCap = PenLineCap.Round
-		});
+				for (int i = 0; i < magDb.Length; i++)
+				{
+					double normX = (double)i / (magDb.Length - 1);
+					double x = xLeft + chartWidth * normX;
+					double db = Math.Clamp(magDb[i], minDb, 0.0);
+					double y = yTop + chartHeight * (-db / (-minDb));
+					var pt = new Point(x, y);
+					pts.Add(pt);
+					areaFig.Segments.Add(new LineSegment { Point = pt });
+				}
+				areaFig.Segments.Add(new LineSegment { Point = new Point(xRight, yBottom) });
 
-		// --- 3. Text Labels on Canvas ---
-		var labelBrush = DspTextMutedBrush;
-		var monoFont = new FontFamily("Consolas, Segoe UI");
+				// Source Nyquist marker at 0.5x stage bandwidth (22.05k / 24kHz)
+				double nyqX = xLeft + chartWidth * 0.5;
+				_srcFilterCurveCanvas.Children.Add(new Line
+				{
+					X1 = nyqX, Y1 = yTop, X2 = nyqX, Y2 = yBottom,
+					Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(165, 16, 185, 129)),
+					StrokeThickness = 1.2,
+					StrokeDashArray = new DoubleCollection { 4, 4 }
+				});
+				AddSrcCanvasText(_srcFilterCurveCanvas, $"{inputRate * 0.5 / 1000.0:0.##} kHz (Src Nyq)", nyqX + 6, yTop + 4, new SolidColorBrush(Windows.UI.Color.FromArgb(255, 16, 185, 129)), monoFont, 10);
 
-		// Y-axis labels
-		AddSrcCanvasText(_srcFilterCurveCanvas, "0", 38, 47, labelBrush, monoFont, 10);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "-24", 26, 81, labelBrush, monoFont, 10);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "-48", 26, 115, labelBrush, monoFont, 10);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "-72", 26, 149, labelBrush, monoFont, 10);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "-96", 26, 181, labelBrush, monoFont, 10);
+				var areaGeo = new PathGeometry();
+				areaGeo.Figures.Add(areaFig);
+				_srcFilterCurveCanvas.Children.Add(new Path { Data = areaGeo, Fill = new SolidColorBrush(Windows.UI.Color.FromArgb(26, 37, 99, 235)) });
+				_srcFilterCurveCanvas.Children.Add(new Polyline
+				{
+					Points = pts,
+					Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 37, 99, 235)),
+					StrokeThickness = 2.3,
+					StrokeLineJoin = PenLineJoin.Round
+				});
 
-		// X-axis labels
-		AddSrcCanvasText(_srcFilterCurveCanvas, "20 Hz", 52, 196, labelBrush, monoFont, 10.5);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "10 kHz", 346, 196, labelBrush, monoFont, 10.5);
-		AddSrcCanvasText(_srcFilterCurveCanvas, "Nyquist", 640, 196, labelBrush, monoFont, 10.5);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "0 dB", 22, yTop - 6, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "-40", 26, yTop + chartHeight * 0.25 - 7, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "-80", 26, yTop + chartHeight * 0.50 - 7, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "-120", 20, yTop + chartHeight * 0.75 - 7, labelBrush, monoFont, 10);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "-160", 20, yBottom - 8, labelBrush, monoFont, 10);
 
-		// Inner Chart Phase Text
-		AddSrcCanvasText(_srcFilterCurveCanvas, phaseStr, 590, 40, DspTextMutedBrush, monoFont, 11);
+				AddSrcCanvasText(_srcFilterCurveCanvas, "0 Hz", xLeft, 195, labelBrush, monoFont, 10.5);
+				AddSrcCanvasText(_srcFilterCurveCanvas, $"{inputRate * 0.5 / 1000.0:0.##} kHz", nyqX - 18, 195, labelBrush, monoFont, 10.5);
+				AddSrcCanvasText(_srcFilterCurveCanvas, $"{inputRate / 1000.0:0.#} kHz (2x Nyq)", xRight - 102, 195, labelBrush, monoFont, 10.5);
+			}
 		}
 		catch (Exception ex)
 		{
@@ -1429,16 +1559,26 @@ public sealed partial class DspPage
 		canvas.Children.Add(tb);
 	}
 
-	private static string SelectMatchingItem(ComboBox combo, string? value, string defaultValue)
+	private static object? FindChoiceById(ComboBox combo, string targetId)
 	{
-		if (string.IsNullOrEmpty(value)) return defaultValue;
 		foreach (var item in combo.Items)
 		{
-			if (item is string s && (string.Equals(s, value, StringComparison.OrdinalIgnoreCase) || s.Contains(value, StringComparison.OrdinalIgnoreCase)))
-			{
-				return s;
-			}
+			if (item is SrcChoiceItem c && string.Equals(c.Id, targetId, StringComparison.OrdinalIgnoreCase))
+				return c;
 		}
-		return defaultValue;
+		return combo.Items.FirstOrDefault();
+	}
+
+	private static string NormalizeDitherId(string? value)
+	{
+		return FurinaSrcCatalog.ParseDitherMode(value) switch
+		{
+			FurinaDitherMode.Tpdf => "tpdf",
+			FurinaDitherMode.HighPass => "highpass-tpdf",
+			FurinaDitherMode.Ns5 => "ns-5",
+			FurinaDitherMode.Ns9 => "ns-9",
+			FurinaDitherMode.UltraShaped => "ultra-shaped",
+			_ => "off"
+		};
 	}
 }

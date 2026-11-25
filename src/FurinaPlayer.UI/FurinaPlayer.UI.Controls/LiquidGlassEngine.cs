@@ -91,6 +91,8 @@ public static class LiquidGlassEngine
 	private static readonly ConditionalWeakTable<FrameworkElement, GlassAttachmentState> _attachedElements = new();
 	private static readonly List<WeakReference<FrameworkElement>> _trackedElements = new();
 	private static readonly object _trackLock = new();
+	private static readonly Dictionary<string, Brush> _defaultSurfaceBrushCache = new(StringComparer.Ordinal);
+	private static readonly Dictionary<string, Brush> _defaultRimBrushCache = new(StringComparer.Ordinal);
 	private static readonly Random _rng = new();
 
 	public static readonly string[] ThemeCategories = new[]
@@ -690,11 +692,15 @@ public static class LiquidGlassEngine
 		if (element == null) return;
 
 		// 检查若按钮 Background 为透明或无边框，绝不添加边框或顶部高光
-		if (element is Button btn && IsTransparentOrBorderlessButton(btn))
+		if (element is Button btn)
 		{
-			btn.BorderThickness = new Thickness(0);
-			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
-			return;
+			CollapseTemplateHighlightBorder(btn);
+			if (IsTransparentOrBorderlessButton(btn))
+			{
+				btn.BorderThickness = new Thickness(0);
+				btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				return;
+			}
 		}
 
 		bool alreadyTracked = _attachedElements.TryGetValue(element, out _);
@@ -707,6 +713,16 @@ public static class LiquidGlassEngine
 			lock (_trackLock)
 			{
 				_trackedElements.Add(new WeakReference<FrameworkElement>(element));
+				if (_trackedElements.Count > 256 && (_trackedElements.Count & 63) == 0)
+				{
+					for (int i = _trackedElements.Count - 1; i >= 0; i--)
+					{
+						if (!_trackedElements[i].TryGetTarget(out _))
+						{
+							_trackedElements.RemoveAt(i);
+						}
+					}
+				}
 			}
 		}
 
@@ -787,19 +803,83 @@ public static class LiquidGlassEngine
 		return false;
 	}
 
+	private static void CollapseTemplateHighlightBorder(DependencyObject? root)
+	{
+		if (root == null) return;
+		if (root is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase bb)
+		{
+			bb.Loaded -= OnButtonHighlightCollapseLoaded;
+			bb.Loaded += OnButtonHighlightCollapseLoaded;
+		}
+		CollapseHighlightVisualChildren(root);
+	}
+
+	private static void OnButtonHighlightCollapseLoaded(object sender, RoutedEventArgs e)
+	{
+		if (sender is DependencyObject dobj)
+		{
+			CollapseHighlightVisualChildren(dobj);
+		}
+	}
+
+	private static void CollapseHighlightVisualChildren(DependencyObject root)
+	{
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var child = VisualTreeHelper.GetChild(root, i);
+			if (child is Border b && string.Equals(b.Name, "Highlight", StringComparison.Ordinal))
+			{
+				b.Visibility = Visibility.Collapsed;
+				b.Opacity = 0;
+			}
+			else
+			{
+				CollapseHighlightVisualChildren(child);
+			}
+		}
+	}
+
 	private static void ApplyElementLiquidGlassVisuals(FrameworkElement element, GlassAttachmentState state)
 	{
 		// 检查若按钮 Background 为透明或无边框，绝不添加边框或顶部高光
-		if (element is Button btn && IsTransparentOrBorderlessButton(btn))
+		if (element is Button btn)
 		{
-			btn.BorderThickness = new Thickness(0);
-			btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
-			return;
+			CollapseTemplateHighlightBorder(btn);
+			if (IsTransparentOrBorderlessButton(btn))
+			{
+				btn.BorderThickness = new Thickness(0);
+				btn.BorderBrush = new SolidColorBrush(Colors.Transparent);
+				return;
+			}
 		}
 
 		double opacityScale = state.IsPressed ? 0.94 : (state.IsHovered ? 1.06 : 1.0);
-		var surfaceBrush = CreateSurfaceBrush(state.Variant, state.IsDark, opacityScale, state.NormalizedPointer);
-		var rimBrush = CreateSpecularRimBrush(state.Variant, state.IsDark, state.IsHovered, state.Variant == LiquidGlassVariant.AccentLensed, state.NormalizedPointer);
+		bool isDefaultState = !state.IsHovered && !state.IsPressed
+			&& Math.Abs(state.NormalizedPointer.X - 0.25) < 0.04
+			&& Math.Abs(state.NormalizedPointer.Y - 0.20) < 0.04;
+
+		Brush surfaceBrush;
+		Brush rimBrush;
+		if (isDefaultState)
+		{
+			string key = $"{(int)state.Variant}|{state.IsDark}|{ActivePreset?.Id}|{ActiveThemeMode}|{Math.Round(AcrylicOpacityScale, 2):F2}|{KeepTranslucentWhenUnfocused}|{IsWindowFocused}|{RainbowModeEnabled}|{InvertModeEnabled}";
+			if (!_defaultSurfaceBrushCache.TryGetValue(key, out surfaceBrush!))
+			{
+				surfaceBrush = CreateSurfaceBrush(state.Variant, state.IsDark, 1.0, state.NormalizedPointer);
+				_defaultSurfaceBrushCache[key] = surfaceBrush;
+			}
+			if (!_defaultRimBrushCache.TryGetValue(key, out rimBrush!))
+			{
+				rimBrush = CreateSpecularRimBrush(state.Variant, state.IsDark, false, state.Variant == LiquidGlassVariant.AccentLensed, state.NormalizedPointer);
+				_defaultRimBrushCache[key] = rimBrush;
+			}
+		}
+		else
+		{
+			surfaceBrush = CreateSurfaceBrush(state.Variant, state.IsDark, opacityScale, state.NormalizedPointer);
+			rimBrush = CreateSpecularRimBrush(state.Variant, state.IsDark, state.IsHovered, state.Variant == LiquidGlassVariant.AccentLensed, state.NormalizedPointer);
+		}
 
 		if (element is Border border)
 		{
@@ -857,6 +937,8 @@ public static class LiquidGlassEngine
 	/// </summary>
 	public static void RefreshAllAttachedElements(bool isDark)
 	{
+		_defaultSurfaceBrushCache.Clear();
+		_defaultRimBrushCache.Clear();
 		lock (_trackLock)
 		{
 			for (int i = _trackedElements.Count - 1; i >= 0; i--)
@@ -881,6 +963,10 @@ public static class LiquidGlassEngine
 	/// 递归扫描并升级指定容器/页面内的全部传统卡片、面板、胶囊按钮与输入控件为 Apple Liquid Glass 光学材质。
 	/// 同时支持对已升级节点在切换主题/预设时实时刷新。
 	/// </summary>
+	private static bool IsLeafTemplatedControl(DependencyObject node) =>
+		node is Button or ComboBox or ToggleSwitch or Slider or ProgressBar
+			or TextBox or PasswordBox or CheckBox or RadioButton or ScrollBar;
+
 	public static void UpgradeVisualTreeToLiquidGlass(DependencyObject root, bool isDark = false)
 	{
 		if (root == null) return;
@@ -892,6 +978,7 @@ public static class LiquidGlassEngine
 			rootBtn.BorderBrush = new SolidColorBrush(Colors.Transparent);
 			return;
 		}
+		if (IsLeafTemplatedControl(root)) return;
 
 		int count = VisualTreeHelper.GetChildrenCount(root);
 		for (int i = 0; i < count; i++)
@@ -904,7 +991,10 @@ public static class LiquidGlassEngine
 				continue;
 			}
 			UpgradeSingleNode(child, isDark);
-			UpgradeVisualTreeToLiquidGlass(child, isDark);
+			if (!IsLeafTemplatedControl(child))
+			{
+				UpgradeVisualTreeToLiquidGlass(child, isDark);
+			}
 		}
 	}
 
@@ -967,6 +1057,7 @@ public static class LiquidGlassEngine
 		}
 		else if (node is Button btn)
 		{
+			CollapseTemplateHighlightBorder(btn);
 			// 检查若按钮 Background 为透明或无边框，或者是纯图标按钮，绝不添加边框或顶部高光
 			if (IsTransparentOrBorderlessButton(btn))
 			{
@@ -1299,30 +1390,6 @@ public static class LiquidGlassEngine
 					new SKColor(secC.R, secC.G, secC.B, 12),
 					SKColors.Transparent);
 			}
-		}
-
-		// 顶部边缘曲面折射高光丝带 (Top Specular Lensing Ribbon)
-		using (var topRibbonShader = SKShader.CreateLinearGradient(
-			new SKPoint(0, 0),
-			new SKPoint(w, 0),
-			new SKColor[]
-			{
-				new SKColor(255, 255, 255, 0),
-				new SKColor(255, 255, 255, isDark ? (byte)95 : (byte)215),
-				new SKColor(priC.R, priC.G, priC.B, isDark ? (byte)115 : (byte)220),
-				new SKColor(255, 255, 255, 0)
-			},
-			new float[] { 0f, 0.25f, 0.72f, 1f },
-			SKShaderTileMode.Clamp))
-		using (var ribbonPaint = new SKPaint
-		{
-			Shader = topRibbonShader,
-			StrokeWidth = 1.5f,
-			IsAntialias = true,
-			Style = SKPaintStyle.Stroke
-		})
-		{
-			skCanvas.DrawLine(16, 1f, w - 16, 1f, ribbonPaint);
 		}
 	}
 

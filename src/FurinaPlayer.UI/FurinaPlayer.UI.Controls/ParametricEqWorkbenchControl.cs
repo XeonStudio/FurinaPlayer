@@ -74,11 +74,22 @@ public sealed class ParametricEqWorkbenchControl : UserControl
     private MixAssistantProfile? _currentProfile;
     private MixAssistantSolution? _currentSolution;
     private bool _isLearning;
-    private string _selectedTargetId = "balanced_master";
+    private string _selectedTargetId = MixAssistantEngine.AutoGenreTargetId;
     private double _matchAmount01 = 0.75;
     private double _bassSculptDb;
     private double _trebleSculptDb;
     private bool _demaskMidMud = true;
+    private MixAssistantIntensityMode _intensityMode = MixAssistantIntensityMode.Balanced;
+    private HeadphoneCatalogDimension _hpCatalogDimension = HeadphoneCatalogDimension.Wearing200;
+    private string? _selectedHpProductId;
+    private HeadphoneWearingStyle _selectedWearingStyle = HeadphoneWearingStyle.Auto;
+    private HeadphoneDriverType _selectedDriverType = HeadphoneDriverType.Auto;
+    private HeadphoneTuningStyle _selectedTuningStyle = HeadphoneTuningStyle.Auto;
+    private double _hpMatchStrength01 = 0.70;
+    private OpraHeadphonePreset? _activeOpraPreset;
+    private bool _isCalibrationEnabled;
+    private double _calibrationPreampDb;
+    private double _calibrationPeakBoostDb;
 
     // Root & Themeable Surfaces
     private Grid _rootGrid = null!;
@@ -155,6 +166,19 @@ public sealed class ParametricEqWorkbenchControl : UserControl
     private TextBlock _trebleSculptValueTb = null!;
     private ProgressBar _learnProgressBar = null!;
     private TextBlock _learnStatusTb = null!;
+    private Border _genreBadgeBorder = null!;
+    private TextBlock _genreBadgeTb = null!;
+    private ComboBox _intensityCombo = null!;
+    private Border _hpMatchCard = null!;
+    private TextBlock _hpSyncBadgeTb = null!;
+    private ComboBox _hpDimensionCombo = null!;
+    private ComboBox _hpModelCombo = null!;
+    private ComboBox _hpWearingCombo = null!;
+    private ComboBox _hpDriverCombo = null!;
+    private ComboBox _hpTuningCombo = null!;
+    private Slider _hpMatchStrengthSlider = null!;
+    private TextBlock _hpMatchStrengthTb = null!;
+    private TextBlock _hpSafetyTelemetryTb = null!;
     private StackPanel _issuesStack = null!;
     private Button _btnApplyAssistant = null!;
     private Button _btnAssistantAb = null!;
@@ -384,6 +408,94 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         RefreshMixAssistantButtonVisuals();
     }
 
+    public void SetActiveHeadphoneCalibration(
+        OpraHeadphonePreset? activePreset,
+        bool isCalibrationEnabled,
+        double calibrationPreampDb,
+        double calibrationPeakBoostDb)
+    {
+        _activeOpraPreset = activePreset;
+        _isCalibrationEnabled = isCalibrationEnabled;
+        _calibrationPreampDb = calibrationPreampDb;
+        _calibrationPeakBoostDb = calibrationPeakBoostDb;
+
+        RefreshHeadphoneMatchBanner();
+
+        if (_currentProfile != null && !_isUpdatingUi)
+        {
+            ResolveCurrentProfileLive();
+        }
+    }
+
+    private MixAssistantHeadphoneContext BuildMixAssistantHeadphoneContext()
+    {
+        bool useActiveOpra = string.IsNullOrWhiteSpace(_selectedHpProductId) && _activeOpraPreset != null;
+        return new MixAssistantHeadphoneContext(
+            ProductIdOrName: string.IsNullOrWhiteSpace(_selectedHpProductId) ? _activeOpraPreset?.ProductId : _selectedHpProductId,
+            ActiveOpraPreset: useActiveOpra ? _activeOpraPreset : null,
+            IsOpraCalibrationActive: _isCalibrationEnabled,
+            CalibrationPreampDb: _calibrationPreampDb,
+            CalibrationPeakBoostDb: _calibrationPeakBoostDb,
+            WearingStyle: _selectedWearingStyle,
+            DriverType: _selectedDriverType,
+            TuningStyle: _selectedTuningStyle,
+            HeadphoneMatchStrength01: _hpMatchStrength01,
+            IntensityMode: _intensityMode);
+    }
+
+    private void RefreshHeadphoneMatchBanner()
+    {
+        if (_hpSyncBadgeTb == null) return;
+
+        LearnedHeadphoneProfile? explicitModel = !string.IsNullOrWhiteSpace(_selectedHpProductId)
+            ? OpraHeadphoneKnowledgeBase.FindByProductOrPresetId(_selectedHpProductId)
+            : null;
+        LearnedHeadphoneProfile? activeProfile = explicitModel ?? (_activeOpraPreset != null
+            ? OpraHeadphoneKnowledgeBase.InferFromOpraPreset(_activeOpraPreset)
+            : null);
+
+        if (_isCalibrationEnabled && activeProfile != null)
+        {
+            _hpSyncBadgeTb.Text = Loc.F("🎧 校正联动: {0} (防重复叠加以保护失真)", activeProfile.DisplayName);
+        }
+        else if (activeProfile != null)
+        {
+            _hpSyncBadgeTb.Text = Loc.F("🎧 匹配耳机: {0} (未开校正 · 已启用硬件补偿)", activeProfile.DisplayName);
+        }
+        else if (_selectedWearingStyle != HeadphoneWearingStyle.Auto
+              || _selectedDriverType != HeadphoneDriverType.Auto
+              || _selectedTuningStyle != HeadphoneTuningStyle.Auto)
+        {
+            _hpSyncBadgeTb.Text = $"🎧 {MixAssistantEngine.FormatWearingName(_selectedWearingStyle)} · {MixAssistantEngine.FormatDriverName(_selectedDriverType)} · {MixAssistantEngine.FormatTuningName(_selectedTuningStyle)}";
+        }
+        else
+        {
+            _hpSyncBadgeTb.Text = Loc.T("🎧 未指定型号 · 按下方佩戴/单元/调音属性智能适配");
+        }
+    }
+
+    private void UpdateMixAssistantDiagnosticsUi(MixAssistantProfile? profile, MixAssistantSolution? solution)
+    {
+        if (_genreBadgeTb != null)
+        {
+            var genreInfo = profile?.GenreClassification;
+            _genreBadgeTb.Text = genreInfo != null && (profile?.AnalyzedFrames ?? 0) > 0
+                ? Loc.F("🎵 识别曲风: {0} ({1:0}%)", genreInfo.GenreDisplayName, genreInfo.Confidence01 * 100.0)
+                : Loc.T("识别曲风: 等待分析...");
+        }
+
+        if (_hpSafetyTelemetryTb != null && solution != null)
+        {
+            _hpSafetyTelemetryTb.Text = Loc.F(
+                "峰值 +{0:0.0} dB · 前级保护 {1:+0.0;-0.0;0.0} dB · 无失真余量 +{2:0.0} dB",
+                solution.PeakBoostDb,
+                solution.RecommendedPreampDb,
+                Math.Max(0.0, solution.HeadroomSafetyMarginDb));
+        }
+
+        RefreshHeadphoneMatchBanner();
+    }
+
     public void SetMixAssistantProfile(MixAssistantProfile? profile, bool autoApply = true)
     {
         _currentProfile = profile;
@@ -391,6 +503,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         {
             SetMixAssistantProgress(false, 0.0, Loc.T("尚未学习音频频谱"));
             SetMixAssistantIssues(null);
+            UpdateMixAssistantDiagnosticsUi(null, null);
             return;
         }
 
@@ -400,13 +513,18 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             _matchAmount01,
             _bassSculptDb,
             _trebleSculptDb,
-            _demaskMidMud);
+            _demaskMidMud,
+            BuildMixAssistantHeadphoneContext());
 
         SetMixAssistantIssues(_currentSolution.DetectedIssues);
+        UpdateMixAssistantDiagnosticsUi(profile, _currentSolution);
+        string displayTarget = string.IsNullOrWhiteSpace(_currentSolution.EffectiveTargetName)
+            ? _currentSolution.TargetName
+            : _currentSolution.EffectiveTargetName;
         SetMixAssistantProgress(
             isLearning: false,
             progress01: 1.0,
-            statusText: Loc.F("已完成分析 · {0} · 推荐前级 {1:+0.0;-0.0;0.0} dB", Loc.T(_currentSolution.TargetName), _currentSolution.RecommendedPreampDb));
+            statusText: Loc.F("已完成分析 · {0} · 推荐前级 {1:+0.0;-0.0;0.0} dB", Loc.T(displayTarget), _currentSolution.RecommendedPreampDb));
 
         if (autoApply)
         {
@@ -476,6 +594,10 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                 if (string.IsNullOrWhiteSpace(issue)) continue;
                 hasAny = true;
                 bool isHealthy = issue.Contains("均衡", StringComparison.Ordinal)
+                    || issue.Contains("协同", StringComparison.Ordinal)
+                    || issue.Contains("适配", StringComparison.Ordinal)
+                    || issue.Contains("Synced", StringComparison.Ordinal)
+                    || issue.Contains("Matched", StringComparison.Ordinal)
                     || string.Equals(issue, Loc.T("频谱分布整体均衡"), StringComparison.Ordinal);
                 Color badgeBg = isHealthy
                     ? Color.FromArgb(_isDark ? (byte)65 : (byte)220, 22, 163, 74)
@@ -612,6 +734,36 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             _targetCombo.Background = CreateSurfaceBrush(LiquidGlassVariant.Clear, 0.82);
             _targetCombo.BorderBrush = CreateRimBrush(false);
             _targetCombo.Foreground = primary;
+        }
+        ComboBox?[] extraCombos = { _intensityCombo, _hpDimensionCombo, _hpModelCombo, _hpWearingCombo, _hpDriverCombo, _hpTuningCombo };
+        foreach (var cb in extraCombos)
+        {
+            if (cb != null)
+            {
+                cb.Background = CreateSurfaceBrush(LiquidGlassVariant.Clear, 0.82);
+                cb.BorderBrush = CreateRimBrush(false);
+                cb.Foreground = primary;
+            }
+        }
+        if (_hpMatchCard != null)
+        {
+            _hpMatchCard.Background = CreateSurfaceBrush(LiquidGlassVariant.Clear, _isDark ? 0.55 : 0.72);
+            _hpMatchCard.BorderBrush = CreateRimBrush(false);
+        }
+        if (_genreBadgeBorder != null)
+        {
+            _genreBadgeBorder.Background = new SolidColorBrush(_isDark
+                ? Color.FromArgb(80, 79, 70, 229)
+                : Color.FromArgb(255, 238, 242, 255));
+            _genreBadgeBorder.BorderBrush = new SolidColorBrush(_isDark
+                ? Color.FromArgb(160, 129, 140, 248)
+                : Color.FromArgb(255, 199, 210, 254));
+        }
+        if (_genreBadgeTb != null)
+        {
+            _genreBadgeTb.Foreground = new SolidColorBrush(_isDark
+                ? Color.FromArgb(255, 199, 210, 254)
+                : Color.FromArgb(255, 67, 56, 202));
         }
         if (_presetNameTb != null)
         {
@@ -1433,7 +1585,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         var headerLeft = new StackPanel { Spacing = 2 };
         headerLeft.Children.Add(TrackPrimaryText(new TextBlock
         {
-            Text = Loc.T("🎛️ Mix Assistant 智能混音平衡助手"),
+            Text = Loc.T("Mix Assistant 智能混音平衡助手"),
             FontSize = 15,
             FontWeight = FontWeights.Bold
         }));
@@ -1576,6 +1728,236 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         controlsRow.Children.Add(demaskSp);
 
         stack.Children.Add(controlsRow);
+
+        // Row 1.5: Detected Genre Pill + Anti-Distortion Intensity Mode
+        var genreSafetyRow = new Grid { ColumnSpacing = 12 };
+        genreSafetyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+        genreSafetyRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        _genreBadgeTb = new TextBlock
+        {
+            Text = Loc.T("识别曲风: 等待分析..."),
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _genreBadgeBorder = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(10, 5, 10, 5),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = _genreBadgeTb
+        };
+        Grid.SetColumn(_genreBadgeBorder, 0);
+        genreSafetyRow.Children.Add(_genreBadgeBorder);
+
+        var safetySp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        safetySp.Children.Add(TrackSubHeaderText(new TextBlock
+        {
+            Text = Loc.T("防失真档位:"),
+            FontSize = 12,
+            FontWeight = FontWeights.Medium,
+            VerticalAlignment = VerticalAlignment.Center
+        }));
+        _intensityCombo = new ComboBox
+        {
+            MinWidth = 165,
+            CornerRadius = new CornerRadius(8),
+            BorderThickness = new Thickness(1)
+        };
+        _intensityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("🛡️ 柔和防失真 (Gentle)"), Tag = MixAssistantIntensityMode.GentleSafe });
+        _intensityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("⚖️ 标准母带 (Balanced)"), Tag = MixAssistantIntensityMode.Balanced });
+        _intensityCombo.Items.Add(new ComboBoxItem { Content = Loc.T("✨ 鲜明饱满 (Vivid)"), Tag = MixAssistantIntensityMode.Vivid });
+        _intensityCombo.SelectedIndex = 1;
+        _intensityCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_intensityCombo.SelectedItem is ComboBoxItem item && item.Tag is MixAssistantIntensityMode mode)
+            {
+                _intensityMode = mode;
+                ResolveCurrentProfileLive();
+            }
+        };
+        safetySp.Children.Add(_intensityCombo);
+        Grid.SetColumn(safetySp, 1);
+        genreSafetyRow.Children.Add(safetySp);
+        stack.Children.Add(genreSafetyRow);
+
+        // Row 1.8: OPRA 600-Headphone Learned Acoustic Match Sub-Card
+        _hpMatchCard = new Border
+        {
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(12, 9, 12, 9)
+        };
+        var hpStack = new StackPanel { Spacing = 8 };
+
+        var hpHeaderGrid = new Grid { ColumnSpacing = 12 };
+        hpHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+        hpHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var hpTitleCol = new StackPanel { Spacing = 2 };
+        hpTitleCol.Children.Add(TrackSubHeaderText(new TextBlock
+        {
+            Text = Loc.T("🎧 OPRA 耳机硬件与调音匹配 (600 款旗舰/热门已学习):"),
+            FontSize = 11.5,
+            FontWeight = FontWeights.SemiBold
+        }));
+        _hpSyncBadgeTb = TrackMutedText(new TextBlock
+        {
+            Text = Loc.T("🎧 未指定型号 · 按下方佩戴/单元/调音属性智能适配"),
+            FontSize = 11,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        hpTitleCol.Children.Add(_hpSyncBadgeTb);
+        Grid.SetColumn(hpTitleCol, 0);
+        hpHeaderGrid.Children.Add(hpTitleCol);
+
+        var hpStrengthSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+        hpStrengthSp.Children.Add(TrackSubHeaderText(new TextBlock
+        {
+            Text = Loc.T("拟合力度:"),
+            FontSize = 11.5,
+            VerticalAlignment = VerticalAlignment.Center
+        }));
+        _hpMatchStrengthSlider = new Slider { Minimum = 0, Maximum = 100, StepFrequency = 5, Value = 70, Width = 110, VerticalAlignment = VerticalAlignment.Center };
+        _hpMatchStrengthTb = new TextBlock
+        {
+            Text = "70%",
+            FontSize = 11.5,
+            FontWeight = FontWeights.Bold,
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 79, 70, 229)),
+            Width = 36,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        _hpMatchStrengthSlider.ValueChanged += (s, e) =>
+        {
+            _hpMatchStrength01 = Math.Clamp(e.NewValue / 100.0, 0.0, 1.0);
+            _hpMatchStrengthTb.Text = $"{e.NewValue:0}%";
+            if (!_isUpdatingUi) ResolveCurrentProfileLive();
+        };
+        hpStrengthSp.Children.Add(_hpMatchStrengthSlider);
+        hpStrengthSp.Children.Add(_hpMatchStrengthTb);
+        Grid.SetColumn(hpStrengthSp, 1);
+        hpHeaderGrid.Children.Add(hpStrengthSp);
+        hpStack.Children.Add(hpHeaderGrid);
+
+        var hpSelectorsGrid = new Grid { ColumnSpacing = 8 };
+        hpSelectorsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.1, GridUnitType.Star) });
+        hpSelectorsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
+        hpSelectorsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+        hpSelectorsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+        hpSelectorsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+        _hpDimensionCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+        _hpDimensionCombo.Items.Add(new ComboBoxItem { Content = Loc.T("按佩戴方式 (200款)"), Tag = HeadphoneCatalogDimension.Wearing200 });
+        _hpDimensionCombo.Items.Add(new ComboBoxItem { Content = Loc.T("按发音单元 (200款)"), Tag = HeadphoneCatalogDimension.Driver200 });
+        _hpDimensionCombo.Items.Add(new ComboBoxItem { Content = Loc.T("按调音风格 (200款)"), Tag = HeadphoneCatalogDimension.Tuning200 });
+        _hpDimensionCombo.SelectedIndex = 0;
+        _hpDimensionCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_hpDimensionCombo.SelectedItem is ComboBoxItem item && item.Tag is HeadphoneCatalogDimension dim)
+            {
+                _hpCatalogDimension = dim;
+                PopulateHpModelCombo();
+            }
+        };
+        Grid.SetColumn(_hpDimensionCombo, 0);
+        hpSelectorsGrid.Children.Add(_hpDimensionCombo);
+
+        _hpModelCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+        PopulateHpModelCombo();
+        _hpModelCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_hpModelCombo.SelectedItem is ComboBoxItem item)
+            {
+                _selectedHpProductId = item.Tag as string;
+                var picked = OpraHeadphoneKnowledgeBase.FindByProductOrPresetId(_selectedHpProductId);
+                if (picked != null)
+                {
+                    SyncHeadphoneAttributeCombos(picked.WearingStyle, picked.DriverType, picked.TuningStyle);
+                }
+                else
+                {
+                    RefreshHeadphoneMatchBanner();
+                }
+                ResolveCurrentProfileLive();
+            }
+        };
+        Grid.SetColumn(_hpModelCombo, 1);
+        hpSelectorsGrid.Children.Add(_hpModelCombo);
+
+        _hpWearingCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+        foreach (HeadphoneWearingStyle ws in Enum.GetValues<HeadphoneWearingStyle>())
+        {
+            _hpWearingCombo.Items.Add(new ComboBoxItem { Content = MixAssistantEngine.FormatWearingName(ws), Tag = ws });
+        }
+        _hpWearingCombo.SelectedIndex = 0;
+        _hpWearingCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_hpWearingCombo.SelectedItem is ComboBoxItem item && item.Tag is HeadphoneWearingStyle ws)
+            {
+                _selectedWearingStyle = ws;
+                RefreshHeadphoneMatchBanner();
+                ResolveCurrentProfileLive();
+            }
+        };
+        Grid.SetColumn(_hpWearingCombo, 2);
+        hpSelectorsGrid.Children.Add(_hpWearingCombo);
+
+        _hpDriverCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+        foreach (HeadphoneDriverType dt in Enum.GetValues<HeadphoneDriverType>())
+        {
+            _hpDriverCombo.Items.Add(new ComboBoxItem { Content = MixAssistantEngine.FormatDriverName(dt), Tag = dt });
+        }
+        _hpDriverCombo.SelectedIndex = 0;
+        _hpDriverCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_hpDriverCombo.SelectedItem is ComboBoxItem item && item.Tag is HeadphoneDriverType dt)
+            {
+                _selectedDriverType = dt;
+                RefreshHeadphoneMatchBanner();
+                ResolveCurrentProfileLive();
+            }
+        };
+        Grid.SetColumn(_hpDriverCombo, 3);
+        hpSelectorsGrid.Children.Add(_hpDriverCombo);
+
+        _hpTuningCombo = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, CornerRadius = new CornerRadius(7), BorderThickness = new Thickness(1) };
+        foreach (HeadphoneTuningStyle ts in Enum.GetValues<HeadphoneTuningStyle>())
+        {
+            _hpTuningCombo.Items.Add(new ComboBoxItem { Content = MixAssistantEngine.FormatTuningName(ts), Tag = ts });
+        }
+        _hpTuningCombo.SelectedIndex = 0;
+        _hpTuningCombo.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingUi) return;
+            if (_hpTuningCombo.SelectedItem is ComboBoxItem item && item.Tag is HeadphoneTuningStyle ts)
+            {
+                _selectedTuningStyle = ts;
+                RefreshHeadphoneMatchBanner();
+                ResolveCurrentProfileLive();
+            }
+        };
+        Grid.SetColumn(_hpTuningCombo, 4);
+        hpSelectorsGrid.Children.Add(_hpTuningCombo);
+
+        hpStack.Children.Add(hpSelectorsGrid);
+
+        _hpSafetyTelemetryTb = TrackMutedText(new TextBlock
+        {
+            Text = Loc.F("峰值 +{0:0.0} dB · 前级保护 {1:+0.0;-0.0;0.0} dB · 无失真余量 +{2:0.0} dB", 0.0, 0.0, 0.0),
+            FontSize = 11
+        });
+        hpStack.Children.Add(_hpSafetyTelemetryTb);
+
+        _hpMatchCard.Child = hpStack;
+        stack.Children.Add(_hpMatchCard);
 
         // Row 2: Amount, Low Sculpt, High Sculpt
         var sculptGrid = new Grid { ColumnSpacing = 20 };
@@ -2252,8 +2634,69 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         }
     }
 
+    private void PopulateHpModelCombo()
+    {
+        if (_hpModelCombo == null) return;
+        bool prevUpdating = _isUpdatingUi;
+        _isUpdatingUi = true;
+        try
+        {
+            _hpModelCombo.Items.Clear();
+            _hpModelCombo.Items.Add(new ComboBoxItem { Content = Loc.T("🔗 跟随耳机校正 / 自动匹配"), Tag = string.Empty });
+
+            IReadOnlyList<LearnedHeadphoneProfile> list = _hpCatalogDimension switch
+            {
+                HeadphoneCatalogDimension.Driver200 => OpraHeadphoneKnowledgeBase.DriverTypeTop200,
+                HeadphoneCatalogDimension.Tuning200 => OpraHeadphoneKnowledgeBase.TuningStyleTop200,
+                _ => OpraHeadphoneKnowledgeBase.WearingStyleTop200
+            };
+
+            int selIdx = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                var p = list[i];
+                _hpModelCombo.Items.Add(new ComboBoxItem
+                {
+                    Content = $"{p.DisplayName} [{MixAssistantEngine.FormatDriverName(p.DriverType)}]",
+                    Tag = p.ProductId
+                });
+                if (!string.IsNullOrEmpty(_selectedHpProductId)
+                    && string.Equals(p.ProductId, _selectedHpProductId, StringComparison.OrdinalIgnoreCase))
+                {
+                    selIdx = i + 1;
+                }
+            }
+            _hpModelCombo.SelectedIndex = selIdx;
+        }
+        finally
+        {
+            _isUpdatingUi = prevUpdating;
+        }
+    }
+
+    private void SyncHeadphoneAttributeCombos(HeadphoneWearingStyle wearing, HeadphoneDriverType driver, HeadphoneTuningStyle tuning)
+    {
+        bool prev = _isUpdatingUi;
+        _isUpdatingUi = true;
+        try
+        {
+            _selectedWearingStyle = wearing;
+            _selectedDriverType = driver;
+            _selectedTuningStyle = tuning;
+            if (_hpWearingCombo != null) _hpWearingCombo.SelectedIndex = (int)wearing;
+            if (_hpDriverCombo != null) _hpDriverCombo.SelectedIndex = (int)driver;
+            if (_hpTuningCombo != null) _hpTuningCombo.SelectedIndex = (int)tuning;
+            RefreshHeadphoneMatchBanner();
+        }
+        finally
+        {
+            _isUpdatingUi = prev;
+        }
+    }
+
     private void ResolveCurrentProfileLive()
     {
+        var hpCtx = BuildMixAssistantHeadphoneContext();
         if (_currentProfile == null)
         {
             // Synthesize a neutral profile if user drags target/sculpt before learning so preview still responds
@@ -2271,7 +2714,9 @@ public sealed class ParametricEqWorkbenchControl : UserControl
                 _matchAmount01,
                 _bassSculptDb,
                 _trebleSculptDb,
-                _demaskMidMud);
+                _demaskMidMud,
+                hpCtx);
+            UpdateMixAssistantDiagnosticsUi(null, _currentSolution);
             return;
         }
 
@@ -2281,7 +2726,16 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             _matchAmount01,
             _bassSculptDb,
             _trebleSculptDb,
-            _demaskMidMud);
+            _demaskMidMud,
+            hpCtx);
+        UpdateMixAssistantDiagnosticsUi(_currentProfile, _currentSolution);
+        string displayTarget = string.IsNullOrWhiteSpace(_currentSolution.EffectiveTargetName)
+            ? _currentSolution.TargetName
+            : _currentSolution.EffectiveTargetName;
+        SetMixAssistantProgress(
+            isLearning: false,
+            progress01: 1.0,
+            statusText: Loc.F("已完成分析 · {0} · 推荐前级 {1:+0.0;-0.0;0.0} dB", Loc.T(displayTarget), _currentSolution.RecommendedPreampDb));
         ApplyMixAssistantSolution(_currentSolution);
     }
 
@@ -2302,12 +2756,25 @@ public sealed class ParametricEqWorkbenchControl : UserControl
         _isUpdatingUi = true;
         try
         {
-            _selectedTargetId = "balanced_master";
+            _selectedTargetId = MixAssistantEngine.AutoGenreTargetId;
             _matchAmount01 = 0.75;
             _bassSculptDb = 0.0;
             _trebleSculptDb = 0.0;
             _demaskMidMud = true;
+            _intensityMode = MixAssistantIntensityMode.Balanced;
+            _selectedHpProductId = null;
+            _selectedWearingStyle = HeadphoneWearingStyle.Auto;
+            _selectedDriverType = HeadphoneDriverType.Auto;
+            _selectedTuningStyle = HeadphoneTuningStyle.Auto;
+            _hpMatchStrength01 = 0.70;
             if (_targetCombo != null) _targetCombo.SelectedIndex = 0;
+            if (_intensityCombo != null) _intensityCombo.SelectedIndex = 1;
+            if (_hpModelCombo != null && _hpModelCombo.Items.Count > 0) _hpModelCombo.SelectedIndex = 0;
+            if (_hpWearingCombo != null) _hpWearingCombo.SelectedIndex = 0;
+            if (_hpDriverCombo != null) _hpDriverCombo.SelectedIndex = 0;
+            if (_hpTuningCombo != null) _hpTuningCombo.SelectedIndex = 0;
+            if (_hpMatchStrengthSlider != null) _hpMatchStrengthSlider.Value = 70;
+            if (_hpMatchStrengthTb != null) _hpMatchStrengthTb.Text = "70%";
             if (_amountSlider != null) _amountSlider.Value = 75;
             if (_amountValueTb != null) _amountValueTb.Text = "75%";
             if (_bassSculptSlider != null) _bassSculptSlider.Value = 0.0;
@@ -2315,6 +2782,7 @@ public sealed class ParametricEqWorkbenchControl : UserControl
             if (_trebleSculptSlider != null) _trebleSculptSlider.Value = 0.0;
             if (_trebleSculptValueTb != null) _trebleSculptValueTb.Text = "0.0 dB";
             if (_demaskSwitch != null) _demaskSwitch.IsOn = true;
+            UpdateMixAssistantDiagnosticsUi(null, null);
         }
         finally
         {

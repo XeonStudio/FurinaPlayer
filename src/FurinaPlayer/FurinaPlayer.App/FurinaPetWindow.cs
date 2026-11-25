@@ -24,8 +24,8 @@ public sealed class FurinaPetWindow : IDisposable
 {
 	private const int BasePetWidth = 180;
 	private const int BasePetHeight = 160;
-	private const int LyricAreaWidth = 420;
-	private const int LyricAreaHeight = 200;
+	private const int LyricAreaWidth = 440;
+	private const int LyricAreaHeight = 280;
 	private const int BarAreaHeight = 40;
 	private const int DragThresholdPx = 4;
 	private const int ClickStateDurationMs = 900;
@@ -82,6 +82,7 @@ public sealed class FurinaPetWindow : IDisposable
 	private const int IDM_RESET_POS = 2004;
 	private const int IDM_HIDE = 2005;
 	private const int IDM_TOGGLE_LYRICS = 2006;
+	private const int IDM_CYCLE_BUBBLE = 2007;
 
 	private static readonly IntPtr TIMER_ANIM_ID = new(1);
 	private static readonly IntPtr TIMER_SAVE_POS_ID = new(2);
@@ -124,6 +125,16 @@ public sealed class FurinaPetWindow : IDisposable
 	private int _scalePercent = 100;
 	private int _gifSpeedPercent = 100;
 	private int _bubbleScalePercent = 100;
+
+	private string _lyricFontFamily = "Microsoft YaHei UI";
+	private string? _lyricFontFilePath;
+	private SKTypeface? _customLyricTypeface;
+	private int _lyricOpacityPercent = 100;
+	private SKColor _lyricColor = new(0x23, 0x2B, 0x5C);
+	private bool _lyricGradientEnabled;
+	private SKColor _lyricGradientEndColor = new(0x63, 0x66, 0xF1);
+	private bool _lyricHighlightCurrent = true;
+	private SKColor _lyricHighlightColor = new(0x25, 0x63, 0xEB);
 	private int _petWidth = BasePetWidth;
 	private int _petHeight = BasePetHeight;
 	private int _lyricTopOffset = LyricAreaHeight;
@@ -162,6 +173,32 @@ public sealed class FurinaPetWindow : IDisposable
 	private int _dragStartTop;
 	private bool _pendingPositionSave;
 
+	private sealed record BubbleThemeSpec(
+		string Key,
+		string Prefix,
+		SKColor BorderColor,
+		SKColor TextColor,
+		float BorderWidth,
+		float CornerRadius,
+		float CornerScale,
+		float HorizPad,
+		float VerticalGap,
+		float BottomPetClearance,
+		float TlOffX, float TlOffY,
+		float TrOffX, float TrOffY,
+		float BlOffX, float BlOffY,
+		float BrOffX, float BrOffY);
+
+	private static readonly BubbleThemeSpec[] BubbleThemes =
+	{
+		new("classic", "pet_bubble", new SKColor(0x34, 0x39, 0x93), new SKColor(0x23, 0x2B, 0x5C), 2.4f, 4f, 0.30f, 24f, 36f, 16f, 40f, 84f, 37f, 84f, 35f, 48f, 46f, 44f),
+		new("crown", "pet_bubble_crown", new SKColor(0x88, 0x96, 0xC6), new SKColor(0x2B, 0x35, 0x6B), 2.2f, 12f, 0.36f, 28f, 38f, 20f, 19f, 36f, 67f, 28f, 23f, 29f, 112f, 49f),
+		new("ice", "pet_bubble_ice", new SKColor(0x3D, 0x42, 0x4B), new SKColor(0x23, 0x2B, 0x44), 2.0f, 10f, 0.36f, 28f, 36f, 20f, 9f, 12f, 53f, 6f, 6f, 29f, 108f, 64f),
+		new("umbrella", "pet_bubble_umbrella", new SKColor(0x74, 0x84, 0xBF), new SKColor(0x25, 0x31, 0x68), 2.3f, 12f, 0.36f, 28f, 42f, 22f, 40f, 48f, 78f, 50f, 39f, 61f, 98f, 61f),
+		new("angel", "pet_bubble_angel", new SKColor(0x6D, 0x80, 0xD6), new SKColor(0x23, 0x2E, 0x68), 2.2f, 8f, 0.36f, 28f, 40f, 20f, 26f, 59f, 73f, 39f, 31f, 26f, 98f, 26f)
+	};
+
+	private BubbleThemeSpec _bubbleTheme = BubbleThemes[0];
 	private SKBitmap? _bubbleTl;
 	private SKBitmap? _bubbleTr;
 	private SKBitmap? _bubbleBl;
@@ -180,6 +217,7 @@ public sealed class FurinaPetWindow : IDisposable
 	public event Action? ResetPositionRequested;
 	public event Action? HideRequested;
 	public event Action? ToggleLyricsRequested;
+	public event Action? CycleBubbleStyleRequested;
 	public event Action<int, int>? PositionChanged;
 
 	public bool IsVisible => _isVisible;
@@ -195,13 +233,14 @@ public sealed class FurinaPetWindow : IDisposable
 		int workBottom)
 		=> DesktopPetLayout.ClampPetBoundsToWorkArea(savedLeft, savedTop, width, height, workLeft, workTop, workRight, workBottom);
 
-	public FurinaPetWindow(int scalePercent, int? savedLeft, int? savedTop, string? idlePath, string? groovePath, string? clickPath)
+	public FurinaPetWindow(int scalePercent, int? savedLeft, int? savedTop, string? idlePath, string? groovePath, string? clickPath, string? bubbleStyle = null)
 	{
 		_scalePercent = Math.Clamp(scalePercent, 60, 180);
 		_customIdlePath = idlePath;
 		_customGroovePath = groovePath;
 		_customClickPath = clickPath;
 
+		_bubbleTheme = ResolveBubbleTheme(bubbleStyle);
 		UpdateDimensionsFromScale();
 		CreateNativeWindow();
 		LoadBubbleCornerAssets();
@@ -691,13 +730,39 @@ public sealed class FurinaPetWindow : IDisposable
 		return new SKRect(barX, barY, barX + barW, barY + barH);
 	}
 
+	private static BubbleThemeSpec ResolveBubbleTheme(string? key)
+	{
+		foreach (var th in BubbleThemes)
+		{
+			if (string.Equals(th.Key, key, StringComparison.OrdinalIgnoreCase))
+				return th;
+		}
+		return BubbleThemes[0];
+	}
+
+	public void SetBubbleStyle(string? styleKey)
+	{
+		if (_disposed) return;
+		var next = ResolveBubbleTheme(styleKey);
+		if (string.Equals(_bubbleTheme.Key, next.Key, StringComparison.Ordinal)) return;
+		_bubbleTheme = next;
+		LoadBubbleCornerAssets();
+		if (_isVisible) RenderCurrentFrame();
+	}
+
 	private void LoadBubbleCornerAssets()
 	{
+		_bubbleTl?.Dispose();
+		_bubbleTr?.Dispose();
+		_bubbleBl?.Dispose();
+		_bubbleBr?.Dispose();
+
 		string dir = Path.Combine(AppContext.BaseDirectory, "Assets", "Pet");
-		_bubbleTl = TryLoadPng(Path.Combine(dir, "pet_bubble_tl.png"));
-		_bubbleTr = TryLoadPng(Path.Combine(dir, "pet_bubble_tr.png"));
-		_bubbleBl = TryLoadPng(Path.Combine(dir, "pet_bubble_bl.png"));
-		_bubbleBr = TryLoadPng(Path.Combine(dir, "pet_bubble_br.png"));
+		string pfx = _bubbleTheme.Prefix;
+		_bubbleTl = TryLoadPng(Path.Combine(dir, $"{pfx}_tl.png")) ?? TryLoadPng(Path.Combine(dir, "pet_bubble_tl.png"));
+		_bubbleTr = TryLoadPng(Path.Combine(dir, $"{pfx}_tr.png")) ?? TryLoadPng(Path.Combine(dir, "pet_bubble_tr.png"));
+		_bubbleBl = TryLoadPng(Path.Combine(dir, $"{pfx}_bl.png")) ?? TryLoadPng(Path.Combine(dir, "pet_bubble_bl.png"));
+		_bubbleBr = TryLoadPng(Path.Combine(dir, $"{pfx}_br.png")) ?? TryLoadPng(Path.Combine(dir, "pet_bubble_br.png"));
 	}
 
 	private static SKBitmap? TryLoadPng(string path)
@@ -726,16 +791,18 @@ public sealed class FurinaPetWindow : IDisposable
 		float e = 1f - MathF.Pow(1f - t, 3f); // EaseOutCubic
 
 		float bs = _bubbleScalePercent / 100f;
-		float gap = 9f * bs;
-		float slideOffset = _isLyricAnimating ? 38f * bs * (1f - e) : 0f;
-		float cursorBottomY = _lyricTopOffset - 10f * bs; // 紧贴看板娘上方
+		var theme = _bubbleTheme;
+		// 留足四角装饰物上下溢出间距，确保三行气泡之间完全不重叠
+		float gap = theme.VerticalGap * bs;
+		float slideOffset = _isLyricAnimating ? 36f * bs * (1f - e) : 0f;
+		float cursorBottomY = _lyricTopOffset - theme.BottomPetClearance * bs; // 贴近看板娘上方且不遮挡头冠
 
 		// 当前歌词（最下方，第1个气泡）
 		if (_lyricCur != null)
 		{
 			float y = cursorBottomY + (_isLyricAnimating ? 18f * bs * (1f - e) : 0f);
 			float alpha = _isLyricAnimating ? e : 1.0f;
-			float topY = DrawSingleLyricBubble(canvas, _lyricCur, y, alpha, bs);
+			float topY = DrawSingleLyricBubble(canvas, _lyricCur, y, alpha, bs, isCurrent: true);
 			cursorBottomY = (topY < y ? topY : y - 30f * bs) - gap;
 		}
 
@@ -744,7 +811,7 @@ public sealed class FurinaPetWindow : IDisposable
 		{
 			float y = cursorBottomY + slideOffset;
 			float alpha = _isLyricAnimating ? 1.0f + (0.86f - 1.0f) * e : 0.86f;
-			float topY = DrawSingleLyricBubble(canvas, _lyricPrev1, y, alpha, bs);
+			float topY = DrawSingleLyricBubble(canvas, _lyricPrev1, y, alpha, bs, isCurrent: false);
 			cursorBottomY = (topY < y ? topY : y - 30f * bs) - gap;
 		}
 
@@ -753,7 +820,7 @@ public sealed class FurinaPetWindow : IDisposable
 		{
 			float y = cursorBottomY + slideOffset;
 			float alpha = _isLyricAnimating ? 0.86f + (0.68f - 0.86f) * e : 0.68f;
-			float topY = DrawSingleLyricBubble(canvas, _lyricPrev2, y, alpha, bs);
+			float topY = DrawSingleLyricBubble(canvas, _lyricPrev2, y, alpha, bs, isCurrent: false);
 			cursorBottomY = (topY < y ? topY : y - 30f * bs) - gap;
 		}
 
@@ -763,26 +830,81 @@ public sealed class FurinaPetWindow : IDisposable
 			float exitBottomY = cursorBottomY - 38f * bs * e;
 			float exitAlpha = 0.68f * (1f - e);
 			if (exitAlpha > 0.02f)
-				DrawSingleLyricBubble(canvas, _lyricExiting, exitBottomY, exitAlpha, bs);
+				DrawSingleLyricBubble(canvas, _lyricExiting, exitBottomY, exitAlpha, bs, isCurrent: false);
 		}
 	}
 
-	private float DrawSingleLyricBubble(SKCanvas canvas, string text, float bottomY, float alpha, float bs)
+	public void SetLyricAppearance(
+		string? fontFamily,
+		int opacityPercent,
+		string? colorHex,
+		bool gradientEnabled,
+		string? gradientEndHex,
+		bool highlightCurrent,
+		string? highlightColorHex,
+		string? fontFilePath = null)
 	{
-		if (alpha <= 0.01f) return bottomY;
+		_lyricFontFamily = string.IsNullOrWhiteSpace(fontFamily) ? "Microsoft YaHei UI" : fontFamily.Trim();
+		string? nextPath = string.IsNullOrWhiteSpace(fontFilePath) ? null : fontFilePath.Trim();
+		if (!string.Equals(_lyricFontFilePath, nextPath, StringComparison.OrdinalIgnoreCase))
+		{
+			_lyricFontFilePath = nextPath;
+			_customLyricTypeface?.Dispose();
+			_customLyricTypeface = (!string.IsNullOrEmpty(nextPath) && File.Exists(nextPath))
+				? SKTypeface.FromFile(nextPath)
+				: null;
+		}
+		_lyricOpacityPercent = Math.Clamp(opacityPercent, 20, 100);
+		_lyricColor = ParseHexSkColor(colorHex, _bubbleTheme.TextColor);
+		_lyricGradientEnabled = gradientEnabled;
+		_lyricGradientEndColor = ParseHexSkColor(gradientEndHex, new SKColor(0x63, 0x66, 0xF1));
+		_lyricHighlightCurrent = highlightCurrent;
+		_lyricHighlightColor = ParseHexSkColor(highlightColorHex, new SKColor(0x25, 0x63, 0xEB));
+		if (_isVisible) RenderCurrentFrame();
+	}
 
+	private static SKColor ParseHexSkColor(string? hex, SKColor fallback)
+	{
+		if (string.IsNullOrWhiteSpace(hex)) return fallback;
+		string h = hex.Trim().TrimStart('#');
+		if (h.Length == 6 && uint.TryParse(h, System.Globalization.NumberStyles.HexNumber, null, out uint rgb))
+		{
+			return new SKColor((byte)((rgb >> 16) & 0xFF), (byte)((rgb >> 8) & 0xFF), (byte)(rgb & 0xFF));
+		}
+		if (h.Length == 8 && uint.TryParse(h, System.Globalization.NumberStyles.HexNumber, null, out uint argb))
+		{
+			return new SKColor((byte)((argb >> 16) & 0xFF), (byte)((argb >> 8) & 0xFF), (byte)(argb & 0xFF), (byte)((argb >> 24) & 0xFF));
+		}
+		return fallback;
+	}
+
+	private float DrawSingleLyricBubble(SKCanvas canvas, string text, float bottomY, float alpha, float bs, bool isCurrent = false)
+	{
+		alpha *= Math.Clamp(_lyricOpacityPercent / 100f, 0.2f, 1.0f);
+		if (alpha <= 0.01f) return bottomY;
+		var theme = _bubbleTheme;
+
+		bool highlight = isCurrent && _lyricHighlightCurrent;
+		SKColor baseTextColor = highlight ? _lyricHighlightColor : _lyricColor;
+		SKTypeface? ownedTypeface = null;
+		SKTypeface typeface = _customLyricTypeface ?? (ownedTypeface = SKTypeface.FromFamilyName(
+			_lyricFontFamily,
+			highlight ? SKFontStyleWeight.Bold : SKFontStyleWeight.SemiBold,
+			SKFontStyleWidth.Normal,
+			SKFontStyleSlant.Upright));
+		using var _ = ownedTypeface;
 		using var textPaint = new SKPaint
 		{
 			IsAntialias = true,
-			Color = new SKColor(0x23, 0x2B, 0x5C),
-			TextSize = 12.5f * bs,
-			Typeface = SKTypeface.FromFamilyName("Microsoft YaHei UI", SKFontStyleWeight.SemiBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright),
+			Color = baseTextColor,
+			TextSize = (highlight ? 13.8f : 12.2f) * bs,
+			Typeface = typeface,
 			TextAlign = SKTextAlign.Center
 		};
 
-		float minBubbleW = 116f * bs;
-		float maxBubbleW = 344f * bs;
-		float horizPad = 24f * bs;
+		float minBubbleW = 128f * bs;
+		float maxBubbleW = 356f * bs;
+		float horizPad = theme.HorizPad * bs;
 		float maxTextW = maxBubbleW - horizPad * 2f;
 
 		var lines = WrapLyricText(text, textPaint, maxTextW, maxLines: 3);
@@ -799,7 +921,7 @@ public sealed class FurinaPetWindow : IDisposable
 		float bx = (_totalWidth - bw) / 2f;
 		float by = bottomY - bh;
 
-		if (by < 10f * bs) return bottomY;
+		if (by < 4f * bs) return bottomY;
 
 		byte layerAlpha = (byte)Math.Clamp((int)Math.Round(alpha * 255f), 0, 255);
 		canvas.SaveLayer(new SKPaint { Color = new SKColor(255, 255, 255, layerAlpha) });
@@ -808,44 +930,54 @@ public sealed class FurinaPetWindow : IDisposable
 		using var bgPaint = new SKPaint
 		{
 			IsAntialias = true,
-			Color = new SKColor(255, 255, 255, 242),
+			Color = new SKColor(255, 255, 255, 244),
 			Style = SKPaintStyle.Fill
 		};
 		using var borderPaint = new SKPaint
 		{
 			IsAntialias = true,
-			Color = new SKColor(0x34, 0x39, 0x93),
+			Color = highlight ? _lyricHighlightColor : theme.BorderColor,
 			Style = SKPaintStyle.Stroke,
-			StrokeWidth = 2.4f * bs
+			StrokeWidth = (highlight ? theme.BorderWidth * 1.25f : theme.BorderWidth) * bs
 		};
-		canvas.DrawRoundRect(rect, 4f * bs, 4f * bs, bgPaint);
-		canvas.DrawRoundRect(rect, 4f * bs, 4f * bs, borderPaint);
+		if (_lyricGradientEnabled)
+		{
+			textPaint.Shader = SKShader.CreateLinearGradient(
+				new SKPoint(rect.Left, rect.Top),
+				new SKPoint(rect.Right, rect.Bottom),
+				new[] { baseTextColor, _lyricGradientEndColor },
+				null,
+				SKShaderTileMode.Clamp);
+		}
+		float radius = theme.CornerRadius * bs;
+		canvas.DrawRoundRect(rect, radius, radius, bgPaint);
+		canvas.DrawRoundRect(rect, radius, radius, borderPaint);
 
-		// 绘制四角芙宁娜像素装饰贴纸（精准对齐原始边框角点）
-		float s = 0.30f * bs;
+		// 绘制四角专属主题装饰贴纸（精准对齐框线角点）
+		float s = theme.CornerScale * bs;
 		using var imgPaint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High };
 		if (_bubbleTl != null)
 		{
-			float dx = rect.Left - 40f * s;
-			float dy = rect.Top - 84f * s;
+			float dx = rect.Left - theme.TlOffX * s;
+			float dy = rect.Top - theme.TlOffY * s;
 			canvas.DrawBitmap(_bubbleTl, new SKRect(dx, dy, dx + _bubbleTl.Width * s, dy + _bubbleTl.Height * s), imgPaint);
 		}
 		if (_bubbleTr != null)
 		{
-			float dx = rect.Right - 37f * s;
-			float dy = rect.Top - 84f * s;
+			float dx = rect.Right - theme.TrOffX * s;
+			float dy = rect.Top - theme.TrOffY * s;
 			canvas.DrawBitmap(_bubbleTr, new SKRect(dx, dy, dx + _bubbleTr.Width * s, dy + _bubbleTr.Height * s), imgPaint);
 		}
 		if (_bubbleBl != null)
 		{
-			float dx = rect.Left - 35f * s;
-			float dy = rect.Bottom - 48f * s;
+			float dx = rect.Left - theme.BlOffX * s;
+			float dy = rect.Bottom - theme.BlOffY * s;
 			canvas.DrawBitmap(_bubbleBl, new SKRect(dx, dy, dx + _bubbleBl.Width * s, dy + _bubbleBl.Height * s), imgPaint);
 		}
 		if (_bubbleBr != null)
 		{
-			float dx = rect.Right - 46f * s;
-			float dy = rect.Bottom - 44f * s;
+			float dx = rect.Right - theme.BrOffX * s;
+			float dy = rect.Bottom - theme.BrOffY * s;
 			canvas.DrawBitmap(_bubbleBr, new SKRect(dx, dy, dx + _bubbleBr.Width * s, dy + _bubbleBr.Height * s), imgPaint);
 		}
 
@@ -1314,6 +1446,9 @@ public sealed class FurinaPetWindow : IDisposable
 					case IDM_TOGGLE_LYRICS:
 						ToggleLyricsRequested?.Invoke();
 						break;
+					case IDM_CYCLE_BUBBLE:
+						CycleBubbleStyleRequested?.Invoke();
+						break;
 				}
 				return IntPtr.Zero;
 			}
@@ -1379,6 +1514,7 @@ public sealed class FurinaPetWindow : IDisposable
 			AppendMenu(hMenu, MF_STRING, (IntPtr)IDM_NEXT, Loc.T("下一曲"));
 			AppendMenu(hMenu, MF_SEPARATOR, IntPtr.Zero, string.Empty);
 			AppendMenu(hMenu, MF_STRING, (IntPtr)IDM_TOGGLE_LYRICS, $"{Loc.T("看板娘歌词气泡")}: {(_lyricsEnabled ? Loc.T("开") : Loc.T("关"))}");
+			AppendMenu(hMenu, MF_STRING, (IntPtr)IDM_CYCLE_BUBBLE, Loc.T("切换气泡样式"));
 			AppendMenu(hMenu, MF_STRING, (IntPtr)IDM_RESET_POS, Loc.T("重置位置"));
 			AppendMenu(hMenu, MF_STRING, (IntPtr)IDM_HIDE, Loc.T("隐藏看板娘"));
 

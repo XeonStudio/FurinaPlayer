@@ -49,6 +49,8 @@ class Program
 		TestReplayGainScannerService();
 		TestPolySincResampler();
 		TestFurinaPlayerPcmResamplerAdvancedModes();
+		TestFurinaSrcCatalogAndMinimumPhaseAndCascade();
+		TestFurinaSrcSampleProviderLiveStreamingAndDither();
 
 		NewFeatureTests.RunAll();
 		NewFeatureTests.TestLibVlcTranscoderAndOggWaveform(Assert);
@@ -56,6 +58,9 @@ class Program
 		NewFeatureTests.TestAudioSessionRestoreResume(Assert);
 		NewFeatureTests.TestMixAssistantAndParametricOfflineRender(Assert);
 		NewFeatureTests.TestInsightProAnalyzerPrecision(Assert);
+		NewFeatureTests.TestPhase1And11Features(Assert);
+		NewFeatureTests.TestSession2Features(Assert);
+		NewFeatureTests.TestSession3Features(Assert);
 		NewFeatureTests.TestStreamingNonBlockingAndCancellation(Assert);
 		NewFeatureTests.TestNeteaseQrCookieMergeAndFallback(Assert);
 		NewFeatureTests.TestFormatConverterAndDecoders(Assert);
@@ -63,6 +68,9 @@ class Program
 		NewFeatureTests.TestLyricPriorityLocalEmbeddedAndFallback(Assert);
 		NewFeatureTests.TestLibraryIntegrityCheckAndRepair(Assert);
 		NewFeatureTests.TestDesktopPetAssetsAndBounds(Assert);
+		NewFeatureTests.TestOpraHeadphoneKnowledgeBaseAndMixAssistantV2(Assert);
+		NewFeatureTests.TestPlaybackArrayCopyCrashFixAndCheckRepairAssistants(Assert);
+		NewFeatureTests.TestLazyLibVlcAndAsyncDiagnostics(Assert);
 		OpraDeepVerification.Run();
 
 		Console.WriteLine("=================================================");
@@ -588,5 +596,114 @@ Filter 5: OFF NO Fc 60 Hz Gain 0.0 dB Q 10.0
 		float[] out8x = resampler.ResampleInterleaved(pcm48, 0, pcm48.Length, 2, out int outCount8x);
 		Assert(outCount8x == 400 * 2, $"FurinaPlayer Steep 8x produced 400 frames ({outCount8x / 2} frames)");
 		Assert(Math.Abs(out8x[100] - 0.8f) < 0.05f, $"Steep FIR preserved DC gain ({out8x[100]:F4})");
+	}
+
+	private sealed class SineWaveSource : NAudio.Wave.ISampleProvider
+	{
+		private long _sampleIndex;
+		private readonly double _freq;
+		private readonly float _amp;
+		public NAudio.Wave.WaveFormat WaveFormat { get; }
+
+		public SineWaveSource(int sampleRate, int channels, double freqHz = 1000.0, float amp = 0.5f)
+		{
+			WaveFormat = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
+			_freq = freqHz;
+			_amp = amp;
+		}
+
+		public int Read(float[] buffer, int offset, int count)
+		{
+			int ch = WaveFormat.Channels;
+			int frames = count / ch;
+			for (int f = 0; f < frames; f++)
+			{
+				float v = _amp * (float)Math.Sin(2.0 * Math.PI * _freq * _sampleIndex / WaveFormat.SampleRate);
+				for (int c = 0; c < ch; c++) buffer[offset + f * ch + c] = v;
+				_sampleIndex++;
+			}
+			return frames * ch;
+		}
+	}
+
+	static void TestFurinaSrcCatalogAndMinimumPhaseAndCascade()
+	{
+		Console.WriteLine("\n--- Testing FurinaSrcCatalog, Minimum Phase & 8x Multi-Stage Cascade ---");
+		Assert(FurinaSrcCatalog.ResolveTargetSampleRate(44100, "off") == 44100, "SRC off preserves 44.1kHz");
+		Assert(FurinaSrcCatalog.ResolveTargetSampleRate(44100, "compatibility48") == 48000, "SRC compat48 resolves 48kHz");
+		Assert(FurinaSrcCatalog.ResolveTargetSampleRate(44100, "family4x") == 176400, "SRC 4x resolves 44.1k->176.4k");
+		Assert(FurinaSrcCatalog.ResolveTargetSampleRate(48000, "family8x") == 384000, "SRC 8x resolves 48k->384k");
+		Assert(FurinaSrcCatalog.ResolveTargetSampleRate(96000, "family8x") == 384000, "SRC 8x caps 96k cleanly at 384kHz");
+
+		var stages = FurinaSrcCatalog.CreateStagePlans(44100, 352800, "furina-apod-minring", "furina-hb", FurinaSrcQualityProfile.Transparent);
+		Assert(stages.Count == 3, $"44.1k->352.8k creates 3 cascaded 2x stages (got {stages.Count})");
+		Assert(stages[0].ProfileId == "furina-apod-minring" && stages[1].ProfileId == "furina-hb" && stages[2].ProfileId == "furina-hb",
+			"Stage 0 uses 1x slot (furina-apod-minring) and Stages 1..2 use Nx slot (furina-hb)");
+		Assert(Math.Abs(stages[0].NormalizedCutoff - (20500.0 / 88200.0)) < 1e-4,
+			"Apodizing MinRing applies 20.5 kHz CD master cutoff on first 2x stage");
+
+		var mpAnalysis = FurinaSrcCatalog.AnalyzeFilter("furina-apod-minring", FurinaSrcQualityProfile.Transparent, 44100);
+		var lpAnalysis = FurinaSrcCatalog.AnalyzeFilter("furina-steep-long", FurinaSrcQualityProfile.Transparent, 44100);
+		static int ArgMax(double[] a) { int idx = 0; for (int i = 1; i < a.Length; i++) if (a[i] > a[idx]) idx = i; return idx; }
+		int mpPeakIdx = ArgMax(mpAnalysis.ImpulseResponse);
+		int lpPeakIdx = ArgMax(lpAnalysis.ImpulseResponse);
+		Assert(mpPeakIdx < lpPeakIdx / 2, $"Minimum-phase impulse concentrates near t=0 (MP peak@{mpPeakIdx}, LP peak@{lpPeakIdx})");
+		Assert(mpAnalysis.PassbandRippleDb < 0.5 && lpAnalysis.StopbandAttenuationDb > 95.0,
+			$"FFT analysis confirms flat passband ({mpAnalysis.PassbandRippleDb:F3} dB) & deep stopband ({lpAnalysis.StopbandAttenuationDb:F1} dB)");
+	}
+
+	static void TestFurinaSrcSampleProviderLiveStreamingAndDither()
+	{
+		Console.WriteLine("\n--- Testing FurinaSrcSampleProvider Live 4x Streaming, A/B & NS-9 Dither ---");
+		var source = new SineWaveSource(44100, 2, 1000.0, 0.5f);
+		var cfg = new FurinaSrcRuntimeConfig
+		{
+			Mode = "family4x",
+			Quality = "transparent",
+			Filter1x = "furina-gauss-long",
+			FilterNx = "furina-hb",
+			Compute = "simd-mt",
+			Dither = "ns-9",
+			AbCompareBypass = false
+		};
+		var provider = new FurinaPlayer.Audio.Output.FurinaSrcSampleProvider(source, 176400, cfg);
+		Assert(provider.WaveFormat.SampleRate == 176400, $"Live provider exposes 176400 Hz WaveFormat (got {provider.WaveFormat.SampleRate})");
+
+		int[] readSizes = { 666, 2048, 1370, 4096 };
+		double sumSq = 0.0;
+		long totalSamples = 0;
+		bool allFinite = true;
+		foreach (int sz in readSizes)
+		{
+			float[] buf = new float[sz];
+			int read = provider.Read(buf, 0, sz);
+			Assert(read == sz, $"FurinaSrcSampleProvider delivered exact requested {sz} samples (got {read})");
+			for (int i = 0; i < read; i++)
+			{
+				if (!float.IsFinite(buf[i]) || Math.Abs(buf[i]) > 1.0f) allFinite = false;
+				if (totalSamples > 1000) sumSq += buf[i] * buf[i];
+				totalSamples++;
+			}
+		}
+		double rms = Math.Sqrt(sumSq / Math.Max(1, totalSamples - 1000));
+		Assert(allFinite && rms > 0.28 && rms < 0.42, $"4x Cascade + NS-9 streamed stable 1kHz sine (RMS={rms:F4}, bounded={allFinite})");
+
+		provider.ApplyConfig(new FurinaSrcRuntimeConfig
+		{
+			Mode = "family4x",
+			Quality = "transparent",
+			Filter1x = "furina-apod-minring",
+			FilterNx = "furina-hb",
+			Compute = "simd",
+			Dither = "ultra-shaped",
+			AbCompareBypass = true
+		});
+		float[] abBuf = new float[1024];
+		int abRead = provider.Read(abBuf, 0, abBuf.Length);
+		Assert(abRead == 1024 && System.Linq.Enumerable.All(abBuf, x => float.IsFinite(x)), "Live A/B blind bypass switched seamlessly mid-stream");
+
+		var telemetry = provider.GetTelemetry();
+		Assert(telemetry.Active && telemetry.OutputDeviceSampleRate == 176400 && telemetry.TotalTaps > 0,
+			$"Live telemetry populated ({telemetry.StageSummary}, {telemetry.TotalTaps} taps, {telemetry.SimdWidthBits}-bit SIMD)");
 	}
 }

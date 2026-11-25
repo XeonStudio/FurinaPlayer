@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -2301,6 +2301,15 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> s_coverDataUrlCache = new();
 
+	private static void CacheCoverDataUrl(string key, string value)
+	{
+		if (s_coverDataUrlCache.Count >= 24)
+		{
+			s_coverDataUrlCache.Clear();
+		}
+		s_coverDataUrlCache[key] = value;
+	}
+
 	private static string GetCoverDataUrl(string? coverPath)
 	{
 		if (string.IsNullOrEmpty(coverPath) || !File.Exists(coverPath))
@@ -2330,7 +2339,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					_ => "image/jpeg"
 				};
 				string directUrl = $"data:{mime};base64,{Convert.ToBase64String(raw)}";
-				s_coverDataUrlCache[cacheKey] = directUrl;
+				CacheCoverDataUrl(cacheKey, directUrl);
 				return directUrl;
 			}
 
@@ -2367,7 +2376,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 					if (data != null)
 					{
 						string compactUrl = "data:image/jpeg;base64," + Convert.ToBase64String(data.ToArray());
-						s_coverDataUrlCache[cacheKey] = compactUrl;
+						CacheCoverDataUrl(cacheKey, compactUrl);
 						return compactUrl;
 					}
 				}
@@ -2376,7 +2385,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			// Fallback to raw bytes if Skia decode failed
 			byte[] fallbackBytes = File.ReadAllBytes(coverPath);
 			string fallbackUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(fallbackBytes)}";
-			s_coverDataUrlCache[cacheKey] = fallbackUrl;
+			CacheCoverDataUrl(cacheKey, fallbackUrl);
 			return fallbackUrl;
 		}
 		catch

@@ -29,8 +29,8 @@ using Windows.UI;
 namespace FurinaPlayer.UI.Pages;
 
 [WinRTRuntimeClassName("Microsoft.UI.Xaml.IUIElementOverrides")]
-[WinRTExposedType(typeof(SettingsPageWinRTTypeDetails))]
-public sealed class SettingsPage : Page, IComponentConnector
+// [WinRTExposedType(typeof(SettingsPageWinRTTypeDetails))]
+public sealed partial class SettingsPage : Page, IComponentConnector
 {
 	private bool _suppressMaterialChange;
 
@@ -67,6 +67,11 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private Button? _restoreDefaultsButton;
 
 	private Button? _refreshDevicesButton;
+	private bool _suppressOutputUiEvents;
+	private bool _initialLoadedSetupDone;
+	private bool _liquidGlassApplied;
+	private bool _lastAppliedGlassIsDark;
+	private string? _lastLoadedLanguage;
 
 	private static readonly string[] SystemFontOptions = new string[35]
 	{
@@ -156,11 +161,11 @@ public sealed class SettingsPage : Page, IComponentConnector
 	public SettingsPage()
 	{
 		InitializeComponent();
+		NavigationCacheMode = NavigationCacheMode.Required;
 		Loaded += (_, _) => EnsureLibraryIntegrityUi();
 		Loaded += OnLoaded;
-		ActualThemeChanged += (s, e) => ApplySettingsLiquidGlass();
+		ActualThemeChanged += (s, e) => ApplySettingsLiquidGlass(force: true);
 		SizeChanged += OnSizeChanged;
-		ApplySettingsLiquidGlass();
 	}
 
 	public SettingsPage(SettingsViewModel viewModel)
@@ -172,17 +177,23 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
-		if (LyricFontButton != null)
+		string curLang = Loc.CurrentLanguage;
+		if (!_initialLoadedSetupDone || !string.Equals(_lastLoadedLanguage, curLang, StringComparison.Ordinal))
 		{
-			LyricFontButton.Tag = "__fluent_upgraded";
-			if (LyricFontButton.Content is DependencyObject dobj)
+			if (LyricFontButton != null)
 			{
-				FluentIconFactory.UpgradeButtonsInVisualTree(dobj);
+				LyricFontButton.Tag = "__fluent_upgraded";
+				if (LyricFontButton.Content is DependencyObject dobj)
+				{
+					FluentIconFactory.UpgradeButtonsInVisualTree(dobj);
+				}
 			}
+			FluentIconFactory.UpgradeButtonsInVisualTree(this);
+			FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
+			_initialLoadedSetupDone = true;
+			_lastLoadedLanguage = curLang;
 		}
-		FluentIconFactory.UpgradeButtonsInVisualTree(this);
-		FurinaPlayer.UI.Helpers.UiLocalizer.LocalizeTree(this);
-		ApplySettingsLiquidGlass();
+		ApplySettingsLiquidGlass(force: !_sidebarLayoutBuilt);
 		UpdateResponsiveLayout(ActualWidth);
 	}
 
@@ -232,11 +243,16 @@ public sealed class SettingsPage : Page, IComponentConnector
 		return null;
 	}
 
-	private void ApplySettingsLiquidGlass()
+	private void ApplySettingsLiquidGlass(bool force = false)
 	{
 		try
 		{
 			bool isDark = LiquidGlassEngine.IsElementDarkTheme(this);
+			if (!force && _liquidGlassApplied && _sidebarLayoutBuilt && _lastAppliedGlassIsDark == isDark)
+			{
+				return;
+			}
+			_lastAppliedGlassIsDark = isDark;
 			Background = new SolidColorBrush(Colors.Transparent);
 
 			if (_ambientCausticCanvas != null)
@@ -314,14 +330,21 @@ public sealed class SettingsPage : Page, IComponentConnector
 				var panels = settingsGrid.Children.OfType<FrameworkElement>().Where(c => c is not SKXamlCanvas).ToList();
 				if (panels.Count >= 2 && panels[1] is StackPanel col1Panel)
 				{
-					if (_systemSettingsCard == null)
+					try
 					{
-						_systemSettingsCard = CreateSystemAndWindowSettingsCard(isDark);
-						col1Panel.Children.Insert(0, _systemSettingsCard);
+						if (_systemSettingsCard == null)
+						{
+							_systemSettingsCard = CreateSystemAndWindowSettingsCard(isDark);
+							col1Panel.Children.Insert(0, _systemSettingsCard);
+						}
+						else
+						{
+							LiquidGlassEngine.AttachInteractiveLiquidGlass(_systemSettingsCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+						}
 					}
-					else
+					catch (Exception ex)
 					{
-						LiquidGlassEngine.AttachInteractiveLiquidGlass(_systemSettingsCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+						CrashReporter.LogInfo($"SettingsPage layout step failed (_systemSettingsCard): {ex.Message}");
 					}
 
 					// 隐藏原本旧的“外观与主题”卡片（插入系统设置后位于 index 1）
@@ -330,27 +353,69 @@ public sealed class SettingsPage : Page, IComponentConnector
 						legacyAppearanceCard.Visibility = Visibility.Collapsed;
 					}
 
-					if (_furinaPlayerAppearanceCard == null)
+					try
 					{
-						_furinaPlayerAppearanceCard = CreateFurinaPlayerAppearanceWorkbenchCard(isDark);
-						// 插入到系统与窗口设置之后、音乐库之前
-						col1Panel.Children.Insert(2, _furinaPlayerAppearanceCard);
+						if (_furinaPlayerAppearanceCard == null)
+						{
+							_furinaPlayerAppearanceCard = CreateFurinaPlayerAppearanceWorkbenchCard(isDark);
+							// 插入到系统与窗口设置之后、音乐库之前
+							int insertIdx = Math.Min(2, col1Panel.Children.Count);
+							col1Panel.Children.Insert(insertIdx, _furinaPlayerAppearanceCard);
+						}
+						else
+						{
+							RefreshFurinaPlayerAppearanceWorkbenchVisuals(isDark);
+						}
 					}
-					else
+					catch (Exception ex)
 					{
-						RefreshFurinaPlayerAppearanceWorkbenchVisuals(isDark);
+						CrashReporter.LogInfo($"SettingsPage layout step failed (_furinaPlayerAppearanceCard): {ex.Message}");
 					}
 
-					if (_desktopPetCard == null)
+					try
 					{
-						_desktopPetCard = CreateDesktopPetCard(isDark);
-						int insertIdx = Math.Min(3, col1Panel.Children.Count);
-						col1Panel.Children.Insert(insertIdx, _desktopPetCard);
+						if (_desktopPetCard == null)
+						{
+							_desktopPetCard = CreateDesktopPetCard(isDark);
+							int insertIdx = Math.Min(3, col1Panel.Children.Count);
+							col1Panel.Children.Insert(insertIdx, _desktopPetCard);
+						}
+						else
+						{
+							LiquidGlassEngine.AttachInteractiveLiquidGlass(_desktopPetCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+							SyncDesktopPetUi();
+						}
 					}
-					else
+					catch (Exception ex)
 					{
-						LiquidGlassEngine.AttachInteractiveLiquidGlass(_desktopPetCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
-						SyncDesktopPetUi();
+						CrashReporter.LogInfo($"SettingsPage layout step failed (_desktopPetCard): {ex.Message}");
+					}
+				}
+				if (panels.Count >= 1)
+				{
+					try
+					{
+						if (_audioCheckRepairCard == null)
+						{
+							_audioCheckRepairCard = CreateAudioCheckAndRepairCard(isDark);
+							if (panels[0] is Panel col0Panel)
+							{
+								col0Panel.Children.Add(_audioCheckRepairCard);
+							}
+							else if (panels.Count >= 2 && panels[1] is Panel col1Fallback)
+							{
+								col1Fallback.Children.Insert(Math.Min(4, col1Fallback.Children.Count), _audioCheckRepairCard);
+							}
+						}
+						else
+						{
+							LiquidGlassEngine.AttachInteractiveLiquidGlass(_audioCheckRepairCard, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+							RefreshCheckRepairTheme(isDark);
+						}
+					}
+					catch (Exception ex)
+					{
+						CrashReporter.LogInfo($"SettingsPage layout step failed (_audioCheckRepairCard): {ex.Message}");
 					}
 				}
 				foreach (UIElement child in settingsGrid.Children)
@@ -392,7 +457,23 @@ public sealed class SettingsPage : Page, IComponentConnector
 				}
 			}
 
-			EnsureAboutCardAtEnd(settingsGrid, isDark);
+			try
+			{
+				EnsureAboutCardAtEnd(settingsGrid, isDark);
+			}
+			catch (Exception ex)
+			{
+				CrashReporter.LogInfo($"SettingsPage layout step failed (EnsureAboutCardAtEnd): {ex.Message}");
+			}
+			try
+			{
+				EnsureSidebarQuickJumpLayout(targetSv, settingsGrid, isDark);
+			}
+			catch (Exception ex)
+			{
+				CrashReporter.LogInfo($"SettingsPage layout step failed (EnsureSidebarQuickJumpLayout): {ex.Message}");
+			}
+			_liquidGlassApplied = _sidebarLayoutBuilt;
 
 			ComboBox?[] combos = new ComboBox?[]
 			{
@@ -459,8 +540,9 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 			UpgradeSettingsVisualTreeNodes(this, isDark);
 		}
-		catch
+		catch (Exception ex)
 		{
+			CrashReporter.LogInfo($"ApplySettingsLiquidGlass failed: {ex.Message}");
 		}
 	}
 
@@ -505,6 +587,11 @@ public sealed class SettingsPage : Page, IComponentConnector
 				LiquidGlassEngine.AttachInteractiveLiquidGlass(border, variant, isDark, enablePointerTracking: true);
 			}
 
+			if (child is Button or ComboBox or ToggleSwitch or Slider or ProgressBar or TextBox or PasswordBox or CheckBox or RadioButton or ScrollBar)
+			{
+				continue;
+			}
+
 			UpgradeSettingsVisualTreeNodes(child, isDark);
 		}
 	}
@@ -513,6 +600,14 @@ public sealed class SettingsPage : Page, IComponentConnector
 	{
 		try
 		{
+			if (_sidebarLayoutBuilt && _settingsTwoColGrid != null && _settingsTwoColGrid.ColumnDefinitions.Count >= 2)
+			{
+				_settingsTwoColGrid.ColumnDefinitions[0].Width = width < 820.0
+					? new GridLength(190.0, GridUnitType.Pixel)
+					: new GridLength(244.0, GridUnitType.Pixel);
+				UpdatePresetGridColumns(Math.Max(420.0, width - 280.0));
+				return;
+			}
 			Grid? settingsGrid = ResolveSettingsGrid();
 			if (settingsGrid != null)
 			{
@@ -613,8 +708,513 @@ public sealed class SettingsPage : Page, IComponentConnector
 		}
 	}
 
+	private void EnsureSidebarQuickJumpLayout(ScrollViewer? targetSv, Grid? settingsGrid, bool isDark)
+	{
+		if (targetSv == null || settingsGrid == null) return;
+
+		if (_sidebarLayoutBuilt && _settingsSidebarBorder != null)
+		{
+			LiquidGlassEngine.AttachInteractiveLiquidGlass(_settingsSidebarBorder, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+			foreach (var item in _sidebarNavItems)
+			{
+				if (item.Card is Border b &&
+					!item.Title.Contains("音频", StringComparison.OrdinalIgnoreCase) &&
+					!item.Title.Contains("Audio", StringComparison.OrdinalIgnoreCase))
+				{
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(b, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+				}
+			}
+			UpdateSidebarNavHighlight(_activeSidebarNavIndex, isDark);
+			return;
+		}
+
+		var collectedCards = new List<FrameworkElement>();
+		Panel? saveResetPanel = _saveButton?.Parent as Panel;
+
+		var panels = settingsGrid.Children.OfType<FrameworkElement>().Where(c => c is not SKXamlCanvas).ToList();
+		foreach (var panelElem in panels)
+		{
+			if (panelElem is Border directBorder)
+			{
+				if (directBorder.Visibility != Visibility.Collapsed)
+				{
+					collectedCards.Add(directBorder);
+				}
+			}
+			else if (panelElem is Panel colPanel)
+			{
+				var children = colPanel.Children.ToList();
+				foreach (var child in children)
+				{
+					if (child is Border card && card.Visibility != Visibility.Collapsed)
+					{
+						colPanel.Children.Remove(card);
+						collectedCards.Add(card);
+					}
+				}
+			}
+		}
+
+		foreach (var c in collectedCards)
+		{
+			if (settingsGrid.Children.Contains(c))
+			{
+				settingsGrid.Children.Remove(c);
+			}
+		}
+
+		if (_aboutCardBorder != null)
+		{
+			_outerSettingsContainer?.Children.Remove(_aboutCardBorder);
+			collectedCards.Remove(_aboutCardBorder);
+		}
+		_backupResetCard ??= CreateBackupAndResetCard(isDark);
+		collectedCards.Remove(_backupResetCard);
+		collectedCards.Add(_backupResetCard);
+		if (_aboutCardBorder != null)
+		{
+			collectedCards.Add(_aboutCardBorder);
+		}
+
+		if (saveResetPanel != null && saveResetPanel.Parent is Panel oldParent)
+		{
+			oldParent.Children.Remove(saveResetPanel);
+		}
+
+		_cardsStackPanel = new StackPanel
+		{
+			Spacing = 18,
+			Padding = new Thickness(4, 4, 20, 32),
+			MaxWidth = 960,
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			Background = new SolidColorBrush(Colors.Transparent)
+		};
+
+		_sidebarNavItems.Clear();
+		foreach (var card in collectedCards)
+		{
+			string cardTitle = ExtractCardSectionTitle(card);
+			bool isAudioCard = cardTitle.Contains("音频", StringComparison.OrdinalIgnoreCase) || cardTitle.Contains("Audio", StringComparison.OrdinalIgnoreCase);
+			if (card is Border b)
+			{
+				b.CornerRadius = new CornerRadius(16);
+				b.Margin = new Thickness(0);
+				b.HorizontalAlignment = HorizontalAlignment.Stretch;
+				b.MaxWidth = double.PositiveInfinity;
+				if (!isAudioCard)
+				{
+					if (b.Padding.Left < 16)
+					{
+						b.Padding = new Thickness(22, 18, 22, 18);
+					}
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(b, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+				}
+			}
+			_cardsStackPanel.Children.Add(card);
+		}
+
+		_rightCardsScrollViewer = new ScrollViewer
+		{
+			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+			Padding = new Thickness(6, 12, 12, 16),
+			Background = new SolidColorBrush(Colors.Transparent),
+			Content = _cardsStackPanel
+		};
+
+		var sidebarGrid = new Grid { RowSpacing = 10 };
+		sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+		sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+		sidebarGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+		var headerStack = new StackPanel { Spacing = 10 };
+		headerStack.Children.Add(new TextBlock
+		{
+			Text = Loc.T("设置"),
+			FontSize = 20,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			Margin = new Thickness(4, 0, 0, 0)
+		});
+
+		_sidebarSearchBox = new TextBox
+		{
+			PlaceholderText = Loc.T("搜索设置..."),
+			CornerRadius = new CornerRadius(10),
+			FontSize = 13
+		};
+		_sidebarSearchBox.TextChanged += (_, _) => FilterSettingsCardsByQuery(_sidebarSearchBox.Text);
+		headerStack.Children.Add(_sidebarSearchBox);
+		Grid.SetRow(headerStack, 0);
+		sidebarGrid.Children.Add(headerStack);
+
+		_sidebarNavStack = new StackPanel { Spacing = 4 };
+		for (int i = 0; i < collectedCards.Count; i++)
+		{
+			var card = collectedCards[i];
+			string title = ExtractCardSectionTitle(card);
+			if (string.IsNullOrWhiteSpace(title)) continue;
+
+			int capturedIdx = _sidebarNavItems.Count;
+			if (title.Contains("音频", StringComparison.OrdinalIgnoreCase) || title.Contains("Audio", StringComparison.OrdinalIgnoreCase))
+			{
+				EnhanceAudioOutputCard(card);
+			}
+
+			var navBtn = new Button
+			{
+				HorizontalAlignment = HorizontalAlignment.Stretch,
+				HorizontalContentAlignment = HorizontalAlignment.Left,
+				CornerRadius = new CornerRadius(10),
+				Padding = new Thickness(12, 10, 12, 10),
+				BorderThickness = new Thickness(0),
+				Content = new StackPanel
+				{
+					Orientation = Orientation.Horizontal,
+					Spacing = 10,
+					Children =
+					{
+						CreateSectionIcon(title, 18),
+						new TextBlock
+						{
+							Text = title,
+							FontSize = 15.0,
+							FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+							VerticalAlignment = VerticalAlignment.Center,
+							TextTrimming = TextTrimming.CharacterEllipsis
+						}
+					}
+				}
+			};
+			navBtn.Click += (_, _) =>
+			{
+				UpdateSidebarNavHighlight(capturedIdx, LiquidGlassEngine.IsElementDarkTheme(this));
+				if (card.Visibility != Visibility.Visible) card.Visibility = Visibility.Visible;
+				card.StartBringIntoView(new BringIntoViewOptions
+				{
+					AnimationDesired = true,
+					VerticalAlignmentRatio = 0.03
+				});
+			};
+			_sidebarNavItems.Add((navBtn, card, title));
+			_sidebarNavStack.Children.Add(navBtn);
+		}
+
+		var navScroll = new ScrollViewer
+		{
+			VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+			HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+			Content = _sidebarNavStack
+		};
+		Grid.SetRow(navScroll, 1);
+		sidebarGrid.Children.Add(navScroll);
+
+		if (saveResetPanel != null)
+		{
+			if (saveResetPanel is StackPanel sp)
+			{
+				sp.Orientation = Orientation.Vertical;
+				sp.Spacing = 8;
+				sp.HorizontalAlignment = HorizontalAlignment.Stretch;
+			}
+			foreach (var child in saveResetPanel.Children)
+			{
+				if (child is Button b)
+				{
+					b.HorizontalAlignment = HorizontalAlignment.Stretch;
+					b.CornerRadius = new CornerRadius(10);
+					LiquidGlassEngine.AttachInteractiveLiquidGlass(
+						b,
+						ReferenceEquals(b, _saveButton) ? LiquidGlassVariant.AccentLensed : LiquidGlassVariant.Regular,
+						isDark,
+						enablePointerTracking: true);
+				}
+			}
+			saveResetPanel.Margin = new Thickness(0, 6, 0, 0);
+			Grid.SetRow(saveResetPanel, 2);
+			sidebarGrid.Children.Add(saveResetPanel);
+		}
+
+		_settingsSidebarBorder = new Border
+		{
+			CornerRadius = new CornerRadius(16),
+			Padding = new Thickness(12, 14, 12, 14),
+			Margin = new Thickness(20, 14, 10, 20),
+			VerticalAlignment = VerticalAlignment.Stretch,
+			Child = sidebarGrid
+		};
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(_settingsSidebarBorder, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+
+		_settingsTwoColGrid = new Grid
+		{
+			Background = new SolidColorBrush(Colors.Transparent)
+		};
+		_settingsTwoColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(244.0, GridUnitType.Pixel) });
+		_settingsTwoColGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.0, GridUnitType.Star) });
+
+		Grid.SetColumn(_settingsSidebarBorder, 0);
+		Grid.SetColumn(_rightCardsScrollViewer, 1);
+		_settingsTwoColGrid.Children.Add(_settingsSidebarBorder);
+		_settingsTwoColGrid.Children.Add(_rightCardsScrollViewer);
+
+		if (ReferenceEquals(Content, targetSv))
+		{
+			Content = _settingsTwoColGrid;
+		}
+		else if (targetSv.Parent is Grid parentGrid)
+		{
+			int row = Grid.GetRow(targetSv);
+			int col = Grid.GetColumn(targetSv);
+			int rowSpan = Grid.GetRowSpan(targetSv);
+			int colSpan = Grid.GetColumnSpan(targetSv);
+			parentGrid.Children.Remove(targetSv);
+			Grid.SetRow(_settingsTwoColGrid, row);
+			Grid.SetColumn(_settingsTwoColGrid, col);
+			Grid.SetRowSpan(_settingsTwoColGrid, rowSpan);
+			Grid.SetColumnSpan(_settingsTwoColGrid, colSpan);
+			parentGrid.Children.Add(_settingsTwoColGrid);
+		}
+
+		_sidebarLayoutBuilt = true;
+		UpdateSidebarNavHighlight(0, isDark);
+	}
+
+	private void UpdateSidebarNavHighlight(int activeIndex, bool isDark)
+	{
+		_activeSidebarNavIndex = activeIndex;
+		for (int i = 0; i < _sidebarNavItems.Count; i++)
+		{
+			var btn = _sidebarNavItems[i].NavBtn;
+			bool isActive = i == activeIndex;
+			btn.Background = isActive
+				? new SolidColorBrush(isDark ? Color.FromArgb(62, 56, 189, 248) : Color.FromArgb(42, 37, 99, 235))
+				: new SolidColorBrush(Colors.Transparent);
+		}
+	}
+
+	private void FilterSettingsCardsByQuery(string? query)
+	{
+		string q = (query ?? string.Empty).Trim();
+		bool hasQuery = q.Length > 0;
+		foreach (var item in _sidebarNavItems)
+		{
+			bool match = !hasQuery || ElementContainsText(item.Card, q);
+			item.Card.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
+			item.NavBtn.Visibility = match ? Visibility.Visible : Visibility.Collapsed;
+		}
+	}
+
+	private static bool ElementContainsText(DependencyObject root, string query)
+	{
+		if (root is TextBlock tb && !string.IsNullOrEmpty(tb.Text) &&
+			tb.Text.Contains(query, StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			if (ElementContainsText(VisualTreeHelper.GetChild(root, i), query))
+				return true;
+		}
+		return false;
+	}
+
+	private static string ExtractCardSectionTitle(DependencyObject root)
+	{
+		if (root is TextBlock tb && !string.IsNullOrWhiteSpace(tb.Text))
+		{
+			return tb.Text.Trim();
+		}
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			string found = ExtractCardSectionTitle(VisualTreeHelper.GetChild(root, i));
+			if (!string.IsNullOrEmpty(found))
+				return found;
+		}
+		return string.Empty;
+	}
+
+	private static UIElement CreateSectionIcon(string title, double size)
+	{
+		if (title.Contains("音频", StringComparison.OrdinalIgnoreCase) || title.Contains("Audio", StringComparison.OrdinalIgnoreCase))
+		{
+			string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "audio_output.png");
+			if (File.Exists(iconPath))
+			{
+				return new Image
+				{
+					Width = size,
+					Height = size,
+					Stretch = Stretch.Uniform,
+					VerticalAlignment = VerticalAlignment.Center,
+					Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage
+					{
+						DecodePixelType = Microsoft.UI.Xaml.Media.Imaging.DecodePixelType.Logical,
+						DecodePixelWidth = Math.Max(32, (int)Math.Ceiling(size * 2)),
+						UriSource = new Uri(iconPath)
+					}
+				};
+			}
+		}
+		return FluentIconFactory.Create(GuessSectionIcon(title), size);
+	}
+
+	private void EnhanceAudioOutputCard(FrameworkElement card)
+	{
+		if (card is Border cardBorder)
+		{
+			cardBorder.BorderThickness = new Thickness(0);
+			cardBorder.BorderBrush = new SolidColorBrush(Colors.Transparent);
+			cardBorder.Background = new SolidColorBrush(Colors.Transparent);
+			// 系统与窗口设置卡片外层 Padding=22 + 内层 StackPanel Padding=16 -> 总左缩进 38px
+			cardBorder.Padding = new Thickness(38, 18, 22, 18);
+			cardBorder.Margin = new Thickness(0);
+
+			if (cardBorder.Child is Panel rootPanel)
+			{
+				foreach (var child in rootPanel.Children)
+				{
+					if (child is Border innerBorder && innerBorder.Child is Panel)
+					{
+						innerBorder.BorderThickness = new Thickness(0);
+						innerBorder.BorderBrush = new SolidColorBrush(Colors.Transparent);
+						innerBorder.Background = new SolidColorBrush(Colors.Transparent);
+						innerBorder.Padding = new Thickness(0);
+						innerBorder.Margin = new Thickness(0);
+					}
+				}
+			}
+		}
+
+		TextBlock? headerTb = FindFirstTextBlock(card);
+		if (headerTb != null && headerTb.Tag as string != "AudioHeaderEnhanced")
+		{
+			DependencyObject? rawParent = (headerTb.Parent as DependencyObject) ?? VisualTreeHelper.GetParent(headerTb);
+			headerTb.Tag = "AudioHeaderEnhanced";
+			headerTb.FontSize = 16;
+			headerTb.FontWeight = Microsoft.UI.Text.FontWeights.SemiBold;
+			headerTb.Margin = new Thickness(0);
+			headerTb.VerticalAlignment = VerticalAlignment.Center;
+
+			var headerRow = new StackPanel
+			{
+				Orientation = Orientation.Horizontal,
+				Spacing = 8,
+				Margin = new Thickness(0, 0, 0, 6)
+			};
+
+			if (rawParent is Panel parentPanel)
+			{
+				int idx = parentPanel.Children.IndexOf(headerTb);
+				if (idx >= 0)
+				{
+					parentPanel.Children.RemoveAt(idx);
+					headerRow.Children.Add(CreateSectionIcon(headerTb.Text ?? "音频输出", 20));
+					headerRow.Children.Add(headerTb);
+					parentPanel.Children.Insert(idx, headerRow);
+				}
+			}
+			else if (rawParent is Border parentBorder)
+			{
+				parentBorder.Child = null;
+				headerRow.Children.Add(CreateSectionIcon(headerTb.Text ?? "音频输出", 20));
+				headerRow.Children.Add(headerTb);
+				parentBorder.Child = headerRow;
+			}
+		}
+
+		// 将音频输出相关偏好开关（独占回退共享、切歌淡入淡出）归类至“音频输出”栏目下
+		if (card is Border audioCardBorder && audioCardBorder.Child is Panel audioRootPanel)
+		{
+			Panel? targetSp = audioRootPanel;
+			if (audioRootPanel.Children.FirstOrDefault() is Border innerB && innerB.Child is Panel innerSp)
+			{
+				targetSp = innerSp;
+			}
+			if (targetSp != null && targetSp.Tag as string != "AudioExtraTogglesAdded")
+			{
+				targetSp.Tag = "AudioExtraTogglesAdded";
+				var autoFallbackToggle = new ToggleSwitch
+				{
+					Header = Loc.T("音频独占播放不稳定自动切共享"),
+					IsOn = ViewModel?.AutoFallbackExclusiveToShared ?? true,
+					OnContent = Loc.T("开启"),
+					OffContent = Loc.T("关闭"),
+					Margin = new Thickness(0, 6, 0, 0)
+				};
+				autoFallbackToggle.Toggled += (_, _) => ViewModel?.SetAutoFallbackExclusiveToShared(autoFallbackToggle.IsOn);
+				var autoFallbackDesc = new TextBlock
+				{
+					Text = Loc.T("当 WASAPI 独占模式初始化失败或设备异常中断时，自动回退至共享模式保证连续出声。"),
+					FontSize = 11,
+					Opacity = 0.6,
+					Margin = new Thickness(0, -4, 0, 4),
+					TextWrapping = TextWrapping.Wrap
+				};
+
+				var crossfadeToggle = new ToggleSwitch
+				{
+					Header = Loc.T("切换歌曲时淡入淡出"),
+					IsOn = ViewModel?.CrossfadeEnabled ?? false,
+					OnContent = Loc.T("开启"),
+					OffContent = Loc.T("关闭")
+				};
+				crossfadeToggle.Toggled += (_, _) => ViewModel?.SetCrossfadeEnabled(crossfadeToggle.IsOn);
+				var crossfadeDesc = new TextBlock
+				{
+					Text = Loc.T("切歌时进行平滑交叉淡入淡出过渡，消除曲目衔接突兀感。"),
+					FontSize = 11,
+					Opacity = 0.6,
+					Margin = new Thickness(0, -4, 0, 4),
+					TextWrapping = TextWrapping.Wrap
+				};
+
+				targetSp.Children.Add(autoFallbackToggle);
+				targetSp.Children.Add(autoFallbackDesc);
+				targetSp.Children.Add(crossfadeToggle);
+				targetSp.Children.Add(crossfadeDesc);
+			}
+		}
+	}
+	private static TextBlock? FindFirstTextBlock(DependencyObject root)
+	{
+		if (root is TextBlock tb && !string.IsNullOrWhiteSpace(tb.Text))
+			return tb;
+		int count = VisualTreeHelper.GetChildrenCount(root);
+		for (int i = 0; i < count; i++)
+		{
+			var found = FindFirstTextBlock(VisualTreeHelper.GetChild(root, i));
+			if (found != null) return found;
+		}
+		return null;
+	}
+	private static FluentIconKind GuessSectionIcon(string title)
+	{
+		if (title.Contains("检查与修复", StringComparison.OrdinalIgnoreCase) || title.Contains("Check & Repair", StringComparison.OrdinalIgnoreCase) || title.Contains("Repair", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.DiagnosticLog;
+		if (title.Contains("备份", StringComparison.OrdinalIgnoreCase) || title.Contains("Backup", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.RefreshReset;
+		if (title.Contains("音频", StringComparison.OrdinalIgnoreCase) || title.Contains("Audio", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.Volume;
+		if (title.Contains("系统", StringComparison.OrdinalIgnoreCase) || title.Contains("System", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.Settings;
+		if (title.Contains("外观", StringComparison.OrdinalIgnoreCase) || title.Contains("Appearance", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.ModeClassic;
+		if (title.Contains("宠物", StringComparison.OrdinalIgnoreCase) || title.Contains("看板娘", StringComparison.OrdinalIgnoreCase) || title.Contains("Pet", StringComparison.OrdinalIgnoreCase) || title.Contains("Mascot", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.MusicHero;
+		if (title.Contains("音乐库", StringComparison.OrdinalIgnoreCase) || title.Contains("Library", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.FolderScan;
+		if (title.Contains("歌词", StringComparison.OrdinalIgnoreCase) || title.Contains("Lyric", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.LyricsImport;
+		if (title.Contains("关于", StringComparison.OrdinalIgnoreCase) || title.Contains("About", StringComparison.OrdinalIgnoreCase))
+			return FluentIconKind.AppLogo;
+		return FluentIconKind.Settings;
+	}
+
 	private void EnsureAboutCardAtEnd(Grid? settingsGrid, bool isDark)
 	{
+		if (settingsGrid == null) return;
 		try
 		{
 			if (_outerSettingsContainer == null || settingsGrid == null || VersionText == null)
@@ -729,6 +1329,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			ViewModel = settingsViewModel;
 			DataContext = settingsViewModel;
+			settingsViewModel.PropertyChanged -= OnSettingsViewModelPropertyChanged;
 			settingsViewModel.PropertyChanged += OnSettingsViewModelPropertyChanged;
 		}
 		if (!_handlersAttached)
@@ -736,7 +1337,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 			_handlersAttached = true;
 			OutputModeCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 			{
-				ViewModel.SetOutputMode((OutputMode)Math.Max(0, OutputModeCombo.SelectedIndex));
+				if (!_suppressOutputUiEvents) ViewModel.SetOutputMode((OutputMode)Math.Max(0, OutputModeCombo.SelectedIndex));
 			};
 			ThemeCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 			{
@@ -756,14 +1357,14 @@ public sealed class SettingsPage : Page, IComponentConnector
 			};
 			WasapiDeviceCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 			{
-				if (WasapiDeviceCombo.SelectedItem is ComboBoxItem { Tag: string tag })
+				if (!_suppressOutputUiEvents && WasapiDeviceCombo.SelectedItem is ComboBoxItem { Tag: string tag })
 				{
 					ViewModel.SelectedWasapiDeviceId = tag;
 				}
 			};
 			AsioDeviceCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 			{
-				if (AsioDeviceCombo.SelectedItem is ComboBoxItem { Tag: string tag })
+				if (!_suppressOutputUiEvents && AsioDeviceCombo.SelectedItem is ComboBoxItem { Tag: string tag })
 				{
 					ViewModel.SelectedAsioDriver = tag;
 				}
@@ -772,7 +1373,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		ViewModel.Load();
 		VersionText.Text = Loc.F("软件版本：{0}", GetAppVersion());
 		UpdateAboutSection();
-		OutputModeCombo.SelectedIndex = (int)ViewModel.Settings.OutputMode;
+		_suppressOutputUiEvents = true;
+		try { OutputModeCombo.SelectedIndex = (int)ViewModel.Settings.OutputMode; } finally { _suppressOutputUiEvents = false; }
 		ThemeCombo.SelectedIndex = (int)ViewModel.Settings.Theme;
 		_suppressMaterialChange = true;
 		MaterialCombo.SelectedIndex = IndexFromMaterial(ViewModel.Settings.BackgroundMaterial);
@@ -782,18 +1384,20 @@ public sealed class SettingsPage : Page, IComponentConnector
 		WallpaperPathText.Text = ViewModel.LocalWallpaperPath;
 		InitLyricFontUi();
 		PopulateOssList();
-		RefreshDevices();
+		RefreshDevicesAsync();
 		if (_fetchAlbumArtButton != null && ViewModel != null)
 		{
 			_fetchAlbumArtButton.IsEnabled = ViewModel.CanFetchAlbumArt;
 		}
 		EnsureLibraryIntegrityUi();
 		ApplySettingsLiquidGlass();
+		ResumeCheckRepairOnNavigatedTo();
 	}
 
 	protected override void OnNavigatedFrom(NavigationEventArgs e)
 	{
 		base.OnNavigatedFrom(e);
+		StopCheckRepairLiveTimer();
 		if (ViewModel != null)
 		{
 			ViewModel.PropertyChanged -= OnSettingsViewModelPropertyChanged;
@@ -820,7 +1424,9 @@ public sealed class SettingsPage : Page, IComponentConnector
 		         or nameof(SettingsViewModel.PetStatusText)
 		         or nameof(SettingsViewModel.PetCustomIdleGifPath)
 		         or nameof(SettingsViewModel.PetCustomGrooveGifPath)
-		         or nameof(SettingsViewModel.PetCustomClickGifPath))
+		         or nameof(SettingsViewModel.PetCustomClickGifPath)
+		         or nameof(SettingsViewModel.PetBubbleScalePercent)
+		         or nameof(SettingsViewModel.PetBubbleStyle))
 		{
 			SyncDesktopPetUi();
 		}
@@ -931,11 +1537,11 @@ public sealed class SettingsPage : Page, IComponentConnector
 			string t = tb.Text ?? string.Empty;
 			if (t.StartsWith("WinUI 3", StringComparison.Ordinal))
 			{
-				tb.Text = Loc.T("WinUI 3 · .NET 8 · LibVLC（原生均衡器）· NAudio（实时 DSP）· ATL · SkiaSharp · FFmpeg");
+				tb.Text = Loc.T("WinUI 3 · .NET 8 · LibVLC（原生解码）· NAudio（WASAPI/ASIO 实时 DSP）· ATL · SkiaSharp · FFmpeg · OPRA 600");
 			}
 			else if (t.Contains("LibVLC", StringComparison.Ordinal) && t.Contains("DSP", StringComparison.Ordinal))
 			{
-				tb.Text = Loc.T("均衡器由 LibVLC 原生实现；空间音频采用多频段去相关混响 + 慢速调制 + 立体声宽度（独立实现的公开 DSP 技术路线）；内置无损格式转换器、多线程曲库完整性补齐，以及支持 125ms 三态动图与三行自适应歌词气泡的芙宁娜桌面宠物。");
+				tb.Text = Loc.T("均衡器与实时 DSP 采用独立实现的公开技术路线：含 OPRA 600 耳机知识库与 Mix Assistant V2 智能混音平衡、WSOLA 无失真变速变调、空间声场工作台、8192 点 Insight Pro 频谱分析、32 种实时音效、纯音听力检测与 EQ 补偿联动、音频检查与修复助手、ECHO 风格首页/工作台、动态壁纸及支持全系统与自定义字体的芙宁娜桌面宠物。");
 			}
 		}
 	}
@@ -1005,6 +1611,27 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private void RefreshDevices()
 	{
 		ViewModel.RefreshDevicesCommand.Execute(null);
+		SyncDeviceComboBoxesFromViewModel();
+	}
+
+	private async void RefreshDevicesAsync()
+	{
+		try
+		{
+			if (ViewModel == null) return;
+			await ViewModel.RefreshDevicesAsync();
+			SyncDeviceComboBoxesFromViewModel();
+		}
+		catch
+		{
+		}
+	}
+
+	private void SyncDeviceComboBoxesFromViewModel()
+	{
+		_suppressOutputUiEvents = true;
+		try
+		{
 		WasapiDeviceCombo.Items.Clear();
 		foreach (AudioDeviceInfo wasapiDevice in ViewModel.WasapiDevices)
 		{
@@ -1033,6 +1660,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			AsioDeviceCombo.SelectedIndex = Math.Max(0, ViewModel.AsioDevices.ToList().FindIndex((AudioDeviceInfo x) => x.Id == ViewModel.SelectedAsioDriver));
 		}
+		}
+		finally { _suppressOutputUiEvents = false; }
 	}
 
 	private void OnRefreshDevicesClick(object sender, RoutedEventArgs e)
@@ -1083,7 +1712,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 		{
 			ViewModel.RestoreDefaultsCommand.Execute(null);
 			SettingsSaved?.Invoke();
-			OutputModeCombo.SelectedIndex = (int)ViewModel.Settings.OutputMode;
+			_suppressOutputUiEvents = true;
+		try { OutputModeCombo.SelectedIndex = (int)ViewModel.Settings.OutputMode; } finally { _suppressOutputUiEvents = false; }
 			ThemeCombo.SelectedIndex = (int)ViewModel.Settings.Theme;
 			_suppressMaterialChange = true;
 			MaterialCombo.SelectedIndex = IndexFromMaterial(ViewModel.Settings.BackgroundMaterial);
@@ -1170,7 +1800,20 @@ public sealed class SettingsPage : Page, IComponentConnector
 			Spacing = 8,
 			Margin = new Thickness(0, 8, 0, 0)
 		};
-		_integrityContainer.Children.Add(_scanIntegrityButton);
+		var libActionRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		libActionRow.Children.Add(_scanIntegrityButton);
+
+		var clearCacheBtn = new Button
+		{
+			CornerRadius = new CornerRadius(10),
+			Padding = new Thickness(12, 7, 12, 7),
+			Content = Loc.T("清空曲库缓存")
+		};
+		clearCacheBtn.Click += OnClearLibraryCacheClick;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(clearCacheBtn, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
+		libActionRow.Children.Add(clearCacheBtn);
+
+		_integrityContainer.Children.Add(libActionRow);
 		_integrityContainer.Children.Add(_integrityProgressBar);
 		_integrityContainer.Children.Add(_integrityStatusText);
 
@@ -1590,10 +2233,10 @@ public sealed class SettingsPage : Page, IComponentConnector
 		sp.Children.Add(rememberToggle);
 		sp.Children.Add(rememberDesc);
 
-		// 4. 音乐播放时设备保持唤醒
+		// 4. 播放歌曲时保持设备唤醒
 		var wakeToggle = new ToggleSwitch
 		{
-			Header = Loc.T("播放音乐时阻止系统休眠"),
+			Header = Loc.T("播放歌曲时保持设备唤醒"),
 			IsOn = ViewModel?.PreventSystemSleep ?? true,
 			OnContent = Loc.T("开启"),
 			OffContent = Loc.T("关闭")
@@ -1609,6 +2252,44 @@ public sealed class SettingsPage : Page, IComponentConnector
 		sp.Children.Add(wakeToggle);
 		sp.Children.Add(wakeDesc);
 
+		// 5. 记忆播放进度
+		var rememberProgressToggle = new ToggleSwitch
+		{
+			Header = Loc.T("记忆播放进度"),
+			IsOn = ViewModel?.RememberPlaybackProgress ?? true,
+			OnContent = Loc.T("开启"),
+			OffContent = Loc.T("关闭")
+		};
+		rememberProgressToggle.Toggled += (s, e) => ViewModel?.SetRememberPlaybackProgress(rememberProgressToggle.IsOn);
+		var rememberProgressDesc = new TextBlock
+		{
+			Text = Loc.T("退出时自动保存当前曲目、播放队列与时间位置，下次启动时恢复。"),
+			FontSize = 11,
+			Opacity = 0.6,
+			Margin = new Thickness(0, -6, 0, 4)
+		};
+		sp.Children.Add(rememberProgressToggle);
+		sp.Children.Add(rememberProgressDesc);
+
+		// 6. 启动软件自动播放歌曲
+		var autoPlayStartupToggle = new ToggleSwitch
+		{
+			Header = Loc.T("启动软件自动播放歌曲"),
+			IsOn = ViewModel?.AutoPlayOnStartup ?? false,
+			OnContent = Loc.T("开启"),
+			OffContent = Loc.T("关闭")
+		};
+		autoPlayStartupToggle.Toggled += (s, e) => ViewModel?.SetAutoPlayOnStartup(autoPlayStartupToggle.IsOn);
+		var autoPlayStartupDesc = new TextBlock
+		{
+			Text = Loc.T("打开 FurinaPlayer 后自动继续播放上次曲目或曲库首曲。"),
+			FontSize = 11,
+			Opacity = 0.6,
+			Margin = new Thickness(0, -6, 0, 4)
+		};
+		sp.Children.Add(autoPlayStartupToggle);
+		sp.Children.Add(autoPlayStartupDesc);
+
 		card.Child = sp;
 		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
 		return card;
@@ -1616,8 +2297,18 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 	private Grid? _innerSettingsGrid;
 	private StackPanel? _outerSettingsContainer;
+	private bool _sidebarLayoutBuilt;
+	private Grid? _settingsTwoColGrid;
+	private Border? _settingsSidebarBorder;
+	private StackPanel? _sidebarNavStack;
+	private ScrollViewer? _rightCardsScrollViewer;
+	private StackPanel? _cardsStackPanel;
+	private TextBox? _sidebarSearchBox;
+	private readonly List<(Button NavBtn, FrameworkElement Card, string Title)> _sidebarNavItems = new();
+	private int _activeSidebarNavIndex;
 	private Border? _furinaPlayerAppearanceCard;
 	private Border? _aboutCardBorder;
+	private Border? _backupResetCard;
 	private readonly Dictionary<string, Button> _furinaPlayerThemeModeButtons = new();
 	private Border? _acrylicFeatureCard;
 	private Border? _acrylicLiveBadgeBorder;
@@ -1630,8 +2321,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private Button? _scheduleToggleBtn;
 	private TextBox? _scheduleDarkStartBox;
 	private TextBox? _scheduleDarkEndBox;
-	private ToggleSwitch? _rainbowToggle;
-	private ToggleSwitch? _invertToggle;
+	// (removed)
+	// (removed)
 	private Button? _presetExpanderBtn;
 	private Border? _presetExpanderSwatch;
 	private TextBlock? _presetExpanderNameText;
@@ -1642,20 +2333,97 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private int _presetGridCols = 2;
 	private bool _suppressFurinaPlayerUiEvents;
 
-	private static void DetachFromParent(FrameworkElement? el)
+	private static bool TryDetachFromTree(DependencyObject? root, FrameworkElement target)
+	{
+		if (root == null || ReferenceEquals(root, target)) return false;
+
+		if (root is Panel panel)
+		{
+			if (panel.Children.Contains(target))
+			{
+				panel.Children.Remove(target);
+				return true;
+			}
+			foreach (UIElement child in panel.Children)
+			{
+				if (TryDetachFromTree(child, target)) return true;
+			}
+		}
+		else if (root is Border border && border.Child != null)
+		{
+			if (ReferenceEquals(border.Child, target))
+			{
+				border.Child = null;
+				return true;
+			}
+			if (TryDetachFromTree(border.Child, target)) return true;
+		}
+		else if (root is ContentControl cc && cc.Content is DependencyObject contentObj)
+		{
+			if (ReferenceEquals(contentObj, target))
+			{
+				cc.Content = null;
+				return true;
+			}
+			if (TryDetachFromTree(contentObj, target)) return true;
+		}
+		else if (root is ScrollViewer sv && sv.Content is DependencyObject svObj)
+		{
+			if (ReferenceEquals(svObj, target))
+			{
+				sv.Content = null;
+				return true;
+			}
+			if (TryDetachFromTree(svObj, target)) return true;
+		}
+
+		return false;
+	}
+
+	private static void DetachFromParent(FrameworkElement? el, DependencyObject? fallbackRoot = null)
 	{
 		if (el == null) return;
-		if (el.Parent is Panel p)
+		DependencyObject? parent = el.Parent ?? VisualTreeHelper.GetParent(el);
+		if (parent is Panel p)
 		{
 			p.Children.Remove(el);
+			return;
 		}
-		else if (el.Parent is ContentControl cc)
+		if (parent is ContentControl cc)
 		{
 			cc.Content = null;
+			return;
 		}
-		else if (el.Parent is Border b)
+		if (parent is Border b)
 		{
 			b.Child = null;
+			return;
+		}
+		if (parent is ContentPresenter cp)
+		{
+			cp.Content = null;
+			return;
+		}
+		if (fallbackRoot != null)
+		{
+			TryDetachFromTree(fallbackRoot, el);
+		}
+	}
+
+	private void SafeMoveToPanel(Panel target, FrameworkElement? el)
+	{
+		if (el == null) return;
+		try
+		{
+			DetachFromParent(el, _innerSettingsGrid ?? (DependencyObject?)Content);
+			if (!target.Children.Contains(el))
+			{
+				target.Children.Add(el);
+			}
+		}
+		catch (Exception ex)
+		{
+			CrashReporter.LogInfo($"SafeMoveToPanel failed ({el.Name}): {ex.Message}");
 		}
 	}
 
@@ -1947,21 +2715,119 @@ public sealed class SettingsPage : Page, IComponentConnector
 		rootStack.Children.Add(_acrylicFeatureCard);
 
 		// 4. 材质与壁纸设置
-		if (MaterialCombo != null)
+		SafeMoveToPanel(rootStack, MaterialCombo);
+		SafeMoveToPanel(rootStack, WallpaperCombo);
+		SafeMoveToPanel(rootStack, WallpaperLocalPanel);
+
+		// 4b. 动态壁纸（测试性功能）
+		var dynWallBox = new Border
 		{
-			DetachFromParent(MaterialCombo);
-			rootStack.Children.Add(MaterialCombo);
-		}
-		if (WallpaperCombo != null)
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(14, 12, 14, 12),
+			Margin = new Thickness(0, 4, 0, 2),
+			Background = new SolidColorBrush(Color.FromArgb(18, 99, 102, 241)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(44, 99, 102, 241)),
+			BorderThickness = new Thickness(1)
+		};
+		var dynStack = new StackPanel { Spacing = 10 };
+		var dynHeader = new Grid();
+		dynHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		dynHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		var dynTitlePanel = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center };
+		dynTitlePanel.Children.Add(new TextBlock { Text = Loc.T("动态壁纸"), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+		dynTitlePanel.Children.Add(new Border
 		{
-			DetachFromParent(WallpaperCombo);
-			rootStack.Children.Add(WallpaperCombo);
-		}
-		if (WallpaperLocalPanel != null)
+			CornerRadius = new CornerRadius(5),
+			Padding = new Thickness(6, 2, 6, 2),
+			Background = new SolidColorBrush(Color.FromArgb(26, 245, 158, 11)),
+			Child = new TextBlock { Text = Loc.T("测试性功能"), FontSize = 10.5, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, Foreground = new SolidColorBrush(Color.FromArgb(255, 217, 119, 6)) }
+		});
+		dynHeader.Children.Add(dynTitlePanel);
+
+		var dynEnableToggle = new ToggleSwitch
 		{
-			DetachFromParent(WallpaperLocalPanel);
-			rootStack.Children.Add(WallpaperLocalPanel);
-		}
+			IsOn = ViewModel?.DynamicWallpaperEnabled ?? false,
+			OnContent = Loc.T("开启"),
+			OffContent = Loc.T("关闭"),
+			MinWidth = 0
+		};
+		dynEnableToggle.Toggled += (_, _) =>
+		{
+			if (ViewModel != null) ViewModel.DynamicWallpaperEnabled = dynEnableToggle.IsOn;
+		};
+		Grid.SetColumn(dynEnableToggle, 1);
+		dynHeader.Children.Add(dynEnableToggle);
+		dynStack.Children.Add(dynHeader);
+
+		var dynPathTb = new TextBlock
+		{
+			Text = string.IsNullOrWhiteSpace(ViewModel?.DynamicWallpaperPath) ? Loc.T("未选择动态壁纸 (.gif / .mp4 / .webm / .mkv / .mov)") : ViewModel.DynamicWallpaperPath,
+			FontSize = 12,
+			Opacity = 0.72,
+			TextTrimming = TextTrimming.CharacterEllipsis
+		};
+		dynStack.Children.Add(dynPathTb);
+
+		var dynBtnsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		var importDynBtn = new Button { Content = Loc.T("导入动态壁纸 (.gif / 视频)"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 7, 12, 7) };
+		importDynBtn.Click += async (_, _) =>
+		{
+			try
+			{
+				var picker = new Windows.Storage.Pickers.FileOpenPicker();
+				var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
+				WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+				foreach (var ext in new[] { ".gif", ".mp4", ".webm", ".mkv", ".mov", ".wmv" }) picker.FileTypeFilter.Add(ext);
+				var f = await picker.PickSingleFileAsync();
+				if (f != null && ViewModel != null)
+				{
+					ViewModel.DynamicWallpaperPath = f.Path;
+					ViewModel.DynamicWallpaperEnabled = true;
+					dynEnableToggle.IsOn = true;
+					dynPathTb.Text = f.Path;
+				}
+			}
+			catch { }
+		};
+		var clearDynBtn = new Button { Content = Loc.T("清除"), CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 7, 10, 7) };
+		clearDynBtn.Click += (_, _) =>
+		{
+			if (ViewModel == null) return;
+			ViewModel.DynamicWallpaperEnabled = false;
+			ViewModel.DynamicWallpaperPath = string.Empty;
+			dynEnableToggle.IsOn = false;
+			dynPathTb.Text = Loc.T("未选择动态壁纸 (.gif / .mp4 / .webm / .mkv / .mov)");
+		};
+		dynBtnsRow.Children.Add(importDynBtn);
+		dynBtnsRow.Children.Add(clearDynBtn);
+		dynStack.Children.Add(dynBtnsRow);
+
+		var dynParamsRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14 };
+		var fpsCombo = new ComboBox { Header = Loc.T("播放帧率 (FPS)"), Width = 140, CornerRadius = new CornerRadius(8) };
+		foreach (int fps in new[] { 15, 24, 30, 60 }) fpsCombo.Items.Add(new ComboBoxItem { Content = $"{fps} FPS", Tag = fps });
+		int curFps = ViewModel?.DynamicWallpaperFps ?? 30;
+		fpsCombo.SelectedIndex = curFps switch { 15 => 0, 24 => 1, 60 => 3, _ => 2 };
+		fpsCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && fpsCombo.SelectedItem is ComboBoxItem { Tag: int f }) ViewModel.DynamicWallpaperFps = f;
+		};
+
+		var resCombo = new ComboBox { Header = Loc.T("目标分辨率 (自适应窗口缩放)"), Width = 210, CornerRadius = new CornerRadius(8) };
+		resCombo.Items.Add(new ComboBoxItem { Content = Loc.T("720p (性能优先)"), Tag = "720p" });
+		resCombo.Items.Add(new ComboBoxItem { Content = Loc.T("1080p (均衡推荐)"), Tag = "1080p" });
+		resCombo.Items.Add(new ComboBoxItem { Content = Loc.T("原始分辨率"), Tag = "original" });
+		string curRes = ViewModel?.DynamicWallpaperResolution ?? "1080p";
+		resCombo.SelectedIndex = curRes switch { "720p" => 0, "original" => 2, _ => 1 };
+		resCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && resCombo.SelectedItem is ComboBoxItem { Tag: string r }) ViewModel.DynamicWallpaperResolution = r;
+		};
+		dynParamsRow.Children.Add(fpsCombo);
+		dynParamsRow.Children.Add(resCombo);
+		dynStack.Children.Add(dynParamsRow);
+
+		dynWallBox.Child = dynStack;
+		rootStack.Children.Add(dynWallBox);
 
 		// 5. 歌词字体与排版
 		var lyricFontHeader = new TextBlock
@@ -1973,33 +2839,17 @@ public sealed class SettingsPage : Page, IComponentConnector
 		};
 		rootStack.Children.Add(lyricFontHeader);
 
-		if (LyricFontButton != null)
-		{
-			DetachFromParent(LyricFontButton);
-			rootStack.Children.Add(LyricFontButton);
-		}
+		SafeMoveToPanel(rootStack, LyricFontButton);
 
 		var fontButtonsSp = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-		if (_importLyricFontButton != null)
-		{
-			DetachFromParent(_importLyricFontButton);
-			fontButtonsSp.Children.Add(_importLyricFontButton);
-		}
-		if (_resetLyricFontButton != null)
-		{
-			DetachFromParent(_resetLyricFontButton);
-			fontButtonsSp.Children.Add(_resetLyricFontButton);
-		}
+		SafeMoveToPanel(fontButtonsSp, _importLyricFontButton);
+		SafeMoveToPanel(fontButtonsSp, _resetLyricFontButton);
 		if (fontButtonsSp.Children.Count > 0)
 		{
 			rootStack.Children.Add(fontButtonsSp);
 		}
 
-		if (LyricFontInfoText != null)
-		{
-			DetachFromParent(LyricFontInfoText);
-			rootStack.Children.Add(LyricFontInfoText);
-		}
+		SafeMoveToPanel(rootStack, LyricFontInfoText);
 
 		// 4. "定时切换深色模式" Section
 		var scheduleSection = new StackPanel { Spacing = 8, Margin = new Thickness(0, 2, 0, 2) };
@@ -2108,110 +2958,6 @@ public sealed class SettingsPage : Page, IComponentConnector
 
 		scheduleSection.Children.Add(scheduleTimesWrap);
 		rootStack.Children.Add(scheduleSection);
-
-		// 5. "Rainbow 模式" PRO Row
-		var rainbowRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-		rainbowRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		rainbowRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-		var rainbowLeft = new StackPanel
-		{
-			Orientation = Orientation.Horizontal,
-			Spacing = 10,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		rainbowLeft.Children.Add(new TextBlock
-		{
-			Text = Loc.T("Rainbow 模式"),
-			FontSize = 14.5,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		rainbowLeft.Children.Add(new Border
-		{
-			CornerRadius = new CornerRadius(6),
-			Padding = new Thickness(7, 2, 7, 2),
-			Background = new SolidColorBrush(Color.FromArgb(38, 124, 58, 237)),
-			BorderBrush = new SolidColorBrush(Color.FromArgb(110, 124, 58, 237)),
-			BorderThickness = new Thickness(1),
-			VerticalAlignment = VerticalAlignment.Center,
-			Child = new TextBlock
-			{
-				Text = "PRO",
-				FontSize = 10.5,
-				FontWeight = Microsoft.UI.Text.FontWeights.Bold,
-				Foreground = new SolidColorBrush(Color.FromArgb(255, 139, 92, 246))
-			}
-		});
-		rainbowLeft.Children.Add(new Border
-		{
-			Width = 38,
-			Height = 16,
-			CornerRadius = new CornerRadius(8),
-			VerticalAlignment = VerticalAlignment.Center,
-			Background = new LinearGradientBrush
-			{
-				StartPoint = new Point(0, 0.5),
-				EndPoint = new Point(1, 0.5),
-				GradientStops =
-				{
-					new GradientStop { Color = Color.FromArgb(255, 244, 63, 94), Offset = 0.0 },
-					new GradientStop { Color = Color.FromArgb(255, 245, 158, 11), Offset = 0.25 },
-					new GradientStop { Color = Color.FromArgb(255, 16, 185, 129), Offset = 0.5 },
-					new GradientStop { Color = Color.FromArgb(255, 56, 189, 248), Offset = 0.75 },
-					new GradientStop { Color = Color.FromArgb(255, 139, 92, 246), Offset = 1.0 }
-				}
-			}
-		});
-		Grid.SetColumn(rainbowLeft, 0);
-		rainbowRow.Children.Add(rainbowLeft);
-
-		_rainbowToggle = new ToggleSwitch
-		{
-			IsOn = ViewModel?.RainbowModeEnabled ?? false,
-			OnContent = null,
-			OffContent = null,
-			MinWidth = 0,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		_rainbowToggle.Toggled += (s, e) =>
-		{
-			if (_suppressFurinaPlayerUiEvents || ViewModel == null) return;
-			ViewModel.SetRainbowMode(_rainbowToggle.IsOn);
-		};
-		Grid.SetColumn(_rainbowToggle, 1);
-		rainbowRow.Children.Add(_rainbowToggle);
-		rootStack.Children.Add(rainbowRow);
-
-		// 6. "反色模式" Row
-		var invertRow = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-		invertRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-		invertRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-		invertRow.Children.Add(new TextBlock
-		{
-			Text = Loc.T("反色模式"),
-			FontSize = 14.5,
-			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-			VerticalAlignment = VerticalAlignment.Center
-		});
-		_invertToggle = new ToggleSwitch
-		{
-			IsOn = ViewModel?.InvertModeEnabled ?? false,
-			OnContent = null,
-			OffContent = null,
-			MinWidth = 0,
-			VerticalAlignment = VerticalAlignment.Center
-		};
-		_invertToggle.Toggled += (s, e) =>
-		{
-			if (_suppressFurinaPlayerUiEvents || ViewModel == null) return;
-			ViewModel.SetInvertMode(_invertToggle.IsOn);
-			RefreshFurinaPlayerAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
-		};
-		Grid.SetColumn(_invertToggle, 1);
-		invertRow.Children.Add(_invertToggle);
-		rootStack.Children.Add(invertRow);
 
 		// 7. "主题预设" Header + Expander Button
 		var presetHeaderRow = new Grid { ColumnSpacing = 12, Margin = new Thickness(0, 4, 0, 0) };
@@ -2555,8 +3301,8 @@ public sealed class SettingsPage : Page, IComponentConnector
 				_scheduleDarkEndBox.Text = ViewModel?.ScheduledDarkEndTime ?? "07:00";
 			}
 
-			if (_rainbowToggle != null) _rainbowToggle.IsOn = ViewModel?.RainbowModeEnabled ?? false;
-			if (_invertToggle != null) _invertToggle.IsOn = ViewModel?.InvertModeEnabled ?? false;
+			// Rainbow & Invert modes removed
+			// (removed invert toggle)
 
 			// Update Preset Expander Button
 			if (_presetExpanderSwatch != null)
@@ -3000,6 +3746,7 @@ public sealed class SettingsPage : Page, IComponentConnector
 	private TextBlock? _petGifSpeedValueText;
 	private Slider? _petBubbleScaleSlider;
 	private TextBlock? _petBubbleScaleValueText;
+	private ComboBox? _petBubbleStyleCombo;
 	private bool _suppressPetExtraSliderEvents;
 	private Slider? _petScaleSlider;
 	private TextBlock? _petScaleValueText;
@@ -3238,6 +3985,187 @@ public sealed class SettingsPage : Page, IComponentConnector
 		bubbleScalePanel.Children.Add(_petBubbleScaleSlider);
 		sp.Children.Add(bubbleScalePanel);
 
+		// Lyric bubble theme style selector
+		var bubbleStylePanel = new StackPanel { Spacing = 6 };
+		bubbleStylePanel.Children.Add(new TextBlock
+		{
+			Text = Loc.T("歌词气泡样式"),
+			FontWeight = Microsoft.UI.Text.FontWeights.Medium,
+			FontSize = 14
+		});
+		_petBubbleStyleCombo = new ComboBox
+		{
+			MinWidth = 240,
+			CornerRadius = new CornerRadius(8)
+		};
+		_petBubbleStyleCombo.Items.Add(new ComboBoxItem { Content = Loc.T("经典芙宁娜（深蓝细框）"), Tag = "classic" });
+		_petBubbleStyleCombo.Items.Add(new ComboBoxItem { Content = Loc.T("皇冠小鱼寝（柔蓝圆框）"), Tag = "crown" });
+		_petBubbleStyleCombo.Items.Add(new ComboBoxItem { Content = Loc.T("冰雪晶语（漫威晶冰）"), Tag = "ice" });
+		_petBubbleStyleCombo.Items.Add(new ComboBoxItem { Content = Loc.T("阳伞水母礼帽（圆润蓝边）"), Tag = "umbrella" });
+		_petBubbleStyleCombo.Items.Add(new ComboBoxItem { Content = Loc.T("天使小猫互动（双层蓝框）"), Tag = "angel" });
+		_petBubbleStyleCombo.SelectionChanged += (_, _) =>
+		{
+			if (_suppressPetExtraSliderEvents || ViewModel == null) return;
+			if (_petBubbleStyleCombo.SelectedItem is ComboBoxItem { Tag: string styleTag })
+			{
+				ViewModel.PetBubbleStyle = styleTag;
+			}
+		};
+		bubbleStylePanel.Children.Add(_petBubbleStyleCombo);
+		sp.Children.Add(bubbleStylePanel);
+
+		// Desktop Pet Lyric Appearance (Font, Opacity, Color/Gradient, Active Highlight)
+		var lyricStyleBorder = new Border
+		{
+			CornerRadius = new CornerRadius(12),
+			Padding = new Thickness(12, 10, 12, 10),
+			Background = new SolidColorBrush(Color.FromArgb(14, 37, 99, 235)),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(32, 37, 99, 235)),
+			BorderThickness = new Thickness(1)
+		};
+		var lsStack = new StackPanel { Spacing = 10 };
+		lsStack.Children.Add(new TextBlock { Text = Loc.T("桌宠歌词外观样式"), FontSize = 14, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+
+		var fontCombo = new ComboBox { Header = Loc.T("系统歌词字体"), MinWidth = 260, IsEditable = true, CornerRadius = new CornerRadius(8) };
+		var sysFonts = SkiaSharp.SKFontManager.Default.FontFamilies
+			.Where(f => !string.IsNullOrWhiteSpace(f))
+			.Distinct(StringComparer.OrdinalIgnoreCase)
+			.OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+			.ToList();
+		if (sysFonts.Remove("Microsoft YaHei UI"))
+		{
+			sysFonts.Insert(0, "Microsoft YaHei UI");
+		}
+		else if (sysFonts.Count == 0)
+		{
+			sysFonts.Add("Microsoft YaHei UI");
+		}
+		foreach (string ff in sysFonts)
+		{
+			fontCombo.Items.Add(ff);
+		}
+		string curFont = ViewModel?.PetLyricFontFamily ?? "Microsoft YaHei UI";
+		if (!sysFonts.Contains(curFont, StringComparer.OrdinalIgnoreCase))
+		{
+			fontCombo.Items.Insert(0, curFont);
+		}
+		fontCombo.SelectedItem = curFont;
+		if (fontCombo.SelectedIndex < 0) fontCombo.SelectedIndex = 0;
+		fontCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && fontCombo.SelectedItem is string ff) ViewModel.PetLyricFontFamily = ff;
+		};
+		lsStack.Children.Add(fontCombo);
+
+		var customFontPathTb = new TextBlock
+		{
+			Text = string.IsNullOrWhiteSpace(ViewModel?.PetLyricFontFilePath)
+				? Loc.T("当前使用系统字库字体")
+				: $"自定义字体：{Path.GetFileName(ViewModel.PetLyricFontFilePath)}",
+			FontSize = 11.5,
+			Opacity = 0.72,
+			TextTrimming = TextTrimming.CharacterEllipsis
+		};
+		var customFontBtns = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		var importPetFontBtn = new Button { Content = Loc.T("导入自定义字体 (.ttf / .otf)"), CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 6, 10, 6) };
+		importPetFontBtn.Click += async (_, _) =>
+		{
+			try
+			{
+				var picker = new Windows.Storage.Pickers.FileOpenPicker();
+				var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
+				WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+				picker.FileTypeFilter.Add(".ttf");
+				picker.FileTypeFilter.Add(".otf");
+				picker.FileTypeFilter.Add(".ttc");
+				var f = await picker.PickSingleFileAsync();
+				if (f != null && ViewModel != null)
+				{
+					ViewModel.PetLyricFontFilePath = f.Path;
+					customFontPathTb.Text = $"自定义字体：{f.Name}";
+				}
+			}
+			catch { }
+		};
+		var resetPetFontBtn = new Button { Content = Loc.T("恢复系统字体"), CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 6, 10, 6) };
+		resetPetFontBtn.Click += (_, _) =>
+		{
+			if (ViewModel == null) return;
+			ViewModel.PetLyricFontFilePath = string.Empty;
+			customFontPathTb.Text = Loc.T("当前使用系统字库字体");
+		};
+		customFontBtns.Children.Add(importPetFontBtn);
+		customFontBtns.Children.Add(resetPetFontBtn);
+		lsStack.Children.Add(customFontBtns);
+		lsStack.Children.Add(customFontPathTb);
+
+		var opHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		opHeader.Children.Add(new TextBlock { Text = Loc.T("歌词透明度"), FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Medium });
+		var opValTb = new TextBlock { Text = $"{ViewModel?.PetLyricOpacityPercent ?? 100}%", FontSize = 13, FontWeight = Microsoft.UI.Text.FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235)) };
+		opHeader.Children.Add(opValTb);
+		lsStack.Children.Add(opHeader);
+
+		var opSlider = new Slider { Minimum = 20, Maximum = 100, StepFrequency = 5, Value = ViewModel?.PetLyricOpacityPercent ?? 100 };
+		opSlider.ValueChanged += (_, args) =>
+		{
+			int v = (int)Math.Round(args.NewValue);
+			opValTb.Text = $"{v}%";
+			if (ViewModel != null) ViewModel.PetLyricOpacityPercent = v;
+		};
+		lsStack.Children.Add(opSlider);
+
+		var colorPresets = new (string Name, string Hex)[]
+		{
+			("深海蓝", "#232B5C"),
+			("亮海蓝", "#2563EB"),
+			("极光紫", "#7C3AED"),
+			("樱花粉", "#EC4899"),
+			("芙宁娜金", "#D97706"),
+			("翡翠绿", "#10B981"),
+			("纯净白", "#FFFFFF")
+		};
+
+		var colorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10 };
+		var baseColorCombo = new ComboBox { Header = Loc.T("歌词文字颜色"), Width = 150, CornerRadius = new CornerRadius(8) };
+		foreach (var cp in colorPresets) baseColorCombo.Items.Add(new ComboBoxItem { Content = Loc.T(cp.Name), Tag = cp.Hex });
+		baseColorCombo.SelectedIndex = Math.Max(0, Array.FindIndex(colorPresets, c => string.Equals(c.Hex, ViewModel?.PetLyricColorHex, StringComparison.OrdinalIgnoreCase)));
+		baseColorCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && baseColorCombo.SelectedItem is ComboBoxItem { Tag: string hex }) ViewModel.PetLyricColorHex = hex;
+		};
+
+		var gradEndCombo = new ComboBox { Header = Loc.T("渐变副色"), Width = 150, CornerRadius = new CornerRadius(8) };
+		foreach (var cp in colorPresets) gradEndCombo.Items.Add(new ComboBoxItem { Content = Loc.T(cp.Name), Tag = cp.Hex });
+		gradEndCombo.SelectedIndex = Math.Max(0, Array.FindIndex(colorPresets, c => string.Equals(c.Hex, ViewModel?.PetLyricGradientEndColorHex, StringComparison.OrdinalIgnoreCase)));
+		gradEndCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && gradEndCombo.SelectedItem is ComboBoxItem { Tag: string hex }) ViewModel.PetLyricGradientEndColorHex = hex;
+		};
+		colorRow.Children.Add(baseColorCombo);
+		colorRow.Children.Add(gradEndCombo);
+		lsStack.Children.Add(colorRow);
+
+		var gradToggle = new ToggleSwitch { Header = Loc.T("启用歌词渐变色"), IsOn = ViewModel?.PetLyricGradientEnabled ?? false, OnContent = Loc.T("开启"), OffContent = Loc.T("关闭") };
+		gradToggle.Toggled += (_, _) => { if (ViewModel != null) ViewModel.PetLyricGradientEnabled = gradToggle.IsOn; };
+		lsStack.Children.Add(gradToggle);
+
+		var hlRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+		var hlToggle = new ToggleSwitch { Header = Loc.T("当前播放歌词高亮"), IsOn = ViewModel?.PetLyricHighlightCurrent ?? true, OnContent = Loc.T("开启"), OffContent = Loc.T("关闭") };
+		hlToggle.Toggled += (_, _) => { if (ViewModel != null) ViewModel.PetLyricHighlightCurrent = hlToggle.IsOn; };
+		var hlColorCombo = new ComboBox { Header = Loc.T("高亮颜色"), Width = 150, CornerRadius = new CornerRadius(8) };
+		foreach (var cp in colorPresets) hlColorCombo.Items.Add(new ComboBoxItem { Content = Loc.T(cp.Name), Tag = cp.Hex });
+		hlColorCombo.SelectedIndex = Math.Max(0, Array.FindIndex(colorPresets, c => string.Equals(c.Hex, ViewModel?.PetLyricHighlightColorHex, StringComparison.OrdinalIgnoreCase)));
+		hlColorCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && hlColorCombo.SelectedItem is ComboBoxItem { Tag: string hex }) ViewModel.PetLyricHighlightColorHex = hex;
+		};
+		hlRow.Children.Add(hlToggle);
+		hlRow.Children.Add(hlColorCombo);
+		lsStack.Children.Add(hlRow);
+
+		lyricStyleBorder.Child = lsStack;
+		sp.Children.Add(lyricStyleBorder);
+
 		// Custom GIF section
 		sp.Children.Add(new TextBlock
 		{
@@ -3258,6 +4186,190 @@ public sealed class SettingsPage : Page, IComponentConnector
 		card.Child = sp;
 		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
 		SyncDesktopPetUi();
+		return card;
+	}
+
+	private async void OnClearLibraryCacheClick(object sender, RoutedEventArgs e)
+	{
+		if (ViewModel == null) return;
+		var dlg = new ContentDialog
+		{
+			Title = Loc.T("清空曲库缓存"),
+			Content = Loc.T("将清理本地封面缓存文件、移除路径已失效的曲目索引并压缩 SQLite 曲库数据库（不会删除磁盘上的原始音乐文件）。是否继续？"),
+			PrimaryButtonText = Loc.T("立即清理"),
+			CloseButtonText = Loc.T("取消"),
+			DefaultButton = ContentDialogButton.Close,
+			XamlRoot = XamlRoot
+		};
+		if (await dlg.ShowAsync() != ContentDialogResult.Primary) return;
+
+		if (_integrityStatusText != null) _integrityStatusText.Text = Loc.T("正在清理曲库缓存与压缩数据库...");
+		var res = await ViewModel.ClearLibraryCacheAsync();
+		if (_integrityStatusText != null)
+		{
+			double mb = res.FreedBytes / (1024.0 * 1024.0);
+			_integrityStatusText.Text = $"曲库缓存已清空：清理封面缓存 {res.ClearedCoverFiles} 个（释放 {mb:0.##} MB），移除失效曲目索引 {res.RemovedMissingTracks} 条。";
+		}
+	}
+
+	private Border CreateBackupAndResetCard(bool isDark)
+	{
+		var card = new Border
+		{
+			CornerRadius = new CornerRadius(16),
+			Padding = new Thickness(22, 18, 22, 18),
+			Margin = new Thickness(0)
+		};
+		var sp = new StackPanel { Spacing = 12 };
+
+		var headerRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 4) };
+		headerRow.Children.Add(FluentIconFactory.Create(FluentIconKind.RefreshReset, 20));
+		headerRow.Children.Add(new TextBlock
+		{
+			Text = Loc.T("备份与重置"),
+			FontSize = 16,
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+			VerticalAlignment = VerticalAlignment.Center
+		});
+		sp.Children.Add(headerRow);
+
+		var statusTb = new TextBlock
+		{
+			Text = Loc.T("支持导出全部设置与偏好至备份文件、迁移导入至新设备，或按周期/启动频率自动备份。"),
+			FontSize = 12,
+			Opacity = 0.72,
+			TextWrapping = TextWrapping.Wrap
+		};
+
+		var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+		var exportBtn = new Button { Content = Loc.T("导出设置备份"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 8, 12, 8) };
+		exportBtn.Click += async (_, _) =>
+		{
+			if (ViewModel == null) return;
+			try
+			{
+				var picker = new Windows.Storage.Pickers.FileSavePicker { SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary, SuggestedFileName = $"FurinaPlayer_Settings_{DateTime.Now:yyyyMMdd}" };
+				picker.FileTypeChoices.Add("JSON 备份文件", new List<string> { ".json" });
+				var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
+				WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+				var f = await picker.PickSaveFileAsync();
+				if (f != null)
+				{
+					ViewModel.ExportSettingsBackup(f.Path);
+					statusTb.Text = $"已导出设置备份至：{f.Path}";
+				}
+			}
+			catch (Exception ex) { statusTb.Text = $"导出失败：{ex.Message}"; }
+		};
+
+		var importBtn = new Button { Content = Loc.T("导入设置备份（新设备迁移）"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 8, 12, 8) };
+		importBtn.Click += async (_, _) =>
+		{
+			if (ViewModel == null) return;
+			try
+			{
+				var picker = new Windows.Storage.Pickers.FileOpenPicker { SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary };
+				picker.FileTypeFilter.Add(".json");
+				var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(WindowManager.CurrentWindow);
+				WinRT.Interop.InitializeWithWindow.Initialize(picker, hwnd);
+				var f = await picker.PickSingleFileAsync();
+				if (f != null)
+				{
+					ViewModel.ImportSettingsBackup(f.Path, sanitizeForNewDevice: true);
+					SettingsSaved?.Invoke();
+					RefreshDevices();
+					RefreshFurinaPlayerAppearanceWorkbenchVisuals(LiquidGlassEngine.IsElementDarkTheme(this));
+					SyncDesktopPetUi();
+					statusTb.Text = $"已导入备份（已自动重置本机声卡与失效路径适配新设备）：{f.Name}";
+				}
+			}
+			catch (Exception ex) { statusTb.Text = $"导入失败：{ex.Message}"; }
+		};
+
+		var openBackupDirBtn = new Button { Content = Loc.T("打开自动备份目录"), CornerRadius = new CornerRadius(8), Padding = new Thickness(12, 8, 12, 8) };
+		openBackupDirBtn.Click += (_, _) =>
+		{
+			if (ViewModel == null) return;
+			string dir = ViewModel.SettingsServiceInstance.BackupDirectory;
+			Directory.CreateDirectory(dir);
+			Process.Start(new ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+		};
+
+		btnRow.Children.Add(exportBtn);
+		btnRow.Children.Add(importBtn);
+		btnRow.Children.Add(openBackupDirBtn);
+		sp.Children.Add(btnRow);
+
+		// Auto-backup settings
+		var autoBackupToggle = new ToggleSwitch
+		{
+			Header = Loc.T("自动备份软件设置与首选项"),
+			IsOn = ViewModel?.AutoBackupEnabled ?? false,
+			OnContent = Loc.T("开启"),
+			OffContent = Loc.T("关闭")
+		};
+		autoBackupToggle.Toggled += (_, _) => { if (ViewModel != null) ViewModel.AutoBackupEnabled = autoBackupToggle.IsOn; };
+		sp.Children.Add(autoBackupToggle);
+
+		var autoRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+		var modeCombo = new ComboBox { Header = Loc.T("自动备份策略"), Width = 170, CornerRadius = new CornerRadius(8) };
+		modeCombo.Items.Add(new ComboBoxItem { Content = Loc.T("按时间周期 (天)"), Tag = "periodic" });
+		modeCombo.Items.Add(new ComboBoxItem { Content = Loc.T("按软件启动频率 (次)"), Tag = "launch_count" });
+		modeCombo.SelectedIndex = string.Equals(ViewModel?.AutoBackupMode, "launch_count", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+
+		var intervalCombo = new ComboBox { Header = Loc.T("备份间隔"), Width = 140, CornerRadius = new CornerRadius(8) };
+		void PopulateIntervals()
+		{
+			intervalCombo.Items.Clear();
+			bool byLaunch = modeCombo.SelectedIndex == 1;
+			if (byLaunch)
+			{
+				foreach (int c in new[] { 1, 3, 5, 10, 20 }) intervalCombo.Items.Add(new ComboBoxItem { Content = $"每 {c} 次启动", Tag = c });
+				int cur = ViewModel?.AutoBackupLaunchInterval ?? 5;
+				intervalCombo.SelectedIndex = cur switch { 1 => 0, 3 => 1, 10 => 3, 20 => 4, _ => 2 };
+			}
+			else
+			{
+				foreach (int d in new[] { 1, 3, 7, 14, 30 }) intervalCombo.Items.Add(new ComboBoxItem { Content = $"每 {d} 天", Tag = d });
+				int cur = ViewModel?.AutoBackupPeriodDays ?? 7;
+				intervalCombo.SelectedIndex = cur switch { 1 => 0, 3 => 1, 14 => 3, 30 => 4, _ => 2 };
+			}
+		}
+		PopulateIntervals();
+		modeCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel != null && modeCombo.SelectedItem is ComboBoxItem { Tag: string m })
+			{
+				ViewModel.AutoBackupMode = m;
+				PopulateIntervals();
+			}
+		};
+		intervalCombo.SelectionChanged += (_, _) =>
+		{
+			if (ViewModel == null || intervalCombo.SelectedItem is not ComboBoxItem { Tag: int val }) return;
+			if (modeCombo.SelectedIndex == 1) ViewModel.AutoBackupLaunchInterval = val;
+			else ViewModel.AutoBackupPeriodDays = val;
+		};
+		autoRow.Children.Add(modeCombo);
+		autoRow.Children.Add(intervalCombo);
+		sp.Children.Add(autoRow);
+
+		// Restore Defaults button in dedicated Backup & Reset section
+		var restoreBtn = new Button
+		{
+			Content = Loc.T("恢复默认设置"),
+			CornerRadius = new CornerRadius(8),
+			Padding = new Thickness(14, 8, 14, 8),
+			Background = new SolidColorBrush(Color.FromArgb(24, 239, 68, 68)),
+			Foreground = new SolidColorBrush(Color.FromArgb(255, 220, 38, 38)),
+			FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+		};
+		restoreBtn.Click += OnRestoreDefaultsClick;
+		sp.Children.Add(restoreBtn);
+		sp.Children.Add(statusTb);
+
+		card.Child = sp;
+		LiquidGlassEngine.AttachInteractiveLiquidGlass(card, LiquidGlassVariant.Regular, isDark, enablePointerTracking: true);
 		return card;
 	}
 
@@ -3385,6 +4497,20 @@ public sealed class SettingsPage : Page, IComponentConnector
 		if (_petBubbleScaleValueText != null)
 		{
 			_petBubbleScaleValueText.Text = $"{ViewModel.PetBubbleScalePercent}%";
+		}
+		if (_petBubbleStyleCombo != null)
+		{
+			_suppressPetExtraSliderEvents = true;
+			string curStyle = ViewModel.PetBubbleStyle;
+			for (int i = 0; i < _petBubbleStyleCombo.Items.Count; i++)
+			{
+				if (_petBubbleStyleCombo.Items[i] is ComboBoxItem item && string.Equals(item.Tag?.ToString(), curStyle, StringComparison.OrdinalIgnoreCase))
+				{
+					_petBubbleStyleCombo.SelectedIndex = i;
+					break;
+				}
+			}
+			_suppressPetExtraSliderEvents = false;
 		}
 		if (_petIdlePathText != null)
 		{

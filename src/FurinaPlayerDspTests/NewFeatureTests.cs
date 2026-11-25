@@ -1505,6 +1505,12 @@ public static class NewFeatureTests
 			check(prevOk && session.CurrentTrack?.Id == trackA.Id && prevMetersOk,
 				$"AudioSession.Previous() switched back to Track A with finite meters ({prevSummary})");
 
+			// Hot-switch playback output device mid-playback (including stale ID + ignored ASIO name in Shared mode)
+			session.ConfigureOutput(OutputMode.WasapiShared, "{stale-unplugged-device-id}", "BogusAsioDriver", 180);
+			Thread.Sleep(80);
+			bool hotMetersOk = ValidateSessionMeters(session, out string hotSummary); bool hotSwitchPlaying = session.State == PlaybackState.Playing && hotMetersOk;
+			check(hotSwitchPlaying, $"AudioSession.ConfigureOutput hot-switch recovered cleanly while playing ({hotSummary})");
+
 			session.Pause();
 			bool pauseMetersOk = ValidateSessionMeters(session, out string pauseSummary);
 			check(session.State == PlaybackState.Paused && pauseMetersOk,
@@ -2342,6 +2348,10 @@ public static class NewFeatureTests
 		check(defaults.PetBubbleScalePercent == 100, "AppSettings.PetBubbleScalePercent defaults to 100");
 
 		string petDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "FurinaPlayer", "Assets", "Pet"));
+		if (!Directory.Exists(petDir))
+			petDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "FurinaPlayer", "Assets", "Pet"));
+		if (!Directory.Exists(petDir))
+			petDir = Path.Combine(AppContext.BaseDirectory, "Assets", "Pet");
 		string[] gifNames = { "furina_pet_idle.gif", "furina_pet_groove.gif", "furina_pet_click.gif" };
 		foreach (string name in gifNames)
 		{
@@ -2363,7 +2373,15 @@ public static class NewFeatureTests
 			}
 		}
 
-		string[] cornerNames = { "pet_bubble_tl.png", "pet_bubble_tr.png", "pet_bubble_bl.png", "pet_bubble_br.png" };
+		string[] cornerNames =
+		{
+			"pet_bubble_tl.png", "pet_bubble_tr.png", "pet_bubble_bl.png", "pet_bubble_br.png",
+			"pet_bubble_crown_tl.png", "pet_bubble_crown_tr.png", "pet_bubble_crown_bl.png", "pet_bubble_crown_br.png",
+			"pet_bubble_ice_tl.png", "pet_bubble_ice_tr.png", "pet_bubble_ice_bl.png", "pet_bubble_ice_br.png",
+			"pet_bubble_umbrella_tl.png", "pet_bubble_umbrella_tr.png", "pet_bubble_umbrella_bl.png", "pet_bubble_umbrella_br.png",
+			"pet_bubble_angel_tl.png", "pet_bubble_angel_tr.png", "pet_bubble_angel_bl.png", "pet_bubble_angel_br.png"
+		};
+		check(defaults.PetBubbleStyle == "classic", "AppSettings.PetBubbleStyle defaults to classic");
 		foreach (string cname in cornerNames)
 		{
 			string cpath = Path.Combine(petDir, cname);
@@ -2382,5 +2400,476 @@ public static class NewFeatureTests
 
 		var clampHigh = FurinaPlayer.Core.Services.DesktopPetLayout.ClampPetBoundsToWorkArea(5000, 3000, 180, 200, 0, 0, 1920, 1040);
 		check(clampHigh.Left == 1920 - 180 && clampHigh.Top == 1040 - 200, $"Overflow coordinates clamp to work area max ({clampHigh.Left}, {clampHigh.Top})");
+	}
+
+	public static void TestOpraHeadphoneKnowledgeBaseAndMixAssistantV2(Action<bool, string>? assert = null)
+	{
+		var check = ResolveAssert(assert);
+		Console.WriteLine("\n--- Testing OPRA 600 Knowledge Base, Genre Detection & Anti-Clipping MixAssistant V2 ---");
+
+		// 1. Verify exact 200 + 200 + 200 learned OPRA catalog invariants
+		check(OpraHeadphoneKnowledgeBase.WearingStyleTop200.Count == 200,
+			$"OPRA WearingStyleTop200 count == 200 (actual={OpraHeadphoneKnowledgeBase.WearingStyleTop200.Count})");
+		check(OpraHeadphoneKnowledgeBase.DriverTypeTop200.Count == 200,
+			$"OPRA DriverTypeTop200 count == 200 (actual={OpraHeadphoneKnowledgeBase.DriverTypeTop200.Count})");
+		check(OpraHeadphoneKnowledgeBase.TuningStyleTop200.Count == 200,
+			$"OPRA TuningStyleTop200 count == 200 (actual={OpraHeadphoneKnowledgeBase.TuningStyleTop200.Count})");
+
+		var wearingSet = new System.Collections.Generic.HashSet<HeadphoneWearingStyle>();
+		foreach (var x in OpraHeadphoneKnowledgeBase.WearingStyleTop200) wearingSet.Add(x.WearingStyle);
+		var driverSet = new System.Collections.Generic.HashSet<HeadphoneDriverType>();
+		foreach (var x in OpraHeadphoneKnowledgeBase.DriverTypeTop200) driverSet.Add(x.DriverType);
+		var tuningSet = new System.Collections.Generic.HashSet<HeadphoneTuningStyle>();
+		foreach (var x in OpraHeadphoneKnowledgeBase.TuningStyleTop200) tuningSet.Add(x.TuningStyle);
+		int wearingGroups = wearingSet.Count;
+		int driverGroups = driverSet.Count;
+		int tuningGroups = tuningSet.Count;
+		check(wearingGroups == 5 && driverGroups == 5 && tuningGroups == 6,
+			$"All sub-categories populated (wearing={wearingGroups}/5, driver={driverGroups}/5, tuning={tuningGroups}/6)");
+
+		// 2. Song Genre Recognition across 4 distinct spectral/dynamic profiles
+		var assistant = new MixAssistantEngine();
+		double[] edmBins = new double[32];
+		double[] classicalBins = new double[32];
+		double[] acgBins = new double[32];
+		double[] lofiBins = new double[32];
+
+		for (int b = 0; b < 32; b++)
+		{
+			double f = MixAssistantEngine.AnalysisFrequencies[b];
+			edmBins[b] = f < 100 ? 5.5 : (f < 250 ? 2.5 : (f > 4000 ? 0.8 : -0.5));
+			classicalBins[b] = -3.0 * Math.Log2(f / 1000.0) * 0.55 - (f < 50 ? 1.5 : 0.0);
+			acgBins[b] = (f >= 55 && f <= 130 ? 2.2 : 0.0) + (f >= 2600 && f <= 11000 ? 2.8 : 0.0) - (f >= 200 && f <= 400 ? 1.0 : 0.0);
+			lofiBins[b] = -5.2 * Math.Log2(f / 1000.0);
+		}
+
+		var edmGenre = MixAssistantEngine.ClassifySongGenre(edmBins, crestDb: 7.2, tiltDbPerOct: -1.8);
+		var classicalGenre = MixAssistantEngine.ClassifySongGenre(classicalBins, crestDb: 14.5, tiltDbPerOct: -2.8);
+		var acgGenre = MixAssistantEngine.ClassifySongGenre(acgBins, crestDb: 8.5, tiltDbPerOct: 0.4);
+		var lofiGenre = MixAssistantEngine.ClassifySongGenre(lofiBins, crestDb: 9.8, tiltDbPerOct: -5.4);
+
+		check(edmGenre.Genre == SongStyleGenre.EdmHipHopBass && edmGenre.RecommendedTargetId == "bass_punch",
+			$"EDM heavy bass detected accurately ({edmGenre.Genre} -> {edmGenre.RecommendedTargetId})");
+		check(classicalGenre.Genre == SongStyleGenre.ClassicalOrchestral && classicalGenre.RecommendedTargetId == "classical_reference",
+			$"Classical dynamic orchestral detected accurately ({classicalGenre.Genre} -> {classicalGenre.RecommendedTargetId})");
+		check(acgGenre.Genre == SongStyleGenre.AcgVibrant && acgGenre.RecommendedTargetId == "acg_vibrant",
+			$"ACG bright electronic vocal detected accurately ({acgGenre.Genre} -> {acgGenre.RecommendedTargetId})");
+		check(lofiGenre.Genre == SongStyleGenre.LoFiAmbient,
+			$"Lo-Fi dark rolled-off spectrum detected accurately ({lofiGenre.Genre} -> {lofiGenre.RecommendedTargetId})");
+
+		var edmProfile = new MixAssistantProfile(edmBins, new double[10], -18.0, 7.2, -1.8, 30, 0.95)
+		{
+			GenreClassification = edmGenre
+		};
+		var autoSol = assistant.SolveEqCurve(edmProfile, MixAssistantEngine.AutoGenreTargetId, 0.80, 0.0, 0.0, true, null);
+		check(autoSol.TargetId == MixAssistantEngine.AutoGenreTargetId && autoSol.EffectiveTargetId == "bass_punch"
+			&& autoSol.DetectedGenre == SongStyleGenre.EdmHipHopBass,
+			$"AutoGenre target resolves cleanly ({autoSol.DetectedGenre} -> {autoSol.EffectiveTargetId})");
+
+		// 3. Headphone-Matched Acoustic Adaptation & Calibration-Aware Double-EQ Guard
+		var dt990Ctx = new MixAssistantHeadphoneContext(
+			ProductIdOrName: "beyerdynamic::dt_990_pro",
+			IsOpraCalibrationActive: false,
+			HeadphoneMatchStrength01: 0.85,
+			IntensityMode: MixAssistantIntensityMode.Balanced);
+		var harmanCtx = new MixAssistantHeadphoneContext(
+			ProductIdOrName: "truthear::x_crinacle_zero_red",
+			IsOpraCalibrationActive: false,
+			HeadphoneMatchStrength01: 0.85,
+			IntensityMode: MixAssistantIntensityMode.Balanced);
+		var calibratedCtx = new MixAssistantHeadphoneContext(
+			ProductIdOrName: "beyerdynamic::dt_990_pro",
+			IsOpraCalibrationActive: true,
+			CalibrationPreampDb: -2.0,
+			CalibrationPeakBoostDb: 5.5, // +3.5 dB uncompensated calibration peak!
+			HeadphoneMatchStrength01: 0.85,
+			IntensityMode: MixAssistantIntensityMode.Balanced);
+
+		var flatBins = new double[32];
+		var neutralMix = new MixAssistantProfile(flatBins, new double[10], -20.0, 11.5, 0.0, 40, 1.0);
+		var solDt990 = assistant.SolveEqCurve(neutralMix, "balanced_master", 0.80, 0.0, 0.0, true, dt990Ctx);
+		var solHarman = assistant.SolveEqCurve(neutralMix, "balanced_master", 0.80, 0.0, 0.0, true, harmanCtx);
+		var solCalibrated = assistant.SolveEqCurve(neutralMix, "balanced_master", 0.80, 0.0, 0.0, true, calibratedCtx);
+
+		double meanAbsHpDelta = 0.0;
+		for (int i = 0; i < 10; i++) meanAbsHpDelta += Math.Abs(solDt990.BandOffsetsDb[i] - solHarman.BandOffsetsDb[i]);
+		meanAbsHpDelta /= 10.0;
+
+		check(meanAbsHpDelta > 0.5 && solDt990.MatchedHeadphoneName.Contains("DT 990", StringComparison.OrdinalIgnoreCase),
+			$"Headphone match differentiates DT 990 Pro vs Zero Red (meanDelta={meanAbsHpDelta:F2} dB)");
+		check(solCalibrated.WasHeadphoneCalibrationAware
+			&& Math.Abs(solCalibrated.RecommendedPreampDb) >= solCalibrated.PeakBoostDb + 3.0,
+			$"Calibrated headphone mode avoids double-EQ and compensates residual calibration headroom (preamp={solCalibrated.RecommendedPreampDb:F1} dB, peak={solCalibrated.PeakBoostDb:F1} dB)");
+
+		// 4. Anti-Distortion Zero-Clipping Headroom Invariant on Hot Brickwalled Signal
+		const int sampleRate = 48000;
+		float[] hotMix = new float[sampleRate * 2 * 2];
+		for (int f = 0; f < sampleRate * 2; f++)
+		{
+			double t = (double)f / sampleRate;
+			// Multi-tone compressed signal reaching ~0.88 peak (-1.1 dBFS, low crest)
+			float s = (float)(0.38 * Math.Sin(2.0 * Math.PI * 65.0 * t)
+				+ 0.34 * Math.Sin(2.0 * Math.PI * 3500.0 * t)
+				+ 0.16 * Math.Sin(2.0 * Math.PI * 1000.0 * t));
+			hotMix[f * 2] = s;
+			hotMix[f * 2 + 1] = s;
+		}
+		var hotProfile = assistant.AnalyzeSamples(hotMix, 2, sampleRate);
+		var safeCtx = new MixAssistantHeadphoneContext(IntensityMode: MixAssistantIntensityMode.GentleSafe);
+		var solHotSafe = assistant.SolveEqCurve(hotProfile, "acg_vibrant", 0.90, 2.0, 2.0, true, safeCtx);
+
+		check(solHotSafe.PeakBoostDb <= 4.5 && Math.Abs(solHotSafe.RecommendedPreampDb) >= solHotSafe.PeakBoostDb,
+			$"Anti-distortion bounds PeakBoostDb ({solHotSafe.PeakBoostDb:F2} dB) & applies full Preamp ({solHotSafe.RecommendedPreampDb:F1} dB)");
+
+		var eqProc = new FurinaPlayerEqProcessor(sampleRate)
+		{
+			Enabled = true,
+			PreampDb = solHotSafe.RecommendedPreampDb
+		};
+		eqProc.SetBands(solHotSafe.Filters);
+		eqProc.ProcessInterleaved(hotMix, 0, hotMix.Length, 2);
+
+		float maxOut = 0f;
+		for (int i = 0; i < hotMix.Length; i++)
+		{
+			float a = MathF.Abs(hotMix[i]);
+			if (a > maxOut) maxOut = a;
+		}
+		check(maxOut <= 0.995f,
+			$"Processed hot mix stays completely clip-free (maxAbs={maxOut:F4} < 1.000)");
+	}
+
+	public static void TestPlaybackArrayCopyCrashFixAndCheckRepairAssistants(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Playback WaveBuffer Fix & Check/Repair Assistants ---");
+
+		// 1. Regression test: FurinaSrcSampleProvider inside NAudio SampleToWaveProvider (WaveBuffer byte[] alias)
+		bool waveBufferPassed = false;
+		double maxRms = 0.0;
+		try
+		{
+			var rawSrc = new SineSampleProvider(48000, 2, 1000f);
+			var cfg = new FurinaSrcRuntimeConfig
+			{
+				Mode = "family2x",
+				Quality = "balanced",
+				Filter1x = "furina-gauss-long",
+				FilterNx = "furina-hb",
+				Compute = "simd",
+				Dither = "off"
+			};
+			var furinaSrc = new FurinaPlayer.Audio.Output.FurinaSrcSampleProvider(rawSrc, 96000, cfg);
+			var waveProvider = new NAudio.Wave.SampleProviders.SampleToWaveProvider(furinaSrc);
+
+			byte[] pcmBytes = new byte[4096 * 2 * 4];
+			int readBytes = waveProvider.Read(pcmBytes, 0, pcmBytes.Length);
+			var wb = new NAudio.Wave.WaveBuffer(pcmBytes);
+			int floatsRead = readBytes / 4;
+			double sumSq = 0;
+			for (int i = 0; i < floatsRead; i++)
+			{
+				float s = wb.FloatBuffer[i];
+				sumSq += s * s;
+			}
+			maxRms = floatsRead > 0 ? Math.Sqrt(sumSq / floatsRead) : 0.0;
+			waveBufferPassed = readBytes > 0 && maxRms > 0.05;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine("WaveBuffer regression threw: " + ex);
+			waveBufferPassed = false;
+		}
+		check(waveBufferPassed, $"FurinaSrcSampleProvider + SampleToWaveProvider WaveBuffer alias avoids ArrayTypeMismatchException (rms={maxRms:F3})");
+
+		// 2. Runtime diagnostics snapshot & 6-stage pipeline inspection
+		using var engine = new AudioEngine();
+		var session = engine.Session;
+		session.ConfigureOutput(OutputMode.WasapiShared, "fake-device-id", null, 180);
+		var snap = session.GetRuntimeDiagnosticsSnapshot();
+		check(snap != null && snap.BufferMs == 180 && snap.OutputMode == OutputMode.WasapiShared,
+			"AudioSession.GetRuntimeDiagnosticsSnapshot reports active configuration accurately");
+
+		var settings = new AppSettings
+		{
+			OutputMode = OutputMode.WasapiShared,
+			OutputDeviceId = "non-existent-usb-dac-id",
+			BufferMilliseconds = 180,
+			FurinaSrcMode = "family2x",
+			Volume = 0,
+			Language = "en-US"
+		};
+		settings.MusicFolders.Add(@"C:\MusicTestPreserved");
+
+		var statusReport = FurinaPlayer.Audio.Output.AudioDiagnosticsService.InspectPlaybackStatus(settings, session);
+		check(statusReport.Stages.Count == 6
+			&& statusReport.AnomalyReasons.Count > 0
+			&& !string.IsNullOrWhiteSpace(statusReport.CopyableReportText),
+			$"InspectPlaybackStatus builds 6 stages and detects zero-vol / missing-device anomalies ({statusReport.AnomalyReasons.Count} anomalies)");
+
+		// 3. 6-step async Compatibility Audit with live progress callbacks
+		double lastProgress = 0.0;
+		int progressUpdates = 0;
+		var compatItems = FurinaPlayer.Audio.Output.AudioDiagnosticsService.RunCompatibilityAuditAsync(
+			settings,
+			session,
+			u =>
+			{
+				progressUpdates++;
+				lastProgress = u.Progress01;
+			}).GetAwaiter().GetResult();
+
+		check(compatItems.Count == 6 && progressUpdates >= 6 && Math.Abs(lastProgress - 1.0) < 0.01,
+			$"RunCompatibilityAuditAsync completes 6 compatibility items with 100% progress ({progressUpdates} updates)");
+
+		// 4. Repair action reset_all_audio restores safe audio defaults while preserving MusicFolders & UI language
+		string tempPath = Path.Combine(Path.GetTempPath(), $"furina_diag_test_{Guid.NewGuid():N}.json");
+		try
+		{
+			var tempSvc = new FurinaPlayer.Core.Services.SettingsService(tempPath);
+			settings.FurinaPlayerCompressorEnabled = true;
+			settings.OutputMode = OutputMode.WasapiExclusive;
+			settings.BufferMilliseconds = 40;
+			tempSvc.Save(settings);
+
+			int repairSteps = 0;
+			var repairRes = FurinaPlayer.Audio.Output.AudioDiagnosticsService.ExecuteRepairActionAsync(
+				"reset_all_audio",
+				settings,
+				tempSvc,
+				null,
+				(_, _) => repairSteps++).GetAwaiter().GetResult();
+
+			check(repairRes.Success
+				&& repairSteps >= 3
+				&& settings.OutputMode == OutputMode.WasapiShared
+				&& string.IsNullOrEmpty(settings.OutputDeviceId)
+				&& settings.BufferMilliseconds == 200
+				&& settings.Volume == 80
+				&& string.Equals(settings.FurinaSrcMode, "off", StringComparison.OrdinalIgnoreCase)
+				&& !settings.FurinaPlayerCompressorEnabled
+				&& settings.MusicFolders.Count == 1
+				&& settings.MusicFolders[0] == @"C:\MusicTestPreserved"
+				&& settings.Language == "en-US",
+				"ExecuteRepairActionAsync('reset_all_audio') resets unsafe audio overrides while keeping MusicFolders & Language intact");
+		}
+		finally
+		{
+			try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
+		}
+	}
+
+	public static void TestLazyLibVlcAndAsyncDiagnostics(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Lazy LibVLC Initialization & Off-Thread Diagnostics ---");
+
+		using var vlc = new LibVLCDecoder();
+		bool avail = vlc.IsAvailable;
+		var playerField = typeof(LibVLCDecoder).GetField("_player", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+		var libVlcField = typeof(LibVLCDecoder).GetField("_libVlc", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+		bool playerNullAfterCheck = playerField?.GetValue(vlc) == null && libVlcField?.GetValue(vlc) == null;
+		check(playerNullAfterCheck, $"LibVLCDecoder.IsAvailable (={avail}) does not eagerly initialize native LibVLC runtime");
+
+		using var engine = new AudioEngine();
+		var settings = new AppSettings();
+		var report = System.Threading.Tasks.Task.Run(() =>
+			FurinaPlayer.Audio.Output.AudioDiagnosticsService.InspectPlaybackStatus(settings, engine.Session)).GetAwaiter().GetResult();
+		check(report != null && report.Stages.Count == 6 && report.SignalChainBadges.Count > 0,
+			"AudioDiagnosticsService.InspectPlaybackStatus executes cleanly off-thread");
+	}
+
+	public static void TestPhase1And11Features(Action<bool, string> check)
+	{
+		// 1. FurinaNeoverbProcessor
+		var neoverb = new FurinaNeoverbProcessor();
+		neoverb.Enabled = true;
+		neoverb.DryWetPct = 45.0;
+		neoverb.AutoCutEnabled = true;
+		neoverb.Prepare(48000);
+		float[] nBuf = new float[2048];
+		for (int i = 0; i < 1024; i++)
+		{
+			float s = 0.5f * MathF.Sin(2f * MathF.PI * 440f * i / 48000f);
+			nBuf[i * 2] = s;
+			nBuf[i * 2 + 1] = s;
+		}
+		neoverb.ProcessInterleaved(nBuf, 0, nBuf.Length, 2);
+		bool nFinite = true;
+		bool nNonZero = false;
+		for (int i = 0; i < nBuf.Length; i++)
+		{
+			if (!float.IsFinite(nBuf[i])) { nFinite = false; break; }
+			if (MathF.Abs(nBuf[i]) > 1e-4f) nNonZero = true;
+		}
+		check(nFinite && nNonZero, "FurinaNeoverbProcessor produces finite non-zero stereo output");
+
+		// 2. FurinaRadiusTimePitchProcessor
+		float[] dryInput = new float[48000 * 2]; // 1 sec stereo
+		for (int i = 0; i < 48000; i++)
+		{
+			float s = 0.4f * MathF.Sin(2f * MathF.PI * 440f * i / 48000f);
+			dryInput[i * 2] = s;
+			dryInput[i * 2 + 1] = s;
+		}
+		float[] fastOut = FurinaRadiusTimePitchProcessor.RenderOffline(dryInput, 48000, 2, 1.5, 0.0);
+		float[] pitchOut = FurinaRadiusTimePitchProcessor.RenderOffline(dryInput, 48000, 2, 1.0, 4.0);
+		bool fastFinite = fastOut.Length > 0 && fastOut.Length < dryInput.Length && Array.TrueForAll(fastOut, float.IsFinite);
+		bool pitchFinite = pitchOut.Length > 0 && Array.TrueForAll(pitchOut, float.IsFinite);
+		check(fastFinite && pitchFinite, "FurinaRadiusTimePitchProcessor offline speed & pitch render valid");
+
+		// 3. FurinaSoundEffectsProcessor (all 33 catalog entries = off + 22 ECHO + 10 Audition)
+		var sfx = new FurinaSoundEffectsProcessor();
+		sfx.Prepare(48000);
+		bool allSfxOk = FurinaSoundEffectsProcessor.Catalog.Count == 33;
+		foreach (var preset in FurinaSoundEffectsProcessor.Catalog)
+		{
+			sfx.PresetId = preset.Id;
+			sfx.Intensity = 1.0;
+			float[] buf = new float[512];
+			for (int i = 0; i < 256; i++)
+			{
+				float s = 0.3f * MathF.Sin(2f * MathF.PI * 330f * i / 48000f);
+				buf[i * 2] = s;
+				buf[i * 2 + 1] = s;
+			}
+			sfx.ProcessInterleaved(buf, 0, buf.Length, 2);
+			if (!Array.TrueForAll(buf, float.IsFinite))
+			{
+				allSfxOk = false;
+				break;
+			}
+		}
+		check(allSfxOk, "FurinaSoundEffectsProcessor all 33 catalog presets (ECHO 22 + Audition 10 + off) finite");
+
+		// 4. AppSettings defaults
+		var defaults = new AppSettings();
+		check(defaults.RememberPlaybackProgress && defaults.AutoFallbackExclusiveToShared && !defaults.AutoPlayOnStartup,
+			"AppSettings new playback preference defaults verified");
+	}
+
+	public static void TestSession2Features(Action<bool, string> check)
+	{
+		// 1. HearingTestService pure-tone & audiogram analysis
+		float ampMax = FurinaPlayer.Audio.Services.HearingTestService.DbHlToSafeAmplitude(85.0);
+		check(ampMax <= 0.32f && ampMax > 0.01f, $"HearingTestService safe amplitude capped <= -10 dBFS (actual={ampMax:F4})");
+
+		var leftTone = FurinaPlayer.Audio.Services.HearingTestService.CreateOfflineProvider(1000.0, 40.0, FurinaPlayer.Audio.Services.HearingTestEar.Left, 48000);
+		float[] toneBuf = new float[4096];
+		leftTone.Read(toneBuf, 0, toneBuf.Length);
+		bool leftNonZero = false, rightZero = true, allFinite = true;
+		for (int i = 0; i < toneBuf.Length; i += 2)
+		{
+			if (!float.IsFinite(toneBuf[i]) || !float.IsFinite(toneBuf[i + 1])) { allFinite = false; break; }
+			if (MathF.Abs(toneBuf[i]) > 1e-4f) leftNonZero = true;
+			if (MathF.Abs(toneBuf[i + 1]) > 1e-6f) rightZero = false;
+		}
+		check(allFinite && leftNonZero && rightZero, "HearingTestService PureToneProvider isolates Left ear with finite waveform");
+
+		var res = FurinaPlayer.Audio.Services.HearingTestService.AnalyzeAudiogram(
+			new double[] { 10, 10, 15, 20, 30, 45, 55, 60 },
+			new double[] { 10, 15, 15, 20, 35, 50, 55, 65 });
+		check(res.RecommendedEqGains10.Length == 10 && System.Linq.Enumerable.Max(res.RecommendedEqGains10) <= 6.0 && res.RecommendedPreampDb <= 0.0 && res.GoldenEarScore is >= 10 and <= 100,
+			$"HearingTestService AudiogramResult computes safe 10-band EQ & score={res.GoldenEarScore}");
+
+		// 2. SettingsService backup export/import (new-device sanitization) & auto-backup
+		string tmpDir = Path.Combine(Path.GetTempPath(), "FurinaBackupTest_" + Guid.NewGuid().ToString("N"));
+		Directory.CreateDirectory(tmpDir);
+		try
+		{
+			string settingsPath = Path.Combine(tmpDir, "settings.json");
+			string backupPath = Path.Combine(tmpDir, "export.json");
+			var svc = new FurinaPlayer.Core.Services.SettingsService(settingsPath);
+			svc.Update(s =>
+			{
+				s.OutputDeviceId = "DEV-OLD-MACHINE-123";
+				s.DynamicWallpaperPath = @"Z:\nonexistent\wall.gif";
+				s.DynamicWallpaperEnabled = true;
+				s.AutoBackupEnabled = true;
+				s.AutoBackupMode = "launch_count";
+				s.AutoBackupLaunchInterval = 2;
+				s.PetLyricOpacityPercent = 85;
+			});
+			svc.ExportBackupToFile(backupPath);
+			check(File.Exists(backupPath), "SettingsService.ExportBackupToFile creates backup JSON");
+
+			string? b1 = svc.RunAutoBackupIfDue(); // counter=1 (not due)
+			string? b2 = svc.RunAutoBackupIfDue(); // counter=2 (due!)
+			check(b1 == null && b2 != null && File.Exists(b2), "SettingsService.RunAutoBackupIfDue triggers on launch_count interval");
+
+			var svc2 = new FurinaPlayer.Core.Services.SettingsService(Path.Combine(tmpDir, "settings_newdev.json"));
+			var imported = svc2.ImportBackupFromFile(backupPath, sanitizeForNewDevice: true);
+			check(imported.OutputDeviceId == null && !imported.DynamicWallpaperEnabled && imported.PetLyricOpacityPercent == 85,
+				"SettingsService.ImportBackupFromFile sanitizes device-specific paths/IDs while keeping preferences");
+
+			// 3. LibraryService WAL + ClearLibraryCacheAsync
+			string dbPath = Path.Combine(tmpDir, "lib.db");
+			using var lib = new FurinaPlayer.Core.Services.LibraryService(dbPath);
+			lib.InitializeAsync().GetAwaiter().GetResult();
+			string fakeCover = Path.Combine(lib.CoverDirectory, "test_cover.jpg");
+			Directory.CreateDirectory(lib.CoverDirectory);
+			File.WriteAllBytes(fakeCover, new byte[] { 1, 2, 3, 4 });
+			var cacheRes = lib.ClearLibraryCacheAsync().GetAwaiter().GetResult();
+			check(cacheRes.ClearedCoverFiles == 1 && cacheRes.FreedBytes == 4 && !File.Exists(fakeCover),
+				"LibraryService.ClearLibraryCacheAsync removes cached covers & compacts DB");
+		}
+		finally
+		{
+			try { Directory.Delete(tmpDir, true); } catch { }
+		}
+	}
+
+	public static void TestSession3Features(Action<bool, string> check)
+	{
+		// 1. High-fidelity WSOLA FurinaRadiusTimePitchProcessor (0.75x, 1.5x, +3 st)
+		float[] dry = new float[48000 * 2];
+		for (int i = 0; i < 48000; i++)
+		{
+			float s = 0.45f * MathF.Sin(2f * MathF.PI * 440f * i / 48000f);
+			dry[i * 2] = s;
+			dry[i * 2 + 1] = s;
+		}
+		float[] slow = FurinaRadiusTimePitchProcessor.RenderOffline(dry, 48000, 2, 0.75, 0.0);
+		float[] fast = FurinaRadiusTimePitchProcessor.RenderOffline(dry, 48000, 2, 1.50, 0.0);
+		float[] pitched = FurinaRadiusTimePitchProcessor.RenderOffline(dry, 48000, 2, 1.00, 3.0);
+		bool slowOk = slow.Length > dry.Length && Array.TrueForAll(slow, x => float.IsFinite(x) && MathF.Abs(x) <= 1.25f);
+		bool fastOk = fast.Length > 0 && fast.Length < dry.Length && Array.TrueForAll(fast, x => float.IsFinite(x) && MathF.Abs(x) <= 1.25f);
+		bool pitchOk = pitched.Length > 0 && Array.TrueForAll(pitched, x => float.IsFinite(x) && MathF.Abs(x) <= 1.25f);
+		check(slowOk && fastOk && pitchOk, "WSOLA FurinaRadiusTimePitchProcessor 0.75x / 1.50x / +3st finite & bounded");
+
+		// 2. PreviewPlayer exposes LiveNeoverb & LiveRadius
+		using var preview = new PreviewPlayer();
+		check(preview.LiveNeoverb != null && preview.LiveRadius != null, "PreviewPlayer exposes LiveNeoverb and LiveRadius");
+
+		// 3. AppSettings new fields
+		var cfg = new AppSettings();
+		check(cfg.FavoriteTrackOrder != null && cfg.PetLyricFontFilePath != null, "AppSettings FavoriteTrackOrder & PetLyricFontFilePath initialized");
+	}
+
+	private sealed class SineSampleProvider : NAudio.Wave.ISampleProvider
+	{
+		private readonly float _freqHz;
+		private long _frameIndex;
+		public NAudio.Wave.WaveFormat WaveFormat { get; }
+
+		public SineSampleProvider(int sampleRate, int channels, float freqHz)
+		{
+			_freqHz = freqHz;
+			WaveFormat = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channels);
+		}
+
+		public int Read(float[] buffer, int offset, int count)
+		{
+			int ch = WaveFormat.Channels;
+			int frames = count / ch;
+			for (int f = 0; f < frames; f++)
+			{
+				float s = 0.4f * MathF.Sin(2f * MathF.PI * _freqHz * _frameIndex / WaveFormat.SampleRate);
+				_frameIndex++;
+				for (int c = 0; c < ch; c++)
+				{
+					buffer[offset + f * ch + c] = s;
+				}
+			}
+			return frames * ch;
+		}
 	}
 }

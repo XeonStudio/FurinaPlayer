@@ -73,7 +73,7 @@ public sealed class InsightProAnalyzer
     public const int HistoryCapacity = 240;
     public const int MaxVectorPoints = 512;
 
-    private const int FftSize = 4096;
+    private const int FftSize = 8192;
     private const int FftHalf = FftSize / 2;
     private const float FloorLufs = -70.0f;
     private const float FloorDb = -110.0f;
@@ -191,9 +191,11 @@ public sealed class InsightProAnalyzer
 
     public InsightProAnalyzer()
     {
+        // 4-term Blackman-Harris window (-92 dB sidelobe rejection, iZotope-grade precision)
         for (int i = 0; i < FftSize; i++)
         {
-            _hannWindow[i] = 0.5 * (1.0 - Math.Cos(2.0 * Math.PI * i / (FftSize - 1)));
+            double x = 2.0 * Math.PI * i / (FftSize - 1);
+            _hannWindow[i] = 0.35875 - 0.48829 * Math.Cos(x) + 0.14128 * Math.Cos(2.0 * x) - 0.01168 * Math.Cos(3.0 * x);
         }
 
         for (int i = 0; i < FftSize / 2; i++)
@@ -791,8 +793,8 @@ public sealed class InsightProAnalyzer
 
         RunRadix2Fft(_fftReal, _fftImag, _cosTable, _sinTable);
 
-        // Convert to magnitude dBFS (Hann coherent gain = 0.5, single-sided = 2/N -> norm = N/4)
-        double invNorm = 4.0 / FftSize;
+        // Convert to magnitude dBFS (Blackman-Harris coherent gain = 0.35875, single-sided = 2/N)
+        double invNorm = 2.0 / (FftSize * 0.35875);
         double logMin = Math.Log10(20.0);
         double logMax = Math.Log10(20000.0);
         double nyquist = _sampleRate * 0.5;

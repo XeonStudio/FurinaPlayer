@@ -30,6 +30,7 @@ public class LibraryDbContext : DbContext
 			e.HasIndex((Track t) => t.Artist);
 			e.HasIndex((Track t) => t.Album);
 			e.HasIndex((Track t) => t.Title);
+			e.HasIndex((Track t) => new { t.Album, t.DiscNumber, t.TrackNumber });
 		});
 		modelBuilder.Entity((EntityTypeBuilder<Playlist> e) =>
 		{

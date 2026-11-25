@@ -275,6 +275,16 @@ public sealed class AppSettings
 
 	public bool PreventSystemSleep { get; set; } = true;
 
+	public bool RememberPlaybackProgress { get; set; } = true;
+
+	public bool AutoFallbackExclusiveToShared { get; set; } = true;
+
+	public bool AutoPlayOnStartup { get; set; } = false;
+
+	public string FurinaSoundEffectPreset { get; set; } = "off";
+
+	public double FurinaSoundEffectIntensity { get; set; } = 1.0;
+
 	// 流媒体平台登录凭据与状态 (NetEase 等)
 	public string? NeteaseCookie { get; set; }
 	public long NeteaseUserId { get; set; }
@@ -312,4 +322,32 @@ public sealed class AppSettings
 	public bool PetLyricsEnabled { get; set; } = true;
 	public int PetGifSpeedPercent { get; set; } = 100;
 	public int PetBubbleScalePercent { get; set; } = 100;
+	public string PetBubbleStyle { get; set; } = "classic";
+
+	// 桌面宠物歌词样式设置
+	public string PetLyricFontFamily { get; set; } = "Microsoft YaHei UI";
+	public string PetLyricFontFilePath { get; set; } = string.Empty;
+	public int PetLyricOpacityPercent { get; set; } = 100;
+	public string PetLyricColorHex { get; set; } = "#232B5C";
+	public bool PetLyricGradientEnabled { get; set; } = false;
+	public string PetLyricGradientEndColorHex { get; set; } = "#6366F1";
+	public bool PetLyricHighlightCurrent { get; set; } = true;
+	public string PetLyricHighlightColorHex { get; set; } = "#2563EB";
+
+	// 动态壁纸（测试性功能）
+	public bool DynamicWallpaperEnabled { get; set; } = false;
+	public string DynamicWallpaperPath { get; set; } = string.Empty;
+	public int DynamicWallpaperFps { get; set; } = 30;
+	public string DynamicWallpaperResolution { get; set; } = "1080p";
+
+	// 设置与首选项自动备份
+	public bool AutoBackupEnabled { get; set; } = false;
+	public string AutoBackupMode { get; set; } = "periodic"; // "periodic" | "launch_count"
+	public int AutoBackupPeriodDays { get; set; } = 7;
+	public int AutoBackupLaunchInterval { get; set; } = 5;
+	public int AppLaunchCounter { get; set; } = 0;
+	public string? LastAutoBackupUtc { get; set; }
+
+	// 音乐收藏自定义排序路径列表
+	public List<string> FavoriteTrackOrder { get; set; } = new();
 }

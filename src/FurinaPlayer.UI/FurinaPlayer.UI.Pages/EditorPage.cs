@@ -215,6 +215,7 @@ public sealed class EditorPage : Page, IComponentConnector
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private Button PreviewPlayButton;
+	private Button? _previewStopButton;
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
 	private bool _contentLoaded;
@@ -231,6 +232,11 @@ public sealed class EditorPage : Page, IComponentConnector
 		};
 		_previewTimer.Tick += OnPreviewTick;
 		_layout = new PanelLayoutController(PanelCanvas, 260.0, 150.0, 1500.0);
+		if (Waveform != null)
+		{
+			Waveform.PlayheadScrubbed += OnWaveformPlayheadScrubbed;
+			Waveform.SelectionScrubbed += OnWaveformSelectionScrubbed;
+		}
 		SetupUnifiedEditorLayout();
 		ApplyEditorLiquidGlass();
 		Loaded += (s, e) =>
@@ -613,6 +619,27 @@ public sealed class EditorPage : Page, IComponentConnector
 			UpdatePreviewButton();
 			_previewTimer.Start();
 		}
+	}
+
+	private void OnWaveformPlayheadScrubbed(double frac)
+	{
+		if (ViewModel == null) return;
+		double totalSec = ViewModel.Preview.Duration.TotalSeconds > 0.0
+			? ViewModel.Preview.Duration.TotalSeconds
+			: ViewModel.DurationSeconds;
+		if (totalSec <= 0.0) return;
+
+		TimeSpan pos = TimeSpan.FromSeconds(Math.Clamp(frac, 0.0, 1.0) * totalSec);
+		ViewModel.Preview.Position = pos;
+		PreviewSlider.Value = Math.Clamp(frac * 1000.0, 0.0, 1000.0);
+		PreviewTimeText.Text = $"{pos:mm\\:ss} / {TimeSpan.FromSeconds(totalSec):mm\\:ss}";
+	}
+
+	private void OnWaveformSelectionScrubbed(double startFrac, double endFrac)
+	{
+		if (ViewModel == null || ViewModel.DurationSeconds <= 0.0) return;
+		ViewModel.SelectionStartSeconds = Math.Clamp(startFrac, 0.0, 1.0) * ViewModel.DurationSeconds;
+		ViewModel.SelectionEndSeconds = Math.Clamp(endFrac, 0.0, 1.0) * ViewModel.DurationSeconds;
 	}
 
 	private void OnPreviewStopClick(object sender, RoutedEventArgs e)
@@ -1367,15 +1394,14 @@ public sealed class EditorPage : Page, IComponentConnector
 		}
 
 		AddNavSectionHeader(Loc.T("编辑与信息"), isFirst: true);
-		itemsStack.Children.Add(CreateNavButton("waveform", "\uE8C9", Loc.T("波形与选区"), Loc.T("采样信息 & 区间剪辑")));
+		itemsStack.Children.Add(CreateNavButton("waveform", "\uE8C9", Loc.T("波形编辑与响度"), Loc.T("波形选区 · 淡入淡出与标准化")));
 
 		AddNavSectionHeader(Loc.T("监测与分析"));
 		itemsStack.Children.Add(CreateNavButton("insight", "\uE9D2", Loc.T("Insight Pro 监测分析"), Loc.T("响度 / 电平 / 声场 / 频谱 / 语图")));
 
 		AddNavSectionHeader(Loc.T("调音与处理"));
 		itemsStack.Children.Add(CreateNavButton("eq", "\uE995", Loc.T("参数均衡 & Mix Assistant"), Loc.T("10段参数EQ · 智能混音 · AutoEq")));
-		itemsStack.Children.Add(CreateNavButton("effects", "\uE768", Loc.T("空间与变速"), Loc.T("混响、立体声宽与变速")));
-		itemsStack.Children.Add(CreateNavButton("fade", "\uE9D5", Loc.T("淡入淡出 / 标准化"), Loc.T("响度目标与包络曲线")));
+		itemsStack.Children.Add(CreateNavButton("effects", "\uE768", Loc.T("空间与变速"), Loc.T("空间声场工作台与高保真变速变调")));
 
 		AddNavSectionHeader(Loc.T("效果插件"));
 		itemsStack.Children.Add(CreateNavButton("vst", "\uE950", Loc.T("VST3 效果架"), Loc.T("Audition 式插件链")));
@@ -1392,7 +1418,8 @@ public sealed class EditorPage : Page, IComponentConnector
 	private static string NormalizeCategoryKey(string? key) => key?.ToLowerInvariant() switch
 	{
 		"insight" or "spectrum" or "phase" => "insight",
-		"waveform" or "eq" or "effects" or "fade" or "vst" => key.ToLowerInvariant(),
+		"fade" => "waveform",
+		"waveform" or "eq" or "effects" or "vst" => key.ToLowerInvariant(),
 		_ => "insight"
 	};
 
@@ -1602,47 +1629,114 @@ public sealed class EditorPage : Page, IComponentConnector
 			}
 			case "effects":
 			{
-				var grid = new Grid();
-				if (EffectsPanel != null)
+				var sv = new ScrollViewer
 				{
-					EffectsPanel.MaxWidth = 880.0;
-					EffectsPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
-					EffectsPanel.VerticalAlignment = VerticalAlignment.Stretch;
-					grid.Children.Add(EffectsPanel);
-				}
-				view = grid;
+					VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+					HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+				};
+				var stack = new StackPanel { Spacing = 14, Padding = new Thickness(4, 4, 8, 16) };
+
+				var neoverb = new NeoverbWorkbenchControl();
+				var liveNeoverb = ViewModel?.Preview.LiveNeoverb ?? new FurinaNeoverbProcessor();
+				neoverb.BindProcessor(liveNeoverb);
+				neoverb.ParametersChanged += () =>
+				{
+					if (ViewModel != null)
+					{
+						ViewModel.ReverbEnabled = liveNeoverb.Enabled;
+						ViewModel.ReverbMix = liveNeoverb.DryWetPct / 100.0;
+						ViewModel.SpatialPredelayMs = liveNeoverb.PreDelayMs;
+					}
+				};
+				stack.Children.Add(neoverb);
+
+				// High-Fidelity WSOLA Time-Stretch & Pitch-Shift Card
+				var radiusCard = new Border
+				{
+					CornerRadius = new CornerRadius(14),
+					Padding = new Thickness(16, 14, 16, 14),
+					Background = new SolidColorBrush(Windows.UI.Color.FromArgb(40, 255, 255, 255)),
+					BorderThickness = new Thickness(1),
+					BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(45, 148, 163, 184))
+				};
+				var rStack = new StackPanel { Spacing = 10 };
+				rStack.Children.Add(new TextBlock
+				{
+					Text = Loc.T("独立变速与变调工作台 (高保真 WSOLA)"),
+					FontSize = 15,
+					FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+				});
+
+				var rGrid = new Grid { ColumnSpacing = 16 };
+				rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+				rGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+				var speedSlider = new Slider
+				{
+					Header = Loc.T("播放倍速 (保调时间拉伸 0.50x – 2.00x)"),
+					Minimum = 0.50,
+					Maximum = 2.00,
+					StepFrequency = 0.05,
+					Value = ViewModel?.SpeedRatio ?? 1.0
+				};
+				speedSlider.ValueChanged += (_, e) =>
+				{
+					if (ViewModel != null)
+					{
+						ViewModel.SpeedRatio = e.NewValue;
+						ViewModel.Preview.LiveRadius.Speed = e.NewValue;
+					}
+					FurinaPlayer.Audio.AudioEngine.Instance?.SetPlaybackSpeed(e.NewValue);
+				};
+				Grid.SetColumn(speedSlider, 0);
+				rGrid.Children.Add(speedSlider);
+
+				var pitchSlider = new Slider
+				{
+					Header = Loc.T("音高移调 (保速升降半音 -12 – +12 st)"),
+					Minimum = -12.0,
+					Maximum = 12.0,
+					StepFrequency = 0.5,
+					Value = ViewModel?.PitchSemitones ?? 0.0
+				};
+				pitchSlider.ValueChanged += (_, e) =>
+				{
+					if (ViewModel != null)
+					{
+						ViewModel.PitchSemitones = e.NewValue;
+						ViewModel.Preview.LiveRadius.PitchSemitones = e.NewValue;
+					}
+					FurinaPlayer.Audio.AudioEngine.Instance?.SetPitchShiftSemitones(e.NewValue);
+				};
+				Grid.SetColumn(pitchSlider, 1);
+				rGrid.Children.Add(pitchSlider);
+
+				rStack.Children.Add(rGrid);
+				var resetRadiusBtn = new Button
+				{
+					Content = Loc.T("归位原速原调 (1.00x / 0 st)"),
+					CornerRadius = new CornerRadius(8),
+					Padding = new Thickness(12, 6, 12, 6)
+				};
+				resetRadiusBtn.Click += (_, _) =>
+				{
+					speedSlider.Value = 1.0;
+					pitchSlider.Value = 0.0;
+				};
+				rStack.Children.Add(resetRadiusBtn);
+				radiusCard.Child = rStack;
+				stack.Children.Add(radiusCard);
+
+				sv.Content = stack;
+				view = sv;
 				break;
 			}
-			case "fade":
-			{
-				var grid = new Grid();
-				if (FadePanel != null)
-				{
-					FadePanel.MaxWidth = 880.0;
-					FadePanel.HorizontalAlignment = HorizontalAlignment.Stretch;
-					FadePanel.VerticalAlignment = VerticalAlignment.Stretch;
-					grid.Children.Add(FadePanel);
-				}
-				view = grid;
-				break;
-			}
-			case "vst":
-			{
-				var grid = new Grid();
-				if (VstPanel != null)
-				{
-					VstPanel.MinHeight = 240.0;
-					VstPanel.VerticalAlignment = VerticalAlignment.Stretch;
-					grid.Children.Add(VstPanel);
-				}
-				view = grid;
-				break;
-			}
-			default: // "waveform"
+			default: // "waveform" (merged with Fade & Normalize)
 			{
 				var grid = new Grid { RowSpacing = 10.0 };
 				grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 				grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1.0, GridUnitType.Star) });
+				grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 				if (InfoPanel != null)
 				{
 					InfoPanel.VerticalAlignment = VerticalAlignment.Stretch;
@@ -1654,6 +1748,14 @@ public sealed class EditorPage : Page, IComponentConnector
 					_waveformSectionGrid.VerticalAlignment = VerticalAlignment.Stretch;
 					Grid.SetRow(_waveformSectionGrid, 1);
 					grid.Children.Add(_waveformSectionGrid);
+				}
+				if (FadePanel != null)
+				{
+					FadePanel.MaxWidth = double.PositiveInfinity;
+					FadePanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+					FadePanel.VerticalAlignment = VerticalAlignment.Top;
+					Grid.SetRow(FadePanel, 2);
+					grid.Children.Add(FadePanel);
 				}
 				view = grid;
 				break;
@@ -1862,8 +1964,19 @@ public sealed class EditorPage : Page, IComponentConnector
 
 		if (PreviewPlayButton != null)
 		{
-			PreviewPlayButton.CornerRadius = new CornerRadius(14.0);
+			PreviewPlayButton.Width = 38;
+			PreviewPlayButton.Height = 38;
+			PreviewPlayButton.Padding = new Thickness(0);
+			PreviewPlayButton.CornerRadius = new CornerRadius(12.0);
 			LiquidGlassEngine.AttachInteractiveLiquidGlass(PreviewPlayButton, LiquidGlassVariant.AccentLensed, isDark, enablePointerTracking: true);
+		}
+		if (_previewStopButton != null)
+		{
+			_previewStopButton.Width = 38;
+			_previewStopButton.Height = 38;
+			_previewStopButton.Padding = new Thickness(0);
+			_previewStopButton.CornerRadius = new CornerRadius(12.0);
+			FluentIconFactory.SetButtonFluentIcon(_previewStopButton, FluentIconKind.Stop, null, 20);
 		}
 	}
 
@@ -2748,7 +2861,8 @@ public sealed class EditorPage : Page, IComponentConnector
 			PreviewPlayButton.Click += OnPreviewPlayClick;
 			break;
 		case 52:
-			target.As<Button>().Click += OnPreviewStopClick;
+			_previewStopButton = target.As<Button>();
+			_previewStopButton.Click += OnPreviewStopClick;
 			break;
 		case 53:
 			target.As<Button>().Click += OnOpenClick;

@@ -262,7 +262,12 @@ public static class FluentIconFactory
                 Width = s,
                 Height = s,
                 Stretch = Stretch.Uniform,
-                Source = new BitmapImage(new Uri(logoPath))
+                Source = new BitmapImage
+                {
+                    DecodePixelType = DecodePixelType.Logical,
+                    DecodePixelWidth = Math.Max(32, (int)Math.Ceiling(s * 2)),
+                    UriSource = new Uri(logoPath)
+                }
             };
             root.Children.Add(img);
             return;

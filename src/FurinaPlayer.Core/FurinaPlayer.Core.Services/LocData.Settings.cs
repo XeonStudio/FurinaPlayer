@@ -506,6 +506,15 @@ public static partial class Loc
 			"QQ Music メタデータ＆カバー API（非公式）",
 			"QQ 뮤직 메타데이터 및 커버 API (비공식)");
 		Add(
+			"搜索设置...",
+			"搜尋設定...",
+			"Search settings...",
+			"Rechercher...",
+			"Поиск настроек...",
+			"Buscar ajustes...",
+			"設定を検索...",
+			"설정 검색...");
+		Add(
 			"FFmpeg（无损音频格式转换）",
 			"FFmpeg（無損音訊格式轉換）",
 			"FFmpeg (Lossless Audio Format Conversion)",

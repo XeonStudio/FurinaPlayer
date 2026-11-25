@@ -121,6 +121,38 @@ public sealed class PreviewPlayer : IDisposable
 		}
 	}
 
+	private sealed class LiveEffectsSampleProvider : ISampleProvider
+	{
+		private readonly ISampleProvider _source;
+		private readonly FurinaNeoverbProcessor _neoverb;
+		private readonly FurinaRadiusTimePitchProcessor _radius;
+
+		public WaveFormat WaveFormat => _source.WaveFormat;
+
+		public LiveEffectsSampleProvider(ISampleProvider source, FurinaNeoverbProcessor neoverb, FurinaRadiusTimePitchProcessor radius)
+		{
+			_source = source;
+			_neoverb = neoverb;
+			_radius = radius;
+		}
+
+		public int Read(float[] buffer, int offset, int count)
+		{
+			int read = _radius.IsActive
+				? _radius.ProcessPull(_source, buffer, offset, count)
+				: _source.Read(buffer, offset, count);
+
+			if (read > 0 && _neoverb.Enabled)
+			{
+				_neoverb.ProcessInterleaved(buffer, offset, read, WaveFormat.Channels);
+			}
+			return read;
+		}
+	}
+
+	public FurinaNeoverbProcessor LiveNeoverb { get; } = new();
+	public FurinaRadiusTimePitchProcessor LiveRadius { get; } = new();
+
 	private readonly object _lock = new object();
 	private IWavePlayer? _output;
 	private FloatSampleProvider? _source;
@@ -640,6 +672,9 @@ public sealed class PreviewPlayer : IDisposable
 		}
 
 		_source = new FloatSampleProvider(samples, _channels, _sampleRate, _volume, _lock);
+		LiveNeoverb.Prepare(_sampleRate);
+		LiveRadius.Prepare(_sampleRate, _channels);
+		ISampleProvider outputProvider = new LiveEffectsSampleProvider(_source, LiveNeoverb, LiveRadius);
 
 		if (_resumePosition > TimeSpan.Zero)
 		{
@@ -658,7 +693,7 @@ public sealed class PreviewPlayer : IDisposable
 		{
 			var wasapi = new WasapiOut(NAudio.CoreAudioApi.AudioClientShareMode.Shared, 100);
 			wasapi.PlaybackStopped += OnPlaybackStopped;
-			wasapi.Init(_source.ToWaveProvider());
+			wasapi.Init(outputProvider.ToWaveProvider());
 			_output = wasapi;
 		}
 		catch
@@ -668,7 +703,7 @@ public sealed class PreviewPlayer : IDisposable
 				DesiredLatency = 150
 			};
 			waveOut.PlaybackStopped += OnPlaybackStopped;
-			waveOut.Init(new SafeClampedWaveProvider16(_source));
+			waveOut.Init(new SafeClampedWaveProvider16(outputProvider));
 			_output = waveOut;
 		}
 

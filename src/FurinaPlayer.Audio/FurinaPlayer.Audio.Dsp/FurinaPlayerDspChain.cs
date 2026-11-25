@@ -18,6 +18,8 @@ public sealed class FurinaPlayerDspChain
 	public FurinaPlayerDeEsserProcessor DeEsser { get; }
 	public FurinaPlayerLimiterProcessor Limiter { get; }
 	public FurinaPlayerSpatialProcessor Spatial { get; }
+	public FurinaNeoverbProcessor Neoverb { get; }
+	public FurinaSoundEffectsProcessor SoundEffects { get; }
 	public FurinaPlayerHeadroomProcessor Headroom { get; }
 	public FurinaPlayerPcmResampler Resampler { get; }
 	public FurinaPlayerSdmModulator SdmModulator { get; }
@@ -41,6 +43,8 @@ public sealed class FurinaPlayerDspChain
 		DeEsser = new FurinaPlayerDeEsserProcessor(sampleRate);
 		Limiter = new FurinaPlayerLimiterProcessor(sampleRate);
 		Spatial = new FurinaPlayerSpatialProcessor();
+		Neoverb = new FurinaNeoverbProcessor();
+		SoundEffects = new FurinaSoundEffectsProcessor();
 		Headroom = new FurinaPlayerHeadroomProcessor();
 		Resampler = new FurinaPlayerPcmResampler();
 		SdmModulator = new FurinaPlayerSdmModulator();
@@ -60,6 +64,8 @@ public sealed class FurinaPlayerDspChain
 		DeEsser.Prepare(_sampleRate);
 		Limiter.Prepare(_sampleRate);
 		Spatial.Prepare(_sampleRate);
+		Neoverb.Prepare(_sampleRate);
+		SoundEffects.Prepare(_sampleRate);
 		Headroom.Prepare(_sampleRate);
 		Resampler.Prepare((int)_sampleRate);
 		SdmModulator.Reset();
@@ -75,6 +81,8 @@ public sealed class FurinaPlayerDspChain
 		DeEsser.Reset();
 		Limiter.Reset();
 		Spatial.Reset();
+		Neoverb.Reset();
+		SoundEffects.Reset();
 		Headroom.Reset();
 		Resampler.Reset();
 		SdmModulator.Reset();
@@ -113,9 +121,11 @@ public sealed class FurinaPlayerDspChain
 				case DspRackModuleId.Crossfeed:
 					Spatial.ProcessCrossfeed(buffer, offset, count, channels);
 					Spatial.ProcessVirtualStage(buffer, offset, count, channels);
+					Neoverb.ProcessInterleaved(buffer, offset, count, channels);
 					break;
 				case DspRackModuleId.StereoField:
 					Spatial.ProcessStereoField(buffer, offset, count, channels);
+					SoundEffects.ProcessInterleaved(buffer, offset, count, channels);
 					break;
 				case DspRackModuleId.ChannelMatrix:
 					Spatial.ProcessChannelMatrix(buffer, offset, count, channels);
@@ -125,7 +135,7 @@ public sealed class FurinaPlayerDspChain
 					Headroom.ProcessInterleaved(buffer, offset, count, channels);
 					break;
 				case DspRackModuleId.Resampler:
-					// Resampler applies when sample rate conversion is engaged
+					// Live variable-rate multi-stage resampling executes via FurinaSrcSampleProvider
 					break;
 				case DspRackModuleId.SdmModulator:
 					// SDM engages for DSD streaming mode

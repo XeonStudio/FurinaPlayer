@@ -1,11 +1,15 @@
 # 运行时日志（应用启动时自动生成）
 sw_*.log
 *.log
+CrashReports/
 
-# 本地用户数据与敏感凭据防护
+# 本地用户数据、搜索历史与敏感凭据防护
 *.sqlite
+*.sqlite-*
 *.db
+*.db-*
 settings.json
+*history*
 *.cookie
 *.cookies
 *.token
@@ -26,4 +30,5 @@ src/**/bin/
 src/**/obj/
 .vs/
 *.WebView2/
-
+*.user
+*.suo
