@@ -2844,6 +2844,41 @@ public static class NewFeatureTests
 		check(cfg.FavoriteTrackOrder != null && cfg.PetLyricFontFilePath != null, "AppSettings FavoriteTrackOrder & PetLyricFontFilePath initialized");
 	}
 
+	public static void TestEditorChunkedWavAndMemoryCleanup(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing Chunked AudioEditService.LoadWav/ExportWav & PreviewPlayer.Unload ---");
+		string tmpWav = Path.Combine(Path.GetTempPath(), $"furina_chunk_test_{Guid.NewGuid():N}.wav");
+		try
+		{
+			const int sr = 44100;
+			const int ch = 2;
+			const int totalSamples = 40000; // crosses multiple 16,384-float SOH chunks
+			var src = new float[totalSamples];
+			for (int i = 0; i < totalSamples; i++)
+			{
+				src[i] = 0.5f * MathF.Sin(2f * MathF.PI * 440f * (i / ch) / sr);
+			}
+			AudioEditService.ExportWav(tmpWav, src, sr, ch);
+			var (loaded, fmt) = AudioEditService.LoadWav(tmpWav);
+			float maxErr = 0f;
+			for (int i = 0; i < Math.Min(src.Length, loaded.Length); i++)
+			{
+				maxErr = MathF.Max(maxErr, MathF.Abs(src[i] - loaded[i]));
+			}
+			check(loaded.Length == totalSamples && fmt.SampleRate == sr && fmt.Channels == ch && maxErr < 1e-4f,
+				$"Chunked ExportWav/LoadWav round-trip exact ({loaded.Length} samples, maxErr={maxErr:E2})");
+
+			using var preview = new PreviewPlayer();
+			preview.Load(loaded, sr, ch);
+			preview.Unload();
+			check(!preview.IsPlaying, "PreviewPlayer.Unload clears state cleanly without throwing");
+		}
+		finally
+		{
+			try { if (File.Exists(tmpWav)) File.Delete(tmpWav); } catch { }
+		}
+	}
+
 	private sealed class SineSampleProvider : NAudio.Wave.ISampleProvider
 	{
 		private readonly float _freqHz;

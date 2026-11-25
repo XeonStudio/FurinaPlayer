@@ -261,6 +261,19 @@ public sealed class PreviewPlayer : IDisposable
 	public event Action<RenderProgress>? RenderProgress;
 	public event Action? PlaybackStopped;
 
+	public void Unload()
+	{
+		lock (_lock)
+		{
+			StopLocked();
+			_resumePosition = TimeSpan.Zero;
+			_restartScheduled = false;
+			_samples = Array.Empty<float>();
+			_source = null;
+			_settingsDirty = false;
+		}
+	}
+
 	public void Load(float[] samples, int sampleRate, int channels)
 	{
 		lock (_lock)

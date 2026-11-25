@@ -1448,6 +1448,12 @@ public class EditorViewModel : ObservableObject
 		FilePath = path;
 		FileName = Path.GetFileName(path);
 		StatusText = Loc.T("正在读取…");
+		// Release any previous track's LOH PCM arrays before decoding the new file
+		_samples = Array.Empty<float>();
+		_undoStack.Clear();
+		_redoStack.Clear();
+		UpdateHistoryState();
+		Preview.Unload();
 		try
 		{
 			await Task.Run(() =>
@@ -1781,13 +1787,38 @@ public class EditorViewModel : ObservableObject
 
 	private void PushUndo(EditSnapshot snapshot)
 	{
+		const long MaxUndoMemoryBytes = 256L * 1024 * 1024;
 		_undoStack.Add(snapshot);
-		if (_undoStack.Count > 15)
+		long totalBytes = 0;
+		for (int i = 0; i < _undoStack.Count; i++)
 		{
+			totalBytes += (long)_undoStack[i].Samples.Length * sizeof(float);
+		}
+		while (_undoStack.Count > 15 || (_undoStack.Count > 1 && totalBytes > MaxUndoMemoryBytes))
+		{
+			totalBytes -= (long)_undoStack[0].Samples.Length * sizeof(float);
 			_undoStack.RemoveAt(0);
 		}
 		_redoStack.Clear();
 		UpdateHistoryState();
+	}
+
+	public void ReleaseBuffersIfUnmodified()
+	{
+		if (_undoStack.Count > 0 || _redoStack.Count > 0 || _samples.Length == 0)
+		{
+			return;
+		}
+		Preview.Unload();
+		_samples = Array.Empty<float>();
+		FilePath = string.Empty;
+		FileName = string.Empty;
+		DurationSeconds = 0.0;
+		SelectionStartSeconds = 0.0;
+		SelectionEndSeconds = 0.0;
+		InsightAnalyzer.Reset();
+		System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
+		GC.Collect(2, GCCollectionMode.Optimized, blocking: false, compacting: true);
 	}
 
 	private async Task RestoreSnapshotAsync(EditSnapshot snap)

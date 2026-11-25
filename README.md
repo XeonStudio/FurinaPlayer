@@ -8,14 +8,18 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D4?style=flat-square&logo=windows)](https://github.com/XeonStudio/FurinaPlayer)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20%7C%20WinUI%203-512BD4?style=flat-square&logo=dotnet)](https://github.com/XeonStudio/FurinaPlayer)
-[![Version](https://img.shields.io/badge/Release-v1.30.12.0012.1125-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
+[![Version](https://img.shields.io/badge/Release-v1.31.01.0002.1125-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-22C55E?style=flat-square)](LICENSE)
 
 </div>
 
 ---
 
-## ✨ 近期更新亮点（v1.30.12.0012.1125 · 2026-11-25）
+## ✨ 近期更新亮点（v1.31.01.0002.1125 · 2026-11-25）
+
+- **🧩 音频编辑器 VST3 效果架路由修复 & LOH 内存优化**
+  - 修复点击「VST3 效果架」侧栏页签时错误回落到波形编辑页面的问题。
+  - 重构 `AudioEditService.LoadWav/ExportWav` 为 64 KB SOH 分块读写，消除高解析音频解码时 `List<float>` 倍增扩容导致的 3 倍大对象堆（LOH）峰值放大，并在 `EditorViewModel` 切换音轨、限制撤回栈上限（256 MB）及离开编辑器未修改时及时释放 PCM 缓存与压缩 LOH。
 
 - **🎧 OPRA 600 耳机知识库 & Mix Assistant V2**
   - 按佩戴方式、发音单元、调音风格各收录 200 款热门与旗舰耳机参数；重构 Mix Assistant 智能混音平衡，增强曲风自动识别、耳机风格匹配与防削波保护。
@@ -64,7 +68,7 @@
 
 ## 📦 下载与运行
 
-1. 前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载最新的 `FurinaPlayer-v1.30.12.0012.1125-win-x64.zip`。
+1. 前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载最新的 `FurinaPlayer-v1.31.01.0002.1125-win-x64.zip`。
 2. 解压后直接双击运行 `FurinaPlayer.exe`（已包含自包含运行时，无需额外安装）。
 3. **系统要求**：Windows 10 1809（Build 17763）或 Windows 11，64 位（x64）系统。
 
@@ -74,7 +78,7 @@
 # 编译 Release x64 主程序
 dotnet build src\FurinaPlayer\FurinaPlayer.csproj -c Release -p:Platform=x64
 
-# 运行全部单元测试（245 项）
+# 运行全部单元测试（247 项）
 dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Release -p:Platform=x64
 ```
 
@@ -86,7 +90,7 @@ dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Rel
 - `src/FurinaPlayer.UI`：页面（首页/专辑/歌曲/音乐收藏、正在播放、音频编辑、DSP 机架、工具箱、设置）与 ViewModel
 - `src/FurinaPlayer.Core`：曲库管理、元数据/封面/歌词服务、多语言本地化与设置持久化
 - `src/FurinaPlayer.Audio`：NAudio / LibVLC 音频引擎与全套纯自研 DSP 处理器（含 WSOLA、Mix Assistant V2、空间声场、8192 点频谱）
-- `src/FurinaPlayerDspTests`：DSP 与核心功能自动化测试套件（245 / 245 通过）
+- `src/FurinaPlayerDspTests`：DSP 与核心功能自动化测试套件（247 / 247 通过）
 
 ---
 

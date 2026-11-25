@@ -112,47 +112,66 @@ public static class AudioEditService
 
 	public static void ExportWav(string filePath, float[] samples, int sampleRate, int channels)
 	{
-		string directoryName = Path.GetDirectoryName(filePath);
+		string? directoryName = Path.GetDirectoryName(filePath);
 		if (!string.IsNullOrEmpty(directoryName))
 		{
 			Directory.CreateDirectory(directoryName);
 		}
 		using WaveFileWriter waveFileWriter = new WaveFileWriter(filePath, new WaveFormat(sampleRate, 16, channels));
-		byte[] array = new byte[samples.Length * 2];
-		for (int i = 0; i < samples.Length; i++)
+		const int chunkSamples = 16384;
+		byte[] buffer = new byte[chunkSamples * 2];
+		int offset = 0;
+		while (offset < samples.Length)
 		{
-			short num = (short)Math.Clamp((int)(samples[i] * 32767f), -32768, 32767);
-			array[i * 2] = (byte)(num & 0xFF);
-			array[i * 2 + 1] = (byte)((num >> 8) & 0xFF);
+			int count = Math.Min(chunkSamples, samples.Length - offset);
+			for (int i = 0; i < count; i++)
+			{
+				short num = (short)Math.Clamp((int)(samples[offset + i] * 32767f), -32768, 32767);
+				buffer[i * 2] = (byte)(num & 0xFF);
+				buffer[i * 2 + 1] = (byte)((num >> 8) & 0xFF);
+			}
+			waveFileWriter.Write(buffer, 0, count * 2);
+			offset += count;
 		}
-		waveFileWriter.Write(array, 0, array.Length);
 	}
 
 	public static (float[] Samples, WaveFormat Format) LoadWav(string filePath)
 	{
 		using SafeAudioFileReader audioFileReader = new SafeAudioFileReader(filePath);
 		WaveFormat waveFormat = audioFileReader.WaveFormat;
-		int estimatedSamples = 0;
-		if (audioFileReader.Length > 0 && waveFormat.BitsPerSample > 0)
+
+		// Read into 64 KB (16,384-float) SOH chunks (< 85 KB LOH threshold) to avoid
+		// 3x LOH amplification from List<float> doubling + ToArray() on Hi-Res FLAC/WAV.
+		const int chunkSize = 16384;
+		var chunks = new List<(float[] Data, int Count)>(128);
+		long totalSamples = 0;
+		while (true)
 		{
-			estimatedSamples = (int)(audioFileReader.Length / (waveFormat.BitsPerSample / 8));
-		}
-		else if (audioFileReader.TotalTime.TotalSeconds > 0)
-		{
-			estimatedSamples = (int)(audioFileReader.TotalTime.TotalSeconds * waveFormat.SampleRate * waveFormat.Channels);
+			float[] chunk = new float[chunkSize];
+			int read = audioFileReader.Read(chunk, 0, chunkSize);
+			if (read <= 0)
+			{
+				break;
+			}
+			chunks.Add((chunk, read));
+			totalSamples += read;
 		}
 
-		var samples = new List<float>(estimatedSamples > 0 ? estimatedSamples : 44100 * 2 * 60);
-		float[] buffer = new float[16384];
-		int read;
-		while ((read = audioFileReader.Read(buffer, 0, buffer.Length)) > 0)
+		if (totalSamples == 0)
 		{
-			for (int k = 0; k < read; k++)
-			{
-				samples.Add(buffer[k]);
-			}
+			return (Samples: Array.Empty<float>(), Format: waveFormat);
 		}
-		return (Samples: samples.ToArray(), Format: waveFormat);
+
+		float[] result = new float[totalSamples];
+		long dst = 0;
+		for (int i = 0; i < chunks.Count; i++)
+		{
+			var (data, count) = chunks[i];
+			Array.Copy(data, 0, result, dst, count);
+			dst += count;
+			chunks[i] = default;
+		}
+		return (Samples: result, Format: waveFormat);
 	}
 
 	private static double FadeCurve(double t, string curve)

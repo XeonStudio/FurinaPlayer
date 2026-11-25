@@ -61,6 +61,7 @@ class Program
 		NewFeatureTests.TestPhase1And11Features(Assert);
 		NewFeatureTests.TestSession2Features(Assert);
 		NewFeatureTests.TestSession3Features(Assert);
+		NewFeatureTests.TestEditorChunkedWavAndMemoryCleanup(Assert);
 		NewFeatureTests.TestStreamingNonBlockingAndCancellation(Assert);
 		NewFeatureTests.TestNeteaseQrCookieMergeAndFallback(Assert);
 		NewFeatureTests.TestFormatConverterAndDecoders(Assert);

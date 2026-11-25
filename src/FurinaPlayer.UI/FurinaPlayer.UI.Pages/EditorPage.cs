@@ -95,6 +95,8 @@ public sealed class EditorPage : Page, IComponentConnector
 
 	private bool? _lastPreviewButtonPlaying;
 
+	private bool _reverbPresetWired;
+
 	private sealed class VstSwitchTracker
 	{
 		public Vst3PluginState? Plugin;
@@ -294,13 +296,17 @@ public sealed class EditorPage : Page, IComponentConnector
 		UpdateInsightUi();
 		UpgradeEditorChromeIcons();
 		ApplyEditorLiquidGlass();
-		ReverbPresetCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
+		if (!_reverbPresetWired)
 		{
-			if (ReverbPresetCombo.SelectedItem is ComboBoxItem { Content: string content })
+			_reverbPresetWired = true;
+			ReverbPresetCombo.SelectionChanged += (object _, SelectionChangedEventArgs _) =>
 			{
-				ViewModel.ReverbPreset = content;
-			}
-		};
+				if (ReverbPresetCombo.SelectedItem is ComboBoxItem { Content: string content })
+				{
+					ViewModel.ReverbPreset = content;
+				}
+			};
+		}
 		if (string.IsNullOrEmpty(ViewModel.FilePath))
 		{
 			await ViewModel.TryAutoLoadCurrentTrackAsync();
@@ -1731,6 +1737,28 @@ public sealed class EditorPage : Page, IComponentConnector
 				view = sv;
 				break;
 			}
+			case "vst":
+			{
+				var vstHost = new Grid
+				{
+					HorizontalAlignment = HorizontalAlignment.Stretch,
+					VerticalAlignment = VerticalAlignment.Stretch
+				};
+				if (VstPanel != null)
+				{
+					if (VstPanel.Parent is Panel oldParent)
+					{
+						oldParent.Children.Remove(VstPanel);
+					}
+					VstPanel.MaxWidth = double.PositiveInfinity;
+					VstPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+					VstPanel.VerticalAlignment = VerticalAlignment.Stretch;
+					VstPanel.Margin = new Thickness(0);
+					vstHost.Children.Add(VstPanel);
+				}
+				view = vstHost;
+				break;
+			}
 			default: // "waveform" (merged with Fade & Normalize)
 			{
 				var grid = new Grid { RowSpacing = 10.0 };
@@ -2682,6 +2710,7 @@ public sealed class EditorPage : Page, IComponentConnector
 		_previewTimer.Stop();
 		ViewModel?.Preview.Stop();
 		CloseEditorVstWindow();
+		ViewModel?.ReleaseBuffersIfUnmodified();
 	}
 
 	[GeneratedCode("Microsoft.UI.Xaml.Markup.Compiler", " 3.0.0.2409")]
