@@ -1941,14 +1941,7 @@ public sealed class MainWindow : Window, IComponentConnector
 
 	private void CheckCommandLineAndRunAutoCapture()
 	{
-		string[] args = Environment.GetCommandLineArgs();
-		if (args.Any(a => a.Equals("--capture-pages", StringComparison.OrdinalIgnoreCase)))
-		{
-			DispatcherQueue.TryEnqueue(async () =>
-			{
-				await RunAutoCaptureSequenceAsync();
-			});
-		}
+		// Handled centrally by App.CapturePagesAsync.
 	}
 
 	private async Task RunAutoCaptureSequenceAsync()

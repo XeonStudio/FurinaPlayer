@@ -2969,6 +2969,20 @@ public static class NewFeatureTests
 		}
 	}
 
+	public static void TestSystemFontEnumeration(Action<bool, string> check)
+	{
+		Console.WriteLine("\n--- Testing System Font Enumeration for Lyrics ---");
+		var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (string family in SkiaSharp.SKFontManager.Default.FontFamilies)
+		{
+			if (!string.IsNullOrWhiteSpace(family))
+			{
+				seen.Add(family.Trim());
+			}
+		}
+		check(seen.Count > 10, $"SKFontManager.Default enumerated {seen.Count} installed system font families");
+	}
+
 	private sealed class SineSampleProvider : NAudio.Wave.ISampleProvider
 	{
 		private readonly float _freqHz;

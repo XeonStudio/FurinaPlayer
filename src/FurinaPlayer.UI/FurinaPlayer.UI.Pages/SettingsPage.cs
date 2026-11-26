@@ -862,6 +862,7 @@ public sealed partial class SettingsPage : Page, IComponentConnector
 
 			var navBtn = new Button
 			{
+				Tag = "__fluent_upgraded",
 				HorizontalAlignment = HorizontalAlignment.Stretch,
 				HorizontalContentAlignment = HorizontalAlignment.Left,
 				CornerRadius = new CornerRadius(10),

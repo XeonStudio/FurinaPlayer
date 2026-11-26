@@ -8,6 +8,7 @@ using Microsoft.UI;
 using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
@@ -32,7 +33,10 @@ public sealed partial class ConverterPage
 	private Button? _htEarBothBtn;
 	private readonly List<Button> _htFreqButtons = new();
 	private Button? _htPlayStopBtn;
-	private Slider? _htDbSlider;
+	private Grid? _htSliderHost;
+	private Border? _htSliderFill;
+	private Border? _htSliderThumb;
+	private bool _htSliderDragging;
 	private TextBlock? _htDbLabel;
 	private TextBlock? _htScoreTb;
 	private TextBlock? _htGradeTb;
@@ -40,7 +44,6 @@ public sealed partial class ConverterPage
 	private TextBlock? _htEqPreviewTb;
 	private TextBlock? _htStatusTb;
 	private SKXamlCanvas? _audiogramCanvas;
-	private bool _suppressHtSlider;
 
 	private FrameworkElement CreateHearingTestView()
 	{
@@ -217,27 +220,114 @@ public sealed partial class ConverterPage
 		dbHeader.Children.Add(_htDbLabel);
 		cStack.Children.Add(dbHeader);
 
-		_htDbSlider = new Slider
+		_htSliderHost = new Grid
 		{
-			Minimum = 0,
-			Maximum = 85,
-			StepFrequency = 5,
-			Value = _htCurrentDbHl,
+			Height = 36,
 			HorizontalAlignment = HorizontalAlignment.Stretch,
-			IsThumbToolTipEnabled = false
+			Background = new SolidColorBrush(Colors.Transparent)
 		};
-		_htDbSlider.BringIntoViewRequested += (_, args) => { args.Handled = true; };
-		_htDbSlider.ValueChanged += (_, e) =>
+
+		var sliderTrack = new Border
 		{
-			if (_suppressHtSlider) return;
-			_htCurrentDbHl = Math.Round(e.NewValue / 5.0) * 5.0;
-			if (_htDbLabel != null) _htDbLabel.Text = $"{_htCurrentDbHl:0} dB HL";
-			if (_hearingService?.IsPlaying == true)
-			{
-				_hearingService.UpdateTone(HearingTestService.TestFrequenciesHz[_htFreqIndex], _htCurrentDbHl, _htEar);
-			}
+			Height = 6,
+			CornerRadius = new CornerRadius(3),
+			VerticalAlignment = VerticalAlignment.Center,
+			HorizontalAlignment = HorizontalAlignment.Stretch,
+			Background = new SolidColorBrush(Color.FromArgb(42, 100, 116, 139))
 		};
-		cStack.Children.Add(_htDbSlider);
+		_htSliderHost.Children.Add(sliderTrack);
+
+		_htSliderFill = new Border
+		{
+			Height = 6,
+			CornerRadius = new CornerRadius(3),
+			VerticalAlignment = VerticalAlignment.Center,
+			HorizontalAlignment = HorizontalAlignment.Left,
+			Width = 0,
+			Background = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235))
+		};
+		_htSliderHost.Children.Add(_htSliderFill);
+
+		_htSliderThumb = new Border
+		{
+			Width = 20,
+			Height = 20,
+			CornerRadius = new CornerRadius(10),
+			VerticalAlignment = VerticalAlignment.Center,
+			HorizontalAlignment = HorizontalAlignment.Left,
+			Background = new SolidColorBrush(Colors.White),
+			BorderBrush = new SolidColorBrush(Color.FromArgb(255, 37, 99, 235)),
+			BorderThickness = new Thickness(2.5)
+		};
+		_htSliderHost.Children.Add(_htSliderThumb);
+
+		void UpdateHtSliderFromPointer(double pointerX)
+		{
+			if (_htSliderHost == null) return;
+			double usableWidth = Math.Max(1.0, _htSliderHost.ActualWidth - 20.0);
+			double ratio = Math.Clamp((pointerX - 10.0) / usableWidth, 0.0, 1.0);
+			double snapped = Math.Clamp(Math.Round(ratio * 85.0 / 5.0) * 5.0, 0.0, 85.0);
+			if (Math.Abs(_htCurrentDbHl - snapped) > 0.01)
+			{
+				_htCurrentDbHl = snapped;
+				if (_htDbLabel != null) _htDbLabel.Text = $"{_htCurrentDbHl:0} dB HL";
+				UpdateHtSliderVisual();
+				if (_hearingService?.IsPlaying == true)
+				{
+					_hearingService.UpdateTone(HearingTestService.TestFrequenciesHz[_htFreqIndex], _htCurrentDbHl, _htEar);
+				}
+			}
+		}
+
+		_htSliderHost.PointerPressed += (_, e) =>
+		{
+			if (_htSliderHost == null) return;
+			_htSliderDragging = true;
+			_htSliderHost.CapturePointer(e.Pointer);
+			UpdateHtSliderFromPointer(e.GetCurrentPoint(_htSliderHost).Position.X);
+			e.Handled = true;
+		};
+		_htSliderHost.PointerMoved += (_, e) =>
+		{
+			if (!_htSliderDragging || _htSliderHost == null) return;
+			UpdateHtSliderFromPointer(e.GetCurrentPoint(_htSliderHost).Position.X);
+			e.Handled = true;
+		};
+		_htSliderHost.PointerReleased += (_, e) =>
+		{
+			if (!_htSliderDragging || _htSliderHost == null) return;
+			_htSliderDragging = false;
+			_htSliderHost.ReleasePointerCapture(e.Pointer);
+			e.Handled = true;
+		};
+		_htSliderHost.PointerCanceled += (_, e) =>
+		{
+			if (_htSliderHost == null) return;
+			_htSliderDragging = false;
+			try { _htSliderHost.ReleasePointerCapture(e.Pointer); } catch { }
+			e.Handled = true;
+		};
+		_htSliderHost.SizeChanged += (_, _) => UpdateHtSliderVisual();
+		cStack.Children.Add(_htSliderHost);
+
+		var sliderTicks = new Grid { Margin = new Thickness(0, -6, 0, 0) };
+		sliderTicks.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		sliderTicks.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		sliderTicks.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+		sliderTicks.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+		var tick0 = new TextBlock { Text = "0", FontSize = 10.5, Opacity = 0.6 };
+		var tick25 = new TextBlock { Text = "25", FontSize = 10.5, Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center };
+		var tick50 = new TextBlock { Text = "50", FontSize = 10.5, Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center };
+		var tick85 = new TextBlock { Text = "85 dB HL", FontSize = 10.5, Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Right };
+		Grid.SetColumn(tick0, 0);
+		Grid.SetColumn(tick25, 1);
+		Grid.SetColumn(tick50, 2);
+		Grid.SetColumn(tick85, 3);
+		sliderTicks.Children.Add(tick0);
+		sliderTicks.Children.Add(tick25);
+		sliderTicks.Children.Add(tick50);
+		sliderTicks.Children.Add(tick85);
+		cStack.Children.Add(sliderTicks);
 
 		// Play/Stop + Audiometry Staircase Buttons
 		var actionGrid = new Grid { ColumnSpacing = 8, RowSpacing = 8 };
@@ -407,6 +497,18 @@ public sealed partial class ConverterPage
 		}
 	}
 
+	private void UpdateHtSliderVisual()
+	{
+		if (_htSliderHost == null || _htSliderFill == null || _htSliderThumb == null) return;
+		double hostWidth = _htSliderHost.ActualWidth;
+		if (hostWidth <= 20) return;
+		double usableWidth = hostWidth - 20.0;
+		double ratio = Math.Clamp(_htCurrentDbHl / 85.0, 0.0, 1.0);
+		double thumbX = ratio * usableWidth;
+		_htSliderFill.Width = Math.Max(0.0, thumbX + 10.0);
+		_htSliderThumb.Margin = new Thickness(thumbX, 0, 0, 0);
+	}
+
 	private void SelectHtFrequency(int index)
 	{
 		_htFreqIndex = Math.Clamp(index, 0, HearingTestService.TestFrequenciesHz.Length - 1);
@@ -414,9 +516,7 @@ public sealed partial class ConverterPage
 			? _htRightThresholds[_htFreqIndex]
 			: _htLeftThresholds[_htFreqIndex];
 		_htCurrentDbHl = existing;
-		_suppressHtSlider = true;
-		if (_htDbSlider != null) _htDbSlider.Value = _htCurrentDbHl;
-		_suppressHtSlider = false;
+		UpdateHtSliderVisual();
 		if (_htDbLabel != null) _htDbLabel.Text = $"{_htCurrentDbHl:0} dB HL";
 		UpdateHtOptionStyles();
 		if (_hearingService?.IsPlaying == true)
@@ -428,9 +528,7 @@ public sealed partial class ConverterPage
 	private void StepHtLevel(double deltaDb)
 	{
 		_htCurrentDbHl = Math.Clamp(_htCurrentDbHl + deltaDb, 0.0, 85.0);
-		_suppressHtSlider = true;
-		if (_htDbSlider != null) _htDbSlider.Value = _htCurrentDbHl;
-		_suppressHtSlider = false;
+		UpdateHtSliderVisual();
 		if (_htDbLabel != null) _htDbLabel.Text = $"{_htCurrentDbHl:0} dB HL";
 		if (_hearingService?.IsPlaying == true)
 		{

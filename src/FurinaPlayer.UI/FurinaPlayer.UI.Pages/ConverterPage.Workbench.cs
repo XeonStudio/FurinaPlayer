@@ -184,6 +184,8 @@ public sealed partial class ConverterPage
 		return btn;
 	}
 
+	public void SelectToolboxTab(string tabKey) => SwitchToolboxTab(tabKey);
+
 	private void SwitchToolboxTab(string tabKey)
 	{
 		if (_toolboxHostGrid == null) return;

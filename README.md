@@ -8,7 +8,7 @@
 
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11%20x64-0078D4?style=flat-square&logo=windows)](https://github.com/XeonStudio/FurinaPlayer)
 [![Framework](https://img.shields.io/badge/.NET-8.0%20%7C%20WinUI%203-512BD4?style=flat-square&logo=dotnet)](https://github.com/XeonStudio/FurinaPlayer)
-[![Version](https://img.shields.io/badge/Release-v1.32.00.0004.1125-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
+[![Version](https://img.shields.io/badge/Release-v1.33.01.0004.1126-38BDF8?style=flat-square)](https://github.com/XeonStudio/FurinaPlayer/releases)
 [![License](https://img.shields.io/badge/License-Apache--2.0-22C55E?style=flat-square)](LICENSE)
 
 </div>
@@ -61,20 +61,20 @@ DSP 机架包含 10 段参量均衡器、图形均衡与 Mix Assistant V2、OPRA
 
 曲库基于 SQLite 与 EF Core 管理，支持专辑与歌曲即时检索、鼠标拖拽排序收藏歌单、多线程完整性检查补齐、PowerPoint 与 Audition 风格双歌词主题、动态壁纸测试版以及支持自定义系统字体的芙宁娜桌面宠物。
 
-## 最近更新（v1.32.00.0004.1125）
+## 最近更新（v1.33.01.0004.1126）
 
-v1.32.00.0004.1125（2026-11-25）主要解决了四个使用体验问题：
+v1.33.01.0004.1126（2026-11-26）主要带来以下改进：
 
-- 重启后点击播放时，音频会真实定位到上次退出时保存的时间点，而不是保留进度条时间却从头播放。
-- 在 Audition DAW 与 PowerPoint 两种歌词主题下刷新歌词时，进度条和时间显示不再短暂跳回 `00:00`。
-- 在「专辑」和「歌曲」页面搜索框输入文字时只刷新列表区域，不会每输入一个字母就失去输入焦点。
-- 在「工具箱 → 听力检测与黄金听感」拖动听阈滑块到 60 至 85 dB HL 时，二级页面不再跟着滑块横向平移。
+- 设置侧边栏「备份与重置」字体大小现在与其他侧边栏选项保持一致。
+- 重新设计「工具箱 → 听力检测与黄金听感」中的测试音听阈滑块，拖动至 60 至 85 dB HL 时二级页面不会再跟随滑块横向平移。
+- PowerPoint 歌词主题改为读取并展示系统内已安装的全部字体，并修复专辑封面在异步加载时的显示问题。
+- 将启动会话恢复与封面大图解码移至后台异步执行，并加入界面刷新重入保护与节流，减少偶发未响应的情况。
 
-再早一版 v1.31.01.0002.1125 修复了音频编辑器点击「VST3 效果架」错位显示波形页面的问题，并将 `AudioEditService.LoadWav/ExportWav` 改为 64 KB 分块读写以消除高解析音频加载时的大对象堆内存峰值。
+上一版 v1.32.00.0004.1125（2026-11-25）修复了启动续播定位、两种歌词页主题刷新进度归零以及专辑/歌曲搜索框失焦等问题。
 
 ## 下载与构建
 
-前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载 `FurinaPlayer-v1.32.00.0004.1125-win-x64.zip`，解压后直接运行 `FurinaPlayer.exe` 即可（Windows 10 1809 或 Windows 11 64 位系统，包内已包含所需运行时）。
+前往 [Releases](https://github.com/XeonStudio/FurinaPlayer/releases) 下载 `FurinaPlayer-v1.33.01.0004.1126-win-x64.zip`，解压后直接运行 `FurinaPlayer.exe` 即可（Windows 10 1809 或 Windows 11 64 位系统，包内已包含所需运行时）。
 
 如果想从源码自行编译或跑一遍测试：
 
@@ -82,11 +82,11 @@ v1.32.00.0004.1125（2026-11-25）主要解决了四个使用体验问题：
 # 编译 Release x64 主程序
 dotnet build src\FurinaPlayer\FurinaPlayer.csproj -c Release -p:Platform=x64
 
-# 运行单元测试（250 项）
+# 运行单元测试（251 项）
 dotnet run --project src\FurinaPlayerDspTests\FurinaPlayerDspTests.csproj -c Release -p:Platform=x64
 ```
 
-仓库中的源码分为五个工程：`src/FurinaPlayer` 负责 WinUI 3 主窗口、托盘与桌面宠物；`src/FurinaPlayer.UI` 存放各页面与 ViewModel；`src/FurinaPlayer.Core` 管理曲库、封面歌词服务、多语言词典与设置；`src/FurinaPlayer.Audio` 实现播放后端与全部 DSP 算法；`src/FurinaPlayerDspTests` 为自动化测试套件（当前 250 / 250 通过）。
+仓库中的源码分为五个工程：`src/FurinaPlayer` 负责 WinUI 3 主窗口、托盘与桌面宠物；`src/FurinaPlayer.UI` 存放各页面与 ViewModel；`src/FurinaPlayer.Core` 管理曲库、封面歌词服务、多语言词典与设置；`src/FurinaPlayer.Audio` 实现播放后端与全部 DSP 算法；`src/FurinaPlayerDspTests` 为自动化测试套件（当前 251 / 251 通过）。
 
 ## 开源组件与接口致谢
 

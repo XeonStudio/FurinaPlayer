@@ -153,6 +153,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 	private const int MaxEnvelopeRetries = 4;
 	private string? _lastMeterTrackKey;
 	private bool? _lastMeterIsPlaying;
+	private bool _inMeterTick;
 
 	private void OnLoaded(object sender, RoutedEventArgs e)
 	{
@@ -732,17 +733,63 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		catch {}
 	}
 
-	private void SendSystemFonts()
+	private static string[]? s_cachedSystemFonts;
+
+	private static string[] GetAllInstalledSystemFonts()
 	{
-		var fonts = new string[]
+		if (s_cachedSystemFonts is { Length: > 0 } cached)
 		{
-			"Segoe UI", "Microsoft YaHei", "Arial", "Calibri", "Consolas", 
+			return cached;
+		}
+		try
+		{
+			var families = SkiaSharp.SKFontManager.Default.FontFamilies
+				.Where(f => !string.IsNullOrWhiteSpace(f))
+				.Select(f => f.Trim())
+				.Distinct(StringComparer.OrdinalIgnoreCase)
+				.OrderBy(f => f, StringComparer.CurrentCultureIgnoreCase)
+				.ToArray();
+			if (families.Length > 0)
+			{
+				s_cachedSystemFonts = families;
+				return families;
+			}
+		}
+		catch
+		{
+		}
+		return new[]
+		{
+			"Segoe UI", "Microsoft YaHei", "Arial", "Calibri", "Consolas",
 			"Cascadia Code", "SimSun", "SimHei", "KaiTi", "FangSong", "Comic Sans MS"
 		};
-		PostDawMessage(new
+	}
+
+	private void SendSystemFonts()
+	{
+		if (s_cachedSystemFonts is { Length: > 0 } cached)
 		{
-			type = "furinaplayer:powerpoint:systemFonts",
-			fonts
+			PostDawMessage(new
+			{
+				type = "furinaplayer:powerpoint:systemFonts",
+				fonts = cached
+			});
+			return;
+		}
+
+		var dq = DispatcherQueue;
+		_ = Task.Run(() =>
+		{
+			var fonts = GetAllInstalledSystemFonts();
+			dq?.TryEnqueue(() =>
+			{
+				if (_isUnloaded || _webView?.CoreWebView2 == null) return;
+				PostDawMessage(new
+				{
+					type = "furinaplayer:powerpoint:systemFonts",
+					fonts
+				});
+			});
 		});
 	}
 
@@ -938,7 +985,7 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			var dq = this.DispatcherQueue ?? DispatcherQueue.GetForCurrentThread();
 			if (dq == null) return;
 			_meterTimer = dq.CreateTimer();
-			_meterTimer.Interval = TimeSpan.FromMilliseconds(25);
+			_meterTimer.Interval = TimeSpan.FromMilliseconds(50);
 			_meterTimer.Tick += OnMeterTimerTick;
 		}
 		if (!_meterTimer.IsRunning)
@@ -986,7 +1033,8 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 
 	private void OnMeterTimerTick(DispatcherQueueTimer sender, object args)
 	{
-		if (!_isDawMode || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null || ViewModel == null) return;
+		if (_inMeterTick || !_isDawMode || !_dawReady || _isUnloaded || _webView?.CoreWebView2 == null || ViewModel == null) return;
+		_inMeterTick = true;
 
 		try
 		{
@@ -1063,6 +1111,10 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		catch (Exception ex)
 		{
 			Debug.WriteLine($"OnMeterTimerTick error: {ex.Message}");
+		}
+		finally
+		{
+			_inMeterTick = false;
 		}
 	}
 
@@ -1162,19 +1214,43 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			{
 				var activeTrack = GetAuthoritativeTrack();
 				string coverPath = !string.IsNullOrEmpty(activeTrack?.CoverPath) ? activeTrack.CoverPath : (ViewModel?.CoverPath ?? string.Empty);
-				string coverUrl = GetCoverDataUrl(coverPath);
 				string trackIdStr = FormatDawTrackId(activeTrack);
-				PostDawMessage(new
+				if (TryGetCachedCoverDataUrl(coverPath, out var cachedCover))
 				{
-					type = "furinaplayer:powerpoint:coverData",
-					coverDataUrl = coverUrl,
-					trackId = trackIdStr
-				});
-				PostDawMessage(new
+					PostDawMessage(new
+					{
+						type = "furinaplayer:powerpoint:coverData",
+						coverDataUrl = cachedCover,
+						trackId = trackIdStr
+					});
+					PostDawMessage(new
+					{
+						type = "furinaplayer:audition:coverData",
+						coverDataUrl = cachedCover,
+						trackId = trackIdStr
+					});
+					return;
+				}
+				var dq = DispatcherQueue;
+				_ = Task.Run(() =>
 				{
-					type = "furinaplayer:audition:coverData",
-					coverDataUrl = coverUrl,
-					trackId = trackIdStr
+					string coverUrl = GetCoverDataUrl(coverPath);
+					dq?.TryEnqueue(() =>
+					{
+						if (_isUnloaded || _webView?.CoreWebView2 == null) return;
+						PostDawMessage(new
+						{
+							type = "furinaplayer:powerpoint:coverData",
+							coverDataUrl = coverUrl,
+							trackId = trackIdStr
+						});
+						PostDawMessage(new
+						{
+							type = "furinaplayer:audition:coverData",
+							coverDataUrl = coverUrl,
+							trackId = trackIdStr
+						});
+					});
 				});
 				return;
 			}
@@ -1559,7 +1635,26 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 		string rawCoverPath = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.CoverPath)
 			? ViewModel.CoverPath
 			: (track?.CoverPath ?? ViewModel.CoverPath);
-		string coverUrl = GetCoverDataUrl(rawCoverPath);
+		bool coverCached = TryGetCachedCoverDataUrl(rawCoverPath, out string coverUrl);
+		if (!coverCached && !string.IsNullOrEmpty(rawCoverPath))
+		{
+			coverUrl = string.Empty;
+			var dqCover = DispatcherQueue;
+			string capturedPath = rawCoverPath;
+			string capturedTrackId = trackIdStr;
+			_ = Task.Run(() =>
+			{
+				string encoded = GetCoverDataUrl(capturedPath);
+				if (string.IsNullOrEmpty(encoded) || encoded == s_defaultCoverDataUrl) return;
+				dqCover?.TryEnqueue(() =>
+				{
+					if (_isUnloaded || _webView?.CoreWebView2 == null) return;
+					PostDawMessage(new { type = "furinaplayer:powerpoint:coverData", coverDataUrl = encoded, trackId = capturedTrackId });
+					PostDawMessage(new { type = "furinaplayer:audition:coverData", coverDataUrl = encoded, trackId = capturedTrackId });
+					PostDawMessage(new { protocolVersion = 1, type = "furinaplayer:workshop-ui:cover", trackId = capturedTrackId, coverUrl = encoded });
+				});
+			});
+		}
 		string title = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Title) ? ViewModel.Title : (track?.DisplayTitle ?? ViewModel.Title);
 		string artist = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Artist) ? ViewModel.Artist : (track?.Artist ?? ViewModel.Artist);
 		string album = vmMatchesTrack && !string.IsNullOrEmpty(ViewModel.Album) ? ViewModel.Album : (track?.Album ?? ViewModel.Album);
@@ -2325,6 +2420,35 @@ public sealed class NowPlayingPage : Page, IComponentConnector
 			s_coverDataUrlCache.Clear();
 		}
 		s_coverDataUrlCache[key] = value;
+	}
+
+	private static bool TryGetCachedCoverDataUrl(string? coverPath, out string dataUrl)
+	{
+		if (string.IsNullOrEmpty(coverPath))
+		{
+			dataUrl = s_defaultCoverDataUrl;
+			return true;
+		}
+		try
+		{
+			if (!File.Exists(coverPath))
+			{
+				dataUrl = s_defaultCoverDataUrl;
+				return true;
+			}
+			var fi = new FileInfo(coverPath);
+			string cacheKey = $"{coverPath}|{fi.Length}|{fi.LastWriteTimeUtc.Ticks}";
+			if (s_coverDataUrlCache.TryGetValue(cacheKey, out var cached))
+			{
+				dataUrl = cached;
+				return true;
+			}
+		}
+		catch
+		{
+		}
+		dataUrl = s_defaultCoverDataUrl;
+		return false;
 	}
 
 	private static string GetCoverDataUrl(string? coverPath)

@@ -2595,9 +2595,9 @@ public sealed class AudioSession : IDisposable
 				_lastPlaybackErrorAtUtc = DateTime.UtcNow;
 			}
 			Trace($"OnNaudioFailed attempt #{_naudioFailureRecoveryCount} ({errDetail ?? "unknown"}) -> scheduling hot recovery");
-			Task.Run(() =>
+			Task.Run(async () =>
 			{
-				Thread.Sleep(220);
+				await Task.Delay(220);
 				lock (_chainRestartLock)
 				{
 					if (failedSeq != Interlocked.Read(ref _sessionSwitchSeq) || CurrentTrack?.Id != track.Id)

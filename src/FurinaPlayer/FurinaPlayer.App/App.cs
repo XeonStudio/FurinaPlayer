@@ -231,10 +231,7 @@ public class App : Application, IXamlMetadataProvider
 			_window.ApplyFurinaPlayerAppearanceSettings();
 			Log("window activated");
 			ApplyWallpaperAsync(_settingsVm?.Settings ?? settings);
-			Task.Run(() =>
-			{
-				RestoreSession(settings);
-			});
+			_ = RestoreSessionAsync(settings);
 			if (Environment.GetCommandLineArgs().Contains("--capture-pages"))
 			{
 				_ = CapturePagesAsync(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FurinaPlayer", "screenshots"));
@@ -349,7 +346,7 @@ public class App : Application, IXamlMetadataProvider
 		}
 	}
 
-	private void RestoreSession(AppSettings settings)
+	private async Task RestoreSessionAsync(AppSettings settings)
 	{
 		try
 		{
@@ -357,7 +354,7 @@ public class App : Application, IXamlMetadataProvider
 			{
 				return;
 			}
-			List<Track> result = _library.GetAllTracksAsync().GetAwaiter().GetResult();
+			List<Track> result = await _library.GetAllTracksAsync().ConfigureAwait(false);
 			if (result.Count == 0)
 			{
 				return;
@@ -524,112 +521,37 @@ public class App : Application, IXamlMetadataProvider
 		try
 		{
 			Directory.CreateDirectory(outDir);
-			await Task.Delay(2500);
-			string[] pages = new string[] { "home", "streaming", "playing", "editor", "dsp", "settings" };
-			foreach (var page in pages)
+			if (_audioEngine != null)
 			{
-				_window?.DispatcherQueue.TryEnqueue(() =>
-				{
-					_window.NavigateTo(page);
-					if (page == "dsp" && _window.MainContentFrame?.Content is DspPage dp)
-					{
-						dp.SetDspViewCategory("vst3");
-					}
-				});
-				if (page == "playing")
+				_audioEngine.Volume = 1;
+			}
+			await Task.Delay(2500);
+
+			async Task RunOnUiAsync(Action action)
+			{
+				var tcs = new TaskCompletionSource<bool>();
+				if (_window?.DispatcherQueue.TryEnqueue(() =>
 				{
 					try
 					{
-						if (_library != null && _audioEngine != null)
-						{
-							var allTracks = await _library.GetAllTracksAsync();
-							var targetTrack = allTracks.FirstOrDefault(t => t.FilePath != null && t.FilePath.Contains("远航星")) ?? allTracks.FirstOrDefault(t => !string.IsNullOrEmpty(t.FilePath) && File.Exists(t.FilePath));
-							if (targetTrack != null && _audioEngine.CurrentTrack?.Id != targetTrack.Id)
-							{
-								_window?.DispatcherQueue.TryEnqueue(() =>
-								{
-									int idx = Math.Max(0, allTracks.IndexOf(targetTrack));
-									_audioEngine.SetQueue(allTracks, idx);
-									_audioEngine.PlayTrack(targetTrack);
-								});
-								await Task.Delay(1500);
-							}
-
-							if (_audioEngine.State != FurinaPlayer.Audio.PlaybackState.Playing)
-							{
-								_window?.DispatcherQueue.TryEnqueue(() =>
-								{
-									if (_audioEngine.CurrentTrack != null)
-									{
-										_audioEngine.Play();
-									}
-									else if (targetTrack != null)
-									{
-										int idx = Math.Max(0, allTracks.IndexOf(targetTrack));
-										_audioEngine.SetQueue(allTracks, idx);
-										_audioEngine.PlayTrack(targetTrack);
-									}
-								});
-								await Task.Delay(2000);
-							}
-						}
+						action();
+						tcs.TrySetResult(true);
 					}
-					catch { }
-					await Task.Delay(2500);
-					if (_window?.MainContentFrame?.Content is NowPlayingPage npPage)
+					catch (Exception ex)
 					{
-						string dawPath = Path.Combine(outDir, "playing_audition.png");
-						bool okDaw = await npPage.CaptureDawPreviewAsync(dawPath);
-						Log("Captured playing_audition.png: " + okDaw);
-
-						_window?.DispatcherQueue.TryEnqueue(() =>
-						{
-							npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.PowerPoint);
-						});
-						await Task.Delay(3000);
-						string pptPath = Path.Combine(outDir, "playing_powerpoint.png");
-						bool okPpt = await npPage.CaptureDawPreviewAsync(pptPath);
-						Log("Captured playing_powerpoint.png: " + okPpt);
-
-						_window?.DispatcherQueue.TryEnqueue(() =>
-						{
-							npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.Classic);
-						});
-						await Task.Delay(2500);
-						_window?.DispatcherQueue.TryEnqueue(async () =>
-						{
-							try
-							{
-								if (_window.Content is Microsoft.UI.Xaml.UIElement rootElem)
-								{
-									var rtbC = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
-									await rtbC.RenderAsync(rootElem);
-									var pixelBuf = await rtbC.GetPixelsAsync();
-									byte[] cBytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuf);
-									string cPath = Path.Combine(outDir, "playing_classic.png");
-									using var cFs = File.Open(cPath, FileMode.Create);
-									var cEnc = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(cFs));
-									cEnc.SetPixelData(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied, (uint)rtbC.PixelWidth, (uint)rtbC.PixelHeight, 96, 96, cBytes);
-									await cEnc.FlushAsync();
-									Log("Captured playing_classic.png");
-								}
-							}
-							catch (Exception ex)
-							{
-								Log("Classic capture error: " + ex);
-							}
-						});
-						await Task.Delay(2000);
-
-						// Keep in Classic mode so RenderTargetBitmap can safely render the XAML visual tree
-						await Task.Delay(500);
+						tcs.TrySetException(ex);
 					}
-				}
-				else
+				}) != true)
 				{
-					await Task.Delay(1200);
+					tcs.TrySetResult(false);
 				}
-				_window?.DispatcherQueue.TryEnqueue(async () =>
+				await tcs.Task;
+			}
+
+			async Task RenderRootOpaquePngAsync(string filePath)
+			{
+				var tcs = new TaskCompletionSource<bool>();
+				if (_window?.DispatcherQueue.TryEnqueue(async () =>
 				{
 					try
 					{
@@ -639,92 +561,105 @@ public class App : Application, IXamlMetadataProvider
 							await rtb.RenderAsync(root);
 							var pixelBuffer = await rtb.GetPixelsAsync();
 							byte[] bytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuffer);
-							string filePath = Path.Combine(outDir, page + ".png");
+							bool isDark = _window.Content is Microsoft.UI.Xaml.FrameworkElement fe &&
+								fe.ActualTheme == Microsoft.UI.Xaml.ElementTheme.Dark;
+							byte bgB = isDark ? (byte)32 : (byte)249;
+							byte bgG = isDark ? (byte)21 : (byte)245;
+							byte bgR = isDark ? (byte)15 : (byte)241;
+							for (int i = 0; i + 3 < bytes.Length; i += 4)
+							{
+								int a = bytes[i + 3];
+								int inv = 255 - a;
+								bytes[i] = (byte)Math.Clamp(bytes[i] + (bgB * inv + 127) / 255, 0, 255);
+								bytes[i + 1] = (byte)Math.Clamp(bytes[i + 1] + (bgG * inv + 127) / 255, 0, 255);
+								bytes[i + 2] = (byte)Math.Clamp(bytes[i + 2] + (bgR * inv + 127) / 255, 0, 255);
+								bytes[i + 3] = 255;
+							}
 							using var fileStream = File.Open(filePath, FileMode.Create);
-							var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fileStream));
+							var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(
+								Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId,
+								System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fileStream));
 							encoder.SetPixelData(
 								Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
-								Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied,
+								Windows.Graphics.Imaging.BitmapAlphaMode.Ignore,
 								(uint)rtb.PixelWidth,
 								(uint)rtb.PixelHeight,
 								96, 96, bytes);
 							await encoder.FlushAsync();
-							if (page == "playing")
-							{
-								string dawCap = Path.Combine(outDir, "playing_audition.png");
-								if (File.Exists(dawCap))
-								{
-									try
-									{
-										File.Copy(dawCap, filePath, overwrite: true);
-										Log("Replaced playing.png with live DAW preview screenshot");
-									}
-									catch { }
-								}
-							}
-							Log("Rendered page screenshot: " + filePath + " (" + rtb.PixelWidth + "x" + rtb.PixelHeight + ")");
+							Log("Rendered opaque screenshot: " + filePath + " (" + rtb.PixelWidth + "x" + rtb.PixelHeight + ")");
 						}
+						tcs.TrySetResult(true);
 					}
 					catch (Exception ex)
 					{
-						Log("Screenshot render failed for " + page + ": " + ex);
+						Log("Screenshot render failed for " + filePath + ": " + ex);
+						tcs.TrySetResult(false);
 					}
-				});
-				await Task.Delay(1000);
-
-				if (page == "dsp" && _window?.MainContentFrame?.Content is DspPage dpFree)
+				}) != true)
 				{
-					_window?.DispatcherQueue.TryEnqueue(() =>
-					{
-						dpFree.SetDspViewCategory("free");
-					});
-					await Task.Delay(1500);
-					_window?.DispatcherQueue.TryEnqueue(async () =>
-					{
-						try
-						{
-							if (_window.Content is Microsoft.UI.Xaml.UIElement rootFree)
-							{
-								var rtbF = new Microsoft.UI.Xaml.Media.Imaging.RenderTargetBitmap();
-								await rtbF.RenderAsync(rootFree);
-								var pixelBuf = await rtbF.GetPixelsAsync();
-								byte[] fBytes = System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeBufferExtensions.ToArray(pixelBuf);
-								string fPath = Path.Combine(outDir, "dsp_free.png");
-								using var fFs = File.Open(fPath, FileMode.Create);
-								var fEnc = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.PngEncoderId, System.IO.WindowsRuntimeStreamExtensions.AsRandomAccessStream(fFs));
-								fEnc.SetPixelData(Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8, Windows.Graphics.Imaging.BitmapAlphaMode.Premultiplied, (uint)rtbF.PixelWidth, (uint)rtbF.PixelHeight, 96, 96, fBytes);
-								await fEnc.FlushAsync();
-								Log("Captured dsp_free.png (" + rtbF.PixelWidth + "x" + rtbF.PixelHeight + ")");
-							}
-						}
-						catch (Exception ex)
-						{
-							Log("Captured dsp_free.png error: " + ex);
-						}
-					});
-					await Task.Delay(1500);
+					tcs.TrySetResult(false);
 				}
+				await tcs.Task;
 			}
 
-			// Copy to brain artifact directory
-			string artifactDir = @"C:\Users\Xeon\.gemini\antigravity\brain\f6fd29c5-40af-410c-9230-cce446de9781";
-			if (Directory.Exists(artifactDir))
+			// 1. Home
+			Log("Capture step 1: home");
+			await RunOnUiAsync(() =>
 			{
-				foreach (var file in Directory.GetFiles(outDir, "*.png"))
-				{
-					try
-					{
-						File.Copy(file, Path.Combine(artifactDir, Path.GetFileName(file)), overwrite: true);
-					}
-					catch { }
-				}
-			}
-			Log("CapturePagesAsync finished all pages successfully!");
-			await Task.Delay(1000);
-			_window?.DispatcherQueue.TryEnqueue(() =>
-			{
-				_window.Close();
+				_window?.NavigateTo("albums");
+				_window?.NavigateTo("home");
 			});
+			await Task.Delay(2000);
+			await RenderRootOpaquePngAsync(Path.Combine(outDir, "screen_home.png"));
+
+			// 2. DSP Settings
+			Log("Capture step 2: dsp");
+			await RunOnUiAsync(() => _window?.NavigateTo("dsp"));
+			await Task.Delay(2000);
+			await RenderRootOpaquePngAsync(Path.Combine(outDir, "screen_dsp.png"));
+
+			// 3. Audio Editor
+			Log("Capture step 3: editor");
+			await RunOnUiAsync(() => _window?.NavigateTo("editor"));
+			await Task.Delay(2200);
+			await RenderRootOpaquePngAsync(Path.Combine(outDir, "screen_editor.png"));
+
+			// 4. Toolbox -> Hearing Test
+			Log("Capture step 4: converter/hearing");
+			await RunOnUiAsync(() => _window?.NavigateTo("converter"));
+			await Task.Delay(800);
+			await RunOnUiAsync(() =>
+			{
+				if (_window?.MainContentFrame?.Content is ConverterPage cp)
+				{
+					cp.SelectToolboxTab("hearing");
+				}
+			});
+			await Task.Delay(1800);
+			await RenderRootOpaquePngAsync(Path.Combine(outDir, "screen_toolbox_hearing.png"));
+
+			// 5. Now Playing (AuditionDaw + PowerPoint)
+			Log("Capture step 5: playing");
+			await RunOnUiAsync(() => _window?.NavigateTo("playing"));
+			await Task.Delay(2500);
+			NowPlayingPage? npPage = null;
+			await RunOnUiAsync(() => npPage = _window?.MainContentFrame?.Content as NowPlayingPage);
+			if (npPage != null)
+			{
+				await RunOnUiAsync(() => npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.AuditionDaw));
+				await Task.Delay(3000);
+				bool okDaw = await npPage.CaptureDawPreviewAsync(Path.Combine(outDir, "screen_nowplaying_daw.png"));
+				Log("Captured screen_nowplaying_daw.png: " + okDaw);
+
+				await RunOnUiAsync(() => npPage.SetLyricsMode(NowPlayingPage.LyricsPageMode.PowerPoint));
+				await Task.Delay(3000);
+				bool okPpt = await npPage.CaptureDawPreviewAsync(Path.Combine(outDir, "screen_nowplaying_ppt.png"));
+				Log("Captured screen_nowplaying_ppt.png: " + okPpt);
+			}
+
+			Log("CapturePagesAsync finished all pages successfully!");
+			await Task.Delay(800);
+			await RunOnUiAsync(() => _window?.Close());
 		}
 		catch (Exception ex)
 		{

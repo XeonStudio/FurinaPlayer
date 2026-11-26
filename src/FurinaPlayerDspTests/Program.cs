@@ -74,6 +74,7 @@ class Program
 		NewFeatureTests.TestPlaybackArrayCopyCrashFixAndCheckRepairAssistants(Assert);
 		NewFeatureTests.TestLazyLibVlcAndAsyncDiagnostics(Assert);
 		NewFeatureTests.TestConcurrentAudioSessionPositionRead(Assert);
+		NewFeatureTests.TestSystemFontEnumeration(Assert);
 		OpraDeepVerification.Run();
 
 		Console.WriteLine("=================================================");

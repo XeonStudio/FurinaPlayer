@@ -2474,7 +2474,7 @@
       return;
     }
     // If we already loaded a verified high-res cover for this exact trackId, do not swap between furinaplayer-cover://large and data:image/jpeg on state ticks
-    if (effTrackId && effTrackId === lastCoverTrackId && state.currentCoverUrl && els.coverImg && els.coverImg.naturalWidth >= 256) {
+    if (effTrackId && effTrackId === lastCoverTrackId && state.currentCoverUrl && !state.currentCoverUrl.startsWith('data:image/svg+xml') && els.coverImg && els.coverImg.naturalWidth >= 256) {
       return;
     }
 
@@ -5539,7 +5539,10 @@
           break;
 
         case 'furinaplayer:powerpoint:systemFonts':
-          if (Array.isArray(msg.fonts)) populateFontSelector(msg.fonts);
+          if (Array.isArray(msg.fonts) && msg.fonts.length > 0) {
+            hostSystemFontsLoaded = true;
+            populateFontSelector(msg.fonts);
+          }
           break;
 
         case 'furinaplayer:powerpoint:fullLibrary':
@@ -5693,14 +5696,17 @@
     }
   }
 
+  let hostSystemFontsLoaded = false;
+
   function initSystemFonts() {
     const detected = detectInstalledSystemFonts();
-    if (detected && detected.length > 0) {
+    if (detected && detected.length > 0 && !hostSystemFontsLoaded) {
       populateFontSelector(detected);
     }
     sendModBridge('furinaplayer:powerpoint:getSystemFonts');
     if (typeof window.queryLocalFonts === 'function') {
       window.queryLocalFonts().then(fonts => {
+        if (hostSystemFontsLoaded) return;
         const set = new Set(detected);
         fonts.forEach(f => { if (f.family) set.add(f.family); });
         populateFontSelector(Array.from(set).sort());
